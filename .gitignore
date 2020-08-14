@@ -1,0 +1,30 @@
+# Dist files #
+##############
+/build
+/dist
+/doc/_build
+/vivarium_core.egg-info
+
+*.out
+out/
+.idea/
+*.iml
+
+# User files #
+################
+user/*
+!user/user.txt
+*.cprof
+
+# Compiled source #
+###################
+*.pyc
+__pycache__
+
+# OS generated files #
+######################
+.DS_Store
+.DS_Store?
+._*
+.python-version
+.pytest_cache

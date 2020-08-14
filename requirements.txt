@@ -1,0 +1,25 @@
+## How to set up a Python runtime environment for Vivarium.
+#
+## Create the "vivarium_env" python virtual environment and select it for your project
+## directory:
+#   cd ~/code/vivarium
+#   pyenv local 3.8.3
+#   pyenv virtualenv vivarium_env
+#   pyenv local vivarium_env
+#
+## Install NumPy first
+#   pip install numpy
+#
+## Install the packages listed in this file:
+#   pip install -r requirements.txt
+#   pyenv rehash
+
+confluent-kafka
+matplotlib
+networkx
+numpy
+Pint
+pymongo
+pytest
+scipy
+
