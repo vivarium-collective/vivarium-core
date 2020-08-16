@@ -6,12 +6,9 @@ from distutils.core import setup
 with open("README.md", 'r') as readme:
     long_description = readme.read()
 
-with open("requirements.txt", 'r') as requirements:
-    install_requires = list(requirements.read().splitlines())
-
 setup(
     name='vivarium-core',
-    version='0.0.1',
+    version='0.0.2',
     packages=[
         'vivarium',
         'vivarium.core',
@@ -27,4 +24,12 @@ setup(
     long_description_content_type='text/markdown',
     package_data={},
     include_package_data=True,
-    install_requires=install_requires)
+    install_requires=[
+        'confluent-kafka',
+        'matplotlib',
+        'networkx',
+        'numpy',
+        'Pint',
+        'pymongo',
+        'pytest',
+        'scipy'])
