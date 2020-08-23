@@ -8,10 +8,11 @@ with open("README.md", 'r') as readme:
 
 setup(
     name='vivarium-core',
-    version='0.0.4',
+    version='0.0.6',
     packages=[
         'vivarium',
         'vivarium.core',
+        'vivarium.processes',
         'vivarium.library'
     ],
     author='Eran Agmon, Ryan Spangler',

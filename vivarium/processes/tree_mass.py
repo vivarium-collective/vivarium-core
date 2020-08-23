@@ -1,10 +1,11 @@
 from __future__ import absolute_import, division, print_function
 
+from scipy import constants
+
 from vivarium.core.process import Deriver
 from vivarium.library.units import units
 
-from vivarium.processes.derive_globals import AVOGADRO
-
+AVOGADRO = constants.N_A * 1 / units.mol
 
 
 def calculate_mass(value, path, node):
