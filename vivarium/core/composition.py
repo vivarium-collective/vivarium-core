@@ -28,6 +28,8 @@ from vivarium.library.dict_utils import (
 )
 from vivarium.library.units import units
 
+from vivarium.processes.timeline import TimelineProcess
+
 
 REFERENCE_DATA_DIR = os.path.join('vivarium', 'reference_data')
 TEST_OUT_DIR = os.path.join('out', 'tests')
