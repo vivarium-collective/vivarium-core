@@ -24,6 +24,8 @@ def serialize_value(value):
         return serialize_dictionary(value)
     elif isinstance(value, list):
         return serialize_list(value)
+    elif isinstance(value, tuple):
+        return serialize_list(list(value))
     elif isinstance(value, np.ndarray):
         return serializer_registry.access('numpy').serialize(value)
     elif isinstance(value, Quantity):
