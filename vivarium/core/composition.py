@@ -29,6 +29,7 @@ from vivarium.library.dict_utils import (
 from vivarium.library.units import units
 
 from vivarium.processes.timeline import TimelineProcess
+from vivarium.processes.nonspatial_environment import NonSpatialEnvironment
 
 
 REFERENCE_DATA_DIR = os.path.join('vivarium', 'reference_data')
@@ -227,6 +228,38 @@ def process_in_experiment(process, settings={}):
     topology = {
         'process': {
             port: paths.get(port, (port,)) for port in process.ports_schema().keys()}}
+
+
+    if timeline:
+        # Adding a timeline to a process requires only the timeline
+        timeline_process = TimelineProcess({'timeline': timeline['timeline']})
+        processes.update({'timeline_process': timeline_process})
+        topology.update({
+            'timeline_process': {
+                port: (port,) for port in timeline_process.ports}})
+
+    if environment:
+        # Environment requires ports for external, fields, dimensions,
+        # and global (for location)
+        ports = environment.get(
+            'ports',
+            {
+                'external': ('external',),
+                'fields': ('fields',),
+                'dimensions': ('dimensions',),
+                'global': ('global',),
+            }
+        )
+        environment_process = NonSpatialEnvironment(environment)
+        processes.update({'environment_process': environment_process})
+        topology.update({
+            'environment_process': {
+                'external': ports['external'],
+                'fields': ports['fields'],
+                'dimensions': ports['dimensions'],
+                'global': ports['global'],
+            },
+        })
 
     # add derivers
     derivers = generate_derivers(processes, topology)
