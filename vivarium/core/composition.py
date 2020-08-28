@@ -14,10 +14,7 @@ from vivarium.core.emitter import (
     path_timeseries_from_embedded_timeseries,
     path_timeseries_from_data,
 )
-from vivarium.core.experiment import (
-    Experiment,
-    update_in,
-)
+from vivarium.core.experiment import Experiment
 from vivarium.core.process import Process, Deriver, Generator, generate_derivers
 from vivarium.core import emitter as emit
 from vivarium.library.dict_utils import (
@@ -628,6 +625,14 @@ def plot_agents_multigen(data, settings={}, out_dir='out', filename='agents'):
               with all the same value get removed
             * **skip_paths** (:py:class:`list`): entire path, including subpaths
               that won't be plotted
+            * **include_paths** (:py:class:`list`): list of full paths
+              to include. Overridden by skip_paths.
+            * **titles_map** (:py:class:`dict`): Map from path tuples to
+              strings to use as the figure titles for each path's plot.
+              If not provided, the path is shown as the title.
+            * **ylabels_map** (:py:class:`dict`): Map from path tuples to
+              strings to use as the y-axis labels for each path's plot.
+              If not specified, no y-axis label is used.
 
     TODO -- add legend with agent color
     '''
@@ -637,8 +642,11 @@ def plot_agents_multigen(data, settings={}, out_dir='out', filename='agents'):
     remove_zeros = settings.get('remove_zeros', False)
     remove_flat = settings.get('remove_flat', False)
     skip_paths = settings.get('skip_paths', [])
+    include_paths = settings.get('include_paths', None)
     title_size = settings.get('title_size', 16)
     tick_label_size = settings.get('tick_label_size', 12)
+    titles_map = settings.get('titles_map', dict())
+    ylabels_map = settings.get('ylabels_map', dict())
     time_vec = list(data.keys())
     timeseries = path_timeseries_from_data(data)
 
@@ -647,10 +655,13 @@ def plot_agents_multigen(data, settings={}, out_dir='out', filename='agents'):
     # is representative of later agents
     initial_agents = data[time_vec[0]][agents_key]
     # make the set of paths
-    port_schema_paths = set()
-    for agent_id, agent_data in initial_agents.items():
-        path_list = get_path_list_from_dict(agent_data)
-        port_schema_paths.update(path_list)
+    if include_paths is None:
+        port_schema_paths = set()
+        for agent_id, agent_data in initial_agents.items():
+            path_list = get_path_list_from_dict(agent_data)
+            port_schema_paths.update(path_list)
+    else:
+        port_schema_paths = set(include_paths)
     # make set of paths to remove
     remove_paths = set()
     for path, series in timeseries.items():
@@ -722,8 +733,10 @@ def plot_agents_multigen(data, settings={}, out_dir='out', filename='agents'):
                     which=tick_type,
                     labelsize=tick_label_size,
                 )
-            ax.title.set_text(path)
+            ax.title.set_text(titles_map.get(path, path))
             ax.title.set_fontsize(title_size)
+            if path in ylabels_map:
+                ax.set_ylabel(ylabels_map[path], fontsize=title_size)
             ax.set_xlim([time_vec[0], time_vec[-1]])
             ax.xaxis.get_offset_text().set_fontsize(tick_label_size)
             ax.yaxis.get_offset_text().set_fontsize(tick_label_size)

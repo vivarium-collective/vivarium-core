@@ -83,12 +83,11 @@ def assoc_path(d, path, value):
 def update_in(d, path, f):
     if path:
         head = path[0]
-        if len(path) == 1:
-            d[head] = f(d.get(head, None))
-        else:
-            if not head in d:
-                d[head] = {}
-            update_in(d[head], path[1:], f)
+        d.setdefault(head, {})
+        updated = copy.deepcopy(d)
+        updated[head] = update_in(d[head], path[1:], f)
+        return updated
+    return f(d)
 
 
 def dissoc(d, removing):
@@ -1066,7 +1065,12 @@ def inverse_topology(outer, update, topology):
                 for child, child_update in update.items():
                     inner = normalize_path(outer + path + (child,))
                     if isinstance(child_update, dict):
-                        update_in(inverse, inner, lambda current: deep_merge(current, child_update))
+                        inverse = update_in(
+                            inverse,
+                            inner,
+                            lambda current: deep_merge(
+                                current, child_update),
+                        )
                     else:
                         assoc_path(inverse, inner, child_update)
 
@@ -1090,7 +1094,11 @@ def inverse_topology(outer, update, topology):
             else:
                 inner = normalize_path(outer + path)
                 if isinstance(value, dict):
-                    update_in(inverse, inner, lambda current: deep_merge(current, value))
+                    inverse = update_in(
+                        inverse,
+                        inner,
+                        lambda current: deep_merge(current, value)
+                    )
                 else:
                     assoc_path(inverse, inner, value)
 
@@ -1532,7 +1540,7 @@ def test_in():
     assoc_path(blank, path, 5)
     print(blank)
     print(get_in(blank, path))
-    update_in(blank, path, lambda x: x + 6)
+    blank = update_in(blank, path, lambda x: x + 6)
     print(blank)
 
 
@@ -1861,6 +1869,124 @@ def test_parallel():
     log.debug(pf(experiment.state.divide_value()))
 
     experiment.end()
+
+
+class TestUpdateIn:
+    d = {
+        'foo': {
+            1: {
+                'a': 'b',
+            },
+        },
+        'bar': {
+            'c': 'd',
+        },
+    }
+
+    def test_simple(self):
+        updated = copy.deepcopy(self.d)
+        updated = update_in(
+            updated, ('foo', 1, 'a'), lambda current: 'updated')
+        expected = {
+            'foo': {
+                1: {
+                    'a': 'updated',
+                },
+            },
+            'bar': {
+                'c': 'd',
+            },
+        }
+        assert updated == expected
+
+    def test_add_leaf(self):
+        updated = copy.deepcopy(self.d)
+        updated = update_in(
+            updated, ('foo', 1, 'new'), lambda current: 'updated')
+        expected = {
+            'foo': {
+                1: {
+                    'a': 'b',
+                    'new': 'updated',
+                },
+            },
+            'bar': {
+                'c': 'd',
+            },
+        }
+        assert updated == expected
+
+    def test_add_dict(self):
+        updated = copy.deepcopy(self.d)
+        updated = update_in(
+            updated, ('foo', 2), lambda current: {'a': 'updated'})
+        expected = {
+            'foo': {
+                1: {
+                    'a': 'b',
+                },
+                2: {
+                    'a': 'updated',
+                },
+            },
+            'bar': {
+                'c': 'd',
+            },
+        }
+        assert updated == expected
+
+    def test_complex_merge(self):
+        updated = copy.deepcopy(self.d)
+        updated = update_in(
+            updated, ('foo',),
+            lambda current: deep_merge(
+                current,
+                {'foo': {'a': 'updated'}, 'b': 2}),
+            )
+        expected = {
+            'foo': {
+                'foo': {
+                    'a': 'updated',
+                },
+                'b': 2,
+                1: {
+                    'a': 'b',
+                },
+            },
+            'bar': {
+                'c': 'd',
+            },
+        }
+        assert updated == expected
+
+    def test_add_to_root(self):
+        updated = copy.deepcopy(self.d)
+        updated = update_in(
+            updated,
+            tuple(),
+            lambda current: deep_merge(current, ({'a': 'updated'})),
+        )
+        expected = {
+            'foo': {
+                1: {
+                    'a': 'b',
+                },
+            },
+            'bar': {
+                'c': 'd',
+            },
+            'a': 'updated'
+        }
+        assert updated == expected
+
+    def test_set_root(self):
+        updated = copy.deepcopy(self.d)
+        updated = update_in(
+            updated, tuple(), lambda current: {'a': 'updated'})
+        expected = {
+            'a': 'updated',
+        }
+        assert updated == expected
 
 
 def test_sine():
