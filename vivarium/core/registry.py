@@ -95,7 +95,7 @@ class Registry(object):
     def register(self, key, item):
         if key in self.registry:
             if item != self.registry[key]:
-                raise Exception('registry already contains an entry for {}: {}'.format(key, self.registry[key]))
+                raise Exception('registry already contains an entry for {}: {} --> {}'.format(key, self.registry[key], item))
         else:
             self.registry[key] = item
 
