@@ -8,11 +8,12 @@ def first_value(d):
 
 class Datum(dict):
     '''
-    The Datum class enables functions to be defined on dicts of a certain schema. 
+    The Datum class enables functions to be defined on dicts of a certain schema.
     It provides two class level variables:
-      * `defaults`: a dictionary of keys to default values this Datum will have if 
-           none is provided to __init__
-      * `schema`: a dictionary of keys to constructors which invoke subdata. 
+
+    * `defaults`: a dictionary of keys to default values this Datum will have if
+      none is provided to __init__
+    * `schema`: a dictionary of keys to constructors which invoke subdata.
 
     Once these are defined, a Datum subclass can be constructed with a dict that provides any
     values beyond the defaults, and then all of the defined methods for that Datum subclass
@@ -49,4 +50,4 @@ class Datum(dict):
         return str(type(self)) + ': ' + str({
             key: value for key, value in self.items()})
 
-    
+

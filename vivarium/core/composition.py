@@ -66,15 +66,19 @@ def agent_environment_experiment(
         settings=None,
         invoke=None,
 ):
-    """ Make an experiment with agents placed in an environment under an `agents` store.
-     Arguments:
-        * **agents_config**: the configuration for the agents
-        * **environment_config**: the configuration for the environment
-        * **initial_state**: the initial state for the hierarchy, with environment at the
-          top level.
-        * **initial_agent_state**: the initial_state for agents, set under each agent_id.
-        * **settings**: settings include **emitter** and **agent_names**.
-        * **invoke**: is the invoke object for calling updates.
+    """Make an experiment with agents placed in an environment under an `agents` store.
+
+    Arguments:
+        agents_config: the configuration for the agents
+        environment_config: the configuration for the environment
+        initial_state: the initial state for the hierarchy, with
+            environment at the top level.
+        initial_agent_state: the initial_state for agents, set under each agent_id.
+        settings: settings include **emitter** and **agent_names**.
+        invoke: is the invoke object for calling updates.
+
+    Returns:
+        The experiment.
     """
     if settings is None:
         settings = {}
@@ -610,10 +614,12 @@ def order_list_of_paths(path_list):
     return forward_order
 
 def plot_agents_multigen(data, settings={}, out_dir='out', filename='agents'):
-    '''
+    '''Plot values over time for multiple agents and generations
+
     Plot multi-agent simulation output, with all agents data combined for every
     corresponding path in their stores.
-    Arguments::
+
+    Arguments:
         data (dict): This is raw_data obtained from simulation output
         settings (dict): Accepts the following keys:
 

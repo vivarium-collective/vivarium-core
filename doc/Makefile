@@ -7,14 +7,25 @@ SPHINXOPTS    ?=
 SPHINXBUILD   ?= sphinx-build
 SOURCEDIR     = .
 BUILDDIR      = _build
+APIDOCDIR     = reference/api
+CODESOURCE    = ../vivarium/
 
 # Put it first so that "make" without argument is like "make help".
 help:
 	@$(SPHINXBUILD) -M help "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
 
-.PHONY: help Makefile
+.PHONY: help Makefile clean
+
+clean:
+	@rm -rf _build/*
+	@rm -rf "$(APIDOCDIR)/*"
+
+# Run sphinx-apidoc to generate the API documentation skeleton files
+apidoc:
+	@rm -rf "$(APIDOCDIR)/*"
+	@sphinx-apidoc -feo "$(APIDOCDIR)" "$(CODESOURCE)"
 
 # Catch-all target: route all unknown targets to Sphinx using the new
 # "make mode" option.  $(O) is meant as a shortcut for $(SPHINXOPTS).
-%: Makefile
+%: Makefile apidoc
 	@$(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)

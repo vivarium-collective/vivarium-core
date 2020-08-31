@@ -1,7 +1,7 @@
 """
-==============================================
+===============================================
 Registry of Updaters, Dividers, and Serializers
-==============================================
+===============================================
 
 You should interpret words and phrases that appear fully capitalized in
 this document as described in :rfc:`2119`. Here is a brief summary of

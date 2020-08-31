@@ -69,6 +69,7 @@ def flatten_port_dicts(dicts):
     '''
     Input:
         dicts (dict): embedded state dictionaries with the {'port_id': {'state_id': state_value}}
+
     Return:
         merge (dict): flattened dictionary with {'state_id_port_id': value}
     '''
@@ -82,6 +83,7 @@ def tuplify_port_dicts(dicts):
     '''
     Input:
         dicts (dict): embedded state dictionaries with the {'port_id': {'state_id': state_value}}
+
     Return:
         merge (dict): tuplified dictionary with {(port_id','state_id'): value}
     '''
