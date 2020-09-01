@@ -18,7 +18,7 @@ help:
 
 clean:
 	@rm -rf _build/*
-	@rm -rf "$(APIDOCDIR)/*"
+	@rm -rf $(APIDOCDIR)/*
 
 # Run sphinx-apidoc to generate the API documentation skeleton files
 apidoc:
