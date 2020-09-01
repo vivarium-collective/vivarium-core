@@ -58,7 +58,7 @@ the functions:
 
 * :py:func:`vivarium.core.emitter.path_timeseries_from_data` to get a
   path timeseries
-* :py:func:`vivariumcore.emitter.timeseries_from_data` to get an
+* :py:func:`vivarium.core.emitter.timeseries_from_data` to get an
   embedded timeseries
 
 -------------------

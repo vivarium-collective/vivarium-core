@@ -1518,8 +1518,7 @@ following symbols have special meanings in hierarchy paths:
 * ``..`` refers to a parent node. One example use for this is a division
   process that needs to access the parent (environment) compartment to
   create the daughter cells. In fact, this is what we do in the growth
-  and division compartment:
-  :py:class:`vivarium.compartments.growth_division`.
+  and division compartment.
 * ``*`` is a wild-card that refers to all the children of a node. For
   example, ``(*, )`` in our topology example above would refer to the
   ``cell`` and ``global`` stores, as well as the ``injector``,

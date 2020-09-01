@@ -84,4 +84,3 @@ autodoc_mock_imports = [
 ]
 # Concatenate class and __init__ docstrings
 autoclass_content = 'both'
-

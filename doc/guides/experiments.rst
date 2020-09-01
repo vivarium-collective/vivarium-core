@@ -54,7 +54,7 @@ steps are:
 #. Instantiate the compartment that your experiment will simulate.
 #. Generate the processes and topology dictionaries that describe the
    compartment using
-   :py:meth:`vivarium.core.experiment.Compartment.generate`.
+   :py:meth:`vivarium.core.process.Generator.generate`.
 #. Instantiate the experiment, passing along the processes and topology
    dictionaries. We also specify the :term:`emitter` the experiment
    should send data to and the initial state of the model. If we don't

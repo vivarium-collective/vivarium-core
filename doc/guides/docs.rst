@@ -48,9 +48,9 @@ We write four kinds of documentation for Vivarium:
   aren't user-facing and the auto-generated titles on each page.
 
     * For an example of reference documentation that defines an API, see
-      :py:mod:`vivarium.processes.death`. For an example of
-      documentation that explains how to use a process, look at
-      :py:mod:`vivarium.processes.metabolism`.
+      the ``death`` process. For an example of documentation that
+      explains how to use a process, look at the ``metabolism`` process
+      (both are in ``vivarium-cell``).
 
       .. note::
           From the compiled HTML reference documentation, you can click

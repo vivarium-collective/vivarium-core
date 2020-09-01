@@ -73,7 +73,7 @@ create instances of these classes to make the processes we want to
 compose. If a process is configurable, we might provide a dictionary of
 configuration options. For information on configuring a process, see the
 process's documentation, e.g.
-:py:class:`vivarium.processes.ode_expression.ODE_expression`.
+:py:class:`vivarium.processes.tree_mass.TreeMass`.
 
 We uniquely name each process in the compartment. This lets us include
 instances of the same process class.
@@ -126,12 +126,12 @@ How Processes Define Ports
 A process specifies its port names in its constructor by calling the
 superclass (:py:class:`vivarium.core.process.Process`)
 constructor. For example, the
-:py:class:`vivarium.processes.convenience_kinetics.ConvenienceKinetics`
+:py:class:`vivarium.processes.tree_mass.TreeMass`
 class contains this line:
 
 .. code-block:: python
 
-    super(ConvenienceKinetics, self).__init__(ports, parameters)
+    super(TreeMass, self).__init__(parameters)
 
 The ``ports`` variable takes the form of a dictionary with port names as
 keys and lists of variable names as values. For example, if ``ports``
@@ -211,9 +211,8 @@ Example Compartment
 
 To put all this information together, let's take a look at an example
 compartment that combines the glucose phosphorylation process from the
-:py:doc:`process-writing tutorial <../tutorials/write_process>` with
-:py:class:`vivarium.processes.injector`, which lets us "inject"
-molecules into a store.
+:py:doc:`process-writing tutorial <../tutorials/write_process>` with an
+injector, which lets us "inject" molecules into a store.
 
 .. code-block:: python
 

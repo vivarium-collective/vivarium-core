@@ -67,8 +67,8 @@ that the concentrations of our enzyme and substrates are constant
 throughout the cell.
 
 .. note:: If you actually wanted to model a reaction like this, the
-    :py:mod:`vivarium.processes.convenience_kinetics` process can be
-    configured to model any Michaelis-Menten enzyme kinetics.
+   ``ConvenienceKinetics`` process can be configured to model any
+   Michaelis-Menten enzyme kinetics.
 
 Translate Model into Updates
 ----------------------------

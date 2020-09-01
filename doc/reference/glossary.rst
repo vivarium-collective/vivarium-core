@@ -52,9 +52,9 @@ Glossary
         :term:`timepoint` and compute values from the state of the
         model. These computed values are generally stored in the
         ``global`` :term:`store`. For example, one common deriver uses
-        the cell's mass and density to compute the volume. For details
-        on the particular derivers available, see the documentation for
-        :py:mod:`vivarium.core.repository`.
+        the cell's mass and density to compute the volume. Derivers are
+        written just like processes, except with a different superclass,
+        :py:class:`vivarium.core.process.Deriver`.
 
     Divider
     divider
@@ -66,7 +66,7 @@ Glossary
         of the variable in the mother cell to each of the daughter
         cells. We assign a divider to each variable in the
         :term:`schema`. For more details, see the documentation for
-        :py:mod:`vivarium.core.repository`.
+        :py:mod:`vivarium.core.registry`.
 
     Embedded Timeseries
     Embedded timeseries
@@ -371,7 +371,7 @@ Glossary
         model state to produce the updated state. For example, the
         update could be added to the old value or replace it. Updaters
         are described in more detail in the documentation for
-        :py:mod:`vivarium.core.repository`.
+        :py:mod:`vivarium.core.registry`.
 
     Variable
     variable

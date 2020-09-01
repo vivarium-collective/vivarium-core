@@ -57,24 +57,6 @@ the variables in each of the daughter cells.
 .. note:: Dividers MAY not be deterministic and MAY not be symmetric.
     For example, a divider splitting an odd, integer-valued value may
     randomly decide which daughter cell receives the remainder.
-
---------
-Derivers
---------
-
-Each :term:`deriver` is defined as a separate :term:`process`, but here
-deriver names are mapped to processes by :py:data:`deriver_registry`. The
-available derivers are:
-
-* **mmol_to_counts**: :py:class:`vivarium.processes.derive_counts.DeriveCounts`
-* **counts_to_mmol**:
-  :py:class:`vivarium.processes.derive_concentrations.DeriveConcentrations`
-* **mass**: :py:class:`vivarium.processes.tree_mass.TreeMass`
-* **globals**:
-  :py:class:`vivarium.processes.derive_globals.DeriveGlobals`
-
-See the documentation for each :term:`process class` for more details on
-that deriver.
 """
 
 
