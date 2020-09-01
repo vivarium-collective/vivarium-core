@@ -8,6 +8,7 @@ Submodules
    :maxdepth: 4
 
    vivarium.processes.glucose_phosphorylation
+   vivarium.processes.injector
    vivarium.processes.meta_division
    vivarium.processes.nonspatial_environment
    vivarium.processes.template_process

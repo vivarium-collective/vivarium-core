@@ -8,6 +8,7 @@ Subpackages
    :maxdepth: 4
 
    vivarium.core
+   vivarium.experiments
    vivarium.library
    vivarium.processes
 
