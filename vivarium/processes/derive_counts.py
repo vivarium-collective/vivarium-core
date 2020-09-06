@@ -2,7 +2,19 @@ from __future__ import absolute_import, division, print_function
 
 from vivarium.core.process import Deriver
 from vivarium.library.units import units
-from cell.processes.derive_globals import get_default_global_state
+from vivarium.processes.tree_mass import AVOGADRO
+
+
+
+def get_default_global_state():
+    mass = 1000 * units.fg
+    density = 1100 * units.g / units.L
+    volume = mass / density
+    mmol_to_counts = (AVOGADRO * volume)
+    return {
+        'global': {
+            'volume': volume.to('fL'),
+            'mmol_to_counts': mmol_to_counts.to('L/mmol')}}
 
 
 

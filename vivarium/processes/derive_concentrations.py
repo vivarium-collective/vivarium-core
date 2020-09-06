@@ -2,7 +2,7 @@ from __future__ import absolute_import, division, print_function
 
 from vivarium.core.process import Deriver
 from vivarium.library.units import units
-from cell.processes.derive_globals import get_default_global_state
+from vivarium.processes.derive_counts import get_default_global_state
 
 
 
