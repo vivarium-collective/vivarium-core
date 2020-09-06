@@ -424,13 +424,11 @@ def plot_compartment_topology(compartment, settings, out_dir='out', filename='to
     # plot
     nx.draw_networkx_nodes(G, pos,
                            nodelist=process_nodes,
-                           with_labels=True,
                            node_color=process_rgb,
                            node_size=node_size,
                            node_shape='s')
     nx.draw_networkx_nodes(G, pos,
                            nodelist=store_nodes,
-                           with_labels=True,
                            node_color=store_rgb,
                            node_size=node_size,
                            node_shape='o')
