@@ -19,7 +19,35 @@ class TimelineProcess(Process):
     def __init__(self, parameters=None):
         super(TimelineProcess, self).__init__(parameters)
 
-        self.timeline = self.parameters['timeline']
+        # sort the timeline
+        timeline = []
+        for new_event in self.parameters['timeline']:
+            if not timeline:
+                timeline.append(new_event)
+                continue
+
+            new_time = new_event[0]
+            for event_index, event in enumerate(timeline):
+                time = event[0]
+                if new_time == time:
+                    # merge events
+                    timeline[event_index][1].update(new_event[1])
+                    break
+                elif event_index == len(timeline) - 1:
+                    # append as last event
+                    timeline.append(new_event)
+                    break
+                elif new_time < time:
+                    # next
+                    continue
+                elif new_time > time:
+                    next_time = timeline[event_index + 1][0]
+                    if new_time < next_time:
+                        # add event into middle of timeline
+                        timeline = timeline[:event_index + 1] + [new_event] + timeline[event_index + 2:]
+                        break
+
+        self.timeline = timeline
 
         # get ports
         self.ports = {'global': ['time']}
