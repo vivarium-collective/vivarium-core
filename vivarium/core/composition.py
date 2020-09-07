@@ -351,7 +351,8 @@ def simulate_experiment(experiment, settings={}):
     return_raw_data = settings.get('return_raw_data', False)
 
     if 'timeline' in settings:
-        total_time = settings['timeline']['timeline'][-1][0]
+        all_times = [t[0] for t in settings['timeline']['timeline']]
+        total_time = max(all_times)
 
     # run simulation
     experiment.update(total_time)
