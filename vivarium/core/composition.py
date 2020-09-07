@@ -229,7 +229,7 @@ def process_in_experiment(process, settings={}):
 
     if timeline:
         # Adding a timeline to a process requires only the timeline
-        timeline_process = TimelineProcess({'timeline': timeline['timeline']})
+        timeline_process = TimelineProcess(timeline)
         processes.update({'timeline_process': timeline_process})
         topology.update({
             'timeline_process': {
@@ -284,7 +284,7 @@ def compartment_in_experiment(compartment, settings={}):
     if timeline is not None:
         # Environment requires ports for all states defined in the timeline, and a global port
         ports = timeline['ports']
-        timeline_process = TimelineProcess({'timeline': timeline['timeline']})
+        timeline_process = TimelineProcess(timeline)
         processes.update({'timeline_process': timeline_process})
         if 'global' not in ports:
             ports['global'] = ('global',)

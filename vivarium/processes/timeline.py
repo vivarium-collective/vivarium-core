@@ -2,6 +2,8 @@ from __future__ import absolute_import, division, print_function
 
 import copy
 
+import logging as log
+
 from vivarium.library.dict_utils import deep_merge_combine_lists
 from vivarium.core.process import Process, Generator
 
@@ -11,14 +13,13 @@ class TimelineProcess(Process):
     name = 'timeline'
 
     defaults = {
+        'time_step': 1.0,
         'timeline': []}
 
-    def __init__(self, initial_parameters=None):
-        if initial_parameters is None:
-            initial_parameters = {}
+    def __init__(self, parameters=None):
+        super(TimelineProcess, self).__init__(parameters)
 
-        self.timeline = copy.deepcopy(
-            self.or_default(initial_parameters, 'timeline'))
+        self.timeline = self.parameters['timeline']
 
         # get ports
         self.ports = {'global': ['time']}
@@ -26,9 +27,6 @@ class TimelineProcess(Process):
             for state in event[1].keys():
                 port = {state[0]: [state[1:]]}
                 self.ports = deep_merge_combine_lists(self.ports, port)
-
-        parameters = {'timeline': self.timeline}
-        super(TimelineProcess, self).__init__(parameters)
 
     def ports_schema(self):
 
@@ -59,6 +57,7 @@ class TimelineProcess(Process):
                         '_value': value,
                         '_updater': 'set'}
                 self.timeline.pop(0)
+                log.info('timeline update: {}'.format(update))
         return update
 
 
