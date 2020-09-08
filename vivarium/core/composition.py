@@ -115,7 +115,7 @@ def agent_environment_experiment(
                     agent_id: initial_agent_state
                     for agent_id in agent_ids})
 
-    if 'agents' in initial_state:
+    if 'agents' in initial_state and 'diffusion' in environment_config['config']:
         environment_config[
             'config']['diffusion']['agents'] = initial_state['agents']
 
