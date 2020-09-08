@@ -78,6 +78,8 @@ def agent_environment_experiment(
     """
     if settings is None:
         settings = {}
+    if initial_state is None:
+        initial_state = {}
 
     # experiment settings
     emitter = settings.get('emitter', {'type': 'timeseries'})
