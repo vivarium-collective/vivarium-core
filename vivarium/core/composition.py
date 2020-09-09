@@ -578,7 +578,10 @@ def plot_simulation_output(timeseries_raw, settings={}, out_dir='out', filename=
 
                 # plot the series
                 ax.plot(time_vec, series)
-                ax.title.set_text(str(port) + ': ' + str(state_id))
+                if isinstance(state_id, tuple):
+                    # new line for each store
+                    state_id = '\n'.join(state_id)
+                ax.title.set_text(str(port) + '\n' + str(state_id))
 
             if row_idx == columns[col_idx]-1:
                 # if last row of column
@@ -683,11 +686,16 @@ def plot_agents_multigen(data, settings={}, out_dir='out', filename='agents'):
     port_schema_paths = [path for path in port_schema_paths if path not in remove_paths]
     top_ports = set([path[0] for path in port_schema_paths])
 
-    # get port columns, assign subplot locations
+    # get list of states for each port
     port_rows = {port_id: [] for port_id in top_ports}
     for path in port_schema_paths:
         top_port = path[0]
         port_rows[top_port].append(path)
+
+    # sort each port by second element
+    for port_id, path_list in port_rows.items():
+        sorted_path = sorted(path_list, key=lambda x: x[1])
+        port_rows[port_id] = sorted_path
 
     highest_row = 0
     row_idx = 0
@@ -734,7 +742,11 @@ def plot_agents_multigen(data, settings={}, out_dir='out', filename='agents'):
                     which=tick_type,
                     labelsize=tick_label_size,
                 )
-            ax.title.set_text(titles_map.get(path, path))
+            state_title = titles_map.get(path, path)
+            if isinstance(state_title, tuple):
+                # new line for each store
+                state_title = ' \n'.join(state_title)
+            ax.title.set_text(state_title)
             ax.title.set_fontsize(title_size)
             if path in ylabels_map:
                 ax.set_ylabel(ylabels_map[path], fontsize=title_size)
