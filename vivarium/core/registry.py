@@ -70,8 +70,6 @@ available derivers are:
 * **counts_to_mmol**:
   :py:class:`vivarium.processes.derive_concentrations.DeriveConcentrations`
 * **mass**: :py:class:`vivarium.processes.tree_mass.TreeMass`
-* **globals**:
-  :py:class:`vivarium.processes.derive_globals.DeriveGlobals`
 
 See the documentation for each :term:`process class` for more details on
 that deriver.
