@@ -18,6 +18,7 @@ class NonSpatialEnvironment(Deriver):
     name = 'nonspatial_environment'
     defaults = {
         'volume': 1e-12 * units.L,
+        'concentrations': {},
     }
 
     def __init__(self, parameters=None):
@@ -25,14 +26,13 @@ class NonSpatialEnvironment(Deriver):
         volume = parameters.get('volume', self.defaults['volume'])
         self.mmol_to_counts = (AVOGADRO.to('1/mmol') * volume).to('L/mmol')
 
-
     def ports_schema(self):
         bin_x = 1 * units.um
         bin_y = 1 * units.um
         depth = self.parameters['volume'] / bin_x / bin_y
         n_bin_x = 1
         n_bin_y = 1
-        return {
+        schema = {
             'external': {
                 '*': {
                     '_value': 0,
@@ -40,7 +40,7 @@ class NonSpatialEnvironment(Deriver):
             },
             'fields': {
                 '*': {
-                    '_value': np.ones((1, 1)),
+                    '_default': np.ones((1, 1)),
                 },
             },
             'dimensions': {
@@ -66,6 +66,13 @@ class NonSpatialEnvironment(Deriver):
                 }
             },
         }
+        # add field concentrations
+        field_schema = {
+            field_id: {
+                '_value': np.array([[conc]])
+            } for field_id, conc in self.parameters['concentrations'].items()}
+        schema['fields'].update(field_schema)
+        return schema
 
     def next_update(self, timestep, states):
         fields = states['fields']
