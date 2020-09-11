@@ -418,16 +418,17 @@ class Store(object):
         '''
 
         if path:
-            step = path[0]
-            if step == '..':
+            first_step = path[0]
+            if first_step == '..':
                 child = self.outer
             else:
-                child = self.inner.get(step)
+                child = self.inner.get(first_step)
 
             if child:
                 return child.get_path(path[1:])
             else:
                 # TODO: more handling for bad paths?
+                # TODO: check deleted?
                 return None
         else:
             return self
@@ -805,7 +806,12 @@ class Store(object):
                     if path is None:
                         path = (key,)
                     node = self.get_path(path)
-                    state[key] = node.schema_topology(subschema, {})
+                    if node:
+                        state[key] = node.schema_topology(subschema, {})
+                    else:
+                        # node is None, it was likely deleted
+                        print('{} is None'.format(path))
+                        # import ipdb; ipdb.set_trace()
 
         return state
 
