@@ -811,7 +811,6 @@ class Store(object):
                     else:
                         # node is None, it was likely deleted
                         print('{} is None'.format(path))
-                        # import ipdb; ipdb.set_trace()
 
         return state
 
