@@ -2075,7 +2075,7 @@ def test_depth():
     assert dissected[('A', 'AB', 'ABC')] == 11
 
 
-def test_depth():
+def test_deletion():
     nested = {
         'A': {
             'AA': 5,
