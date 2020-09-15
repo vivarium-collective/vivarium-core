@@ -157,7 +157,7 @@ updater_registry = Registry()
 updater_registry.register('accumulate', update_accumulate)
 updater_registry.register('set', update_set)
 updater_registry.register('merge', update_merge)
-updater_registry.register('nonnegative_accumulate', update_nonzero_accumulate)
+updater_registry.register('nonnegative_accumulate', update_nonnegative_accumulate)
 
 
 ## divider functions
