@@ -38,9 +38,16 @@ EXPERIMENT_OUT_DIR = os.path.join('out', 'experiments')
 
 # loading functions
 def make_agents(agent_ids, compartment, config=None):
+    """ Generate agents for each id
+    Arguments:
+    * **agent_ids**: list of agent ids
+    * **compartment**: the compartment of the agent type
+    * **config**: comparment configuration
+    Returns:
+        the intialized agent processes and topology
+    """
     if config is None:
         config = {}
-
     processes = {}
     topology = {}
     for agent_id in agent_ids:
@@ -56,6 +63,24 @@ def make_agents(agent_ids, compartment, config=None):
     return {
         'processes': processes,
         'topology': topology}
+
+
+def make_agent_ids(agents_config):
+    """ Add agent ids to an agent config """
+    agent_ids = []
+    for config in agents_config:
+        number = config.get('number', 1)
+        if 'name' in config:
+            name = config['name']
+            if number > 1:
+                new_agent_ids = [name + '_' + str(num) for num in range(number)]
+            else:
+                new_agent_ids = [name]
+        else:
+            new_agent_ids = [str(uuid.uuid1()) for num in range(number)]
+        config['ids'] = new_agent_ids
+        agent_ids.extend(new_agent_ids)
+    return agent_ids
 
 
 def agent_environment_experiment(

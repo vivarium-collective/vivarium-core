@@ -706,7 +706,7 @@ class Store(object):
                 for daughter, state in zip(daughters, states):
                     daughter_id = daughter['daughter']
 
-                    # use initiapl state as default, merge in divided values
+                    # use initial state as default, merge in divided values
                     initial_state = deep_merge(
                         initial_state,
                         state)
