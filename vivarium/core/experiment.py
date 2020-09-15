@@ -44,9 +44,15 @@ from vivarium.core.registry import (
 
 INFINITY = float('inf')
 VERBOSE = False
+EMPTY_UPDATES = None, None, None
 
 log.basicConfig(level=os.environ.get("LOGLEVEL", log.WARNING))
 
+
+def starts_with(l, sub):
+    return len(sub) <= len(l) and all(
+        l[i] == el
+        for i, el in enumerate(sub))
 
 # Store
 def key_for_value(d, looking):
@@ -95,6 +101,35 @@ def dissoc(d, removing):
         key: value
         for key, value in d.items()
         if key not in removing}
+
+
+def delete_in(d, path):
+    if len(path) > 0:
+        head = path[0]
+        if len(path) == 1:
+            # at the node to be deleted
+            del d[head]
+        elif head in d:
+            down = d[head]
+            delete_in(d[head], path[1:])
+
+
+def depth(tree, path=()):
+    '''
+    Create a mapping of every path in the tree to the node living at
+    that path in the tree.
+    '''
+
+    base = {}
+
+    for key, inner in tree.items():
+        down = tuple(path + (key,))
+        if isinstance(inner, dict):
+            base.update(depth(inner, down))
+        else:
+            base[down] = inner
+
+    return base
 
 
 def without(d, removing):
@@ -167,7 +202,6 @@ class Store(object):
         self.divider = None
         self.emit = False
         self.sources = {}
-        self.deleted = False
         self.leaf = False
         self.serializer = None
 
@@ -428,6 +462,7 @@ class Store(object):
                 return child.get_path(path[1:])
             else:
                 # TODO: more handling for bad paths?
+                # TODO: check deleted?
                 return None
         else:
             return self
@@ -480,17 +515,6 @@ class Store(object):
                     else:
                         return self.value
 
-    def mark_deleted(self):
-        '''
-        When nodes are removed from the tree, they are marked as deleted
-        in case something else has a reference to them.
-        '''
-
-        self.deleted = True
-        if self.inner:
-            for child in self.inner.values():
-                child.mark_deleted()
-
     def delete_path(self, path):
         '''
         Delete the subtree at the given path.
@@ -506,7 +530,6 @@ class Store(object):
             if remove in target.inner:
                 lost = target.inner[remove]
                 del target.inner[remove]
-                lost.mark_deleted()
                 return lost
 
     def divide_value(self):
@@ -623,12 +646,14 @@ class Store(object):
         '''
 
         if self.inner or self.subschema:
-            topology_updates = {}
+            process_updates, topology_updates, deletions = {}, {}, []
 
             if '_delete' in update:
                 # delete a list of paths
+                here = self.path_for()
                 for path in update['_delete']:
                     self.delete_path(path)
+                    deletions.append(tuple(here + path))
 
                 update = dissoc(update, ['_delete'])
 
@@ -652,10 +677,17 @@ class Store(object):
                         generate['processes'],
                         generate['topology'],
                         generate['initial_state'])
+
+                    assoc_path(
+                        process_updates,
+                        generate['path'],
+                        generate['processes'])
+
                     assoc_path(
                         topology_updates,
                         generate['path'],
                         generate['topology'])
+
                 self.apply_subschemas()
                 self.apply_defaults()
 
@@ -674,7 +706,7 @@ class Store(object):
                 for daughter, state in zip(daughters, states):
                     daughter_id = daughter['daughter']
 
-                    # use initiapl state as default, merge in divided values
+                    # use initial state as default, merge in divided values
                     initial_state = deep_merge(
                         initial_state,
                         state)
@@ -684,6 +716,12 @@ class Store(object):
                         daughter['processes'],
                         daughter['topology'],
                         daughter['initial_state'])
+
+                    assoc_path(
+                        process_updates,
+                        daughter['path'],
+                        daughter['processes'])
+
                     assoc_path(
                         topology_updates,
                         daughter['path'],
@@ -692,25 +730,34 @@ class Store(object):
                     self.apply_subschemas()
                     self.inner[daughter_id].set_value(initial_state)
                     self.apply_defaults()
-                self.delete_path((mother,))
+
+                here = self.path_for()
+                mother_path = (mother,)
+                self.delete_path(mother_path)
+                deletions.append(tuple(here + mother_path))
 
                 update = dissoc(update, '_divide')
 
             for key, value in update.items():
                 if key in self.inner:
-                    child = self.inner[key]
-                    inner_updates = child.apply_update(
+                    inner = self.inner[key]
+                    inner_topology, inner_processes, inner_deletions = inner.apply_update(
                         value, process_topology, state)
-                    if inner_updates:
+
+                    if inner_topology:
                         topology_updates = deep_merge(
                             topology_updates,
-                            {key: inner_updates})
-                # elif self.subschema:
-                #     self.inner[key] = Store(self.subschema, self)
-                #     self.inner[key].set_value(value)
-                #     self.inner[key].apply_defaults()
+                            {key: inner_topology})
 
-            return topology_updates
+                    if inner_processes:
+                        process_updates = deep_merge(
+                            process_updates,
+                            {key: inner_processes})
+
+                    if inner_deletions:
+                        deletions += inner_deletions
+
+            return topology_updates, process_updates, deletions
 
         else:
             updater, port_mapping = self.get_updater(update)
@@ -731,12 +778,14 @@ class Store(object):
             if port_mapping is not None:
                 updater_topology = {
                     updater_port: process_topology[proc_port]
-                    for updater_port, proc_port in port_mapping.items()
-                }
+                    for updater_port, proc_port in port_mapping.items()}
+
                 state_dict = state.outer.topology_state(
                     updater_topology)
 
             self.value = updater(self.value, update, state_dict)
+
+            return EMPTY_UPDATES
 
     def inner_value(self, key):
         '''
@@ -805,7 +854,11 @@ class Store(object):
                     if path is None:
                         path = (key,)
                     node = self.get_path(path)
-                    state[key] = node.schema_topology(subschema, {})
+                    if node:
+                        state[key] = node.schema_topology(subschema, {})
+                    else:
+                        # node is None, it was likely deleted
+                        print('{} is None'.format(path))
 
         return state
 
@@ -1230,6 +1283,11 @@ class Experiment(object):
         self.invoke = config.get('invoke', InvokeProcess)
         self.parallel = {}
 
+        # get a mapping of all paths to processes
+        self.process_paths = {}
+        self.deriver_paths = {}
+        self.find_process_paths(self.processes)
+
         self.state = generate_state(
             self.processes,
             self.topology,
@@ -1264,6 +1322,14 @@ class Experiment(object):
         log.info('\nCONFIG:')
         log.info(pf(self.state.get_config(True)))
 
+    def find_process_paths(self, processes):
+        tree = depth(processes)
+        for path, process in tree.items():
+            if process.is_deriver():
+                self.deriver_paths[path] = process
+            else:
+                self.process_paths[path] = process
+
     def emit_configuration(self):
         data = {
             'time_created': timestamp(),
@@ -1292,8 +1358,8 @@ class Experiment(object):
             # if not parallel, perform a normal invocation
             return self.invoke(process, interval, states)
 
-    def process_update(self, path, state, interval):
-        process = state.value
+    def process_update(self, path, process, interval):
+        state = self.state.get_path(path)
         process_topology = get_in(self.topology, path)
 
         # translate the values from the tree structure into the form
@@ -1311,16 +1377,40 @@ class Experiment(object):
         return absolute, process_topology, state
 
     def apply_update(self, update, process_topology, state):
-        topology_updates = self.state.apply_update(
+        topology_updates, process_updates, deletions = self.state.apply_update(
             update, process_topology, state)
+
         if topology_updates:
             self.topology = deep_merge(self.topology, topology_updates)
 
-    def run_derivers(self, derivers):
+        if process_updates:
+            self.processes = deep_merge(self.processes, process_updates)
+            self.find_process_paths(process_updates)
+
+        if deletions:
+            for deletion in deletions:
+                self.delete_path(deletion)
+
+    def delete_path(self, deletion):
+        delete_in(self.processes, deletion)
+        delete_in(self.topology, deletion)
+
+        for path in list(self.process_paths.keys()):
+            if starts_with(path, deletion):
+                del self.process_paths[path]
+
+        for path in list(self.deriver_paths.keys()):
+            if starts_with(path, deletion):
+                del self.deriver_paths[path]
+
+    def run_derivers(self):
         updates = []
-        for path, deriver in derivers.items():
-            # timestep shouldn't influence derivers
-            if not deriver.deleted:
+        paths = list(self.deriver_paths.keys())
+        for path in paths:
+            # deriver could have been deleted by another deriver
+            deriver = self.deriver_paths.get(path)
+            if deriver:
+                # timestep shouldn't influence derivers
                 update, process_topology, state = self.process_update(
                     path, deriver, 0)
                 self.apply_update(update.get(), process_topology, state)
@@ -1331,22 +1421,15 @@ class Experiment(object):
             'time': self.local_time})
         emit_config = {
             'table': 'history',
-            'data': serialize_dictionary(data),
-        }
+            'data': serialize_dictionary(data)}
         self.emitter.emit(emit_config)
 
-    def send_updates(self, update_tuples, derivers=None):
+    def send_updates(self, update_tuples):
         for update_tuple in update_tuples:
             update, process_topology, state = update_tuple
             self.apply_update(update.get(), process_topology, state)
 
-        if derivers is None:
-            derivers = {
-                path: state
-                for path, state in self.state.depth()
-                if state.value is not None and isinstance(state.value, Process) and state.value.is_deriver()}
-
-        self.run_derivers(derivers)
+        self.run_derivers()
 
     def update(self, interval):
         """ Run each process for the given interval and update the related states. """
@@ -1369,41 +1452,30 @@ class Experiment(object):
                 for state_id in self.states:
                     print('{}: {}'.format(time, self.states[state_id].to_dict()))
 
-            # find all existing processes and derivers in the tree
-            processes = {}
-            derivers = {}
-            for path, state in self.state.depth():
-                if state.value is not None and isinstance(state.value, Process):
-                    if state.value.is_deriver():
-                        derivers[path] = state
-                    else:
-                        processes[path] = state
-
             # find any parallel processes that were removed and terminate them
-            for terminated in self.parallel.keys() - processes.keys():
+            for terminated in self.parallel.keys() - self.process_paths.keys():
                 self.parallel[terminated].end()
                 del self.parallel[terminated]
 
             # setup a way to track how far each process has simulated in time
             front = {
-                path: process
-                for path, process in front.items()
-                if path in processes}
+                path: progress
+                for path, progress in front.items()
+                if path in self.process_paths}
 
             # go through each process and find those that are able to update
             # based on their current time being less than the global time.
-            for path, state in processes.items():
+            for path, process in self.process_paths.items():
                 if not path in front:
                     front[path] = empty_front(time)
                 process_time = front[path]['time']
 
                 if process_time <= time:
-                    process = state.value
                     future = min(process_time + process.local_timestep(), interval)
                     timestep = future - process_time
 
                     # calculate the update for this process
-                    update = self.process_update(path, state, timestep)
+                    update = self.process_update(path, process, timestep)
 
                     # store the update to apply at its projected time
                     if timestep < full_step:
@@ -1432,7 +1504,7 @@ class Experiment(object):
                         advance['update'] = {}
                         paths.append(path)
 
-                self.send_updates(updates, derivers)
+                self.send_updates(updates)
 
                 time = future
                 self.local_time += full_step
@@ -1987,6 +2059,33 @@ class TestUpdateIn:
             'a': 'updated',
         }
         assert updated == expected
+
+
+def test_depth():
+    nested = {
+        'A': {
+            'AA': 5,
+            'AB': {
+                'ABC': 11}},
+        'B': {
+            'BA': 6}}
+
+    dissected = depth(nested)
+    assert len(dissected) == 3
+    assert dissected[('A', 'AB', 'ABC')] == 11
+
+
+def test_deletion():
+    nested = {
+        'A': {
+            'AA': 5,
+            'AB': {
+                'ABC': 11}},
+        'B': {
+            'BA': 6}}
+
+    delete_in(nested, ('A', 'AA'))
+    assert 'AA' not in nested['A']
 
 
 def test_sine():
