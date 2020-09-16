@@ -7,6 +7,8 @@ Submodules
 .. toctree::
    :maxdepth: 4
 
+   vivarium.processes.derive_concentrations
+   vivarium.processes.derive_counts
    vivarium.processes.glucose_phosphorylation
    vivarium.processes.injector
    vivarium.processes.meta_division
