@@ -29,11 +29,14 @@ jobs:
         if [ -f doc/requirements.txt ]; then pip install -r doc/requirements.txt; fi
         curl -sfL https://install.goreleaser.com/github.com/ValeLint/vale.sh | sh -s v2.2.0
         echo "::add-path::${{ env.PWD }}/bin"
+        echo "${{ env.PWD }}"
+        echo $PWD
     - name: Test Building Documentation
       run: |
         doc/test.sh ci
     - name: Lint the Documentation
       run: |
         echo $PATH
+        echo $PWD
         ls -la bin
-        PATH="$PATH:./bin" doc/lint.sh ci
+        PATH="$PATH:$PWD/bin" doc/lint.sh ci
