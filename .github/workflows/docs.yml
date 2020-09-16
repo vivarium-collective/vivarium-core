@@ -34,4 +34,6 @@ jobs:
         doc/test.sh ci
     - name: Lint the Documentation
       run: |
+        echo $PATH
+        ls bin
         doc/lint.sh ci
