@@ -38,9 +38,16 @@ EXPERIMENT_OUT_DIR = os.path.join('out', 'experiments')
 
 # loading functions
 def make_agents(agent_ids, compartment, config=None):
+    """ Generate agents for each id
+    Arguments:
+    * **agent_ids**: list of agent ids
+    * **compartment**: the compartment of the agent type
+    * **config**: comparment configuration
+    Returns:
+        the intialized agent processes and topology
+    """
     if config is None:
         config = {}
-
     processes = {}
     topology = {}
     for agent_id in agent_ids:
@@ -56,6 +63,24 @@ def make_agents(agent_ids, compartment, config=None):
     return {
         'processes': processes,
         'topology': topology}
+
+
+def make_agent_ids(agents_config):
+    """ Add agent ids to an agent config """
+    agent_ids = []
+    for config in agents_config:
+        number = config.get('number', 1)
+        if 'name' in config:
+            name = config['name']
+            if number > 1:
+                new_agent_ids = [name + '_' + str(num) for num in range(number)]
+            else:
+                new_agent_ids = [name]
+        else:
+            new_agent_ids = [str(uuid.uuid1()) for num in range(number)]
+        config['ids'] = new_agent_ids
+        agent_ids.extend(new_agent_ids)
+    return agent_ids
 
 
 def agent_environment_experiment(
@@ -82,6 +107,8 @@ def agent_environment_experiment(
     """
     if settings is None:
         settings = {}
+    if initial_state is None:
+        initial_state = {}
 
     # experiment settings
     emitter = settings.get('emitter', {'type': 'timeseries'})
@@ -119,7 +146,7 @@ def agent_environment_experiment(
                     agent_id: initial_agent_state
                     for agent_id in agent_ids})
 
-    if 'agents' in initial_state:
+    if 'agents' in initial_state and 'diffusion' in environment_config['config']:
         environment_config[
             'config']['diffusion']['agents'] = initial_state['agents']
 
@@ -233,7 +260,7 @@ def process_in_experiment(process, settings={}):
 
     if timeline:
         # Adding a timeline to a process requires only the timeline
-        timeline_process = TimelineProcess({'timeline': timeline['timeline']})
+        timeline_process = TimelineProcess(timeline)
         processes.update({'timeline_process': timeline_process})
         topology.update({
             'timeline_process': {
@@ -288,7 +315,7 @@ def compartment_in_experiment(compartment, settings={}):
     if timeline is not None:
         # Environment requires ports for all states defined in the timeline, and a global port
         ports = timeline['ports']
-        timeline_process = TimelineProcess({'timeline': timeline['timeline']})
+        timeline_process = TimelineProcess(timeline)
         processes.update({'timeline_process': timeline_process})
         if 'global' not in ports:
             ports['global'] = ('global',)
@@ -355,7 +382,8 @@ def simulate_experiment(experiment, settings={}):
     return_raw_data = settings.get('return_raw_data', False)
 
     if 'timeline' in settings:
-        total_time = settings['timeline']['timeline'][-1][0]
+        all_times = [t[0] for t in settings['timeline']['timeline']]
+        total_time = max(all_times)
 
     # run simulation
     experiment.update(total_time)
@@ -425,13 +453,11 @@ def plot_compartment_topology(compartment, settings, out_dir='out', filename='to
     # plot
     nx.draw_networkx_nodes(G, pos,
                            nodelist=process_nodes,
-                           with_labels=True,
                            node_color=process_rgb,
                            node_size=node_size,
                            node_shape='s')
     nx.draw_networkx_nodes(G, pos,
                            nodelist=store_nodes,
-                           with_labels=True,
                            node_color=store_rgb,
                            node_size=node_size,
                            node_shape='o')
@@ -582,7 +608,10 @@ def plot_simulation_output(timeseries_raw, settings={}, out_dir='out', filename=
 
                 # plot the series
                 ax.plot(time_vec, series)
-                ax.title.set_text(str(port) + ': ' + str(state_id))
+                if isinstance(state_id, tuple):
+                    # new line for each store
+                    state_id = '\n'.join(state_id)
+                ax.title.set_text(str(port) + '\n' + str(state_id))
 
             if row_idx == columns[col_idx]-1:
                 # if last row of column
@@ -689,11 +718,16 @@ def plot_agents_multigen(data, settings={}, out_dir='out', filename='agents'):
     port_schema_paths = [path for path in port_schema_paths if path not in remove_paths]
     top_ports = set([path[0] for path in port_schema_paths])
 
-    # get port columns, assign subplot locations
+    # get list of states for each port
     port_rows = {port_id: [] for port_id in top_ports}
     for path in port_schema_paths:
         top_port = path[0]
         port_rows[top_port].append(path)
+
+    # sort each port by second element
+    for port_id, path_list in port_rows.items():
+        sorted_path = sorted(path_list, key=lambda x: x[1])
+        port_rows[port_id] = sorted_path
 
     highest_row = 0
     row_idx = 0
@@ -740,7 +774,11 @@ def plot_agents_multigen(data, settings={}, out_dir='out', filename='agents'):
                     which=tick_type,
                     labelsize=tick_label_size,
                 )
-            ax.title.set_text(titles_map.get(path, path))
+            state_title = titles_map.get(path, path)
+            if isinstance(state_title, tuple):
+                # new line for each store
+                state_title = ' \n'.join(state_title)
+            ax.title.set_text(state_title)
             ax.title.set_fontsize(title_size)
             if path in ylabels_map:
                 ax.set_ylabel(ylabels_map[path], fontsize=title_size)

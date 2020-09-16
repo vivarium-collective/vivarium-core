@@ -1,7 +1,6 @@
-# Vivarium
+# Vivarium-core
 
-Vivarium is a multiscale platform for simulating cells in dynamic
-environments, within which they can grow, divide, and thrive.
+Vivarium-core provides a process interface and engine for composing multi-scale models in computational biology.
 
 ![vivarium](doc/_static/snapshots_fields.png)
 
@@ -12,11 +11,12 @@ Visit [Vivarium documentation](https://wc-vivarium.readthedocs.io/)
 
 A Vivarium is a "place of life" -- an enclosure for raising organisms in controlled environments for observation or 
 research. Typical vivaria include aquariums or terrariums.  The vivarium provided in this repository is a computational 
-vivarium for developing colonies of whole-cell model agents in dynamic environments. Its framework is a synthesis of 
-whole-cell modeling, agent-based modeling, multi-scale modeling, and modular programming.
+vivarium for developing multi-scale models of cells in dynamic environments. Its framework is a synthesis of 
+hybrid modeling, agent-based modeling, multi-scale simulation, and modular programming.
 
-Vivarium is a framework for composing hybrid models of different cellular/molecular processes into compartments, and 
-compartments into embedded hierarchies. Vivarium is distributed in that processes can run in 
-different threads or on different computers, and upon hierarchy changes such as division, new threads are allocated. 
-Processes communicate through message passing and are coordinated by the environmental simulation which receives all 
-of the messages, integrates them, and responds to each processes with their new states. 
+## Installation
+vivarium-core can be used as a python library. To install:
+
+```
+$ pip install vivarium-core
+```

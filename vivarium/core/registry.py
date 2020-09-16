@@ -123,12 +123,25 @@ def update_accumulate(current_value, new_value, states):
     """
     return current_value + new_value
 
+def update_nonnegative_accumulate(current_value, new_value, states):
+    """Non-negative Accumulate Updater
+
+    Returns:
+        The sum of ``current_value`` and ``new_value`` if positive, 0 if negative.
+    """
+    updated_value = current_value + new_value
+    if updated_value >= 0:
+        return updated_value
+    else:
+        return 0 * updated_value
+
 
 #: Maps updater names to updater functions
 updater_registry = Registry()
 updater_registry.register('accumulate', update_accumulate)
 updater_registry.register('set', update_set)
 updater_registry.register('merge', update_merge)
+updater_registry.register('nonnegative_accumulate', update_nonnegative_accumulate)
 
 
 ## divider functions
