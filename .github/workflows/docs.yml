@@ -35,5 +35,5 @@ jobs:
     - name: Lint the Documentation
       run: |
         echo $PATH
-        ls bin
+        ls -la bin
         PATH="$PATH:./bin" doc/lint.sh ci
