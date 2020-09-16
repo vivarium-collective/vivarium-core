@@ -1,0 +1,37 @@
+# Modified from GitHub Actions template
+
+name: Documentation
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.6, 3.7, 3.8]
+    steps:
+    - uses: actions/checkout@v2
+    - name: Setup Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest
+        pip install numpy
+        if [ -f doc/requirements.txt ]; then pip install -r doc/requirements.txt; fi
+        curl -sfL https://install.goreleaser.com/github.com/ValeLint/vale.sh | sh -s v2.2.0
+        export PATH="./bin:$PATH"
+    - name: Test Building Documentation
+      run: |
+        doc/test.sh ci
+    - name: Lint the Documentation
+      run: |
+        doc/lint.sh ci
