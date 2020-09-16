@@ -63,6 +63,6 @@ steps are:
 
 .. note:: Experiments accept only a single compartment, but you can
    still simulate many compartments! The single compartment you give to
-   the experiment is the root comprtment, which will often be an
+   the experiment is the root compartment, which will often be an
    environment. This compartment will then contain the other
    compartments you want to simulate.
