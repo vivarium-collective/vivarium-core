@@ -2,7 +2,9 @@
 #   type: Either "ci" in which case only errors are raised, or "dev"
 #       (default) in which case warnings are shown as well
 
-type=${1:-"dev"}
+type="$1"
+dirpath=$(dirname "$0")
+curdir=$(pwd)
 
 if [[ $type == "dev" ]]; then
     alertLevel="warning"
@@ -14,5 +16,7 @@ else
 fi
 
 # Lint
+cd "$dirpath"
 vale --minAlertLevel "$alertLevel" --glob "*.rst" _static getting_started.rst \
     guides index.rst reference/glossary.rst reference/index.rst tutorials
+cd "$curdir"
