@@ -76,6 +76,10 @@ We use a MongoDB database to store the data collected from running
 simulations. This can be a remote server, but for this guide we will
 run a MongoDB server locally.
 
+**Note**: MongoDB is only required if you want to store data in MongoDB
+or want to run experiments that do so. You don't need MongoDB to work
+through this guide.
+
 *Check Installation*
 
 .. code-block:: console
@@ -138,34 +142,6 @@ Here is one:
 
 .. todo:: Use ``py -m agent.boot --host ip.to.remote.cluster:9092``
     for remote Kafka services
-
-GNU Linear Programming Kit (GLPK)
----------------------------------
-
-.. todo:: What is GLPK used for?
-
-One of the Python packages we will install later, ``swiglpk``, requires
-that you already have GLPK installed on your system.
-
-*Check Installation*
-
-We don't have a way to check whether you have ``glpk`` installed. If you
-think you already have it, you can proceed with the installation and
-watch for an error about missing ``glpk``.
-
-.. todo:: Check GLPK installation
-
-*Install*
-
-If you use Homebrew, you
-can install GLPK like this:
-
-.. code-block:: console
-
-    $ brew install glpk
-
-Otherwise, follow the installation instructions on the GLPK
-`homepage <https://www.gnu.org/software/glpk>`_.
 
 Download and Setup Vivarium Core
 ================================
