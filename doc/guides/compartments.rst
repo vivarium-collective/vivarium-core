@@ -191,19 +191,19 @@ Defining Topologies
 
 We define topologies as dictionaries with process names as keys and
 dictionaries (termed "sub-dictionaries") as values. These
-sub-dictionaries have port names as keys and store names as values. For
-example, the topology for the ATP example we have been considering might
-look like this:
+sub-dictionaries have port names as keys and paths to stores as values.
+For example, the topology for the ATP example we have been considering
+might look like this:
 
 .. code-block:: python
 
     {
         'sodium_pump': {
-            'cytoplasm': 'cell',
-            'extracellularSpace': 'bloodVessel',
+            'cytoplasm': ('cell',),
+            'extracellularSpace': ('bloodVessel',),
         },
         'metabolism': {
-            'cytoplasm': 'cell',
+            'cytoplasm': ('cell',),
         },
     }
 
@@ -270,7 +270,7 @@ can create a store at any node to represent the sub-tree rooted at that
 node. This tree is analogous to directory trees on a filesystem, and we
 use tuples of store names to specify a path through this tree. We call
 this tree the hierarchy, and we discuss it in more detail in the
-:doc:`hierarhcy guide <hierarchy>`.
+:doc:`hierarchy guide <hierarchy>`.
 
 ------------------------
 Compartment Interactions

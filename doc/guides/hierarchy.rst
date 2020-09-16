@@ -138,10 +138,10 @@ Notice that in the dictionary above, each leaf node in the tree is a key
 with a value that is a dictionary of :term:`schema keys`.
 
 ---------------
-Hierarhcy Paths
+Hierarchy Paths
 ---------------
 
-A hierarhcy in Vivarium is like a directory tree on a filesystem. In
+A hierarchy in Vivarium is like a directory tree on a filesystem. In
 line with this analogy, we specify nodes in the hierarchy with paths.
 Each path is a tuple of node names (variable names or store names)
 relative to some other node. For example, in the topology from the
