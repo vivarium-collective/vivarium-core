@@ -1,6 +1,6 @@
-====================================
-Welcome to Vivarium's documentation!
-====================================
+===============================================
+Welcome to the documentation for Vivarium Core!
+===============================================
 
 Vivarium is a multiscale platform for simulating cells in dynamic
 environments, within which they can grow, divide, and thrive.
@@ -36,15 +36,19 @@ colonies of cells in shared, dynamic environments.
 
 The platform's framework is a novel synthesis of several modeling
 methodologies:
-1) Whole-cell modeling, to simulate hybrid models of cells with complex
-internal organization.
-2) Agent-based modeling, to simulate the interactions of many cells in a
-shared environment.
-3) Multiscale simulation, to solve problems with multiple scales of time
-and space.
-4) Wirable model modules, to streamline model development by decomposing
-computational representations into modules that can be reconfigured and
-recombined.
+
+1. Whole-cell modeling, to simulate hybrid models of cells with complex
+   internal organization.
+2. Agent-based modeling, to simulate the interactions of many cells in a
+   shared environment.
+3. Multiscale simulation, to solve problems with multiple scales of time
+   and space.
+4. Wirable model modules, to streamline model development by decomposing
+   computational representations into modules that can be reconfigured
+   and recombined.
+
+This project, Vivarium Core, is the core engine that can simulate models
+built using the Vivarium interface.
 
 .. todo:: Use cases
 

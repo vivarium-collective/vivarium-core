@@ -123,46 +123,48 @@ can provide any store we like.
 How Processes Define Ports
 ==========================
 
-A process specifies its port names in its constructor by calling the
-superclass (:py:class:`vivarium.core.process.Process`)
-constructor. For example, the
-:py:class:`vivarium.processes.tree_mass.TreeMass`
-class contains this line:
+A process specifies its port names in its ``ports_schema`` function.
+For example, the :py:class:`vivarium.processes.tree_mass.TreeMass`
+schema is created like this:
 
 .. code-block:: python
 
-    super(TreeMass, self).__init__(parameters)
+    def ports_schema(self):
+        return {
+            'global': {
+                'initial_mass': {
+                    '_default': self.parameters['initial_mass'],
+                    '_updater': 'set',
+                    '_divider': 'split',
+                },
+                'mass': {
+                    '_default': self.parameters['initial_mass'],
+                    '_emit': True,
+                    '_updater': 'set',
+                    '_divider': 'split',
+                },
+            },
+        }
 
-The ``ports`` variable takes the form of a dictionary with port names as
-keys and lists of variable names as values. For example, if ``ports``
-looked like this:
+The top level keys are the port names. In this case, the only port is
+``global``. The next level of keys define the variables expected to be
+in each port. Here, we expect ``global`` to have the variables
+``initial_mass`` and ``mass``.
+
+When the process is asked to provide an update to the model state, it is
+only provided the variables it specifies. For example, it might get a
+model state like this:
 
 .. code-block:: python
 
     {
-        'cytoplasm': ['ATP', 'sodium'],
-        'extracellular': ['sodium']
-    }
-
-then the process would be declaring that it cares about the ``ATP`` and
-``sodium`` variables in the ``cytoplasm`` port and the ``sodium``
-variable in the ``extracellular`` port. When the process is asked to
-provide an update to the model state, it is only provided the variables
-it specifies. For example, it might get a model state like this:
-
-.. code-block:: python
-
-    {
-        'cytoplasm': {
-            'ATP': 5.0,
-            'sodium': 1e-2,
-        },
-        'extracellular': {
-            'sodium': 1e-1,
+        'global': {
+            'initial_mass': 0,
+            'mass': 1339,
         },
     }
 
-This would happen even if the store linked to the ``cytoplasm`` port
+This would happen even if the store linked to the ``global`` port
 contained more variables. We call this stripping-out of variables the
 process doesn't need :term:`masking`.
 

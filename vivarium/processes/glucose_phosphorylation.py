@@ -11,6 +11,7 @@ from vivarium.core.composition import (
     simulate_process,
     plot_simulation_output,
 )
+from vivarium.processes.tree_mass import TreeMass
 from vivarium.library.units import units
 
 
@@ -24,15 +25,10 @@ class GlucosePhosphorylation(Process):
     }
 
     def __init__(self, initial_parameters=None):
-        ports = {
-            'nucleoside_phosphates': ['ATP', 'ADP'],
-            'cytoplasm': ['GLC', 'G6P', 'HK'],
-            'global': ['mass']
-        }
         parameters = GlucosePhosphorylation.defaults
         parameters.update(initial_parameters)
         super(GlucosePhosphorylation, self).__init__(
-            ports, parameters)
+            parameters)
 
     def next_update(self, timestep, states):
         # Get concentrations from state
@@ -115,6 +111,9 @@ class GlucosePhosphorylation(Process):
         }
 
     def derivers(self):
+        # We instantiate TreeMass to make sure it's added to the deriver
+        # registry.
+        TreeMass()
         return {
             'my_deriver': {
                 'deriver': 'mass_deriver',

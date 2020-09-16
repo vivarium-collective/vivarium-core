@@ -57,24 +57,7 @@ is configurable, it SHOULD accept configuration options through this
 dictionary.
 
 In the constructor, the process class MUST call its superclass
-constructor with its :term:`ports` and a dictionary of parameters.
-
-.. _constructor-define-ports:
-
-Defining Ports
---------------
-
-Ports MUST be specified as a dictionary with port names as keys and
-lists of :term:`variable` names as values. These port names may be
-chosen arbitrarily. Variable names are also at the discretion of the
-process class author, but note that if two processes are to be combined
-in a :term:`compartment` and share variables through a shared
-:term:`store`, the processes MUST use the same variable names for the
-shared variables.
-
-.. note:: Variables always have the same name, no matter which process
-    is interacting with them. This is unlike stores, which can take on
-    different port names with each process.
+constructor with a dictionary of parameters.
 
 Passing Parameters to Superclass Constructor
 --------------------------------------------
@@ -93,13 +76,24 @@ Let's examine an example constructor from a growth process class.
 
 .. code-block:: python
 
-    def __init__(self, initial_parameters={}):
-        ports = {
-            'global': ['mass', 'volume']}
-
+    def __init__(self, initial_parameters=None):
+        if initial_parameters == None:
+            initial_parameters = {}
         parameters = {'growth_rate': self.defaults['growth_rate']}
         parameters.update(initial_parameters)
-        super(Growth, self).__init__(ports, parameters)
+        super(Growth, self).__init__(parameters)
+
+Note that Vivarium Core actually handles combining the provided
+parameters with the default parameters, so a constructor as simple as
+the one above can actually be dropped. The superclass constructor makes
+it redundant, but we show it here for clarity.
+
+.. WARNING:: Python creates only one instance of both class variables
+   and function argument defaults. This means that you MUST not change
+   the default parameters object. Make a copy instead. This also means
+   that you SHOULD avoid using a mutable object as a default argument.
+   This is why we use ``None`` as the default for ``initial_parameters``
+   instead of ``{}``.
 
 In this constructor, only one port, ``global``, is defined, from which
 the process will only need the ``mass`` and ``volume`` variables. While
@@ -116,7 +110,17 @@ to ``initial_parameters``.
 Ports Schema
 ============
 
-The process class MUST implement a ``process_schema`` method with no
+Each process declares what stores it expects by specifying a
+:term:`port` for each store it accepts. Note that if two processes are
+to be combined in a :term:`compartment` and share variables through a
+shared :term:`store`, the processes MUST use the same variable names for
+the shared variables.
+
+.. note:: Variables always have the same name, no matter which process
+    is interacting with them. This is unlike stores, which can take on
+    different port names with each process.
+
+The process class MUST implement a ``ports_schema`` method with no
 required arguments. This method MUST return nested dictionaries of the
 following form:
 
@@ -138,6 +142,7 @@ value. Any applicable and omitted schema keys will take on their default
 values. Note that every variable SHOULD specify ``_default``. If the
 cell will be dividing, every variable also MUST specify ``_divider``.
 Variables in the ports schema SHOULD NOT specify ``_value``.
+
 
 Example Ports Schema
 --------------------
@@ -172,7 +177,7 @@ Derivers
 ========
 
 For each port, we can also specify a :term:`deriver`. Each process class
-MUST implement a `derivers` method that returns a dictionary whose keys
+MAY implement a `derivers` method that returns a dictionary whose keys
 are the ports to which we want to apply derivers. For each port, the
 value in the dictionary must be a dictionary with the following keys:
 
@@ -182,6 +187,11 @@ value in the dictionary must be a dictionary with the following keys:
   :term:`topology`.
 * **config** (:py:class:`dict`): A configuration dictionary that
   conforms to the requirements of the particular deriver being invoked.
+
+.. WARNING:: Derivers need to be registered for Vivarium Core to know
+   what deriver each name indicates. To register a deriver, just
+   create an instance of it. Many derivers do this automatically on
+   import.
 
 Next Updates
 ============
@@ -195,7 +205,7 @@ State Format
 ------------
 
 The ``next_update`` method MUST accept the model state as a dictionary
-of the same form as the :ref:`default state dictionary
+of the same form as the :ref:`ports schema dictionary
 <constructor-ports-schema>`, but with the dictionary of schema keys
 replaced with the current (i.e. pre-update) value of the variable.
 
@@ -207,7 +217,7 @@ replaced with the current (i.e. pre-update) value of the variable.
 
 Because of :term:`masking`, each
 port will contain only the variables specified in the
-:ref:`constructor's ports declaration <constructor-define-ports>`, even
+:ref:`ports schema <constructor-ports-schema>`, even
 if the linked store contains more variables.
 
 .. WARNING:: The ``next_update`` method MUST NOT modify the states it is
@@ -221,7 +231,7 @@ Update Format
 ``next_update`` MUST return a single dictionary, the update that
 describes how the modeled mechanism would change the model state over
 the specified time. The update dictionary MUST be of the same form as the
-:ref:`default state dictionary <constructor-ports-schema>`, though with
+:ref:`ports schema dictionary <constructor-ports-schema>`, though with
 the dictionaries of schema keys replaced with update values. Also,
 variables that do not need to be updated can be excluded.
 

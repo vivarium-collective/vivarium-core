@@ -495,6 +495,7 @@ def plot_simulation_output(timeseries_raw, settings={}, out_dir='out', filename=
               ``[('port_id', 'state_id')]`` for all states that will be
               highlighted, even if they are otherwise to be removed
     '''
+    os.makedirs(out_dir, exist_ok=True)
 
     plot_fontsize = 8
     plt.rc('font', size=plot_fontsize)

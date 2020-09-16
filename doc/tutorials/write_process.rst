@@ -146,6 +146,8 @@ process.
 
 .. code-block:: python
 
+    import copy
+
     from vivarium.core.process import Process
 
     class GlucosePhosphorylation(Process):
@@ -157,15 +159,12 @@ process.
         }
 
         def __init__(self, initial_parameters=None):
-            ports = {
-                'nucleoside_phosphates': ['ATP', 'ADP'],
-                'cytoplasm': ['GLC', 'G6P', 'HK'],
-                'global': ['mass'],
-            }
-            parameters = GlucosePhosphorylation.defaults
+            if initial_parameters == None:
+                initial_parameters = {}
+            parameters = copy.deepcopy(GlucosePhosphorylation.defaults)
             parameters.update(initial_parameters)
             super(GlucosePhosphorylation, self).__init__(
-                ports, parameters)
+                parameters)
 
 The ``global`` port is special: it stores information that needs to be
 shared across many processes but that is more like "metadata" than
@@ -322,7 +321,7 @@ Hooray! This is what we expected.
 Ports Schema and Derivers
 -------------------------
 
-Our process works, but we had to manually the state. We also haven't
+Our process works, but we had to manually set the state. We also haven't
 shown yet how to apply the update we generate to the model state.
 Luckily for us, these steps will be handled automatically by Vivarium.
 We just need to create a ``ports_schema`` method that provides a
@@ -390,7 +389,7 @@ sugar contents, as we see in this example:
     def derivers(self):
         return {
             'my_deriver': {
-                'deriver': 'mass',
+                'deriver': 'mass_deriver',
                 'port_mapping': {
                     'global': 'global',
                 },
