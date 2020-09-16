@@ -22,8 +22,8 @@ setup(
     entry_points={
         'console_scripts': []},
     short_description=(
-        'Engine for combining computational biology models with the '
-        'Vivarium interface.'
+        'Engine for composing and simulating computational biology '
+        'models with the Vivarium interface.'
     ),
     long_description=long_description,
     long_description_content_type='text/markdown',
