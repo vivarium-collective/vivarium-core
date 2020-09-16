@@ -24,7 +24,7 @@ setup(
     short_description=(
         'Engine for combining computational biology models with the '
         'Vivarium interface.'
-    )
+    ),
     long_description=long_description,
     long_description_content_type='text/markdown',
     package_data={},
