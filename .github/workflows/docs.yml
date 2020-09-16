@@ -36,4 +36,4 @@ jobs:
       run: |
         echo $PATH
         ls bin
-        doc/lint.sh ci
+        PATH="$PATH:./bin" doc/lint.sh ci
