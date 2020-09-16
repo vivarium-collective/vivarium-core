@@ -28,7 +28,7 @@ jobs:
         pip install numpy
         if [ -f doc/requirements.txt ]; then pip install -r doc/requirements.txt; fi
         curl -sfL https://install.goreleaser.com/github.com/ValeLint/vale.sh | sh -s v2.2.0
-        export PATH="./bin:$PATH"
+        echo "::add-path::${{ env.PWD }}/bin"
     - name: Test Building Documentation
       run: |
         doc/test.sh ci
