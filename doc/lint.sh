@@ -1,4 +1,4 @@
-# Usage: test.sh type
+# Usage: lint.sh type
 #   type: Either "ci" in which case only errors are raised, or "dev"
 #       (default) in which case warnings are shown as well
 
@@ -8,18 +8,17 @@ type="$1"
 dirpath=$(dirname "$0")
 curdir=$(pwd)
 
-sphinxopts=""
-
 if [[ $type == "dev" ]]; then
-    # Do nothing
-    :
+    alertLevel="warning"
 elif [[ $type == "ci" ]]; then
-    sphinxopts="$sphinxopts -W"
+    alertLevel="error"
 else
     echo "ERROR: type '$type' not recognized"
     exit 1
 fi
 
+# Lint
 cd "$dirpath"
-make html SPHINXOPTS="$sphinxopts"
+vale --minAlertLevel "$alertLevel" --glob "*.rst" _static getting_started.rst \
+    guides index.rst reference/glossary.rst reference/index.rst tutorials
 cd "$curdir"
