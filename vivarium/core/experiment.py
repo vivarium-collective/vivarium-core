@@ -1486,7 +1486,7 @@ class Experiment(object):
             if full_step == INFINITY:
                 # no processes ran, jump to next process
                 next_event = interval
-                for process_name in front.keys():
+                for path in front.keys():
                     if front[path]['time'] < next_event:
                         next_event = front[path]['time']
                 time = next_event
