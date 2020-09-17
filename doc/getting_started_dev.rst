@@ -1,10 +1,17 @@
-===============
-Getting Started
-===============
+==============================
+Getting Started for Developers
+==============================
+
+.. note:: This guide is for developers who want to contribute to
+   Vivarium Core. If you just want to use Vivarium to build models, see
+   the :doc:`getting started guide </getting_started>`.
 
 -------------------------
 Download and Installation
 -------------------------
+
+This guide assumes that you have access to an administrator or sudoer
+account on a macOS or Linux system.
 
 Getting Organized
 =================
@@ -16,7 +23,7 @@ Create a ``vivarium_work`` folder anywhere you like. But for installing
 some third-party software, everything we do will occur inside this
 folder.
 
-.. _pypath:
+.. _pypath_dev:
 
 Setting PYTHONPATH
 ------------------
@@ -31,7 +38,7 @@ shell startup file:
     alias pycd='export PYTHONPATH="$PWD:$PYTHONPATH"'
 
 Now when you are about to work on Vivarium Core, navigate to the root of
-the Vivarium Core repository (``vivarium_work/vivarium-template``) and run
+the Vivarium Core repository (``vivarium_work/vivarium-core``) and run
 ``pycd`` in your terminal. You will need to do this for each terminal
 window you use.
 
@@ -140,72 +147,31 @@ Here is one:
 .. todo:: Use ``py -m agent.boot --host ip.to.remote.cluster:9092``
     for remote Kafka services
 
-Download and Setup Template Project
-===================================
+Download and Setup Vivarium Core
+================================
 
 Download the Code
 -----------------
 
-The template code is available on `GitHub
-<https://github.com/vivarium-collective/vivarium-template>`_. Move into
-your ``vivarium_work`` directory and clone the repository to download
-the code
+**Note**: These instructions give you the latest development version of
+Vivarium Core. If you want to use the most recent release, which is more
+stable, you can instead run ``pip install vivarium-core`` in the
+:ref:`python_packages` section below.
+
+The Vivarium Core code is available on `GitHub
+<https://github.com/vivarium-collective/vivarium-core>`_. Move into your
+``vivarium_work`` directory and clone the repository to
+download the code
 
 .. code-block:: console
 
     $ cd vivarium_work
-    $ git clone https://github.com/vivarium-collective/vivarium-template.git
+    $ git clone https://github.com/vivarium-collective/vivarium-core.git
 
-This will create a ``vivarium-template`` folder inside ``vivarium_work``.
-All the code for Vivarium Core is inside this ``vivarium-template`` folder.
+This will create a ``vivarium-core`` folder inside ``vivarium_work``.
+All the code for Vivarium Core is inside this ``vivarium-core`` folder.
 
-Repository Structure
---------------------
-
-The repository you downloaded should look like this:
-
-.. code-block::
-
-    .
-    ├── README.md
-    ├── pytest.ini
-    ├── release.sh
-    ├── requirements.txt
-    ├── setup.py
-    └── template
-        ├── __init__.py
-        ├── compartments
-        │   ├── __init__.py
-        │   └── injected_glc_phosphorylation.py
-        ├── experiments
-        │   ├── __init__.py
-        │   └── glucose_phosphorylation.py
-        ├── library
-        │   └── __init__.py
-        └── processes
-            ├── __init__.py
-            ├── glucose_phosphorylation.py
-            └── template_process.py
-
-We suggest you use the structure laid out here, but you don't have to.
-The template repository has ``TODO`` notes where you'll need to make
-changes. Before you publish your project, make sure you have removed all
-the ``TODO`` notes!
-
-The ``template`` directory is where your package will live. Under it, we
-have the following sub-folders:
-
-* ``library``: This is for utility functions like those shared across
-  processes, compartments, and/or experiments.
-* ``processes``: This is where you'll write your processes. We've
-  provided a ``template_process.py`` file to get you started. Generally
-  you'll want to have one process per file.
-* ``compartments``: This folder will hold your compartments.
-* ``experiments``: This folder will hold your experiments. These are the
-  files you'll probably be executing to run your simulations.
-
-To show how you can build models with Vivarium, we've included
-some examples around modeling glucose phosphorylation.
+.. _python_packages:
 
 Installing Python Packages
 --------------------------
@@ -213,13 +179,13 @@ Installing Python Packages
 Above we installed all the non-Python dependencies, but we still have to
 install the Python packages Vivarium Core uses.
 
-#. Move into the ``vivarium-template`` folder created when you cloned the
+#. Move into the ``vivarium-core`` folder created when you cloned the
    repository.
 #. (optional) Create and activate a virtual environment:
 
    .. code-block:: console
 
-      $ python3 -m venv venv --prompt "vivarium-template"
+      $ python3 -m venv venv --prompt "vivarium-core"
       ...
       $ source venv/bin/activate
 
@@ -247,9 +213,9 @@ functionality modeled by the included processes. For example, we could
 compose transcription and translation to create a fuller gene expression
 model.
 
-We store individual processes in ``vivarium-template/template/processes``
+We store individual processes in ``vivarium-core/vivarium/processes``
 and compartments of processes in
-``vivarium-template/template/compartments``. We recommend you use a similar
+``vivarium-core/vivarium/compartments``. We recommend you use a similar
 structure when creating your own processes and compartments.
 
 Running Experiments
@@ -257,12 +223,12 @@ Running Experiments
 
 Running experiments is as easy as executing their files. For example,
 this repository comes with an example experiment in
-``vivarium-template/template/experiments/glucose_phosphorylation.py``. Try
+``vivarium-core/vivarium/experiments/glucose_phosphorylation.py``. Try
 running it like this:
 
 .. code-block:: console
 
-    $ python template/experiments/glucose_phosphorylation.py
+    $ python vivarium/experiments/glucose_phosphorylation.py
 
 In ``out/experiments/glucose_phosphorylation`` you should see a file
 ``simulation.png`` that looks like this:
@@ -273,11 +239,3 @@ In ``out/experiments/glucose_phosphorylation`` you should see a file
        linearly. The second has 4 plots, the first 3 of which show ADP,
        ATP, and G6P increasing linearly. The last plot shows GLC
        decreasing linearly.
-
----------
-Run Tests
----------
-
-We *strongly* encourage you to write tests for your code. It will make
-development much easier for you. The template repository comes with some
-tests already. To run them, just execute ``pytest``.

@@ -16,6 +16,7 @@ environments, within which they can grow, divide, and thrive.
    :hidden:
 
    getting_started.rst
+   getting_started_dev.rst
    guides/index.rst
    tutorials/index.rst
    reference/index.rst
