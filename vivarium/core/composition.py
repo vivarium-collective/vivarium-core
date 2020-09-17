@@ -383,7 +383,8 @@ def simulate_experiment(experiment, settings={}):
 
     # run simulation
     experiment.update(total_time)
-
+    experiment.end()
+    
     # return data from emitter
     if return_raw_data:
         return experiment.emitter.get_data()
