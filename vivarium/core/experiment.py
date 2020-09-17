@@ -249,31 +249,35 @@ class Store(object):
         Expand the tree by applying additional config.
 
         Special keys for the config are:
+
         * _default - Default value for this node.
         * _properties - An arbitrary map of keys to values. This can be used
-            for any properties which exist outside of the operation of the
-            tree (like mass or energy).
+          for any properties which exist outside of the operation of the
+          tree (like mass or energy).
         * _updater - Which updater to use. Default is 'accumulate' which
-            adds the new value to the existing value, but 'set' is common
-            as well. You can also provide your own function here instead of
-            a string key into the updater library.
+          adds the new value to the existing value, but 'set' is common
+          as well. You can also provide your own function here instead
+          of a string key into the updater library.
         * _emit - whether or not to emit the values under this point in the tree.
         * _divider - What to do with this node when division happens.
-            Default behavior is to leave it alone, but you can also pass
-            'split' here, or a function of your choosing. If you need other
-            values from the state you need to supply a dictionary here
-            containing the updater and the topology for where the other
-            state values are coming from. This has two keys:
+          Default behavior is to leave it alone, but you can also pass
+          'split' here, or a function of your choosing. If you need
+          other values from the state you need to supply a dictionary
+          here containing the updater and the topology for where the
+          other state values are coming from. This has two keys:
+
             * divider - a function that takes the existing value and any
-                values supplied from the adjoining topology.
+              values supplied from the adjoining topology.
             * topology - a mapping of keys to paths where the value for
-                those keys will be found. This will be passed in as the second
-                argument to the divider function.
+              those keys will be found. This will be passed in as the
+              second argument to the divider function.
+
         * _subschema/* - If this node was declared to house an unbounded set
-            of related states, the schema for these states is held in this
-            nodes subschema and applied whenever new subkeys are added here.
+          of related states, the schema for these states is held in this
+          nodes subschema and applied whenever new subkeys are added
+          here.
         * _subtopology - The subschema is informed by the subtopology to
-            map the process perspective to the actual tree structure.
+          map the process perspective to the actual tree structure.
         '''
 
 
@@ -616,33 +620,42 @@ class Store(object):
 
         * `_updater` - Override the default updater with any updater you want.
         * `_delete` - The value here is a list of paths to delete from
-            the tree.
+          the tree.
         * `_add` - Adds a state into the subtree:
+
             * path - Path to the added state key.
             * state - The value of the added state.
+
         * `_generate` - The value has four keys, which are essentially
-            the arguments to the `generate()` function:
+          the arguments to the `generate()` function:
+
             * path - Path into the tree to generate this subtree.
             * processes - Tree of processes to generate.
             * topology - Connections of all the process's `ports_schema()`.
             * initial_state - Initial state for this new subtree.
+
         * `_divide` - Performs cell division by constructing two new
-            daugther cells and removing the mother. Takes a dict with two keys:
+          daugther cells and removing the mother. Takes a dict with two keys:
+
             * mother - The id of the mother (for removal)
             * daughters - List of two new daughter generate directives, of the
                 same form as the `_generate` value above.
+
         * `_reduce` - This allows a reduction over the entire subtree from some
-            point downward. Its three keys are:
+          point downward. Its three keys are:
+
             * from - What point to start the reduction.
             * initial - The initial value of the reduction.
             * reducer - A function of three arguments, which is called
-                on every node from the `from` point in the tree down:
+              on every node from the `from` point in the tree down:
+
                 * value - The current accumulated value of the reduction.
                 * path - The path to this point in the tree
                 * node - The actual node being visited.
-                This function returns the next `value` for the reduction.
-                The result of the reduction will be assigned to this
-                point in the tree.
+
+              This function returns the next `value` for the reduction.
+              The result of the reduction will be assigned to this point
+              in the tree.
         '''
 
         if self.inner or self.subschema:
@@ -1243,7 +1256,7 @@ class Experiment(object):
                     maps :term:`process` names to process objects. You
                     will usually get this from the ``processes``
                     attribute of the dictionary from
-                    :py:meth:`vivarium.core.experiment.Compartment.generate`.
+                    :py:meth:`vivarium.core.process.Generator.generate`.
                 * **topology** (:py:class:`dict`): A dictionary that
                     maps process names to sub-dictionaries. These
                     sub-dictionaries map the process's port names to

@@ -42,13 +42,14 @@ class Template(Process):
         '''
         ports_schema returns a dictionary that declares how each state will behave.
         Each key can be assigned settings for the schema_keys declared in Store:
-            '_default'
-            '_updater'
-            '_divider'
-            '_value'
-            '_properties'
-            '_emit'
-            '_serializer'
+
+        * `_default`
+        * `_updater`
+        * `_divider`
+        * `_value`
+        * `_properties`
+        * `_emit`
+        * `_serializer`
         '''
 
         return {
