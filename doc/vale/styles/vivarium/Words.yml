@@ -1,0 +1,10 @@
+extends: substitution
+message: Consider using '%s' instead of '%s'.
+ignorecase: true
+level: error
+action:
+  name: replace
+swap:
+  (?:time steps?|time-steps?):     timestep(s)
+  (?:time points?|time-points?):   timepoint(s)
+  (?:multi scale|multi-scale):     multiscale

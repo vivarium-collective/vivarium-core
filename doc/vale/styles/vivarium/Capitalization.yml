@@ -1,0 +1,20 @@
+extends: substitution
+message: Consider using '%s' instead of '%s'.
+ignorecase: false
+level: error
+action:
+  name: replace
+swap:
+  zookeeper:                   Zookeeper
+  kafka:                       Kafka
+  (?:mongodb|mongoDB|Mongodb): MongoDB
+  (?:MacOSX|MacOS|Mac|OSX):    macOS
+  linux:                       Linux
+  python:                      Python
+  (?:homebrew|HomeBrew):       Homebrew
+  (?:home-brew|Home-Brew):     Homebrew
+  leiningen:                   Leiningen
+  java:                        Java
+  (?:github|Github|gitHub):    GitHub
+  michaelis-menten:            Michaelis-Menten
+  Michaelis-menten:            Michaelis-Menten

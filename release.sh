@@ -36,6 +36,7 @@ git tag -m "Version v$version" "v$version"
 git push --tags
 
 # Create and publish package
+rm -rf dist
 python setup.py sdist
 twine upload dist/*
 

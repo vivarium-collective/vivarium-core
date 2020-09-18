@@ -8,7 +8,7 @@ with open("README.md", 'r') as readme:
 
 setup(
     name='vivarium-core',
-    version='0.0.19',
+    version='0.0.20',
     packages=[
         'vivarium',
         'vivarium.core',
@@ -21,6 +21,10 @@ setup(
     license='MIT',
     entry_points={
         'console_scripts': []},
+    short_description=(
+        'Engine for composing and simulating computational biology '
+        'models with the Vivarium interface.'
+    ),
     long_description=long_description,
     long_description_content_type='text/markdown',
     package_data={},

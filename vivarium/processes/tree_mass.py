@@ -1,3 +1,9 @@
+'''
+=========
+Tree Mass
+=========
+'''
+
 from __future__ import absolute_import, division, print_function
 
 from scipy import constants
@@ -9,6 +15,18 @@ AVOGADRO = constants.N_A * 1 / units.mol
 
 
 def calculate_mass(value, path, node):
+    '''Reducer for summing masses in hierarchy
+
+    Arguments:
+        value: The value to add mass to.
+        path: Unused.
+        node: The node whose mass will be added.
+
+    Returns:
+        The mass of the node (accounting for the node's molecular
+        weight, which should be stored in its ``mw`` property) added to
+        ``value``.
+    '''
     if 'mw' in node.properties:
         count = node.value
         mw = node.properties['mw']
@@ -20,11 +38,6 @@ def calculate_mass(value, path, node):
 
 
 class TreeMass(Deriver):
-    """
-    Derives and sets total mass from individual molecular counts
-    that have a mass schema in their stores .
-
-    """
 
     name = 'mass_deriver'
     defaults = {
@@ -33,6 +46,15 @@ class TreeMass(Deriver):
     }
 
     def __init__(self, parameters=None):
+        """Derive total mass from molecular counts and weights.
+
+        Arguments:
+            parameters (dict): Dictionary of parameters. The following
+                keys are required:
+
+                * **from_path** (:py:class:`tuple`): Path to the root of
+                  the subtree whose mass will be summed.
+        """
         super(TreeMass, self).__init__(parameters)
         self.from_path = self.parameters['from_path']
 
@@ -54,6 +76,10 @@ class TreeMass(Deriver):
         }
 
     def next_update(self, timestep, states):
+        '''Return a ``_reduce`` update to store the total mass.
+
+        Store mass in ``('global', 'mass')``.
+        '''
         initial_mass = states['global']['initial_mass']
 
         return {
