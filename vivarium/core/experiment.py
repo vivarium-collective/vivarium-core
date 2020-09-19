@@ -662,9 +662,10 @@ class Store(object):
                 for added in update['_add']:
                     path = added['path']
                     state = added['state']
+
                     target = self.establish_path(path, {})
-                    self.apply_subschemas()
-                    self.apply_defaults()
+                    self.apply_subschema_path(path)
+                    target.apply_defaults()
                     target.set_value(state)
 
                 update = dissoc(update, ['_add'])
@@ -672,24 +673,26 @@ class Store(object):
             if '_generate' in update:
                 # generate a list of new compartments
                 for generate in update['_generate']:
+                    path = generate['path']
+
                     self.generate(
-                        generate['path'],
+                        path,
                         generate['processes'],
                         generate['topology'],
                         generate['initial_state'])
 
                     assoc_path(
                         process_updates,
-                        generate['path'],
+                        path,
                         generate['processes'])
 
                     assoc_path(
                         topology_updates,
-                        generate['path'],
+                        path,
                         generate['topology'])
 
-                self.apply_subschemas()
-                self.apply_defaults()
+                    self.apply_subschema_path(path)
+                    self.get_path(path).apply_defaults()
 
                 update = dissoc(update, '_generate')
 
@@ -711,25 +714,28 @@ class Store(object):
                         initial_state,
                         state)
 
+                    path = daughter['path']
+
                     self.generate(
-                        daughter['path'],
+                        path,
                         daughter['processes'],
                         daughter['topology'],
                         daughter['initial_state'])
 
                     assoc_path(
                         process_updates,
-                        daughter['path'],
+                        path,
                         daughter['processes'])
 
                     assoc_path(
                         topology_updates,
-                        daughter['path'],
+                        path,
                         daughter['topology'])
 
-                    self.apply_subschemas()
-                    self.inner[daughter_id].set_value(initial_state)
-                    self.apply_defaults()
+                    self.apply_subschema_path(path)
+                    target = self.get_path(path)
+                    target.apply_defaults()
+                    target.set_value(initial_state)
 
                 here = self.path_for()
                 mother_path = (mother,)
@@ -894,6 +900,17 @@ class Store(object):
             path: state
             for path, state in self.depth()
             if state.value and isinstance(state.value, Process)}
+
+    def apply_subschema_path(self, path):
+        if path:
+            inner = self.inner[path[0]]
+            if self.subschema:
+                subtopology = self.subtopology or {}
+                inner.topology_ports(
+                    self.subschema,
+                    subtopology,
+                    source=self.path_for() + ('*',))
+            inner.apply_subschema_path(path[1:])
 
     def apply_subschema(self, subschema=None, subtopology=None, source=None):
         '''
