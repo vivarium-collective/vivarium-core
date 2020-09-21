@@ -73,6 +73,7 @@ def make_agent_ids(agents_config):
         number = config.get('number', 1)
         if number < 1:
             remove.append(idx)
+            continue
         if 'name' in config:
             name = config['name']
             if number > 1:
