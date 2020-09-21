@@ -130,7 +130,10 @@ def update_nonnegative_accumulate(current_value, new_value, states):
         The sum of ``current_value`` and ``new_value`` if positive, 0 if negative.
     """
     updated_value = current_value + new_value
-    if updated_value >= 0:
+    if isinstance(updated_value, np.ndarray):
+        updated_value[updated_value < 0] = 0
+        return updated_value
+    elif updated_value >= 0:
         return updated_value
     else:
         return 0 * updated_value
