@@ -68,8 +68,12 @@ def make_agents(agent_ids, compartment, config=None):
 def make_agent_ids(agents_config):
     """ Add agent ids to an agent config """
     agent_ids = []
-    for config in agents_config:
+    remove = []
+    for idx, config in enumerate(agents_config):
         number = config.get('number', 1)
+        if number < 1:
+            remove.append(idx)
+            continue
         if 'name' in config:
             name = config['name']
             if number > 1:
@@ -80,6 +84,9 @@ def make_agent_ids(agents_config):
             new_agent_ids = [str(uuid.uuid1()) for num in range(number)]
         config['ids'] = new_agent_ids
         agent_ids.extend(new_agent_ids)
+    # remove configs with number = 0
+    for index in sorted(remove, reverse=True):
+        del agents_config[index]
     return agent_ids
 
 
@@ -387,7 +394,8 @@ def simulate_experiment(experiment, settings={}):
 
     # run simulation
     experiment.update(total_time)
-
+    experiment.end()
+    
     # return data from emitter
     if return_raw_data:
         return experiment.emitter.get_data()
