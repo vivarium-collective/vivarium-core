@@ -116,6 +116,22 @@ class Generator(object):
         if '_schema' in self.config:
             self.schema_override = self.config.pop('_schema')
 
+    def get_initial_state(self, config):
+        """Get initial state in embedded path dictionary
+
+        Every subclass may override this method.
+
+        Arguments:
+            config (dict): A dictionary of configuration options. All
+                subclass implementation must accept this parameter, but
+                some may ignore it.
+
+        Returns:
+            dict: Subclass implementations must return a dictionary
+            mapping state paths to initial values.
+        """
+        return {}
+
     def generate_processes(self, config):
         """Generate processes dictionary
 
