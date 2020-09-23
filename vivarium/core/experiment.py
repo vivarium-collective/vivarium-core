@@ -108,7 +108,8 @@ def delete_in(d, path):
         head = path[0]
         if len(path) == 1:
             # at the node to be deleted
-            del d[head]
+            if head in d:
+                del d[head]
         elif head in d:
             down = d[head]
             delete_in(d[head], path[1:])
