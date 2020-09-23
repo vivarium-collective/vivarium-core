@@ -89,6 +89,3 @@ class TreeMass(Deriver):
                         'reducer': calculate_mass,
                         'from': self.from_path,
                         'initial': initial_mass}}}}
-
-# register process by invoking upon import
-TreeMass()

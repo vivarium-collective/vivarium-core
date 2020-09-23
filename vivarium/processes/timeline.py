@@ -87,6 +87,3 @@ class TimelineProcess(Process):
                 self.timeline.pop(0)
                 log.info('timeline update: {}'.format(update))
         return update
-
-
-TimelineProcess()

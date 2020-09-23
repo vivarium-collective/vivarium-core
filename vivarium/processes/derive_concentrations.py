@@ -64,6 +64,3 @@ class DeriveConcentrations(Deriver):
 
         return {
             'concentrations': concentrations}
-
-# register process by invoking upon import
-DeriveConcentrations()

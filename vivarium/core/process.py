@@ -218,9 +218,6 @@ class Process(Generator):
 
         deep_merge(self.parameters, parameters)
 
-        # register process repository
-        process_registry.register(self.name, type(self))
-
     def generate_processes(self, config):
         return {self.name: self}
 
