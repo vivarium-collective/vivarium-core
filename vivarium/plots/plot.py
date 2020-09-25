@@ -1,3 +1,15 @@
+"""
+==================================
+Plotting Functions for Experiments
+==================================
+"""
+
+
+import os
+
+import numpy as np
+import matplotlib.pyplot as plt
+
 from vivarium.core.emitter import path_timeseries_from_embedded_timeseries, path_timeseries_from_data
 from vivarium.library.dict_utils import get_path_list_from_dict
 

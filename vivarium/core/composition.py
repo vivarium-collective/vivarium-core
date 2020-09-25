@@ -332,16 +332,12 @@ def compartment_in_experiment(
     topology = network['topology']
 
     if timeline is not None:
-        # Environment requires ports for all states defined in the timeline, and a global port
-        ports = timeline['ports']
+        # Adding a timeline to a process requires only the timeline
         timeline_process = TimelineProcess(timeline)
         processes.update({'timeline_process': timeline_process})
-        if 'global' not in ports:
-            ports['global'] = ('global',)
         topology.update({
             'timeline_process': {
-                port: path
-                for port, path in ports.items()}})
+                port: (port,) for port in timeline_process.ports}})
 
     if environment is not None:
         # Environment requires ports for external, fields, dimensions,
