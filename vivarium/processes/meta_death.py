@@ -17,7 +17,7 @@ from vivarium.core.composition import (
     simulate_compartment_in_experiment,
     PROCESS_OUT_DIR,
 )
-from vivarium.plots.plot import plot_agents_multigen
+from vivarium.plots.plot import plot_simulation_output
 
 
 NAME = 'meta_death'
@@ -27,7 +27,7 @@ class MetaDeath(Deriver):
     name = NAME
     defaults = {
         'initial_state': {},
-        'dead_compartment': None,
+        'death_processes': {},
     }
 
     def __init__(self, parameters=None):
@@ -35,49 +35,59 @@ class MetaDeath(Deriver):
 
         # provide dead_compartment to replace
         # current compartment after death
-        self.agent_id = self.parameters['agent_id']
-        self.dead_compartment = self.parameters['dead_compartment']
+        self.agent_path = ('..', self.parameters['agent_id'])
+        self.compartment = self.parameters['compartment']
+        self.death_processes = self.parameters['death_processes']
 
     def ports_schema(self):
         return {
             'global': {
-                'dead': {
+                'die': {
                     '_default': False,
                     '_updater': 'set',
                     '_emit': True,
+                },
+                'already_dead': {
+                    '_default': False,
+                    '_updater': 'set',
                 }
             },
-            'agents': {
-                '*': {}
-            }
         }
 
     def next_update(self, timestep, states):
-        dead = states['global']['dead']
+        die = states['global']['die']
+        already_dead = states['global']['already_dead']
+        if die and not already_dead:
+            # Get processes to remove from compartment
+            network = self.compartment.generate({})
+            living_processes = network['processes'].keys()
 
-        if dead:
-            dead_agent_id = self.agent_id #+ '_dead'
-
-            compartment = self.dead_compartment.generate({
-                'agent_id': dead_agent_id})
-
-            log.info('DEATH! {}'.format(self.agent_id))
-
-            return {
-                'agents': {
-                    '_delete': [(self.agent_id,)],
+            update = {
+                'global': {'already_dead': True}
+                self.agent_path: {
+                    '_delete': [
+                        (processes,)
+                        for processes in living_processes
+                    ],
                     '_generate': [
                         {
-                            'path': (dead_agent_id,),
-                            'processes': compartment['processes'],
-                            'topology': compartment['topology'],
-                            'initial_state': {
-                                'global': {'dead': True}
-                            },  # TODO -- initial_state should be the same state as the original agent
+                            'path': tuple(),
+                            'processes': self.death_processes,
+                            'topology': {
+                                process.name: {
+                                    port: (port,)
+                                    for port in process.ports().keys()}
+                                for process in self.death_processes
+                            },
                         }
-                    ]
-                }
+                    ],
+                },
             }
+
+            import ipdb;
+            ipdb.set_trace()
+
+            return update
         else:
             return {}
 
@@ -113,42 +123,31 @@ class ExchangeA(Process):
             'internal': {'A': delta_A_in},
             'external': {'A': -delta_A_in}}
 
-class ToyDeadCompartment(Generator):
-    defaults = {
-        'agents_path': ('agents',),
-        'exchange': {
-            'uptake_rate': -0.1}}
-
-    def generate_processes(self, config):
-        return {'exchange': ExchangeA(config['exchange']),}
-
-    def generate_topology(self, config):
-        agents_path = config['agents_path']
-        return {
-            'exchange': {
-                'internal': ('internal',),
-                'external': ('external',)}}
-
 class ToyLivingCompartment(Generator):
     defaults = {
-        'agents_path': ('agents',),
         'exchange': {'uptake_rate': 0.1},
-        'death': {'dead_compartment': ToyDeadCompartment({})}}
+        'death': {
+            'death_processes': [ExchangeA({
+                'exchange': {'uptake_rate': -0.1}})]
+        }
+    }
 
     def generate_processes(self, config):
+        death_config = config['death']
+        death_config.update({'compartment': self})
         return {
             'exchange': ExchangeA(config['exchange']),
-            'death': MetaDeath(config['death'])}
+            'death': MetaDeath(death_config)}
 
     def generate_topology(self, config):
-        agents_path = config['agents_path']
+        # agents_path = config['agents_path']
         return {
             'exchange': {
                 'internal': ('internal',),
                 'external': ('external',)},
             'death': {
                 'global': ('global',),
-                'agents': agents_path}}
+            }}
 
 
 def test_death():
@@ -171,8 +170,8 @@ def test_death():
 
     # timeline turns death on
     timeline = [
-        (0, {('agents', agent_id, 'global', 'dead'): False}),
-        (5, {('agents', agent_id, 'global', 'dead'): True}),
+        # (0, {('agents', agent_id, 'global', 'die'): False}),
+        (5, {('agents', agent_id, 'global', 'die'): True}),
         (10, {})]
 
     # simulate
@@ -196,7 +195,7 @@ def run_death():
     import ipdb;
     ipdb.set_trace()
 
-    plot_agents_multigen(output, {}, out_dir)
+    plot_simulation_output(output, {}, out_dir)
 
 
 if __name__ == '__main__':
