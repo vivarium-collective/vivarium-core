@@ -17,7 +17,7 @@ from vivarium.core.composition import (
     simulate_compartment_in_experiment,
     PROCESS_OUT_DIR,
 )
-from vivarium.plots.plot import plot_simulation_output
+from vivarium.plots.plot import plot_agents_multigen
 
 
 NAME = 'meta_death'
@@ -56,7 +56,7 @@ class MetaDeath(Deriver):
 
         if dead:
             compartment = self.dead_compartment.generate({
-                'agent_id': self.agent_id})
+                'agent_id': self.agent_id + '_dead'})
             return {
                 'agents': {
                     '_delete': self.agent_id,
@@ -164,7 +164,7 @@ def run_death():
         os.makedirs(out_dir)
 
     output = test_death()
-    plot_simulation_output(output, {}, out_dir)
+    plot_agents_multigen(output, {}, out_dir)
 
 
 if __name__ == '__main__':
