@@ -35,7 +35,7 @@ def deep_merge_check(dct, merge_dct):
 
 def deep_merge_combine_lists(dct, merge_dct):
     '''
-    Recursive dict merge, combines values that are lists
+    Recursive dict merge, values are lists are combined into one list without repeating values.
     This mutates dct - the contents of merge_dct are added to dct (which is also returned).
     If you want to keep dct you could call it like deep_merge(dict(dct), merge_dct)'''
     for k, v in merge_dct.items():
@@ -43,7 +43,9 @@ def deep_merge_combine_lists(dct, merge_dct):
                 and isinstance(merge_dct[k], collections.Mapping)):
             deep_merge(dct[k], merge_dct[k])
         elif k in dct and isinstance(dct[k], list) and isinstance(v, list):
-            dct[k].extend(v)
+            for i in v:
+                if i not in dct[k]:
+                    dct[k].append(i)
         else:
             dct[k] = merge_dct[k]
     return dct

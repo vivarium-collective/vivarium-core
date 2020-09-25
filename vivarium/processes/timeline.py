@@ -8,6 +8,15 @@ from vivarium.library.dict_utils import deep_merge_combine_lists
 from vivarium.core.process import Process, Generator
 
 
+
+def nested_set(dic, keys, value):
+    ''' make an embedded dict from a list of keys,
+    with a value set at the deepest key '''
+    for key in keys[:-1]:
+        dic = dic.setdefault(key, {})
+    dic[keys[-1]] = value
+
+
 class TimelineProcess(Process):
 
     name = 'timeline'
@@ -76,14 +85,15 @@ class TimelineProcess(Process):
         update = {'global': {'time': timestep}}
         for (t, change_dict) in self.timeline:
             if time >= t:
-                for state, value in change_dict.items():
-                    port = state[0]
-                    variable = state[1]
-                    if port not in update:
-                        update[port] = {}
-                    update[port][variable] = {
+                for path_to_variable, value in change_dict.items():
+                    # make embedded dict with keys listed in path_to_variable
+                    update_at_path = {}
+                    update_value = {
                         '_value': value,
                         '_updater': 'set'}
+                    nested_set(update_at_path, path_to_variable, update_value)
+                    update = deep_merge_combine_lists(update, update_at_path)
+
                 self.timeline.pop(0)
                 log.info('timeline update: {}'.format(update))
         return update

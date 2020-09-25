@@ -34,7 +34,7 @@ class MetaDeath(Deriver):
         super(MetaDeath, self).__init__(parameters)
 
         # provide dead_compartment to replace
-        # current compartment with after death
+        # current compartment after death
         self.agent_id = self.parameters['agent_id']
         self.dead_compartment = self.parameters['dead_compartment']
 
@@ -43,7 +43,8 @@ class MetaDeath(Deriver):
             'global': {
                 'dead': {
                     '_default': False,
-                    '_updater': 'set'
+                    '_updater': 'set',
+                    '_emit': True,
                 }
             },
             'agents': {
@@ -57,6 +58,9 @@ class MetaDeath(Deriver):
         if dead:
             compartment = self.dead_compartment.generate({
                 'agent_id': self.agent_id + '_dead'})
+
+            log.info('DEATH! {}'.format(self.agent_id))
+
             return {
                 'agents': {
                     '_delete': self.agent_id,
@@ -100,6 +104,7 @@ class ExchangeA(Process):
 
 class ToyDeadCompartment(Generator):
     defaults = {
+        'agents_path': ('agents',),
         'exchange': {
             'uptake_rate': -0.1}}
 
@@ -107,6 +112,7 @@ class ToyDeadCompartment(Generator):
         return {'exchange': ExchangeA(config['exchange']),}
 
     def generate_topology(self, config):
+        agents_path = config['agents_path']
         return {
             'exchange': {
                 'internal': ('internal',),
@@ -114,6 +120,7 @@ class ToyDeadCompartment(Generator):
 
 class ToyLivingCompartment(Generator):
     defaults = {
+        'agents_path': ('agents',),
         'exchange': {'uptake_rate': 0.1},
         'death': {'dead_compartment': ToyDeadCompartment({})}}
 
@@ -123,33 +130,43 @@ class ToyLivingCompartment(Generator):
             'death': MetaDeath(config['death'])}
 
     def generate_topology(self, config):
+        agents_path = config['agents_path']
         return {
             'exchange': {
                 'internal': ('internal',),
                 'external': ('external',)},
             'death': {
-                'global': ('global',)}}
+                'global': ('global',),
+                'agents': agents_path}}
 
 
 def test_death():
+    agent_id = '1'
+
     # make the compartment
     compartment = ToyLivingCompartment({
-        'death': {'agent_id': '1'}})
+        'agents_path': ('..', '..', 'agents'),
+        'death': {'agent_id': agent_id}})
 
-    # intitial state
+    # initial state
     initial_state = {
-        'external': {'A': 1},
-        'global': {'dead': 0}}
+        'agents': {
+            agent_id: {
+                'external': {'A': 1},
+                'global': {'dead': 0}
+            }
+        }
+    }
 
     # timeline turns death on
     timeline = [
-        (0, {('global', 'dead'): 0}),
-        (10, {('global', 'dead'): 1}),
-        (20, {})]
+        (0, {('agents', agent_id, 'global', 'dead'): False}),
+        (2, {('agents', agent_id, 'global', 'dead'): True}),
+        (4, {})]
 
     # simulate
     settings = {
-        # 'total_time': 10,
+        'outer_path': ('agents', agent_id),
         'timeline': {
             'timeline': timeline},
         'initial_state': initial_state}
@@ -164,6 +181,10 @@ def run_death():
         os.makedirs(out_dir)
 
     output = test_death()
+
+    import ipdb;
+    ipdb.set_trace()
+
     plot_agents_multigen(output, {}, out_dir)
 
 
