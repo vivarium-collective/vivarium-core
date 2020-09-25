@@ -56,15 +56,26 @@ class MetaDeath(Deriver):
         dead = states['global']['dead']
 
         if dead:
+            dead_agent_id = self.agent_id #+ '_dead'
+
             compartment = self.dead_compartment.generate({
-                'agent_id': self.agent_id + '_dead'})
+                'agent_id': dead_agent_id})
 
             log.info('DEATH! {}'.format(self.agent_id))
 
             return {
                 'agents': {
-                    '_delete': self.agent_id,
-                    '_add': compartment,
+                    '_delete': [(self.agent_id,)],
+                    '_generate': [
+                        {
+                            'path': (dead_agent_id,),
+                            'processes': compartment['processes'],
+                            'topology': compartment['topology'],
+                            'initial_state': {
+                                'global': {'dead': True}
+                            },  # TODO -- initial_state should be the same state as the original agent
+                        }
+                    ]
                 }
             }
         else:
@@ -153,7 +164,7 @@ def test_death():
         'agents': {
             agent_id: {
                 'external': {'A': 1},
-                'global': {'dead': 0}
+                'global': {'dead': False}
             }
         }
     }
@@ -161,8 +172,8 @@ def test_death():
     # timeline turns death on
     timeline = [
         (0, {('agents', agent_id, 'global', 'dead'): False}),
-        (2, {('agents', agent_id, 'global', 'dead'): True}),
-        (4, {})]
+        (5, {('agents', agent_id, 'global', 'dead'): True}),
+        (10, {})]
 
     # simulate
     settings = {
