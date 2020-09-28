@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.0.28
+
+* vivarium/plots directory
+* register in module init
+* get_initialize_state for Generator
+* generalize timeline process
+
 ## v0.0.20
 
 * Update documentation with:
