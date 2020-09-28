@@ -10,8 +10,10 @@ from vivarium.core.process import Process, Generator
 
 
 def nested_set(dic, keys, value):
-    ''' make an embedded dict from a list of keys,
-    with a value set at the deepest key '''
+    ''' Make nested dictionary
+
+    Makes an embedded dict from a list of keys, with a value set at the deepest key.
+    '''
     for key in keys[:-1]:
         dic = dic.setdefault(key, {})
     dic[keys[-1]] = value
