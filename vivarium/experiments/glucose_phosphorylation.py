@@ -15,7 +15,7 @@ from vivarium.core.composition import (
     simulate_experiment,
     EXPERIMENT_OUT_DIR,
 )
-from vivarium.plots.plot import plot_simulation_output
+from vivarium.plots.simulation_output import plot_simulation_output
 from vivarium.core.emitter import (
     path_timeseries_from_data,
     timeseries_from_data,

@@ -404,7 +404,7 @@ like this:
 .. code-block:: python
 
     from vivarium.core.composition import simulate_process
-    from vivarium.plots.plot import plot_simulation_output
+    from vivarium.plots.simulation_output import plot_simulation_output
 
     ...
 
@@ -421,7 +421,7 @@ like this:
         plot_simulation_output(timeseries, {}, './')
 
 We use
-:py:class:`vivarium.plots.plot.plot_simulation_output` to
+:py:class:`vivarium.plots.simulation_output.plot_simulation_output` to
 plot the output from our simulation. In ``simulation.png`` you should
 see an output plot like this:
 

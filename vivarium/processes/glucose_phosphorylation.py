@@ -10,7 +10,7 @@ from vivarium.core.process import Process
 from vivarium.core.composition import (
     simulate_process,
 )
-from vivarium.plots.plot import plot_simulation_output
+from vivarium.plots.simulation_output import plot_simulation_output
 from vivarium.processes.tree_mass import TreeMass
 from vivarium.library.units import units
 
