@@ -108,6 +108,7 @@ class Generator(object):
 
     All :term:`compartment` classes must inherit from this class.
     """
+    name = 'generator_parent'
     defaults = {}
     def __init__(self, config):
         self.config = copy.deepcopy(self.defaults)
@@ -115,6 +116,22 @@ class Generator(object):
         self.schema_override = {}
         if '_schema' in self.config:
             self.schema_override = self.config.pop('_schema')
+
+    def initial_state(self, config=None):
+        """Get initial state in embedded path dictionary
+
+        Every subclass may override this method.
+
+        Arguments:
+            config (dict): A dictionary of configuration options. All
+                subclass implementation must accept this parameter, but
+                some may ignore it.
+
+        Returns:
+            dict: Subclass implementations must return a dictionary
+            mapping state paths to initial values.
+        """
+        raise Exception('{} does not include an "initial_state" function'.format(self.name))
 
     def generate_processes(self, config):
         """Generate processes dictionary
@@ -199,7 +216,11 @@ class Generator(object):
 
 
 class Process(Generator):
+    """Process parent class
 
+    All :term:`process` classes must inherit from this class.
+    """
+    name = 'process_parent'
     defaults = {}
 
     def __init__(self, parameters=None):

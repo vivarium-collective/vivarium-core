@@ -216,6 +216,13 @@ Glossary
         keys are described in more detail in the documentation for
         :py:class:`vivarium.core.experiment.Store`.
 
+    Serializer
+    serializer
+    Serializers
+    serializers
+        A serializer is an object that converts data of a certain type
+        into a format that can transmitted and stored.
+
     Store
     store
     Stores

@@ -9,8 +9,8 @@ This is a toy example referenced in the documentation.
 from vivarium.core.process import Process
 from vivarium.core.composition import (
     simulate_process,
-    plot_simulation_output,
 )
+from vivarium.plots.simulation_output import plot_simulation_output
 from vivarium.processes.tree_mass import TreeMass
 from vivarium.library.units import units
 

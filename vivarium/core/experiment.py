@@ -637,7 +637,7 @@ class Store(object):
             * initial_state - Initial state for this new subtree.
 
         * `_divide` - Performs cell division by constructing two new
-          daugther cells and removing the mother. Takes a dict with two keys:
+          daughter cells and removing the mother. Takes a dict with two keys:
 
             * mother - The id of the mother (for removal)
             * daughters - List of two new daughter generate directives, of the
@@ -1371,8 +1371,9 @@ class Experiment(object):
             'experiment_id': self.experiment_id,
             'name': self.experiment_name,
             'description': self.description,
-            'processes': serialize_dictionary(self.processes),
             'topology': self.topology,
+            # TODO -- handle large parameter sets in self.processes to meet mongoDB limit
+            # 'processes': serialize_dictionary(self.processes),
             # 'state': self.state.get_config()
         }
         emit_config = {
