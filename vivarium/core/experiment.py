@@ -31,6 +31,7 @@ from vivarium.library.units import Quantity
 from vivarium.library.dict_utils import merge_dicts, deep_merge, deep_merge_check
 from vivarium.core.emitter import get_emitter
 from vivarium.core.process import (
+    Generator,
     Process,
     ParallelProcess,
     serialize_dictionary,
@@ -1126,7 +1127,6 @@ def inverse_topology(outer, update, topology):
 
     inverse = {}
     for key, path in topology.items():
-
         if key == '*':
 
             if isinstance(path, dict):
@@ -1153,8 +1153,7 @@ def inverse_topology(outer, update, topology):
                             inverse,
                             inner,
                             lambda current: deep_merge(
-                                current, child_update),
-                        )
+                                current, child_update))
                     else:
                         assoc_path(inverse, inner, child_update)
 
@@ -1170,10 +1169,16 @@ def inverse_topology(outer, update, topology):
                         assoc_path(inverse, inner, node)
                     path = without(path, '_path')
 
-                node.update(inverse_topology(
-                    tuple(),
-                    value,
-                    path))
+                    for update_key in update[key].keys():
+                        if update_key not in path:
+                            path[update_key] = (update_key,)
+
+                deep_merge(
+                    node,
+                    inverse_topology(
+                        tuple(),
+                        value,
+                        path))
 
             else:
                 inner = normalize_path(outer + path)
@@ -1181,8 +1186,7 @@ def inverse_topology(outer, update, topology):
                     inverse = update_in(
                         inverse,
                         inner,
-                        lambda current: deep_merge(current, value)
-                    )
+                        lambda current: deep_merge(current, value))
                 else:
                     assoc_path(inverse, inner, value)
 
@@ -1907,24 +1911,20 @@ def test_timescales():
 def test_inverse_topology():
     update = {
         'port1': {
-            'a': 5,
-        },
+            'a': 5},
         'port2': {
-            'b': 10,
-        },
+            'b': 10},
         'port3': {
-            'b': 10,
-        },
+            'b': 10},
         'global': {
-            'c': 20,
-        },
-    }
+            'c': 20}}
+
     topology = {
         'port1': ('boundary', 'x'),
         'global': ('boundary',),
         'port2': ('boundary', 'y'),
-        'port3': ('boundary', 'x'),
-    }
+        'port3': ('boundary', 'x')}
+
     path = ('agent',)
     inverse = inverse_topology(path, update, topology)
     expected_inverse = {
@@ -1932,16 +1932,117 @@ def test_inverse_topology():
             'boundary': {
                 'x': {
                     'a': 5,
-                    'b': 10,
-                },
+                    'b': 10},
                 'y': {
-                    'b': 10,
-                },
-                'c': 20,
-            }
-        }
-    }
+                    'b': 10},
+                'c': 20}}}
+
     assert inverse == expected_inverse
+
+
+def test_complex_topology():
+    class Po(Process):
+        name = 'po'
+
+        def ports_schema(self):
+            return {
+                'A': {
+                    'a': {'_default': 0},
+                    'b': {'_default': 0},
+                    'c': {'_default': 0}},
+                'B': {
+                    'd': {'_default': 0},
+                    'e': {'_default': 0}}}
+
+        def next_update(self, timestep, states):
+            return {
+                'A': {
+                    'a': states['A']['b'],
+                    'b': states['A']['c'],
+                    'c': states['B']['d'] + states['B']['e']},
+                'B': {
+                    'd': states['A']['a'],
+                    'e': states['B']['e']}}
+
+    class Qo(Process):
+        name = 'qo'
+
+        def ports_schema(self):
+            return {
+                'D': {
+                    'x': {'_default': 0},
+                    'y': {'_default': 0},
+                    'z': {'_default': 0}},
+                'E': {
+                    'u': {'_default': 0},
+                    'v': {'_default': 0}}}
+
+        def next_update(self, timestep, states):
+            return {
+                'D': {
+                    'x': -1,
+                    'y': 12,
+                    'z': states['D']['x'] + states['D']['y']},
+                'E': {
+                    'u': 3,
+                    'v': states['E']['u']}}
+
+
+    class PoQo(Generator):
+        def generate_processes(self, config=None):
+            P = Po(config)
+            Q = Qo(config)
+
+            return {
+                'po': P,
+                'qo': Q}
+
+        def generate_topology(self, config=None):
+            return {
+                'po': {
+                    'A': {
+                        '_path': ('aaa',),
+                        'b': ('o',)},
+                    'B': ('bbb',)},
+                'qo': {
+                    'D': {
+                        'x': ('aaa', 'a'),
+                        'y': ('aaa', 'o'),
+                        'z': ('ddd', 'z')},
+                    'E': {
+                        'u': ('aaa', 'u'),
+                        'v': ('bbb', 'e')}}}
+
+
+    initial_state = {
+        'aaa': {
+            'a': 2,
+            'c': 5,
+            'o': 3,
+            'u': 11},
+        'bbb': {
+            'd': 14,
+            'e': 88},
+        'ddd': {
+            'z': 333}}
+
+    PQ = PoQo({})
+    pq_config = PQ.generate()
+    pq_config['initial_state'] = initial_state
+
+    experiment = Experiment(pq_config)
+
+    pp(experiment.state.get_value())
+    experiment.update(1)
+
+    state = experiment.state.get_value()
+    assert state['aaa']['a'] == initial_state['aaa']['a'] + initial_state['aaa']['o'] - 1
+    assert state['aaa']['o'] == initial_state['aaa']['o'] + initial_state['aaa']['c'] + 12
+    assert state['aaa']['c'] == initial_state['aaa']['c'] + initial_state['bbb']['d'] + initial_state['bbb']['e']
+    assert state['aaa']['u'] == initial_state['aaa']['u'] + 3
+    assert state['bbb']['d'] == initial_state['bbb']['d'] + initial_state['aaa']['a']
+    assert state['bbb']['e'] == initial_state['bbb']['e'] + initial_state['bbb']['e'] + initial_state['aaa']['u']
+    assert state['ddd']['z'] == initial_state['ddd']['z'] + initial_state['aaa']['a'] + initial_state['aaa']['o']
 
 
 def test_multi():
@@ -2134,5 +2235,7 @@ if __name__ == '__main__':
     # test_topology_ports()
     # test_multi()
     # test_sine()
+    # test_parallel()
 
-    test_parallel()
+    test_complex_topology()
+
