@@ -27,7 +27,7 @@ class MetaDeath(Deriver):
     """ MetaDeath Process
 
     Declared death processes replace the contents of the compartment
-    when the global variable 'die' is triggered.
+    when the state under the 'dead' port is set to True.
     """
     name = NAME
     defaults = {
@@ -43,35 +43,22 @@ class MetaDeath(Deriver):
 
     def ports_schema(self):
         return {
-            'global': {
-                'die': {
-                    '_default': False,
-                    '_updater': 'set',
-                    '_emit': True,
-                },
-                'alive': {
-                    '_default': True,
-                    '_updater': 'set',
-                }
-            },
-            'self': {}
-        }
+            'dead': {
+                '_default': False,
+                '_emit': True},
+            'self': {}}
 
     def next_update(self, timestep, states):
-        die = states['global']['die']
-        alive = states['global']['alive']
-
-        if die and alive:
+        if states['dead']:
             network = self.death_compartment.generate({})  # todo -- pass in config?
             return {
-                'global': {
-                    'alive': False},
                 'self': {
                     '_delete': self.death_paths,
                     '_generate': [{
                         'processes': network['processes'],
                         'topology': network['topology'],
-                        'initial_state': self.initial_state}]
+                        'initial_state': self.initial_state,
+                    }]
                 }
             }
         else:
@@ -148,7 +135,7 @@ class ToyLivingCompartment(Generator):
                 'internal': ('internal',),
                 'external': ('external',)},
             'death': {
-                'global': ('global',),
+                'dead': ('dead',),
                 'self': self_path}}
 
 
@@ -164,12 +151,12 @@ def test_death():
         'agents': {
             agent_id: {
                 'external': {'A': 1},
-                'global': {'dead': False}}}}
+                'dead': False}}}
 
     # timeline turns death on
     timeline = [
-        (0, {('agents', agent_id, 'global', 'die'): False}),
-        (5, {('agents', agent_id, 'global', 'die'): True}),
+        (0, {('agents', agent_id, 'dead'): False}),
+        (5, {('agents', agent_id, 'dead'): True}),
         (10, {})]
 
     # simulate
