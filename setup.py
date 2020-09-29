@@ -22,7 +22,7 @@ setup(
     license='MIT',
     entry_points={
         'console_scripts': []},
-    short_description=(
+    description=(
         'Engine for composing and simulating computational biology '
         'models with the Vivarium interface.'
     ),
