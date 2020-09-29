@@ -2,7 +2,7 @@
 
 Vivarium-core provides a process interface and engine for composing multi-scale models in computational biology.
 
-![vivarium](doc/_static/snapshots_fields.png)
+![vivarium](doc/_static/multiscale.png)
 
 ## Documentation and Tutorials
 Visit [Vivarium documentation](https://vivarium-core.readthedocs.io/)
