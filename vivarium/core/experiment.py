@@ -688,7 +688,7 @@ class Store(object):
             if '_generate' in update:
                 # generate a list of new compartments
                 for generate in update['_generate']:
-                    path = generate['path']
+                    path = generate.get('path', self.path_for())  # if no path, generate in place
 
                     self.generate(
                         path,

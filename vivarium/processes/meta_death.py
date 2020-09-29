@@ -40,7 +40,15 @@ class MetaDeath(Deriver):
         super(MetaDeath, self).__init__(parameters)
         self.compartment = self.parameters['compartment']
         self.death_processes = self.parameters['death_processes']
-        self.death_topology = self.parameters['death_topology']
+
+        # make topology
+        self.death_topology = {}
+        for process_id, process in self.death_processes.items():
+            ports = process.ports()
+            self.death_topology[process_id] = {
+                port: (port,) for port in ports.keys()}
+        self.death_topology.update(self.parameters['death_topology'])
+
         self.initial_state = self.parameters['initial_state']
 
     def ports_schema(self):
@@ -75,11 +83,9 @@ class MetaDeath(Deriver):
                         (processes,)
                         for processes in living_processes],
                     '_generate': [{
-                        'path': tuple(),
                         'processes': self.death_processes,
                         'topology': self.death_topology,
-                        'initial_state': self.initial_state,
-                    }]
+                        'initial_state': self.initial_state}]
                 }
             }
             return update
@@ -129,9 +135,7 @@ class ToyLivingCompartment(Generator):
                 'secretion': ExchangeA({
                     'exchange': {'uptake_rate': -0.1}})},
             'death_topology': {
-                'secretion': exchange_topology},
-        }
-    }
+                'secretion': exchange_topology}}}
 
     def generate_processes(self, config):
         agent_id = config['agent_id']
@@ -192,10 +196,10 @@ def run_death():
         os.makedirs(out_dir)
 
     output = test_death()
-
-    import ipdb; ipdb.set_trace()
-
     plot_simulation_output(output, {}, out_dir)
+
+    import ipdb;
+    ipdb.set_trace()
 
 
 if __name__ == '__main__':
