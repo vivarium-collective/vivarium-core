@@ -3,7 +3,7 @@
 Vivarium-core provides a process interface and engine for composing multi-scale models in computational biology.
 
 ![vivarium](doc/_static/multiscale.png)
-** Vivarium's multi-scale framework.** 
+**Vivarium's multi-scale framework**.
 (**a**) Processes and stores are the basic elements of the framework. Processes declare *parameters*, *ports* that connect to 
 stores, and an *update function* that computes how the state variables unfold over time. Stores hold the state variables, 
 and determine how the variables are handled with properties such as *units*, *updaters*, *dividers*, *emitters*, and more. 
