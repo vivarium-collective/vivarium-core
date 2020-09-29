@@ -9,6 +9,7 @@ from __future__ import absolute_import, division, print_function
 import copy
 import numpy as np
 
+from bson.objectid import ObjectId
 from multiprocessing import Pipe
 from multiprocessing import Process as Multiprocess
 
@@ -39,6 +40,8 @@ def serialize_value(value):
             serializer_registry.access('compartment').serialize(value))
     elif isinstance(value, (np.integer, np.floating)):
         return serializer_registry.access('numpy_scalar').serialize(value)
+    elif isinstance(value, ObjectId):
+        return str(value)
     else:
         return value
 
