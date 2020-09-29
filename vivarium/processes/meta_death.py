@@ -31,24 +31,14 @@ class MetaDeath(Deriver):
     """
     name = NAME
     defaults = {
-        'initial_state': {},
-        'death_processes': {},
-        'death_topology': {},
+        'initial_state': {},   # TODO -- get this from the compartment
+        'death_paths': [],  # list of processes to remove
     }
 
     def __init__(self, parameters=None):
         super(MetaDeath, self).__init__(parameters)
-        self.compartment = self.parameters['compartment']
-        self.death_processes = self.parameters['death_processes']
-
-        # make topology
-        self.death_topology = {}
-        for process_id, process in self.death_processes.items():
-            ports = process.ports()
-            self.death_topology[process_id] = {
-                port: (port,) for port in ports.keys()}
-        self.death_topology.update(self.parameters['death_topology'])
-
+        self.death_paths = self.parameters['death_paths']
+        self.death_compartment = self.parameters['death_compartment']
         self.initial_state = self.parameters['initial_state']
 
     def ports_schema(self):
@@ -59,36 +49,31 @@ class MetaDeath(Deriver):
                     '_updater': 'set',
                     '_emit': True,
                 },
-                'has_died': {
-                    '_default': False,
+                'alive': {
+                    '_default': True,
                     '_updater': 'set',
                 }
             },
-            'compartment': {}
+            'self': {}
         }
 
     def next_update(self, timestep, states):
         die = states['global']['die']
-        has_died = states['global']['has_died']
-        if die and not has_died:
-            # Get processes to remove from compartment
-            network = self.compartment.generate({})
-            living_processes = network['processes'].keys()
+        alive = states['global']['alive']
 
-            update = {
+        if die and alive:
+            network = self.death_compartment.generate({})  # todo -- pass in config?
+            return {
                 'global': {
-                    'has_died': True},
-                'compartment': {
-                    '_delete': [
-                        (processes,)
-                        for processes in living_processes],
+                    'alive': False},
+                'self': {
+                    '_delete': self.death_paths,
                     '_generate': [{
-                        'processes': self.death_processes,
-                        'topology': self.death_topology,
+                        'processes': network['processes'],
+                        'topology': network['topology'],
                         'initial_state': self.initial_state}]
                 }
             }
-            return update
         else:
             return {}
 
@@ -124,36 +109,47 @@ class ExchangeA(Process):
             'internal': {'A': delta_A_in},
             'external': {'A': -delta_A_in}}
 
+
+class ToyDeadCompartment(Generator):
+    defaults = {
+        'secrete': {
+            'secrete_rate': 0.1}}
+
+    def generate_processes(self, config):
+        return {
+            'secrete': ExchangeA(config['secrete'])}
+
+    def generate_topology(self, config):
+        return {
+            'secrete': {
+                'internal': ('internal',),
+                'external': ('external',)}}
+
+
 class ToyLivingCompartment(Generator):
-    exchange_topology = {
-        'internal': ('internal',),
-        'external': ('external',)}
     defaults = {
         'exchange': {'uptake_rate': 0.1},
         'death': {
-            'death_processes': {
-                'secretion': ExchangeA({
-                    'exchange': {'uptake_rate': -0.1}})},
-            'death_topology': {
-                'secretion': exchange_topology}}}
+            'death_paths': [
+                ('exchange',),
+                ('death',)],
+            'death_compartment': ToyDeadCompartment({})
+        }}
 
     def generate_processes(self, config):
-        agent_id = config['agent_id']
-        death_config = config['death']
-        death_config.update({
-            'agent_id': agent_id,
-            'compartment': self})
         return {
             'exchange': ExchangeA(config['exchange']),
-            'death': MetaDeath(death_config)}
+            'death': MetaDeath(config['death'])}
 
     def generate_topology(self, config):
         self_path = ('..', config['agent_id'])
         return {
-            'exchange': self.exchange_topology,
+            'exchange': {
+                'internal': ('internal',),
+                'external': ('external',)},
             'death': {
                 'global': ('global',),
-                'compartment': self_path}}
+                'self': self_path}}
 
 
 def test_death():
@@ -168,10 +164,7 @@ def test_death():
         'agents': {
             agent_id: {
                 'external': {'A': 1},
-                'global': {'dead': False}
-            }
-        }
-    }
+                'global': {'dead': False}}}}
 
     # timeline turns death on
     timeline = [
@@ -194,12 +187,8 @@ def run_death():
     out_dir = os.path.join(PROCESS_OUT_DIR, NAME)
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
-
     output = test_death()
     plot_simulation_output(output, {}, out_dir)
-
-    import ipdb;
-    ipdb.set_trace()
 
 
 if __name__ == '__main__':
