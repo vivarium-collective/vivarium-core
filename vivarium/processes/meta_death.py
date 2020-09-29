@@ -26,18 +26,35 @@ NAME = 'meta_death'
 class MetaDeath(Deriver):
     """ MetaDeath Process
 
-    Declared death processes replace the contents of the compartment
-    when the state under the 'dead' port is set to True.
+    Replaces the contents of a compartment when the state under the
+    'dead' port is set to True.
+
+    Configuration:
+
+    * **``life_processes``**: A list of the names of the processes
+      that will be removed from the compartment upon death.
+    * **``death_compartment``**: An instantiated compartment, with
+      processes and a topology that will replace the life_processes
+      upon death.
+    * **``initial_state``**: states that will be set upon death.
+
+    :term:`Ports`:
+
+    * **``dead``**: contains the variable that triggers death when True.
+    * **``self``**: This port connects to the compartment's path, and
+      this is where the `_delete` and `_generate` updates get pointed
+      to upon death.
     """
     name = NAME
     defaults = {
-        'initial_state': {},   # TODO -- get this from the compartment
-        'death_paths': [],  # list of processes to remove
+        'life_processes': [],
+        'death_compartment': None,
+        'initial_state': {},
     }
 
     def __init__(self, parameters=None):
         super(MetaDeath, self).__init__(parameters)
-        self.death_paths = self.parameters['death_paths']
+        self.life_processes = self.parameters['life_processes']
         self.death_compartment = self.parameters['death_compartment']
         self.initial_state = self.parameters['initial_state']
 
@@ -50,17 +67,18 @@ class MetaDeath(Deriver):
 
     def next_update(self, timestep, states):
         if states['dead']:
-            network = self.death_compartment.generate({})  # todo -- pass in config?
-            return {
+            update = {
                 'self': {
-                    '_delete': self.death_paths,
+                    '_delete': self.life_processes}}
+            if self.death_compartment:
+                network = self.death_compartment.generate({})  # todo -- pass in config?
+                update['self'].update({
                     '_generate': [{
                         'processes': network['processes'],
                         'topology': network['topology'],
                         'initial_state': self.initial_state,
-                    }]
-                }
-            }
+                    }]})
+            return update
         else:
             return {}
 
@@ -117,7 +135,7 @@ class ToyLivingCompartment(Generator):
     defaults = {
         'exchange': {'uptake_rate': 0.1},
         'death': {
-            'death_paths': [
+            'life_processes': [
                 ('exchange',),
                 ('death',)],
             'death_compartment': ToyDeadCompartment({})
