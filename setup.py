@@ -8,12 +8,13 @@ with open("README.md", 'r') as readme:
 
 setup(
     name='vivarium-core',
-    version='0.0.24',
+    version='0.0.29',
     packages=[
         'vivarium',
         'vivarium.core',
         'vivarium.processes',
-        'vivarium.library'
+        'vivarium.library',
+        'vivarium.plots'
     ],
     author='Eran Agmon, Ryan Spangler',
     author_email='eagmon@stanford.edu, ryan.spangler@gmail.com',

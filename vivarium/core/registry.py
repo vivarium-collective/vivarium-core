@@ -85,12 +85,27 @@ class Registry(object):
         return self.registry.get(key)
 
 
+## Intialize registries
+# These are imported into module __init__.py files,
+# where the functions and classes are registered upon import
+
 #: Maps process names to :term:`process classes`
 process_registry = Registry()
 
+#: Map updater names to :term:`updater` functions
+updater_registry = Registry()
 
-## updater functions
+#: Map divider names to :term:`divider` functions
+divider_registry = Registry()
 
+#: Map serializer names to divider :term:`serializer` classes
+serializer_registry = Registry()
+
+
+## Updaters, Dividers, and Serializers
+# These can be defined here, but are registered in the base module's __init__.py file
+
+# Updater functions
 def update_merge(current_value, new_value, states):
     """Merge Updater
 
@@ -139,15 +154,8 @@ def update_nonnegative_accumulate(current_value, new_value, states):
         return 0 * updated_value
 
 
-#: Maps updater names to updater functions
-updater_registry = Registry()
-updater_registry.register('accumulate', update_accumulate)
-updater_registry.register('set', update_set)
-updater_registry.register('merge', update_merge)
-updater_registry.register('nonnegative_accumulate', update_nonnegative_accumulate)
 
-
-## divider functions
+# Divider functions
 def divide_set(state):
     """Set Divider
 
@@ -224,14 +232,6 @@ def assert_no_divide(state):
     raise AssertionError('Variable cannot be divided')
 
 
-#: Map divider names to divider functions
-divider_registry = Registry()
-divider_registry.register('set', divide_set)
-divider_registry.register('split', divide_split)
-divider_registry.register('split_dict', divide_split_dict)
-divider_registry.register('zero', divide_zero)
-divider_registry.register('zero', divide_zero)
-divider_registry.register('no_divide', assert_no_divide)
 
 
 # Serializers
@@ -287,12 +287,3 @@ class GeneratorSerializer(Serializer):
 class FunctionSerializer(Serializer):
     def serialize(self, data):
         return str(data)
-
-# register serializers in the serializer_registry
-serializer_registry = Registry()
-serializer_registry.register('numpy', NumpySerializer())
-serializer_registry.register('numpy_scalar', NumpyScalarSerializer())
-serializer_registry.register('units', UnitsSerializer())
-serializer_registry.register('process', ProcessSerializer())
-serializer_registry.register('compartment', GeneratorSerializer())
-serializer_registry.register('function', FunctionSerializer())

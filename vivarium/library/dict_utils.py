@@ -15,10 +15,12 @@ def merge_dicts(dicts):
     return merge
 
 def deep_merge_check(dct, merge_dct):
-    '''
-    Recursive dict merge, which throws exceptions for conflicting values
+    """Recursive dict merge with checks
+
+    Throws exceptions for conflicting values.
     This mutates dct - the contents of merge_dct are added to dct (which is also returned).
-    If you want to keep dct you could call it like deep_merge(dict(dct), merge_dct)'''
+    If you want to keep dct you could call it like deep_merge(dict(dct), merge_dct)
+    """
 
     for k, v in merge_dct.items():
         if (k in dct and isinstance(dct[k], dict)
@@ -34,25 +36,30 @@ def deep_merge_check(dct, merge_dct):
     return dct
 
 def deep_merge_combine_lists(dct, merge_dct):
-    '''
-    Recursive dict merge, combines values that are lists
+    """ Recursive dict merge with lists
+
+    Values are lists are combined into one list without repeating values.
     This mutates dct - the contents of merge_dct are added to dct (which is also returned).
-    If you want to keep dct you could call it like deep_merge(dict(dct), merge_dct)'''
+    If you want to keep dct you could call it like deep_merge(dict(dct), merge_dct)
+    """
     for k, v in merge_dct.items():
         if (k in dct and isinstance(dct[k], dict)
                 and isinstance(merge_dct[k], collections.abc.Mapping)):
             deep_merge(dct[k], merge_dct[k])
         elif k in dct and isinstance(dct[k], list) and isinstance(v, list):
-            dct[k].extend(v)
+            for i in v:
+                if i not in dct[k]:
+                    dct[k].append(i)
         else:
             dct[k] = merge_dct[k]
     return dct
 
 def deep_merge(dct, merge_dct):
-    '''
-    Recursive dict merge
+    """ Recursive dict merge
+
     This mutates dct - the contents of merge_dct are added to dct (which is also returned).
-    If you want to keep dct you could call it like deep_merge(dict(dct), merge_dct)'''
+    If you want to keep dct you could call it like deep_merge(dict(dct), merge_dct)
+    """
     if dct is None:
         dct = {}
     if merge_dct is None:
@@ -66,13 +73,13 @@ def deep_merge(dct, merge_dct):
     return dct
 
 def flatten_port_dicts(dicts):
-    '''
+    """
     Input:
         dicts (dict): embedded state dictionaries with the {'port_id': {'state_id': state_value}}
 
     Return:
         dict: flattened dictionary with {'state_id_port_id': value}
-    '''
+    """
     merge = {}
     for port, states_dict in dicts.items():
         for state, value in states_dict.items():
@@ -80,13 +87,13 @@ def flatten_port_dicts(dicts):
     return merge
 
 def tuplify_port_dicts(dicts):
-    '''
+    """
     Input:
         dicts (dict): embedded state dictionaries with the {'port_id': {'state_id': state_value}}
 
     Return:
         dict: tuplified dictionary with {(port_id','state_id'): value}
-    '''
+    """
     merge = {}
     for port, states_dict in dicts.items():
         if states_dict:
@@ -95,7 +102,7 @@ def tuplify_port_dicts(dicts):
     return merge
 
 def flatten_timeseries(timeseries):
-    '''Flatten a timeseries in the style of flatten_port_dicts'''
+    """Flatten a timeseries in the style of flatten_port_dicts"""
     flat = {}
     for port, store_dict in timeseries.items():
         if port == 'time':
@@ -107,7 +114,9 @@ def flatten_timeseries(timeseries):
     return flat
 
 def tuple_to_str_keys(dictionary):
-    # take a dict with tuple keys, and convert them to strings with tuple_separator as a delimiter
+    """
+    take a dict with tuple keys, and convert them to strings with tuple_separator as a delimiter
+    """
     new_dict = copy.deepcopy(dictionary)
     make_str_dict(new_dict)
     return new_dict
@@ -136,7 +145,9 @@ def make_str_dict(dictionary):
     return dictionary
 
 def str_to_tuple_keys(dictionary):
-    # take a dict with keys that have tuple_separator, and convert them to tuples
+    """
+    Take a dict with keys that have tuple_separator, and convert them to tuples
+    """
 
     # get down to the leaves first
     for k, v in dictionary.items():
@@ -166,9 +177,9 @@ def keys_list(d):
 
 
 def value_in_embedded_dict(data, timeseries={}, time_index=None):
-    '''
+    """
     converts data from a single time step into an embedded dictionary with lists of values
-    '''
+    """
     for key, value in data.items():
         if isinstance(value, dict):
             if key not in timeseries:
@@ -212,7 +223,7 @@ def get_value_from_path(dictionary, path):
 
 
 def make_path_dict(embedded_dict):
-    '''converts embedded dict to a flat dict with path names as keys'''
+    """ converts embedded dict to a flat dict with path names as keys """
     path_dict = {}
     paths_list = get_path_list_from_dict(embedded_dict)
     for path in paths_list:
