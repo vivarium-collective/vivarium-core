@@ -7,7 +7,7 @@ from vivarium.core.composition import (
     simulate_process_in_experiment,
     PROCESS_OUT_DIR,
 )
-from vivarium.plots.plot import plot_simulation_output
+from vivarium.plots.simulation_output import plot_simulation_output
 
 # a global NAME is used for the output directory and for the process name
 NAME = 'template'

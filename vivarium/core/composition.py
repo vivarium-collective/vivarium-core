@@ -273,14 +273,17 @@ def process_in_experiment(
         'process': {
             port: paths.get(port, (port,)) for port in process.ports_schema().keys()}}
 
-
     if timeline:
-        # Adding a timeline to a process requires only the timeline
+        # Adding a timeline to a process requires the timeline argument
+        # in settings to have a 'timeline' key. An optional 'paths' key
+        # overrides the topology mapping from {port: path}.
         timeline_process = TimelineProcess(timeline)
+        timeline_paths = timeline.get('paths', {})
         processes.update({'timeline_process': timeline_process})
-        topology.update({
-            'timeline_process': {
-                port: (port,) for port in timeline_process.ports}})
+        timeline_ports = {
+            port: timeline_paths.get(port, (port,))
+            for port in timeline_process.ports()}
+        topology.update({'timeline_process': timeline_ports})
 
     if environment:
         # Environment requires ports for external, fields, dimensions,
@@ -332,12 +335,16 @@ def compartment_in_experiment(
     topology = network['topology']
 
     if timeline is not None:
-        # Adding a timeline to a process requires only the timeline
+        # Adding a timeline to a compartment requires the timeline argument
+        # in settings to have a 'timeline' key. An optional 'paths' key
+        # overrides the topology mapping from {port: path}.
         timeline_process = TimelineProcess(timeline)
+        timeline_paths = timeline.get('paths', {})
         processes.update({'timeline_process': timeline_process})
-        topology.update({
-            'timeline_process': {
-                port: (port,) for port in timeline_process.ports}})
+        timeline_ports = {
+            port: timeline_paths.get(port, (port,))
+            for port in timeline_process.ports()}
+        topology.update({'timeline_process': timeline_ports})
 
     if environment is not None:
         # Environment requires ports for external, fields, dimensions,

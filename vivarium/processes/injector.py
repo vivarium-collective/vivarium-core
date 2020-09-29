@@ -20,7 +20,7 @@ from vivarium.core.composition import (
     TEST_OUT_DIR,
     save_timeseries,
 )
-from vivarium.plots.plot import plot_simulation_output
+from vivarium.plots.simulation_output import plot_simulation_output
 from vivarium.core.process import Process
 
 NAME = 'injector'
