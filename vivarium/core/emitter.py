@@ -315,6 +315,25 @@ def data_from_database(experiment_id, client):
     }
     return data, environment_config
 
+
+def data_to_database(data, environment_config, client):
+    history_collection = client.history
+    reshaped_data = []
+    for time, timepoint_data in data.items():
+        # Since time is the dictionary key, it has to be a string for
+        # JSON/BSON compatibility. But now that we're uploading it, we
+        # want it to be a float for fast searching.
+        reshaped_entry = {'time': float(time)}
+        for key, val in timepoint_data.items():
+            if key not in ('_id', 'time'):
+                reshaped_entry[key] = val
+        reshaped_data.append(reshaped_entry)
+    history_collection.insert_many(reshaped_data)
+
+    config_collection = client.configuration
+    config_collection.insert_one(environment_config)
+
+
 def get_atlas_database_emitter_config(
     username, password, cluster_subdomain, database
 ):
