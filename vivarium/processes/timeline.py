@@ -61,18 +61,18 @@ class TimelineProcess(Process):
         self.timeline = timeline
 
         # get ports
-        self.ports = {'global': ['time']}
+        self.timeline_ports = {'global': ['time']}
         for event in self.timeline:
             for state in event[1].keys():
                 port = {state[0]: [state[1:]]}
-                self.ports = deep_merge_combine_lists(self.ports, port)
+                self.timeline_ports = deep_merge_combine_lists(self.timeline_ports, port)
 
     def ports_schema(self):
 
         schema = {
             port: {
                 '*': {}}
-            for port in list(self.ports.keys())
+            for port in list(self.timeline_ports.keys())
             if port not in ['global']}
 
         schema.update({
