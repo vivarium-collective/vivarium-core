@@ -83,8 +83,8 @@ def assoc_path(d, path, value):
             if head not in d:
                 d[head] = {}
             assoc_path(d[head], path[1:], value)
-    else:
-        value
+    elif isinstance(value, dict):
+        deep_merge(d, value)
 
 
 def update_in(d, path, f):
@@ -673,7 +673,7 @@ class Store(object):
                 update = dissoc(update, ['_delete'])
 
             if '_add' in update:
-                # add a list of sub-compartments
+                # add a list of sub-states
                 for added in update['_add']:
                     path = added['path']
                     state = added['state']
@@ -688,7 +688,7 @@ class Store(object):
             if '_generate' in update:
                 # generate a list of new compartments
                 for generate in update['_generate']:
-                    path = generate['path']
+                    path = generate.get('path', tuple())
 
                     self.generate(
                         path,
