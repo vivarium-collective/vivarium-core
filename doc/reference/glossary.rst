@@ -33,16 +33,22 @@ Glossary
     compartment
     Compartments
     compartments
-        We organize our models into compartments, each of which is like
-        an agent in an :term:`agent-based model`. Each compartment
-        stores a collection of :term:`processes` that operate on the
-        compartment's :term:`stores` simultaneously. Compartments can be
-        nested and interact with neighbor, parent, and child
-        compartments through :term:`boundary stores`. Thus, a model
-        might contain a compartment for the environment that contains
+        Compartments are :term:`composites` at a single level of a :term:`hierarchy`.
+        Each compartment is like an agent in an :term:`agent-based model`, which can
+        be nested in an environment and interact with neighbors, parent, and child
+        compartments. These interactions are possible through :term:`boundary stores`
+        that connect internal processes to states outside of the compartment. Thus,
+        a model might contain a compartment for an environment which contains
         two child compartments for the two cells in the environment. For
-        more details, see our :doc:`guide to compartments
-        </guides/compartments>`.
+        more details, see our :doc:`guide to compartments</guides/compartments>`.
+
+    Composite
+    composite
+    Composites
+    composites
+        Composites a collection of :term:`processes` that operate on the
+        compartment's :term:`stores` simultaneously. These are specified by a
+        :term:`topology`.
 
     Deriver
     deriver

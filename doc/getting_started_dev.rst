@@ -208,15 +208,15 @@ Some Terminology: Processes and Compartments
 We break our cell models into :term:`processes`. Each process models
 part of the cell's function. For example, you might have processes for
 metabolism, transcription, and translation. We can combine these
-processes into :term:`compartments` that model a system with all the
+processes into :term:`composites` that model a system with all the
 functionality modeled by the included processes. For example, we could
 compose transcription and translation to create a fuller gene expression
 model.
 
 We store individual processes in ``vivarium-core/vivarium/processes``
-and compartments of processes in
-``vivarium-core/vivarium/compartments``. We recommend you use a similar
-structure when creating your own processes and compartments.
+and composites of processes in
+``vivarium-core/vivarium/composites``. We recommend you use a similar
+structure when creating your own processes and composites.
 
 Running Experiments
 ===================

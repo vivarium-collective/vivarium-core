@@ -123,7 +123,7 @@ Here is one:
 
       #!/bin/bash
 
-      mongod --config mongodb.conf
+      mongod --config mongod.conf
 
 #. Make the script executable:
 

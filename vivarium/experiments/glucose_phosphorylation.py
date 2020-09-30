@@ -8,7 +8,7 @@ This is a toy example referred to by the documentation.
 
 import os
 
-from vivarium.compartments.injected_glc_phosphorylation import (
+from vivarium.composites.injected_glc_phosphorylation import (
     InjectedGlcPhosphorylation,
 )
 from vivarium.core.composition import (

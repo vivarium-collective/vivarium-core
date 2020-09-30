@@ -686,7 +686,7 @@ class Store(object):
                 update = dissoc(update, ['_add'])
 
             if '_generate' in update:
-                # generate a list of new compartments
+                # generate a list of new processes
                 for generate in update['_generate']:
                     path = generate.get('path', tuple())
 

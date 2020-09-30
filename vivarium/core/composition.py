@@ -30,7 +30,8 @@ from vivarium.processes.nonspatial_environment import NonSpatialEnvironment
 REFERENCE_DATA_DIR = os.path.join('vivarium', 'reference_data')
 TEST_OUT_DIR = os.path.join('out', 'tests')
 PROCESS_OUT_DIR = os.path.join('out', 'processes')
-COMPARTMENT_OUT_DIR = os.path.join('out', 'compartments')
+COMPARTMENT_OUT_DIR = os.path.join('out', 'composites')
+COMPOSITE_OUT_DIR = os.path.join('out', 'composites')
 EXPERIMENT_OUT_DIR = os.path.join('out', 'experiments')
 
 
