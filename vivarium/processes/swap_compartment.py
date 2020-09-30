@@ -1,7 +1,7 @@
 """
-=====================
-General Death Process
-=====================
+========================
+Swap Compartment Process
+========================
 """
 
 import os
@@ -18,7 +18,6 @@ from vivarium.core.composition import (
     PROCESS_OUT_DIR,
 )
 from vivarium.plots.simulation_output import plot_simulation_output
-
 
 NAME = 'swap_compartment'
 
