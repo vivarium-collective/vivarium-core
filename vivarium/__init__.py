@@ -17,6 +17,7 @@ from vivarium.processes.derive_concentrations import DeriveConcentrations
 from vivarium.processes.derive_counts import DeriveCounts
 from vivarium.processes.timeline import TimelineProcess
 from vivarium.processes.nonspatial_environment import NonSpatialEnvironment
+from vivarium.processes.swap_compartment import SwapCompartment
 
 # import updaters, dividers, serializers
 from vivarium.core.registry import (
@@ -34,6 +35,7 @@ process_registry.register(DeriveConcentrations.name, DeriveConcentrations)
 process_registry.register(DeriveCounts.name, DeriveCounts)
 process_registry.register(TimelineProcess.name, TimelineProcess)
 process_registry.register(NonSpatialEnvironment.name, NonSpatialEnvironment)
+process_registry.register(SwapCompartment.name, SwapCompartment)
 
 # register updaters
 updater_registry.register('accumulate', update_accumulate)
