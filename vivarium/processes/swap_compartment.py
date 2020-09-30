@@ -20,58 +20,58 @@ from vivarium.core.composition import (
 from vivarium.plots.simulation_output import plot_simulation_output
 
 
-NAME = 'meta_death'
+NAME = 'swap_compartment'
 
 
-class MetaDeath(Deriver):
-    """ MetaDeath Process
+class SwapCompartment(Deriver):
+    """ SwapCompartment Process
 
     Replaces the contents of a compartment when the state under the
-    'dead' port is set to True.
+    'trigger' port is set to True.
 
     Configuration:
 
-    * **``life_processes``**: A list of the names of the processes
-      that will be removed from the compartment upon death.
-    * **``death_compartment``**: An instantiated compartment, with
-      processes and a topology that will replace the life_processes
-      upon death.
-    * **``initial_state``**: states that will be set upon death.
+    * **``removed_processes``**: A list of the names of the processes
+      that will be removed from the compartment upon trigger.
+    * **``new_compartment``**: An instantiated compartment, with
+      processes and a topology that will replace the removed_processes
+      upon trigger.
+    * **``initial_state``**: states that will be set upon trigger.
 
     :term:`Ports`:
 
-    * **``dead``**: contains the variable that triggers death when True.
+    * **``trigger``**: contains the variable that triggers the swap when True.
     * **``self``**: This port connects to the compartment's path, and
       this is where the `_delete` and `_generate` updates get pointed
-      to upon death.
+      to upon trigger.
     """
     name = NAME
     defaults = {
-        'life_processes': [],
-        'death_compartment': None,
+        'removed_processes': [],
+        'new_compartment': None,
         'initial_state': {},
     }
 
     def __init__(self, parameters=None):
-        super(MetaDeath, self).__init__(parameters)
-        self.life_processes = self.parameters['life_processes']
-        self.death_compartment = self.parameters['death_compartment']
+        super(SwapCompartment, self).__init__(parameters)
+        self.removed_processes = self.parameters['removed_processes']
+        self.new_compartment = self.parameters['new_compartment']
         self.initial_state = self.parameters['initial_state']
 
     def ports_schema(self):
         return {
-            'dead': {
+            'trigger': {
                 '_default': False,
                 '_emit': True},
             'self': {}}
 
     def next_update(self, timestep, states):
-        if states['dead']:
+        if states['trigger']:
             update = {
                 'self': {
-                    '_delete': self.life_processes}}
-            if self.death_compartment:
-                network = self.death_compartment.generate({})  # todo -- pass in config?
+                    '_delete': self.removed_processes}}
+            if self.new_compartment:
+                network = self.new_compartment.generate({})  # todo -- pass in config?
                 update['self'].update({
                     '_generate': [{
                         'processes': network['processes'],
@@ -135,16 +135,16 @@ class ToyLivingCompartment(Generator):
     defaults = {
         'exchange': {'uptake_rate': 0.1},
         'death': {
-            'life_processes': [
+            'removed_processes': [
                 ('exchange',),
                 ('death',)],
-            'death_compartment': ToyDeadCompartment({})
+            'new_compartment': ToyDeadCompartment({})
         }}
 
     def generate_processes(self, config):
         return {
             'exchange': ExchangeA(config['exchange']),
-            'death': MetaDeath(config['death'])}
+            'death': SwapCompartment(config['death'])}
 
     def generate_topology(self, config):
         self_path = ('..', config['agent_id'])
@@ -153,7 +153,8 @@ class ToyLivingCompartment(Generator):
                 'internal': ('internal',),
                 'external': ('external',)},
             'death': {
-                'dead': ('dead',),
+                # set the trigger to be the 'dead' state
+                'trigger': ('dead',),
                 'self': self_path}}
 
 
@@ -169,13 +170,15 @@ def test_death():
         'agents': {
             agent_id: {
                 'external': {'A': 1},
-                'dead': False}}}
+                'trigger': False}}}
 
     # timeline turns death on
+    time_dead = 5
+    time_total = 10
     timeline = [
         (0, {('agents', agent_id, 'dead'): False}),
-        (5, {('agents', agent_id, 'dead'): True}),
-        (10, {})]
+        (time_dead, {('agents', agent_id, 'dead'): True}),
+        (time_total, {})]
 
     # simulate
     settings = {
@@ -183,10 +186,22 @@ def test_death():
         'timeline': {
             'timeline': timeline},
         'initial_state': initial_state}
-    return simulate_compartment_in_experiment(
+    output = simulate_compartment_in_experiment(
         compartment,
         settings)
 
+    # external starts at 1, goes down until death, and then back up
+    # internal does the inverse
+    external_A = output['agents']['1']['external']['A']
+    internal_A = output['agents']['1']['internal']['A']
+    assert external_A[0] == 1
+    assert external_A[time_dead] < external_A[0]
+    assert external_A[time_total] > external_A[time_dead]
+    assert internal_A[0] == 0
+    assert internal_A[time_dead] > internal_A[0]
+    assert internal_A[time_total] < internal_A[time_dead]
+
+    return output
 
 def run_death():
     out_dir = os.path.join(PROCESS_OUT_DIR, NAME)
