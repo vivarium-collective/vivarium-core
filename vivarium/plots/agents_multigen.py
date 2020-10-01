@@ -1,5 +1,6 @@
 import os
 
+import numpy as np
 import matplotlib.pyplot as plt
 
 from vivarium.core.emitter import path_timeseries_from_data
