@@ -11,7 +11,6 @@ import logging as log
 from vivarium.core.experiment import pp
 from vivarium.core.process import (
     Deriver,
-    Process,
     Generator,
 )
 from vivarium.core.composition import (

@@ -1,7 +1,7 @@
 """
-========================
-Swap Compartment Process
-========================
+=======================
+Swap Processes Process
+=======================
 """
 
 import os
@@ -24,8 +24,8 @@ from vivarium.processes.exchange_a import ExchangeA
 NAME = 'swap_compartment'
 
 
-class SwapCompartment(Deriver):
-    """ SwapCompartment Process
+class SwapProcesses(Deriver):
+    """ SwapProcesses Process
 
     Replaces the contents of a compartment when the state under the
     'trigger' port is set to True.
@@ -54,7 +54,7 @@ class SwapCompartment(Deriver):
     }
 
     def __init__(self, parameters=None):
-        super(SwapCompartment, self).__init__(parameters)
+        super(SwapProcesses, self).__init__(parameters)
         self.removed_processes = self.parameters['removed_processes']
         self.new_compartment = self.parameters['new_compartment']
         self.initial_state = self.parameters['initial_state']
@@ -114,7 +114,7 @@ class ToyLivingCompartment(Generator):
     def generate_processes(self, config):
         return {
             'exchange': ExchangeA(config['exchange']),
-            'death': SwapCompartment(config['death'])}
+            'death': SwapProcesses(config['death'])}
 
     def generate_topology(self, config):
         self_path = ('..', config['agent_id'])
