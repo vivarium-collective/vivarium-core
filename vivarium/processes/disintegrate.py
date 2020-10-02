@@ -8,6 +8,7 @@ import os
 import uuid
 import logging as log
 
+from vivarium.core.experiment import pp
 from vivarium.core.process import (
     Deriver,
     Process,
@@ -47,7 +48,7 @@ class Disintegrate(Deriver):
         if states['trigger']:
             return {
                 'agents': {
-                    '_delete': self.agent_id}}
+                    '_delete': [(self.agent_id,)]}}
         else:
             return {}
 
@@ -110,6 +111,9 @@ def test_disintegrate():
         compartment,
         settings)
 
+    assert len(output['agents']['1']['dead']) == time_dead + 1
+    assert len(output['time']) == time_total + 1
+
     return output
 
 def run_disintegrate():
@@ -117,7 +121,7 @@ def run_disintegrate():
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
     output = test_disintegrate()
-    plot_simulation_output(output, {}, out_dir)
+    pp(output)
 
 
 if __name__ == '__main__':
