@@ -169,7 +169,7 @@ def compartment_hierarchy_experiment(
 ):
     """Make an experiment with arbitrarily embedded compartments.
 
-     Arguments:
+    Arguments:
         * hierarchy: an embedded dictionary mapping the desired topology,
         with processes at a given level declared with a 'processes' key
         that maps to a list of process configurations, and generators
