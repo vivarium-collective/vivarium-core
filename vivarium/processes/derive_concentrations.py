@@ -56,11 +56,15 @@ class DeriveConcentrations(Deriver):
 
         # concentration update
         concentrations = {}
-        for molecule, count in counts.items():
-            concentrations[molecule] = count / mmol_to_counts
+        if mmol_to_counts != 0:
+            for molecule, count in counts.items():
+                concentrations[molecule] = count / mmol_to_counts
 
-        for molecule, concentration in concentrations.items():
-            assert concentration >= 0, 'derived {} concentration < 0'.format(molecule)
+            for molecule, concentration in concentrations.items():
+                assert concentration >= 0, 'derived {} concentration < 0'.format(molecule)
 
-        return {
-            'concentrations': concentrations}
+            return {
+                'concentrations': concentrations}
+        else:
+            print('mmol_to_counts is 0!')
+            return {}
