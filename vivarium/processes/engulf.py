@@ -13,12 +13,14 @@ from vivarium.core.process import (
     Deriver,
     Generator,
 )
+from vivarium.library.units import units
 from vivarium.core.composition import (
-    simulate_compartment_in_experiment,
+    compartment_hierarchy_experiment,
     PROCESS_OUT_DIR,
 )
 from vivarium.plots.simulation_output import plot_simulation_output
 from vivarium.processes.exchange_a import ExchangeA
+from vivarium.processes.timeline import TimelineProcess
 
 
 NAME = 'engulf'
@@ -58,7 +60,7 @@ class Engulf(Deriver):
 
 
 # test
-class ToyLivingCompartment(Generator):
+class ToyAgent(Generator):
     defaults = {
         'exchange': {'uptake_rate': 0.1},
         'death': {}
@@ -69,7 +71,7 @@ class ToyLivingCompartment(Generator):
         death_config['agent_id'] = config['agent_id']
         return {
             'exchange': ExchangeA(config['exchange']),
-            'death': Disintegrate(death_config)}
+            'engulf': Engulf(death_config)}
 
     def generate_topology(self, config):
         agents_path = ('..', '..', 'agents')
@@ -77,46 +79,85 @@ class ToyLivingCompartment(Generator):
             'exchange': {
                 'internal': ('internal',),
                 'external': ('external',)},
-            'death': {
+            'engulf': {
                 # set the trigger to be the 'dead' state
-                'trigger': ('dead',),
+                'trigger': ('engulf',),
                 'agents': agents_path}}
 
 
 def test_disintegrate():
-    agent_id = '1'
-
-    # make the compartment
-    compartment = ToyLivingCompartment({
-        'agent_id': agent_id})
+    agent_1_id = '1'
+    agent_2_id = '2'
 
     # initial state
     initial_state = {
         'agents': {
-            agent_id: {
+            agent_1_id: {
                 'external': {'A': 1},
-                'trigger': False}}}
+                'trigger': False},
+            agent_2_id: {
+                'external': {'A': 1},
+                'trigger': False}
+        }
+    }
 
-    # timeline turns death on
-    time_dead = 5
+    # timeline triggers engulf for agent_1
+    time_engulf = 5
     time_total = 10
     timeline = [
-        (0, {('agents', agent_id, 'dead'): False}),
-        (time_dead, {('agents', agent_id, 'dead'): True}),
+        (0, {('agents', agent_1_id, 'engulf'): False}),
+        (time_engulf, {
+            ('agents', agent_1_id, 'engulf'): {
+                'agent_id': agent_2_id
+            }}),
         (time_total, {})]
 
-    # simulate
-    settings = {
-        'outer_path': ('agents', agent_id),
-        'timeline': {
-            'timeline': timeline},
-        'initial_state': initial_state}
-    output = simulate_compartment_in_experiment(
-        compartment,
-        settings)
+    # declare the hierarchy
+    hierarchy = {
+        'processes': [
+            {
+                'type': TimelineProcess,
+                'config': {
+                    'timeline': timeline},
+                'topology': {
+                    'global': ('global',),
+                    'agents': ('agents',)
+                },
+            }
+        ],
+        'agents': {
+            'generators': [
+                {
+                    'name': agent_1_id,
+                    'type': ToyAgent,
+                    'config': {'agent_id': agent_1_id},
+                    # 'topology': {},
+                },
+                {
+                    'name': agent_2_id,
+                    'type': ToyAgent,
+                    'config': {'agent_id': agent_2_id},
+                    # 'topology': {},
+                },
+            ]
+        }
+    }
 
-    assert len(output['agents']['1']['dead']) == time_dead + 1
-    assert len(output['time']) == time_total + 1
+    # configure experiment
+    experiment = compartment_hierarchy_experiment(
+        hierarchy=hierarchy,
+        initial_state=initial_state,
+    )
+
+    import ipdb; ipdb.set_trace()
+
+    # run simulation
+    experiment.update(total_time)
+    output = experiment.emitter.get_data()
+    experiment.end()  # end required for parallel processes
+
+    # assert len(output['agents']['1']['dead']) == time_dead + 1
+    # assert len(output['time']) == time_total + 1
 
     return output
 
