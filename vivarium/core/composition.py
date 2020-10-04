@@ -179,7 +179,8 @@ def compartment_hierarchy_experiment(
         * invoke: is the invoke object for calling updates.
 
     Returns:
-        * The experiment.
+        The experiment.
+
     """
     if settings is None:
         settings = {}
