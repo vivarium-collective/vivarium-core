@@ -466,6 +466,8 @@ class Store(object):
 
             if child:
                 return child.get_path(path[1:])
+            elif isinstance(self.value, Process):
+                return self.value
             else:
                 # TODO: more handling for bad paths?
                 # TODO: check deleted?
@@ -688,24 +690,50 @@ class Store(object):
             if '_move' in update:
                 # move nodes
                 for move in update['_move']:
-                    source_path = move['source']  # source_path is relative to the node
-                    port_path = move['port_path']  # port_path is relative to process_topology
+                    source_path = move['source']
+                    target_path = move['target'] + source_path
 
-                    # get target_path relative to the node
-                    target_path = process_topology[port_path[0]] + port_path[1:]
+                    # source node
+                    source_node = self.get_path(source_path)
+                    source_values = source_node.get_value()
+
+                    # absolute_source_path = self.path_for() + source_path
+                    source_processes = self.processes(source_path)
+                    source_topology = {}
 
                     import ipdb;
                     ipdb.set_trace()
-                    # self.path_for()
-                    self.get_path(source_path)
-                    source_node = self.get_values({source_path[-1]: source_path})
-                    target_node = self.establish_path(target_path, {})
 
+                    # self.generate(
+                    #     target_path,
+                    #     source_processes,
+                    #     source_topology,
+                    #     source_values)
 
-                    # remove source node
-                    self.delete_path(source_path)
+                    assoc_path(
+                        process_updates,
+                        target_path,
+                        source_processes)
 
+                    assoc_path(
+                        topology_updates,
+                        target_path,
+                        source_topology)
 
+                    self.apply_subschema_path(target_path)
+                    target = self.get_path(target_path)
+                    target.apply_defaults()
+                    # target.set_value(initial_state)
+
+                    # # remove source node
+                    # self.delete_path(source_path)
+
+                    here = self.path_for()
+                    mother_path = (mother,)
+                    self.delete_path(mother_path)
+                    deletions.append(tuple(here + mother_path))
+
+                    update = dissoc(update, '_move')
 
             if '_generate' in update:
                 # generate a list of new processes
@@ -925,18 +953,22 @@ class Store(object):
         Create a mapping of every path in the tree to the node living at
         that path in the tree.
         '''
-
-        base = [(path, self)]
-        for key, child in self.inner.items():
-            down = tuple(path + (key,))
-            base += child.depth(down)
+        node = self.get_path(path)
+        base = [(path, node)]
+        # base = [(path, self)]
+        if hasattr(node, 'inner'):
+            # for key, child in self.inner.items():
+            for key, child in node.inner.items():
+                down = tuple(path + (key,))
+                base += child.depth(down)
         return base
 
     def processes(self, path=()):
-        return {
-            path: state
-            for path, state in self.depth()
-            if state.value and isinstance(state.value, Process)}
+        processes = {
+            path_from: state
+            for path_from, state in self.depth(path)
+            if state and isinstance(state, Process)}
+        return processes
 
     def apply_subschema_path(self, path):
         if path:

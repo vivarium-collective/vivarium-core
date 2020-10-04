@@ -32,32 +32,38 @@ class Engulf(Deriver):
     remove a compartment when the state under the 'trigger' port is set to True.
     """
     name = NAME
-    defaults = {}
+    defaults = {
+        'inner_path': ('inner',)
+    }
 
     def __init__(self, parameters=None):
         super(Engulf, self).__init__(parameters)
-        # self.agent_id = self.parameters['agent_id']
+        self.agent_id = self.parameters['agent_id']
+        self.inner_path = self.parameters['inner_path']
 
     def ports_schema(self):
         return {
             'trigger': {
                 '_default': [],
             },
-            'internal': {
+            'inner': {
                 '*': {}
             },
-            'agents': {}}
+            'outer': {
+                '*': {}
+            }
+        }
 
     def next_update(self, timestep, states):
         if states['trigger']:
             neighbor_ids = states['trigger']
-            # move subcompartment from agents to internal, reset trigger
+            # move neighbors from outer to inner, reset trigger
             return {
                 'trigger': {'_updater': 'set', '_value': []},
-                'agents': {
+                'outer': {
                     '_move': [{
                         'source': (id,),
-                        'port_path': ('internal', id,)
+                        'target': (self.agent_id,) + self.inner_path
                     } for id in neighbor_ids]
                 }
             }
@@ -69,25 +75,33 @@ class Engulf(Deriver):
 class ToyAgent(Generator):
     defaults = {
         'exchange': {'uptake_rate': 0.1},
-        'engulf': {}}
+        'outer_path': ('..', '..', 'agents'),
+        'inner_path': ('subcompartments',),
+    }
 
     def generate_processes(self, config):
-        engulf_config = config['engulf']
-        engulf_config['agent_id'] = config['agent_id']
+        agent_id = config['agent_id']
+        outer_path = config['outer_path']
+        inner_path = config['inner_path']
+        engulf_config = dict(
+            outer_path=outer_path,
+            inner_path=inner_path,
+            agent_id=agent_id)
         return {
             'exchange': ExchangeA(config['exchange']),
             'engulf': Engulf(engulf_config)}
 
     def generate_topology(self, config):
-        agents_path = ('..', '..', 'agents')
+        outer_path = config['outer_path']
+        inner_path = config['inner_path']
         return {
             'exchange': {
                 'internal': ('internal',),
                 'external': ('external',)},
             'engulf': {
                 'trigger': ('trigger',),
-                'internal': ('subcompartments',),
-                'agents': agents_path}}
+                'inner': inner_path,
+                'outer': outer_path}}
 
 
 def test_disintegrate():
