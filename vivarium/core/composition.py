@@ -131,7 +131,7 @@ def add_generator_to_tree(generator_def, processes, topology):
 
     # extend processes and topology list
     composite_name = generator_def.get('name', composite.name)
-    deep_merge_check(processes, new_processes)
+    deep_merge_check(processes, {composite_name: new_processes})
     deep_merge(topology, {composite_name: new_topology})
 
 
@@ -153,7 +153,7 @@ def initialize_hierarchy(hierarchy):
                 add_generator_to_tree(level, processes, topology)
         else:
             network = initialize_hierarchy(level)
-            deep_merge_check(processes, network['processes'])
+            deep_merge_check(processes, {key: network['processes']})
             deep_merge(topology, {key: network['topology']})
 
     return {
@@ -178,8 +178,6 @@ def compartment_hierarchy_experiment(
     network = initialize_hierarchy(hierarchy)
     processes = network['processes']
     topology = network['topology']
-
-    import ipdb; ipdb.set_trace()
 
     experiment_config = {
         'processes': processes,

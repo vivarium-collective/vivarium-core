@@ -40,19 +40,22 @@ class Engulf(Deriver):
 
     def ports_schema(self):
         return {
-            'engulf': {
-                '_default': False,
-                '_emit': True},
+            'trigger': {
+                '_default': [],
+                '_emit': True,
+            },
             'agents': {}}
 
     def next_update(self, timestep, states):
-        if states['engulf']:
-            # TODO - engulf what neighbor?
-            neighbor_id = states['engulf']['neighbor_id']
+        if states['trigger']:
+            neighbor_ids = states['trigger']
+
+            import ipdb; ipdb.set_trace()
+
 
             return {
                 'agents': {
-                    'node': [(neighbor_id)],
+                    'node': [(id,) for id in neighbor_ids],
                     'path': daughter_updates}
             }
         else:
@@ -63,15 +66,14 @@ class Engulf(Deriver):
 class ToyAgent(Generator):
     defaults = {
         'exchange': {'uptake_rate': 0.1},
-        'death': {}
-    }
+        'engulf': {}}
 
     def generate_processes(self, config):
-        death_config = config['death']
-        death_config['agent_id'] = config['agent_id']
+        engulf_config = config['engulf']
+        engulf_config['agent_id'] = config['agent_id']
         return {
             'exchange': ExchangeA(config['exchange']),
-            'engulf': Engulf(death_config)}
+            'engulf': Engulf(engulf_config)}
 
     def generate_topology(self, config):
         agents_path = ('..', '..', 'agents')
@@ -80,8 +82,7 @@ class ToyAgent(Generator):
                 'internal': ('internal',),
                 'external': ('external',)},
             'engulf': {
-                # set the trigger to be the 'dead' state
-                'trigger': ('engulf',),
+                'trigger': ('trigger',),
                 'agents': agents_path}}
 
 
@@ -94,22 +95,17 @@ def test_disintegrate():
         'agents': {
             agent_1_id: {
                 'external': {'A': 1},
-                'trigger': False},
+                'trigger': []},
             agent_2_id: {
                 'external': {'A': 1},
-                'trigger': False}
-        }
-    }
+                'trigger': []}}}
 
     # timeline triggers engulf for agent_1
     time_engulf = 5
     time_total = 10
     timeline = [
-        (0, {('agents', agent_1_id, 'engulf'): False}),
-        (time_engulf, {
-            ('agents', agent_1_id, 'engulf'): {
-                'agent_id': agent_2_id
-            }}),
+        (0, {('agents', agent_1_id, 'trigger'): []}),
+        (time_engulf, {('agents', agent_1_id, 'trigger'): [agent_2_id]}),
         (time_total, {})]
 
     # declare the hierarchy
@@ -117,12 +113,11 @@ def test_disintegrate():
         'processes': [
             {
                 'type': TimelineProcess,
-                'config': {
-                    'timeline': timeline},
+                'config': {'timeline': timeline},
                 'topology': {
                     'global': ('global',),
                     'agents': ('agents',)
-                },
+                }
             }
         ],
         'agents': {
@@ -130,14 +125,12 @@ def test_disintegrate():
                 {
                     'name': agent_1_id,
                     'type': ToyAgent,
-                    'config': {'agent_id': agent_1_id},
-                    # 'topology': {},
+                    'config': {'agent_id': agent_1_id}
                 },
                 {
                     'name': agent_2_id,
                     'type': ToyAgent,
-                    'config': {'agent_id': agent_2_id},
-                    # 'topology': {},
+                    'config': {'agent_id': agent_2_id}
                 },
             ]
         }
@@ -146,18 +139,18 @@ def test_disintegrate():
     # configure experiment
     experiment = compartment_hierarchy_experiment(
         hierarchy=hierarchy,
-        initial_state=initial_state,
-    )
-
-    import ipdb; ipdb.set_trace()
+        initial_state=initial_state)
 
     # run simulation
-    experiment.update(total_time)
+    experiment.update(time_total)
     output = experiment.emitter.get_data()
     experiment.end()  # end required for parallel processes
 
     # assert len(output['agents']['1']['dead']) == time_dead + 1
     # assert len(output['time']) == time_total + 1
+
+    import ipdb;
+    ipdb.set_trace()
 
     return output
 
