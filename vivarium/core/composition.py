@@ -4,6 +4,7 @@ import copy
 import csv
 import os
 import io
+import uuid
 
 import numpy as np
 
@@ -25,7 +26,6 @@ from vivarium.library.units import units
 
 from vivarium.processes.timeline import TimelineProcess
 from vivarium.processes.nonspatial_environment import NonSpatialEnvironment
-
 
 REFERENCE_DATA_DIR = os.path.join('vivarium', 'reference_data')
 TEST_OUT_DIR = os.path.join('out', 'tests')
@@ -91,6 +91,124 @@ def make_agent_ids(agents_config):
     for index in sorted(remove, reverse=True):
         del agents_config[index]
     return agent_ids
+
+
+def add_process_to_tree(process_def, processes, topology):
+    process_type = process_def['type']
+    process_config = process_def['config']
+    process_topology = process_def['topology']
+
+    # make the process
+    process = process_type(process_config)
+
+    # extend processes and topology list
+    name = process_def.get('name', process.name)
+    deep_merge(processes, {name: process})
+    deep_merge(topology, {name: process_topology})
+
+
+def add_generator_to_tree(generator_def, processes, topology):
+    generator_type = generator_def['type']
+    generator_config = generator_def['config']
+
+    # generate
+    composite = generator_type(generator_config)
+    network = composite.generate()
+    new_processes = network['processes']
+    new_topology = network['topology']
+
+    # replace process names that already exist
+    replace_name = []
+    for name, p in new_processes.items():
+        if name in processes:
+            replace_name.append(name)
+    for name in replace_name:
+        new_name = name + '_' + str(uuid.uuid1())
+        new_processes[new_name] = new_processes[name]
+        new_topology[new_name] = new_topology[name]
+        del new_processes[name]
+        del new_topology[name]
+
+    # extend processes and topology list
+    composite_name = generator_def.get('name', composite.name)
+    deep_merge_check(processes, {composite_name: new_processes})
+    deep_merge(topology, {composite_name: new_topology})
+
+
+def initialize_hierarchy(hierarchy):
+    processes = {}
+    topology = {}
+    for key, level in hierarchy.items():
+        if key == 'processes':
+            if isinstance(level, list):
+                for process_def in level:
+                    add_process_to_tree(process_def, processes, topology)
+            elif isinstance(level, dict):
+                add_process_to_tree(level, processes, topology)
+        elif key == 'generators':
+            if isinstance(level, list):
+                for generator_def in level:
+                    add_generator_to_tree(generator_def, processes, topology)
+            elif isinstance(level, dict):
+                add_generator_to_tree(level, processes, topology)
+        else:
+            network = initialize_hierarchy(level)
+            deep_merge_check(processes, {key: network['processes']})
+            deep_merge(topology, {key: network['topology']})
+
+    return {
+        'processes': processes,
+        'topology': topology}
+
+
+def compartment_hierarchy_experiment(
+        hierarchy=None,
+        settings=None,
+        initial_state=None,
+        invoke=None,
+):
+    """Make an experiment with arbitrarily embedded compartments.
+
+    Arguments:
+        hierarchy: an embedded dictionary mapping the desired topology,
+          with processes at a given level declared with a processes key
+          that maps to a list of process configurations, and generators
+          under a generators key mapping to a list of generator configurations.
+        settings: settings include **emitter**.
+        initial_state: is the initial_state.
+        invoke: is the invoke object for calling updates.
+
+    Returns:
+        The experiment.
+    """
+    if settings is None:
+        settings = {}
+    if initial_state is None:
+        initial_state = {}
+
+    # experiment settings
+    emitter = settings.get('emitter', {'type': 'timeseries'})
+
+    # make the hierarchy
+    network = initialize_hierarchy(hierarchy)
+    processes = network['processes']
+    topology = network['topology']
+
+    experiment_config = {
+        'processes': processes,
+        'topology': topology,
+        'emitter': emitter,
+        'initial_state': initial_state}
+
+    if settings.get('experiment_name'):
+        experiment_config['experiment_name'] = settings.get('experiment_name')
+    if settings.get('description'):
+        experiment_config['description'] = settings.get('description')
+    if invoke:
+        experiment_config['invoke'] = invoke
+    if 'emit_step' in settings:
+        experiment_config['emit_step'] = settings['emit_step']
+    return Experiment(experiment_config)
 
 
 def agent_environment_experiment(
@@ -411,7 +529,7 @@ def simulate_experiment(experiment, settings={}):
     # run simulation
     experiment.update(total_time)
     experiment.end()
-    
+
     # return data from emitter
     if return_raw_data:
         return experiment.emitter.get_data()

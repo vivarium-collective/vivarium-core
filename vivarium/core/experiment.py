@@ -621,7 +621,7 @@ class Store(object):
         There are five special update keys:
 
         * `_updater` - Override the default updater with any updater you want.
-        * `_delete` - The value here is a list of paths to delete from
+        * `_delete` - The value here is a list of paths (tuples) to delete from
           the tree.
         * `_add` - Adds a state into the subtree:
 
