@@ -685,6 +685,24 @@ class Store(object):
 
                 update = dissoc(update, ['_add'])
 
+            if '_move' in update:
+                # move nodes
+                for move in update['_move']:
+                    source_path = move['source']
+                    target_path = move['target']
+
+                    source_node = self.get_values({source_path[-1]: source_path})
+                    target_node = self.establish_path(target_path, {})
+
+                    import ipdb;
+                    ipdb.set_trace()
+
+
+                    # remove source node
+                    self.delete_path(source_path)
+
+
+
             if '_generate' in update:
                 # generate a list of new processes
                 for generate in update['_generate']:

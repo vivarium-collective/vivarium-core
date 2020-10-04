@@ -44,19 +44,19 @@ class Engulf(Deriver):
                 '_default': [],
                 '_emit': True,
             },
+            'internal': {},
             'agents': {}}
 
     def next_update(self, timestep, states):
         if states['trigger']:
             neighbor_ids = states['trigger']
-
-            import ipdb; ipdb.set_trace()
-
-
             return {
                 'agents': {
-                    'node': [(id,) for id in neighbor_ids],
-                    'path': daughter_updates}
+                    '_move': [{
+                        'source': (id,),
+                        'target': (self.agent_id, 'internal',)  # TODO -- 'internal' is not necessarily the true path.
+                    } for id in neighbor_ids]
+                }
             }
         else:
             return {}
@@ -83,6 +83,7 @@ class ToyAgent(Generator):
                 'external': ('external',)},
             'engulf': {
                 'trigger': ('trigger',),
+                'internal': ('subcompartments',),
                 'agents': agents_path}}
 
 
