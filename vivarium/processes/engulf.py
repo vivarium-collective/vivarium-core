@@ -36,25 +36,28 @@ class Engulf(Deriver):
 
     def __init__(self, parameters=None):
         super(Engulf, self).__init__(parameters)
-        self.agent_id = self.parameters['agent_id']
+        # self.agent_id = self.parameters['agent_id']
 
     def ports_schema(self):
         return {
             'trigger': {
                 '_default': [],
-                '_emit': True,
             },
-            'internal': {},
+            'internal': {
+                '*': {}
+            },
             'agents': {}}
 
     def next_update(self, timestep, states):
         if states['trigger']:
             neighbor_ids = states['trigger']
+            # move subcompartment from agents to internal, reset trigger
             return {
+                'trigger': {'_updater': 'set', '_value': []},
                 'agents': {
                     '_move': [{
                         'source': (id,),
-                        'target': (self.agent_id, 'internal',)  # TODO -- 'internal' is not necessarily the true path.
+                        'port_path': ('internal', id,)
                     } for id in neighbor_ids]
                 }
             }

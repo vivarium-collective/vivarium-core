@@ -688,14 +688,18 @@ class Store(object):
             if '_move' in update:
                 # move nodes
                 for move in update['_move']:
-                    source_path = move['source']
-                    target_path = move['target']
+                    source_path = move['source']  # source_path is relative to the node
+                    port_path = move['port_path']  # port_path is relative to process_topology
 
-                    source_node = self.get_values({source_path[-1]: source_path})
-                    target_node = self.establish_path(target_path, {})
+                    # get target_path relative to the node
+                    target_path = process_topology[port_path[0]] + port_path[1:]
 
                     import ipdb;
                     ipdb.set_trace()
+                    # self.path_for()
+                    self.get_path(source_path)
+                    source_node = self.get_values({source_path[-1]: source_path})
+                    target_node = self.establish_path(target_path, {})
 
 
                     # remove source node
