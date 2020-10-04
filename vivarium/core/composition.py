@@ -165,7 +165,22 @@ def compartment_hierarchy_experiment(
         hierarchy=None,
         settings=None,
         initial_state=None,
+        invoke=None,
 ):
+    """Make an experiment with arbitrarily embedded compartments.
+
+     Arguments:
+        hierarchy: an embedded dictionary matching the desired topology, with processes
+            at a given level declared with a "processes" key mapping to a list of
+            process configurations, and generators under a "generators" key mapping
+            to a list of generator configurations.
+        settings: settings include **emitter**
+        initial_state: is the initial_state.
+        invoke: is the invoke object for calling updates.
+
+    Returns:
+        The experiment.
+    """
     if settings is None:
         settings = {}
     if initial_state is None:
@@ -184,6 +199,15 @@ def compartment_hierarchy_experiment(
         'topology': topology,
         'emitter': emitter,
         'initial_state': initial_state}
+
+    if settings.get('experiment_name'):
+        experiment_config['experiment_name'] = settings.get('experiment_name')
+    if settings.get('description'):
+        experiment_config['description'] = settings.get('description')
+    if invoke:
+        experiment_config['invoke'] = invoke
+    if 'emit_step' in settings:
+        experiment_config['emit_step'] = settings['emit_step']
     return Experiment(experiment_config)
 
 
