@@ -163,7 +163,7 @@ def test_division():
 
     # declare the hierarchy
     hierarchy = {
-        'processes': [
+        'generators': [
             {
                 'type': TimelineProcess,
                 'config': {'timeline': timeline},
@@ -174,13 +174,12 @@ def test_division():
             }
         ],
         'agents': {
-            'generators': [
-                {
-                    'name': agent_id,
+            agent_id: {
+                'generators': {
                     'type': ToyAgent,
                     'config': {'agent_id': agent_id}
                 },
-            ]
+            }
         }
     }
 

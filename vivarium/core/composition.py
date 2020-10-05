@@ -93,30 +93,19 @@ def make_agent_ids(agents_config):
     return agent_ids
 
 
-def add_process_to_tree(process_def, processes, topology):
-    process_type = process_def['type']
-    process_config = process_def['config']
-    process_topology = process_def['topology']
-
-    # make the process
-    process = process_type(process_config)
-
-    # extend processes and topology list
-    name = process_def.get('name', process.name)
-    deep_merge(processes, {name: process})
-    deep_merge(topology, {name: process_topology})
-
-
-def add_generator_to_tree(generator_def, processes, topology):
-    generator_type = generator_def['type']
-    generator_config = generator_def['config']
+def add_generator_to_tree(
+        processes,
+        topology,
+        generator_type,
+        generator_config={},
+        generator_topology={}
+):
 
     # generate
     composite = generator_type(generator_config)
     network = composite.generate()
     new_processes = network['processes']
     new_topology = network['topology']
-
     # replace process names that already exist
     replace_name = []
     for name, p in new_processes.items():
@@ -130,27 +119,33 @@ def add_generator_to_tree(generator_def, processes, topology):
         del new_topology[name]
 
     # extend processes and topology list
-    composite_name = generator_def.get('name', composite.name)
-    deep_merge_check(processes, {composite_name: new_processes})
-    deep_merge(topology, {composite_name: new_topology})
+    new_topology = deep_merge(new_topology, generator_topology)
+    deep_merge(topology, new_topology)
+    deep_merge_check(processes, new_processes)
 
+    return processes, topology
 
 def initialize_hierarchy(hierarchy):
     processes = {}
     topology = {}
     for key, level in hierarchy.items():
-        if key == 'processes':
-            if isinstance(level, list):
-                for process_def in level:
-                    add_process_to_tree(process_def, processes, topology)
-            elif isinstance(level, dict):
-                add_process_to_tree(level, processes, topology)
-        elif key == 'generators':
+        if key == 'generators':
             if isinstance(level, list):
                 for generator_def in level:
-                    add_generator_to_tree(generator_def, processes, topology)
+                    add_generator_to_tree(
+                        processes=processes,
+                        topology=topology,
+                        generator_type=generator_def['type'],
+                        generator_config=generator_def.get('config', {}),
+                        generator_topology=generator_def.get('topology', {}))
+
             elif isinstance(level, dict):
-                add_generator_to_tree(level, processes, topology)
+                add_generator_to_tree(
+                    processes=processes,
+                    topology=topology,
+                    generator_type=level['type'],
+                    generator_config=level.get('config', {}),
+                    generator_topology=level.get('topology', {}))
         else:
             network = initialize_hierarchy(level)
             deep_merge_check(processes, {key: network['processes']})
@@ -170,10 +165,10 @@ def compartment_hierarchy_experiment(
     """Make an experiment with arbitrarily embedded compartments.
 
     Arguments:
-        hierarchy: an embedded dictionary mapping the desired topology,
-          with processes at a given level declared with a processes key
-          that maps to a list of process configurations, and generators
-          under a generators key mapping to a list of generator configurations.
+        hierarchy: an embedded dictionary mapping the desired topology of
+          nodes, with generators declared under a 'generators' key that map
+          to a dictionary with 'type', 'config' , and 'topology' for the
+          processes in the generator. Generators include lone processes.
         settings: settings include **emitter**.
         initial_state: is the initial_state.
         invoke: is the invoke object for calling updates.
