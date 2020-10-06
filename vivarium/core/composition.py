@@ -160,7 +160,6 @@ def compartment_hierarchy_experiment(
         hierarchy=None,
         settings=None,
         initial_state=None,
-        invoke=None,
 ):
     """Make an experiment with arbitrarily embedded compartments.
 
@@ -169,9 +168,8 @@ def compartment_hierarchy_experiment(
           nodes, with generators declared under a 'generators' key that map
           to a dictionary with 'type', 'config' , and 'topology' for the
           processes in the generator. Generators include lone processes.
-        settings: settings include **emitter**.
+        settings: experiment configuration settings.
         initial_state: is the initial_state.
-        invoke: is the invoke object for calling updates.
 
     Returns:
         The experiment.
@@ -195,14 +193,7 @@ def compartment_hierarchy_experiment(
         'emitter': emitter,
         'initial_state': initial_state}
 
-    if settings.get('experiment_name'):
-        experiment_config['experiment_name'] = settings.get('experiment_name')
-    if settings.get('description'):
-        experiment_config['description'] = settings.get('description')
-    if invoke:
-        experiment_config['invoke'] = invoke
-    if 'emit_step' in settings:
-        experiment_config['emit_step'] = settings['emit_step']
+    experiment_config = deep_merge(experiment_config, settings)
     return Experiment(experiment_config)
 
 

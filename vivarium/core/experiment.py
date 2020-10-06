@@ -1314,6 +1314,7 @@ class Experiment(object):
         self.topology = config['topology']
         self.initial_state = config.get('initial_state', {})
         self.emit_step = config.get('emit_step')
+        self.progress_bar = config.get('progress_bar')
 
         self.invoke = config.get('invoke', InvokeProcess)
         self.parallel = {}
@@ -1544,8 +1545,9 @@ class Experiment(object):
 
                 time = future
                 self.local_time += full_step
-                # log.info('time: {}'.format(self.local_time))
 
+                if self.progress_bar:
+                    print_progress_bar(time, interval)
                 if self.emit_step is None:
                     self.emit_data()
                 elif emit_time <= time:
@@ -1557,11 +1559,39 @@ class Experiment(object):
             assert advance['time'] == time == interval
             assert len(advance['update']) == 0
 
-
     def end(self):
         for parallel in self.parallel.values():
             parallel.end()
 
+
+def print_progress_bar(
+        iteration,
+        total,
+        prefix='Progress:',
+        suffix='Complete',
+        decimals=1,
+        length=50,
+        fill='█',
+        print_end="\r"
+):
+    """
+    Call in a loop to create terminal progress bar
+        iteration   - Required  : current iteration (Int)
+        total       - Required  : total iterations (Int)
+        prefix      - Optional  : prefix string (Str)
+        suffix      - Optional  : suffix string (Str)
+        decimals    - Optional  : positive number of decimals in percent complete (Int)
+        length      - Optional  : character length of bar (Int)
+        fill        - Optional  : bar fill character (Str)
+        print_end    - Optional  : end character (e.g. "\r", "\r\n") (Str)
+    """
+    progress = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
+    filled_length = int(length * iteration // total)
+    bar = fill * filled_length + '-' * (length - filled_length)
+    print(f'\r{prefix} |{bar}| {progress}% {suffix}', end=print_end)
+    # Print New Line on Complete
+    if iteration == total:
+        print()
 
 # Tests
 def test_recursive_store():
