@@ -19,6 +19,7 @@ from arpeggio import (
 from vivarium.core.experiment import timestamp
 from vivarium.core.composition import (
     compartment_hierarchy_experiment,
+    simulate_compartment_in_experiment,
     simulate_experiment,
     ToyCompartment,
     ToyEnvironment,
@@ -26,7 +27,7 @@ from vivarium.core.composition import (
 )
 
 from vivarium.plots.agents_multigen import plot_agents_multigen
-
+from vivarium.plots.simulation_output import plot_simulation_output
 
 
 # parsing expression grammar for agents
@@ -54,115 +55,82 @@ class Control():
     def __init__(
             self,
             name=None,
-            experiment_library={},
-            plot_library={},
-            # compartment_library={},
-            # workflows={},
-            # simulation_settings={},
+            experiment_library=None,
+            plot_library=None,
+            workflows=None,
     ):
         if name is None:
             name = timestamp()
-        # self.compartment_library = compartment_library
+
         self.experiment_library = experiment_library
         self.plot_library = plot_library
+        self.workflows = workflows
         self.args = self.add_arguments()
-
-        # TODO experiment settings
-        # TODO plot settings
 
         self.out_dir = os.path.join(EXPERIMENT_OUT_DIR, name)
         make_dir(self.out_dir)
-
-        import ipdb; ipdb.set_trace()
 
     def add_arguments(self):
         parser = argparse.ArgumentParser(
             description='command line control of experiments'
         )
         parser.add_argument(
-            '--agents', '-a',
-            type=str,
-            nargs='+',
-            default=argparse.SUPPRESS,
-            help='A list of agent types and numbers in the format "agent_type1 number1 agent_type2 number2"'
-        )
-        parser.add_argument(
-            '--environment', '-v',
+            '--workflow', '-w',
             type=str,
             default=argparse.SUPPRESS,
-            help='the environment type'
+            help='the workflow name'
         )
-        parser.add_argument(
-            '--time', '-t',
-            type=int,
-            default=60,
-            help='simulation time, in seconds'
-        )
-        parser.add_argument(
-            '--emit', '-m',
-            type=int,
-            default=1,
-            help='emit interval, in seconds'
-        )
-        parser.add_argument(
-            '--experiment', '-e',
-            type=str,
-            default=argparse.SUPPRESS,
-            help='preconfigured experiments'
-        )
+        # parser.add_argument(
+        #     '--agents', '-a',
+        #     type=str,
+        #     nargs='+',
+        #     default=argparse.SUPPRESS,
+        #     help='A list of agent types and numbers in the format "agent_type1 number1 agent_type2 number2"'
+        # )
+        # parser.add_argument(
+        #     '--environment', '-v',
+        #     type=str,
+        #     default=argparse.SUPPRESS,
+        #     help='the environment type'
+        # )
+        # parser.add_argument(
+        #     '--time', '-t',
+        #     type=int,
+        #     default=60,
+        #     help='simulation time, in seconds'
+        # )
+        # parser.add_argument(
+        #     '--emit', '-m',
+        #     type=int,
+        #     default=1,
+        #     help='emit interval, in seconds'
+        # )
+        # parser.add_argument(
+        #     '--experiment', '-e',
+        #     type=str,
+        #     default=argparse.SUPPRESS,
+        #     help='preconfigured experiments'
+        # )
 
         return vars(parser.parse_args())
 
-    def execute(self):
-        if self.args['experiment']:
-            experiment_name = self.args['experiment']
-            experiment_out_dir = os.path.join(self.out_dir, experiment_name)
-            make_dir(experiment_out_dir)
-            experiment_config = self.experiment_library[experiment_name]
-            hierarchy = experiment_config['hierarchy']
-            simulation_settings = experiment_config['simulation_settings']
+    def execute_workflow(self, name):
+        workflow = self.workflows[name]
+        experiment = self.experiment_library[workflow['experiment']]
+        plots = self.plot_library[workflow['plots']]
 
-        # simulate
-        data = self.run_experiment(
-            hierarchy=hierarchy,
-            # initial_state=initial_state,
-            # initial_agent_state=initial_agent_state,
-            simulation_settings=simulation_settings,
-        )
+        # run the experiment
+        data = experiment()
+
+        # plot
+        plots(
+            data=data,
+            out_dir=self.out_dir)
 
 
-    def run_experiment(
-            self,
-            # agents_config=None,
-            # environment_config=None,
-            initial_state=None,
-            # initial_agent_state=None,
-            hierarchy=None,
-            simulation_settings=None,
-            experiment_settings=None
-    ):
-        if experiment_settings is None:
-            experiment_settings = {}
-        if initial_state is None:
-            initial_state = {}
-        # if initial_agent_state is None:
-        #     initial_agent_state = {}
 
 
-        # make the experiment
-        experiment = embedded_compartment_experiment(hierarchy)
-
-        # simulate
-        settings = {
-            'total_time': simulation_settings['total_time'],
-            'emit_step': simulation_settings['emit_step'],
-            'return_raw_data': simulation_settings['return_raw_data']}
-        return simulate_experiment(
-            experiment,
-            settings,
-        )
-
-
+# testing
 def experiment_1():
     toy_compartment = ToyCompartment({})
     settings = {
@@ -178,25 +146,34 @@ def experiment_1():
                 'DENSITY': 10}}}
     return simulate_compartment_in_experiment(toy_compartment, settings)
 
-def plot_library():
-    pass
+
+def plots_1(data, out_dir='out'):
+    plot_simulation_output(data, out_dir=out_dir)
 
 
-def run_control_test():
+def test_control():
     experiment_library = {
         '1': experiment_1
     }
     plot_library = {
         '1': plots_1
     }
+    workflows = {
+        '1': {
+            'experiment': '1',
+            'plots': '1',
+        }
+    }
 
-    workflow = Control(
+    control = Control(
+        name='control_test',
         experiment_library=experiment_library,
         plot_library=plot_library,
+        workflows=workflows,
         )
 
-    workflow.execute()
+    control.execute_workflow('1')
 
 
 if __name__ == '__main__':
-    run_control_test()
+    test_control()
