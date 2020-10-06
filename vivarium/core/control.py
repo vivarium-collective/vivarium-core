@@ -9,6 +9,7 @@ Run experiments and analyses from the command line
 import os
 import sys
 import argparse
+import copy
 
 from arpeggio import (
     RegExMatch,
@@ -23,7 +24,7 @@ from vivarium.core.composition import (
     simulate_experiment,
     ToyCompartment,
     ToyEnvironment,
-    EXPERIMENT_OUT_DIR,
+    BASE_OUT_DIR,
 )
 
 from vivarium.plots.agents_multigen import plot_agents_multigen
@@ -54,21 +55,35 @@ class Control():
 
     def __init__(
             self,
-            name=None,
-            experiment_library=None,
-            plot_library=None,
+            out_dir=None,
+            experiments=None,
+            compartments=None,
+            plots=None,
             workflows=None,
     ):
-        if name is None:
-            name = timestamp()
+        if out_dir is None:
+            out_dir = timestamp()
 
-        self.experiment_library = experiment_library
-        self.plot_library = plot_library
+        self.experiments = experiments
+        self.compartments = compartments
+        self.plots = plots
         self.workflows = workflows
+
+        # output directory
+        self.base_out_dir = os.path.join(BASE_OUT_DIR, out_dir)
+        self.out_dir = self.base_out_dir
+        make_dir(self.out_dir)
+
+        # arguments
         self.args = self.add_arguments()
 
-        self.out_dir = os.path.join(EXPERIMENT_OUT_DIR, name)
-        make_dir(self.out_dir)
+        if self.args.workflow:
+            workflow_id = str(self.args.workflow)
+            workflow_name = self.workflows[workflow_id].get('name', workflow_id)
+            self.out_dir = os.path.join(self.base_out_dir, workflow_name)
+            make_dir(self.out_dir)
+
+            self.execute_workflow(workflow_id)
 
     def add_arguments(self):
         parser = argparse.ArgumentParser(
@@ -77,61 +92,42 @@ class Control():
         parser.add_argument(
             '--workflow', '-w',
             type=str,
-            default=argparse.SUPPRESS,
-            help='the workflow name'
+            choices=list(self.workflows.keys()),
+            help='the workflow id'
         )
-        # parser.add_argument(
-        #     '--agents', '-a',
-        #     type=str,
-        #     nargs='+',
-        #     default=argparse.SUPPRESS,
-        #     help='A list of agent types and numbers in the format "agent_type1 number1 agent_type2 number2"'
-        # )
-        # parser.add_argument(
-        #     '--environment', '-v',
-        #     type=str,
-        #     default=argparse.SUPPRESS,
-        #     help='the environment type'
-        # )
-        # parser.add_argument(
-        #     '--time', '-t',
-        #     type=int,
-        #     default=60,
-        #     help='simulation time, in seconds'
-        # )
-        # parser.add_argument(
-        #     '--emit', '-m',
-        #     type=int,
-        #     default=1,
-        #     help='emit interval, in seconds'
-        # )
-        # parser.add_argument(
-        #     '--experiment', '-e',
-        #     type=str,
-        #     default=argparse.SUPPRESS,
-        #     help='preconfigured experiments'
-        # )
 
-        return vars(parser.parse_args())
+        return parser.parse_args()
 
-    def execute_workflow(self, name):
-        workflow = self.workflows[name]
-        experiment = self.experiment_library[workflow['experiment']]
-        plots = self.plot_library[workflow['plots']]
+    def execute_workflow(self, workflow_id):
+        workflow = self.workflows[workflow_id]
+        experiment_id = workflow['experiment']
+        plot_ids = workflow['plots']
 
         # run the experiment
-        data = experiment()
+        experiment = self.experiments[experiment_id]
+        if isinstance(experiment, dict):
+            data = experiment['experiment']()
+        elif callable(experiment):
+            data = experiment()
 
-        # plot
-        plots(
-            data=data,
-            out_dir=self.out_dir)
-
+        # run the plots with the data
+        if isinstance(plot_ids, list):
+            for plot_id in plot_ids:
+                plots = self.plots[plot_id]
+                data_copy = copy.deepcopy(data)
+                plots(
+                    data=data_copy,
+                    out_dir=self.out_dir)
+        else:
+            plots = self.plots[plot_ids]
+            plots(
+                data=data,
+                out_dir=self.out_dir)
 
 
 
 # testing
-def experiment_1():
+def toy_experiment():
     toy_compartment = ToyCompartment({})
     settings = {
         'total_time': 10,
@@ -147,33 +143,47 @@ def experiment_1():
     return simulate_compartment_in_experiment(toy_compartment, settings)
 
 
-def plots_1(data, out_dir='out'):
+def toy_plot(data, out_dir='out'):
     plot_simulation_output(data, out_dir=out_dir)
 
 
-def test_control():
+def toy_control():
     experiment_library = {
-        '1': experiment_1
+        '1': {
+            'name': 'exp_1',
+            'experiment': toy_experiment
+        }
     }
     plot_library = {
-        '1': plots_1
+        '1': toy_plot
     }
-    workflows = {
+    compartment_library = {
+        'agent': ToyCompartment,
+        'environment': ToyEnvironment
+    }
+    workflow_library = {
         '1': {
+            'name': 'test_workflow',
             'experiment': '1',
-            'plots': '1',
+            'plots': ['1'],
         }
     }
 
     control = Control(
-        name='control_test',
-        experiment_library=experiment_library,
-        plot_library=plot_library,
-        workflows=workflows,
+        out_dir='control_test',
+        experiments=experiment_library,
+        compartments=compartment_library,
+        plots=plot_library,
+        workflows=workflow_library,
         )
 
+    return control
+
+
+def test_control():
+    control = toy_control()
     control.execute_workflow('1')
 
 
 if __name__ == '__main__':
-    test_control()
+    toy_control()
