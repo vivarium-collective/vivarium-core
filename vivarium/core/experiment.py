@@ -1329,7 +1329,7 @@ class Experiment(object):
             self.topology,
             self.initial_state)
 
-        emitter_config = config.get('emitter', {})
+        emitter_config = config.get('emitter', 'timeseries')
         if isinstance(emitter_config, str):
             emitter_config = {'type': emitter_config}
         emitter_config['experiment_id'] = self.experiment_id
