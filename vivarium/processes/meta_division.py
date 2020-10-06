@@ -184,9 +184,11 @@ def test_division():
     }
 
     # configure experiment
+    settings = {}
     experiment = compartment_hierarchy_experiment(
         hierarchy=hierarchy,
-        initial_state=initial_state)
+        initial_state=initial_state,
+        settings=settings)
 
     # run simulation
     experiment.update(time_total)
@@ -208,7 +210,7 @@ def run_division():
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
     output = test_division()
-    pp(output)
+    # pp(output)
 
 
 if __name__ == '__main__':

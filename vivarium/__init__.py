@@ -19,6 +19,7 @@ from vivarium.processes.timeline import TimelineProcess
 from vivarium.processes.nonspatial_environment import NonSpatialEnvironment
 from vivarium.processes.swap_processes import SwapProcesses
 from vivarium.processes.disintegrate import Disintegrate
+from vivarium.processes.divide_condition import DivideCondition
 
 # import updaters, dividers, serializers
 from vivarium.core.registry import (
@@ -30,6 +31,7 @@ from vivarium.core.registry import (
 
 
 # register processes
+process_registry.register(DivideCondition.name, DivideCondition)
 process_registry.register(MetaDivision.name, MetaDivision)
 process_registry.register(TreeMass.name, TreeMass)
 process_registry.register(DeriveConcentrations.name, DeriveConcentrations)

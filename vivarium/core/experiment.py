@@ -1314,6 +1314,7 @@ class Experiment(object):
         self.topology = config['topology']
         self.initial_state = config.get('initial_state', {})
         self.emit_step = config.get('emit_step')
+        self.progress_bar = config.get('progress_bar', True)
 
         self.invoke = config.get('invoke', InvokeProcess)
         self.parallel = {}
@@ -1328,7 +1329,7 @@ class Experiment(object):
             self.topology,
             self.initial_state)
 
-        emitter_config = config.get('emitter', {})
+        emitter_config = config.get('emitter', 'timeseries')
         if isinstance(emitter_config, str):
             emitter_config = {'type': emitter_config}
         emitter_config['experiment_id'] = self.experiment_id
@@ -1544,8 +1545,9 @@ class Experiment(object):
 
                 time = future
                 self.local_time += full_step
-                # log.info('time: {}'.format(self.local_time))
 
+                if self.progress_bar:
+                    print_progress_bar(time, interval)
                 if self.emit_step is None:
                     self.emit_data()
                 elif emit_time <= time:
@@ -1557,11 +1559,33 @@ class Experiment(object):
             assert advance['time'] == time == interval
             assert len(advance['update']) == 0
 
-
     def end(self):
         for parallel in self.parallel.values():
             parallel.end()
 
+
+def print_progress_bar(
+        iteration,
+        total,
+        decimals=1,
+        length=50,
+):
+    """ Call in a loop to create terminal progress bar
+
+    Arguments:
+        iteration: (Required) current iteration
+        total:     (Required) total iterations
+        decimals:  (Optional) positive number of decimals in percent complete
+        length:    (Optional) character length of bar
+    """
+    # progress = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
+    progress = ("{0:." + str(decimals) + "f}").format(total - iteration)
+    filled_length = int(length * iteration // total)
+    bar = '█' * filled_length + '-' * (length - filled_length)
+    print(f'\r Progress:|{bar}| {progress} seconds remaining    ', end='\r')
+    # Print New Line on Complete
+    if iteration == total:
+        print()
 
 # Tests
 def test_recursive_store():
