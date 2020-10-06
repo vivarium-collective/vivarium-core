@@ -1314,7 +1314,7 @@ class Experiment(object):
         self.topology = config['topology']
         self.initial_state = config.get('initial_state', {})
         self.emit_step = config.get('emit_step')
-        self.progress_bar = config.get('progress_bar')
+        self.progress_bar = config.get('progress_bar', True)
 
         self.invoke = config.get('invoke', InvokeProcess)
         self.parallel = {}
@@ -1567,29 +1567,22 @@ class Experiment(object):
 def print_progress_bar(
         iteration,
         total,
-        prefix='Progress:',
-        suffix='Complete',
         decimals=1,
         length=50,
-        fill='█',
-        print_end="\r"
 ):
     """ Call in a loop to create terminal progress bar
 
     Arguments:
         iteration: (Required) current iteration
         total:     (Required) total iterations
-        prefix:    (Optional) prefix string
-        suffix:    (Optional) suffix string
         decimals:  (Optional) positive number of decimals in percent complete
         length:    (Optional) character length of bar
-        fill:      (Optional) bar fill character
-        print_end: (Optional) end character
     """
-    progress = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
+    # progress = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
+    progress = ("{0:." + str(decimals) + "f}").format(total - iteration)
     filled_length = int(length * iteration // total)
-    bar = fill * filled_length + '-' * (length - filled_length)
-    print(f'\r{prefix} |{bar}| {progress}% {suffix}', end=print_end)
+    bar = '█' * filled_length + '-' * (length - filled_length)
+    print(f'\r Progress:|{bar}| {progress} seconds remaining    ', end='\r')
     # Print New Line on Complete
     if iteration == total:
         print()

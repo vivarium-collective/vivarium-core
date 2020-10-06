@@ -137,9 +137,7 @@ class ToyAgent(Generator):
         }
 
 
-def test_division(
-    progress_bar=False
-):
+def test_division():
     agent_id = '1'
 
     # initial state
@@ -186,7 +184,7 @@ def test_division(
     }
 
     # configure experiment
-    settings = {'progress_bar': progress_bar}
+    settings = {}
     experiment = compartment_hierarchy_experiment(
         hierarchy=hierarchy,
         initial_state=initial_state,
@@ -211,8 +209,8 @@ def run_division():
     out_dir = os.path.join(PROCESS_OUT_DIR, NAME)
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
-    output = test_division(progress_bar=True)
-    pp(output)
+    output = test_division()
+    # pp(output)
 
 
 if __name__ == '__main__':
