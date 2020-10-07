@@ -41,5 +41,4 @@ setup(
         'pymongo',
         'pytest',
         'scipy',
-        'arpeggio',
     ])

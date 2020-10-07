@@ -11,39 +11,17 @@ import sys
 import argparse
 import copy
 
-from arpeggio import (
-    RegExMatch,
-    ParserPython,
-    OneOrMore,
-)
-
 from vivarium.core.experiment import timestamp
 from vivarium.core.composition import (
     compartment_hierarchy_experiment,
     simulate_compartment_in_experiment,
     simulate_experiment,
     ToyCompartment,
-    ToyEnvironment,
     BASE_OUT_DIR,
 )
 
-from vivarium.plots.agents_multigen import plot_agents_multigen
 from vivarium.plots.simulation_output import plot_simulation_output
 
-
-# parsing expression grammar for agents
-def agent_type(): return RegExMatch(r'[a-zA-Z0-9.\-\_]+')
-def number(): return RegExMatch(r'[0-9]+')
-def specification(): return agent_type, number
-def rule(): return OneOrMore(specification)
-agent_parser = ParserPython(rule)
-
-def parse_agents_string(agents_string):
-    all_agents = agent_parser.parse(agents_string)
-    agents_config = []
-    for idx, agent_specs in enumerate(all_agents):
-        agents_config.append(make_agent_config(agent_specs))
-    return agents_config
 
 
 def make_dir(out_dir):
@@ -159,7 +137,6 @@ def toy_control():
     }
     compartment_library = {
         'agent': ToyCompartment,
-        'environment': ToyEnvironment
     }
     workflow_library = {
         '1': {

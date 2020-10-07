@@ -914,24 +914,6 @@ class ToyDeath(Process):
         return update
 
 
-class ToyEnvironment(Deriver):
-    name = 'toy_environment'
-    defaults = {}
-
-    def __init__(self, parameters={}):
-        super(ToyEnvironment, self).__init__(parameters)
-
-    def ports_schema(self):
-        return {
-            'sub_compartments': {
-                '*': {
-                    'state': {
-                        '_default': 0.0}}}}
-
-    def next_update(self, timestep, states):
-        return {}
-
-
 class ToyCompartment(Generator):
     '''
     a toy compartment for testing
