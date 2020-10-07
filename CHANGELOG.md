@@ -1,5 +1,14 @@
 # Changelog
 
+
+## v0.0.34
+
+* Control object in vivarium/cor/control for streamlining experiments
+* progress bar and display in experiment
+* disintegrate process
+* divide_condition process
+* swap_compartment process
+
 ## v0.0.29
 
 * timeline process configured with paths for ports
