@@ -39,8 +39,6 @@ class Control():
             plots=None,
             workflows=None,
     ):
-        if out_dir is None:
-            out_dir = timestamp()
         if workflows is None:
             workflows = {}
         if experiments is None:
@@ -52,9 +50,10 @@ class Control():
         self.workflows_library = workflows
         self.output_data = None
 
-        # output directory
-        self.base_out_dir = os.path.join(BASE_OUT_DIR, out_dir)
-        self.out_dir = self.base_out_dir
+        # base output directory
+        self.out_dir = BASE_OUT_DIR
+        if out_dir:
+            self.out_dir = out_dir
         make_dir(self.out_dir)
 
         # arguments
@@ -66,10 +65,6 @@ class Control():
 
         if self.args.workflow:
             workflow_id = str(self.args.workflow)
-            workflow_name = self.workflows_library[workflow_id].get('name', workflow_id)
-            self.out_dir = os.path.join(self.base_out_dir, workflow_name)
-            make_dir(self.out_dir)
-
             self.run_workflow(workflow_id)
 
     def add_arguments(self):
@@ -97,30 +92,37 @@ class Control():
         elif callable(experiment):
             return experiment()
 
-    def run_plots(self, plot_ids, data):
+    def run_plots(self, plot_ids, data, out_dir=None):
+        if out_dir is None:
+            out_dir = self.out_dir
         if isinstance(plot_ids, list):
             for plot_id in plot_ids:
-                plots = self.plots_library[plot_id]
+                plot_function = self.plots_library[plot_id]
                 data_copy = copy.deepcopy(data)
-                plots(
+                plot_function(
                     data=data_copy,
-                    out_dir=self.out_dir)
+                    out_dir=out_dir)
         else:
-            plots = self.plots_library[plot_ids]
-            plots(
+            plot_function = self.plots_library[plot_ids]
+            plot_function(
                 data=data,
-                out_dir=self.out_dir)
+                out_dir=out_dir)
 
     def run_workflow(self, workflow_id):
         workflow = self.workflows_library[workflow_id]
         experiment_id = workflow['experiment']
         plot_ids = workflow['plots']
 
+        # output directory for this workflow
+        workflow_name = workflow.get('name', timestamp())
+        out_dir = os.path.join(self.out_dir, workflow_name)
+        make_dir(out_dir)
+
         # run the experiment
         self.output_data = self.run_experiment(experiment_id)
 
-        # run the plots with the data
-        self.run_plots(plot_ids, self.output_data)
+        # run the plots
+        self.run_plots(plot_ids, self.output_data, out_dir=out_dir)
 
 
 
