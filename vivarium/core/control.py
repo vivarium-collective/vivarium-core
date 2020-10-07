@@ -54,7 +54,6 @@ class Control():
         self.out_dir = BASE_OUT_DIR
         if out_dir:
             self.out_dir = out_dir
-        make_dir(self.out_dir)
 
         # arguments
         self.args = self.add_arguments()
@@ -95,6 +94,8 @@ class Control():
     def run_plots(self, plot_ids, data, out_dir=None):
         if out_dir is None:
             out_dir = self.out_dir
+        make_dir(out_dir)
+
         if isinstance(plot_ids, list):
             for plot_id in plot_ids:
                 plot_function = self.plots_library[plot_id]
@@ -116,7 +117,6 @@ class Control():
         # output directory for this workflow
         workflow_name = workflow.get('name', timestamp())
         out_dir = os.path.join(self.out_dir, workflow_name)
-        make_dir(out_dir)
 
         # run the experiment
         self.output_data = self.run_experiment(experiment_id)
