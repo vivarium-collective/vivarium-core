@@ -13,7 +13,7 @@ import copy
 
 from vivarium.core.experiment import timestamp
 from vivarium.core.composition import (
-    compartment_hierarchy_experiment,
+    compose_experiment,
     simulate_compartment_in_experiment,
     simulate_experiment,
     ToyCompartment,
@@ -39,29 +39,32 @@ class Control():
             plots=None,
             workflows=None,
     ):
-        if out_dir is None:
-            out_dir = timestamp()
+        if workflows is None:
+            workflows = {}
+        if experiments is None:
+            experiments = {}
 
-        self.experiments = experiments
-        self.compartments = compartments
-        self.plots = plots
-        self.workflows = workflows
+        self.experiments_library = experiments
+        self.compartments_library = compartments
+        self.plots_library = plots
+        self.workflows_library = workflows
+        self.output_data = None
 
-        # output directory
-        self.base_out_dir = os.path.join(BASE_OUT_DIR, out_dir)
-        self.out_dir = self.base_out_dir
-        make_dir(self.out_dir)
+        # base output directory
+        self.out_dir = BASE_OUT_DIR
+        if out_dir:
+            self.out_dir = out_dir
 
         # arguments
         self.args = self.add_arguments()
 
+        if self.args.experiment:
+            experiment_id = str(self.args.experiment)
+            self.output_data = self.run_experiment(experiment_id)
+
         if self.args.workflow:
             workflow_id = str(self.args.workflow)
-            workflow_name = self.workflows[workflow_id].get('name', workflow_id)
-            self.out_dir = os.path.join(self.base_out_dir, workflow_name)
-            make_dir(self.out_dir)
-
-            self.execute_workflow(workflow_id)
+            self.run_workflow(workflow_id)
 
     def add_arguments(self):
         parser = argparse.ArgumentParser(
@@ -70,37 +73,58 @@ class Control():
         parser.add_argument(
             '--workflow', '-w',
             type=str,
-            choices=list(self.workflows.keys()),
+            choices=list(self.workflows_library.keys()),
             help='the workflow id'
         )
-
+        parser.add_argument(
+            '--experiment', '-e',
+            type=str,
+            choices=list(self.experiments_library.keys()),
+            help='experiment id to run'
+        )
         return parser.parse_args()
 
-    def execute_workflow(self, workflow_id):
-        workflow = self.workflows[workflow_id]
+    def run_experiment(self, experiment_id):
+        experiment = self.experiments_library[experiment_id]
+        if isinstance(experiment, dict):
+            return experiment['experiment']()
+        elif callable(experiment):
+            return experiment()
+
+    def run_plots(self, plot_ids, data, out_dir=None):
+        if out_dir is None:
+            out_dir = self.out_dir
+        make_dir(out_dir)
+
+        if isinstance(plot_ids, list):
+            for plot_id in plot_ids:
+                plot_function = self.plots_library[plot_id]
+                data_copy = copy.deepcopy(data)
+                plot_function(
+                    data=data_copy,
+                    out_dir=out_dir)
+        else:
+            plot_function = self.plots_library[plot_ids]
+            plot_function(
+                data=data,
+                out_dir=out_dir)
+
+    def run_workflow(self, workflow_id):
+        workflow = self.workflows_library[workflow_id]
         experiment_id = workflow['experiment']
         plot_ids = workflow['plots']
 
-        # run the experiment
-        experiment = self.experiments[experiment_id]
-        if isinstance(experiment, dict):
-            data = experiment['experiment']()
-        elif callable(experiment):
-            data = experiment()
+        # output directory for this workflow
+        workflow_name = workflow.get('name', timestamp())
+        out_dir = os.path.join(self.out_dir, workflow_name)
 
-        # run the plots with the data
-        if isinstance(plot_ids, list):
-            for plot_id in plot_ids:
-                plots = self.plots[plot_id]
-                data_copy = copy.deepcopy(data)
-                plots(
-                    data=data_copy,
-                    out_dir=self.out_dir)
-        else:
-            plots = self.plots[plot_ids]
-            plots(
-                data=data,
-                out_dir=self.out_dir)
+        # run the experiment
+        self.output_data = self.run_experiment(experiment_id)
+
+        # run the plots
+        self.run_plots(plot_ids, self.output_data, out_dir=out_dir)
+
+        print('plots saved to directory: {}'.format(out_dir))
 
 
 
@@ -159,7 +183,7 @@ def toy_control():
 
 def test_control():
     control = toy_control()
-    control.execute_workflow('1')
+    control.run_workflow('1')
 
 
 if __name__ == '__main__':

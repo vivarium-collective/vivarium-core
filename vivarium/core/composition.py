@@ -119,7 +119,7 @@ experiment_config_keys = [
     ]
 
 
-def compartment_hierarchy_experiment(
+def compose_experiment(
         hierarchy=None,
         settings=None,
         initial_state=None,
