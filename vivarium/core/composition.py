@@ -35,6 +35,8 @@ COMPARTMENT_OUT_DIR = os.path.join(BASE_OUT_DIR, 'compartments')
 COMPOSITE_OUT_DIR = os.path.join(BASE_OUT_DIR, 'composites')
 EXPERIMENT_OUT_DIR = os.path.join(BASE_OUT_DIR, 'experiments')
 
+GENERATORS_KEY = '_generators'
+
 
 ######################################################
 # compartment_hierarchy_experiment loading functions #
@@ -77,7 +79,7 @@ def initialize_hierarchy(hierarchy):
     processes = {}
     topology = {}
     for key, level in hierarchy.items():
-        if key == 'generators':
+        if key == GENERATORS_KEY:
             if isinstance(level, list):
                 for generator_def in level:
                     add_generator_to_tree(
@@ -126,9 +128,9 @@ def compartment_hierarchy_experiment(
 
     Arguments:
         hierarchy: an embedded dictionary mapping the desired topology of
-          nodes, with generators declared under a 'generators' key that map
-          to a dictionary with 'type', 'config' , and 'topology' for the
-          processes in the generator. Generators include lone processes.
+            nodes, with generators declared under a global GENERATOR_KEY that maps
+            to a dictionary with 'type', 'config' , and 'topology' for the
+            processes in the generator. Generators include lone processes.
         settings: experiment configuration settings.
         initial_state: is the initial_state.
 
