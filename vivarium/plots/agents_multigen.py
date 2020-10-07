@@ -13,12 +13,15 @@ def order_list_of_paths(path_list):
     length = max(map(len, path_list))
     lol = np.array([list(path) + [None] * (length - len(path)) for path in path_list])
 
-    # sort by first two columns. TODO -- sort by all available columns
-    ind = np.lexsort((lol[:, 1], lol[:, 0]))
-    sorted_path_list = sorted(zip(ind, path_list))
-    forward_order = [idx_path[1] for idx_path in sorted_path_list]
-    forward_order.reverse()
-    return forward_order
+    if lol.shape[0] > 1:
+        # sort by first two columns. TODO -- sort by all available columns
+        ind = np.lexsort((lol[:, 1], lol[:, 0]))
+        sorted_path_list = sorted(zip(ind, path_list))
+        forward_order = [idx_path[1] for idx_path in sorted_path_list]
+        forward_order.reverse()
+        return forward_order
+    else:
+        return path_list
 
 
 def plot_agents_multigen(data, settings={}, out_dir='out', filename='agents'):
@@ -104,8 +107,11 @@ def plot_agents_multigen(data, settings={}, out_dir='out', filename='agents'):
 
     # sort each port by second element
     for port_id, path_list in port_rows.items():
-        sorted_path = sorted(path_list, key=lambda x: x[1])
-        port_rows[port_id] = sorted_path
+        if len(path_list) > 1:
+            sorted_path = sorted(path_list, key=lambda x: x[1])
+            port_rows[port_id] = sorted_path
+        else:
+            port_rows[port_id] = path_list
 
     highest_row = 0
     row_idx = 0
