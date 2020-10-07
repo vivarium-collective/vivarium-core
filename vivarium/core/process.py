@@ -117,7 +117,8 @@ class Generator(object):
              config = {}
         if 'name' in config:
             self.name = config['name']
-        assert hasattr(self, 'name')
+        elif not hasattr(self, 'name'):
+            self.name = self.__class__.__name__
 
         self.config = copy.deepcopy(self.defaults)
         self.config = deep_merge(self.config, config)
@@ -235,7 +236,8 @@ class Process(Generator):
              parameters = {}
         if 'name' in parameters:
             self.name = parameters['name']
-        assert hasattr(self, 'name')
+        if not hasattr(self, 'name'):
+            self.name = self.__class__.__name__
 
         self.parameters = copy.deepcopy(self.defaults)
         self.config = {}  # config is required for generate
