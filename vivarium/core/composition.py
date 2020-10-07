@@ -28,11 +28,12 @@ from vivarium.processes.timeline import TimelineProcess
 from vivarium.processes.nonspatial_environment import NonSpatialEnvironment
 
 REFERENCE_DATA_DIR = os.path.join('vivarium', 'reference_data')
-TEST_OUT_DIR = os.path.join('out', 'tests')
-PROCESS_OUT_DIR = os.path.join('out', 'processes')
-COMPARTMENT_OUT_DIR = os.path.join('out', 'composites')
-COMPOSITE_OUT_DIR = os.path.join('out', 'composites')
-EXPERIMENT_OUT_DIR = os.path.join('out', 'experiments')
+BASE_OUT_DIR = 'out'
+TEST_OUT_DIR = os.path.join(BASE_OUT_DIR, 'tests')
+PROCESS_OUT_DIR = os.path.join(BASE_OUT_DIR, 'processes')
+COMPARTMENT_OUT_DIR = os.path.join(BASE_OUT_DIR, 'compartments')
+COMPOSITE_OUT_DIR = os.path.join(BASE_OUT_DIR, 'composites')
+EXPERIMENT_OUT_DIR = os.path.join(BASE_OUT_DIR, 'experiments')
 
 GENERATORS_KEY = '_generators'
 
@@ -911,6 +912,7 @@ class ToyDeath(Process):
                         for target in self.targets]}}
 
         return update
+
 
 class ToyCompartment(Generator):
     '''

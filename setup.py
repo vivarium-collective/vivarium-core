@@ -40,4 +40,5 @@ setup(
         'Pint',
         'pymongo',
         'pytest',
-        'scipy'])
+        'scipy',
+    ])
