@@ -111,9 +111,14 @@ class Generator(object):
 
     All :term:`compartment` classes must inherit from this class.
     """
-    name = 'generator_parent'
     defaults = {}
-    def __init__(self, config):
+    def __init__(self, config=None):
+        if config is None:
+             config = {}
+        if 'name' in config:
+            self.name = config['name']
+        assert hasattr(self, 'name')
+
         self.config = copy.deepcopy(self.defaults)
         self.config = deep_merge(self.config, config)
         self.schema_override = {}
@@ -223,13 +228,15 @@ class Process(Generator):
 
     All :term:`process` classes must inherit from this class.
     """
-    name = 'process_parent'
     defaults = {}
 
     def __init__(self, parameters=None):
-        assert hasattr(self, 'name')
         if parameters is None:
              parameters = {}
+        if 'name' in parameters:
+            self.name = parameters['name']
+        assert hasattr(self, 'name')
+
         self.parameters = copy.deepcopy(self.defaults)
         self.config = {}  # config is required for generate
         self.schema_override = {}
