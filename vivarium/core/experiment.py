@@ -1308,14 +1308,21 @@ class Experiment(object):
         self.config = config
         self.experiment_id = config.get(
             'experiment_id', timestamp(datetime.datetime.utcnow()))
-        self.experiment_name = config.get('experiment_name', self.experiment_id)
-        self.description = config.get('description', '')
         self.processes = config['processes']
         self.topology = config['topology']
         self.initial_state = config.get('initial_state', {})
         self.emit_step = config.get('emit_step')
-        self.progress_bar = config.get('progress_bar', True)
 
+        # display settings
+        self.experiment_name = config.get('experiment_name', self.experiment_id)
+        self.description = config.get('description', '')
+        self.display_info = config.get('display_info', True)
+        self.progress_bar = config.get('progress_bar', True)
+        self.time_created = timestamp()
+        if self.display_info:
+            self.print_display()
+
+        # parallel settings
         self.invoke = config.get('invoke', InvokeProcess)
         self.parallel = {}
 
@@ -1324,11 +1331,13 @@ class Experiment(object):
         self.deriver_paths = {}
         self.find_process_paths(self.processes)
 
+        # initialize the state
         self.state = generate_state(
             self.processes,
             self.topology,
             self.initial_state)
 
+        # emitter settings
         emitter_config = config.get('emitter', 'timeseries')
         if isinstance(emitter_config, str):
             emitter_config = {'type': emitter_config}
@@ -1344,6 +1353,7 @@ class Experiment(object):
         self.emit_configuration()
         self.emit_data()
 
+        # logging information
         log.info('experiment {}'.format(self.experiment_id))
 
         log.info('\nPROCESSES:')
@@ -1368,7 +1378,7 @@ class Experiment(object):
 
     def emit_configuration(self):
         data = {
-            'time_created': timestamp(),
+            'time_created': self.time_created,
             'experiment_id': self.experiment_id,
             'name': self.experiment_name,
             'description': self.description,
@@ -1562,6 +1572,17 @@ class Experiment(object):
     def end(self):
         for parallel in self.parallel.values():
             parallel.end()
+
+    def print_display(self):
+        date, time = self.time_created.split('.')
+        print('\nExperiment ID: {}'.format(self.experiment_id))
+        print('Created: {} at {}'.format(
+            date[4:6] + '/' + date[6:8] + '/' + date[0:4],
+            time[0:2] + ':' + time[2:4] + ':' + time[4:6]))
+        if self.experiment_name is not self.experiment_id:
+            print('Name: {}'.format(self.experiment_name))
+        if self.description:
+            print('Description: {}'.format(self.description))
 
 
 def print_progress_bar(
