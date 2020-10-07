@@ -124,6 +124,8 @@ class Control():
         # run the plots
         self.run_plots(plot_ids, self.output_data, out_dir=out_dir)
 
+        print('plots saved to directory: {}'.format(out_dir))
+
 
 
 # testing
