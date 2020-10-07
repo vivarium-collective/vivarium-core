@@ -13,7 +13,7 @@ import copy
 
 from vivarium.core.experiment import timestamp
 from vivarium.core.composition import (
-    compartment_hierarchy_experiment,
+    compose_experiment,
     simulate_compartment_in_experiment,
     simulate_experiment,
     ToyCompartment,

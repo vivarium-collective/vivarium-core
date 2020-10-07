@@ -9,7 +9,7 @@ from vivarium.core.process import (
     Generator
 )
 from vivarium.core.composition import (
-    compartment_hierarchy_experiment,
+    compose_experiment,
     GENERATORS_KEY,
     PROCESS_OUT_DIR,
 )
@@ -186,7 +186,7 @@ def test_division():
 
     # configure experiment
     settings = {}
-    experiment = compartment_hierarchy_experiment(
+    experiment = compose_experiment(
         hierarchy=hierarchy,
         initial_state=initial_state,
         settings=settings)
