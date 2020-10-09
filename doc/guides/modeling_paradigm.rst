@@ -3,13 +3,13 @@ The Vivarium Modeling Paradigm
 ==============================
 
 Vivarium is a novel simulation engine that addresses computational
-biology's dual challenges of model reuse and multi-scale integration
+biology's dual challenges of model reuse and multiscale integration
 by explicitly separating the interface that connects models from the
 frameworks that implement them. Our goal was to make it as simple as
 possible to write modular models of any dynamical system in computational
 biology, run these on their own, and freely compose them with other models
-in executable multi-scale representations. To achieve this, we combined
-methods from agent-based modeling, whole-cell modeling, multi-scale
+in executable multiscale representations. To achieve this, we combined
+methods from agent-based modeling, whole-cell modeling, multiscale
 simulation, and modular programming.
 
 An :term:`agent-based model` contains simple agents whose interactions

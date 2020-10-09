@@ -10,6 +10,7 @@ Submodules
    vivarium.processes.derive_concentrations
    vivarium.processes.derive_counts
    vivarium.processes.disintegrate
+   vivarium.processes.divide_condition
    vivarium.processes.exchange_a
    vivarium.processes.glucose_phosphorylation
    vivarium.processes.injector
