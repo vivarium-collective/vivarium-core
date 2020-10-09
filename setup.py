@@ -41,4 +41,5 @@ setup(
         'pymongo',
         'pytest',
         'scipy',
+        'pylint',
     ])
