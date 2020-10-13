@@ -93,7 +93,7 @@ class Template(Process):
 
 
 # functions to configure and run the process
-def run_template_process(out_dir='out'):
+def run_template_process():
     '''Run a simulation of the process.
 
     Returns:
