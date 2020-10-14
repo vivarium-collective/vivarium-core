@@ -98,7 +98,6 @@ class TreeMass(Deriver):
                         'initial': initial_mass}}}}
 
 
-
 def test_tree_mass():
 
     mass_1 = 1.0 * units.g / units.mol
@@ -128,7 +127,7 @@ def test_tree_mass():
     }
     mass_process = TreeMass(parameters)
 
-    # initial state
+    # declare initial state
     state = {
         'A': {
             '1': 2.0 * AVOGADRO.magnitude,
