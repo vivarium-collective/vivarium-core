@@ -101,24 +101,28 @@ class TreeMass(Deriver):
 
 def test_tree_mass():
 
+    mass_1 = 1.0 * units.g / units.mol
+    mass_2 = 2.0 * units.g / units.mol
+
     # declare schema override to get mw properties
     parameters = {
+        'initial_mass': 0 * units.g,  # in grams
         '_schema': {
             'A': {
                 '1': {
                     '_emit': True,
-                    '_properties': {'mw': 1.0 * units.g / units.mol}},
+                    '_properties': {'mw': mass_1}},
                 '2': {
                     '_emit': True,
-                    '_properties': {'mw': 1.0 * units.g / units.mol}},
+                    '_properties': {'mw': mass_2}},
             },
             'B': {
                 '1': {
                     '_emit': True,
-                    '_properties': {'mw': 1.0 * units.g / units.mol}},
+                    '_properties': {'mw': mass_1}},
                 '2': {
                     '_emit': True,
-                    '_properties': {'mw': 1.0 * units.g / units.mol}},
+                    '_properties': {'mw': mass_2}},
             },
         }
     }
@@ -127,12 +131,12 @@ def test_tree_mass():
     # initial state
     state = {
         'A': {
-            '1': 1.0,
-            '2': 1.0,
+            '1': 2.0 * AVOGADRO.magnitude,
+            '2': 0.0,
         },
         'B': {
-            '1': 1.0,
-            '2': 1.0,
+            '1': 0.0,
+            '2': 1.0 * AVOGADRO.magnitude,
         },
         'global': {
             'initial_mass': 0.0,
@@ -141,9 +145,7 @@ def test_tree_mass():
     }
 
     # make the experiment with initial state
-    settings = {
-        'initial_state': state
-    }
+    settings = {'initial_state': state}
     experiment = process_in_experiment(mass_process, settings)
 
     # run experiment and get output
@@ -151,7 +153,7 @@ def test_tree_mass():
     output = experiment.emitter.get_data()
     experiment.end()
 
-    # TODO -- add asserts
+    assert output[0.0]['global']['mass']  == 4
     return output
 
 
