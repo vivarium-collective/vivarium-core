@@ -4,13 +4,20 @@ Tree Mass
 =========
 '''
 
-from __future__ import absolute_import, division, print_function
+import os
 
 from scipy import constants
 
+from vivarium.core.experiment import pp
 from vivarium.core.process import Deriver
 from vivarium.library.units import units
+from vivarium.core.composition import (
+    process_in_experiment,
+    PROCESS_OUT_DIR,
+)
 
+
+NAME = 'mass_deriver'
 AVOGADRO = constants.N_A * 1 / units.mol
 
 
@@ -39,7 +46,7 @@ def calculate_mass(value, path, node):
 
 class TreeMass(Deriver):
 
-    name = 'mass_deriver'
+    name = NAME
     defaults = {
         'from_path': ('..', '..'),
         'initial_mass': 0 * units.fg,
@@ -89,3 +96,72 @@ class TreeMass(Deriver):
                         'reducer': calculate_mass,
                         'from': self.from_path,
                         'initial': initial_mass}}}}
+
+
+
+def test_tree_mass():
+
+    # declare schema override to get mw properties
+    parameters = {
+        '_schema': {
+            'A': {
+                '1': {
+                    '_emit': True,
+                    '_properties': {'mw': 1.0 * units.g / units.mol}},
+                '2': {
+                    '_emit': True,
+                    '_properties': {'mw': 1.0 * units.g / units.mol}},
+            },
+            'B': {
+                '1': {
+                    '_emit': True,
+                    '_properties': {'mw': 1.0 * units.g / units.mol}},
+                '2': {
+                    '_emit': True,
+                    '_properties': {'mw': 1.0 * units.g / units.mol}},
+            },
+        }
+    }
+    mass_process = TreeMass(parameters)
+
+    # initial state
+    state = {
+        'A': {
+            '1': 1.0,
+            '2': 1.0,
+        },
+        'B': {
+            '1': 1.0,
+            '2': 1.0,
+        },
+        'global': {
+            'initial_mass': 0.0,
+            'mass': 0.0,
+        }
+    }
+
+    # make the experiment with initial state
+    settings = {
+        'initial_state': state
+    }
+    experiment = process_in_experiment(mass_process, settings)
+
+    # run experiment and get output
+    experiment.update(1)
+    output = experiment.emitter.get_data()
+    experiment.end()
+
+    # TODO -- add asserts
+    return output
+
+
+def run_tree_mass():
+    out_dir = os.path.join(PROCESS_OUT_DIR, NAME)
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
+    output = test_tree_mass()
+    pp(output)
+
+
+if __name__ == '__main__':
+    run_tree_mass()
