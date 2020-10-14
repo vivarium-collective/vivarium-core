@@ -211,8 +211,8 @@ install the Python packages Vivarium Core uses.
 
 #. Move into the ``vivarium-template`` folder created when you cloned the
    repository.
-#. (optional) Create and activate a virtual environment using venv or
-   pyenv virtualenv, e.g.:
+#. (optional) Create and activate a virtual environment using ``venv`` or
+   ``pyenv virtualenv``, e.g.:
 
    .. code-block:: console
 
