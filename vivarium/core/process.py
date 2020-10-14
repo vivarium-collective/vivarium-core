@@ -112,9 +112,10 @@ class Generator(object):
     All :term:`compartment` classes must inherit from this class.
     """
     defaults = {}
+
     def __init__(self, config=None):
         if config is None:
-             config = {}
+            config = {}
         if 'name' in config:
             self.name = config['name']
         elif not hasattr(self, 'name'):
@@ -231,9 +232,10 @@ class Process(Generator):
     """
     defaults = {}
 
+    # noinspection PyMissingConstructor
     def __init__(self, parameters=None):
         if parameters is None:
-             parameters = {}
+            parameters = {}
         if 'name' in parameters:
             self.name = parameters['name']
         if not hasattr(self, 'name'):
@@ -333,7 +335,7 @@ class Process(Generator):
 
         return {
             port: {}
-            for port, values in self.ports.items()}
+            for port, values in self.ports().items()}
 
 
 class Deriver(Process):

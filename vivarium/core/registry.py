@@ -67,7 +67,7 @@ import random
 import numpy as np
 
 from vivarium.library.dict_utils import deep_merge
-from vivarium.library.units import Quantity, units
+from vivarium.library.units import Quantity
 
 
 class Registry(object):
@@ -77,7 +77,8 @@ class Registry(object):
     def register(self, key, item):
         if key in self.registry:
             if item != self.registry[key]:
-                raise Exception('registry already contains an entry for {}: {} --> {}'.format(key, self.registry[key], item))
+                raise Exception('registry already contains an entry for {}: {} --> {}'.format(
+                    key, self.registry[key], item))
         else:
             self.registry[key] = item
 
@@ -85,7 +86,7 @@ class Registry(object):
         return self.registry.get(key)
 
 
-## Intialize registries
+## Initialize registries
 # These are imported into module __init__.py files,
 # where the functions and classes are registered upon import
 
@@ -278,11 +279,11 @@ class UnitsSerializer(Serializer):
 
 class ProcessSerializer(Serializer):
     def serialize(self, data):
-        return dict(data.parameters, _name = data.name)
+        return dict(data.parameters, _name=data.name)
 
 class GeneratorSerializer(Serializer):
     def serialize(self, data):
-        return dict(data.config, _name = str(type(data)))
+        return dict(data.config, _name=str(type(data)))
 
 class FunctionSerializer(Serializer):
     def serialize(self, data):

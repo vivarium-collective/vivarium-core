@@ -44,12 +44,12 @@ def make_network(stoichiometry, info={}):
 	Makes a gephi network
 	info can contain node_sizes, node_types
 
-    .. code-block:: python
+	.. code-block:: python
 
-        info = {
-            'node_sizes': node_sizes (dict),
-            'node_types': node_types (dict)
-        }
+		info = {
+			'node_sizes': node_sizes (dict),
+			'node_types': node_types (dict)
+		}
 	'''
 
 	node_types = info.get('node_types', {})
@@ -129,7 +129,7 @@ def save_network(nodes, edges, plotOutDir='out/network'):
 	Save nodes and edges
 
 	Requires:
-	    nodes (dict) with {node_id: {'label' (str), 'type' (str), size (float)}}
+		nodes (dict) with {node_id: {'label' (str), 'type' (str), size (float)}}
 		edges (list) with [[node_id1, node_id2] ...]
 	'''
 
@@ -149,10 +149,10 @@ def save_network(nodes, edges, plotOutDir='out/network'):
 
 		for node, specs in nodes.items():
 			label = specs['label']
-			type = specs['type']
+			type_ = specs['type']
 			size = specs['size']
 
-			row = [node, label, type, size]
+			row = [node, label, type_, size]
 			writer.writerow(row)
 
 	# edges list

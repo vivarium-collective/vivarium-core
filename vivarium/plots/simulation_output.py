@@ -4,11 +4,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from vivarium.core.emitter import path_timeseries_from_embedded_timeseries
-from vivarium.library.dict_utils import get_path_list_from_dict
 
 
 def set_axes(ax, show_xaxis=False):
-    ax.ticklabel_format(style='sci', axis='y', scilimits=(-5,5))
+    ax.ticklabel_format(style='sci', axis='y', scilimits=(-5, 5))
     ax.spines['right'].set_visible(False)
     ax.spines['top'].set_visible(False)
     ax.tick_params(right=False, top=False)
@@ -49,7 +48,7 @@ def plot_simulation_output(timeseries_raw, settings={}, out_dir='out', filename=
     plt.rc('font', size=plot_fontsize)
     plt.rc('axes', titlesize=plot_fontsize)
 
-    skip_keys = ['time']
+    # skip_keys = ['time']
 
     # get settings
     max_rows = settings.get('max_rows', 25)

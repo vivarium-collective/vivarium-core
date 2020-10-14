@@ -10,25 +10,17 @@ from __future__ import absolute_import, division, print_function
 import os
 import copy
 import math
-import random
 import datetime
 
 import numpy as np
 import logging as log
 
 import pprint
-pretty=pprint.PrettyPrinter(indent=2)
-
-def pp(x):
-    pretty.pprint(x)
-
-def pf(x):
-    return pretty.pformat(x)
 
 from multiprocessing import Pool
 
 from vivarium.library.units import Quantity
-from vivarium.library.dict_utils import merge_dicts, deep_merge, deep_merge_check
+from vivarium.library.dict_utils import deep_merge
 from vivarium.core.emitter import get_emitter
 from vivarium.core.process import (
     Generator,
@@ -41,6 +33,14 @@ from vivarium.core.registry import (
     updater_registry,
     serializer_registry,
 )
+
+pretty = pprint.PrettyPrinter(indent=2)
+
+def pp(x):
+    pretty.pprint(x)
+
+def pf(x):
+    return pretty.pformat(x)
 
 
 INFINITY = float('inf')
@@ -112,7 +112,7 @@ def delete_in(d, path):
             if head in d:
                 del d[head]
         elif head in d:
-            down = d[head]
+            # down = d[head]
             delete_in(d[head], path[1:])
 
 
@@ -149,7 +149,7 @@ def schema_for(port, keys, initial_state, default=0.0, updater='accumulate'):
         for key in keys}
 
 
-def always_true(x):
+def always_true(_):
     return True
 
 
@@ -182,14 +182,14 @@ class Store(object):
     * **_emit** (:py:class:`bool`): Whether to emit the variable to the
       :term:`emitter`. This is ``False`` by default.
     """
-    schema_keys = set([
+    schema_keys = {
         '_default',
         '_updater',
         '_value',
         '_properties',
         '_emit',
         '_serializer',
-    ])
+    }
 
     def __init__(self, config, outer=None, source=None):
         self.outer = outer
@@ -576,7 +576,7 @@ class Store(object):
     def reduce_to(self, path, reducer, initial=None):
         value = self.reduce(reducer, initial)
         assoc_path({}, path, value)
-        self.apply_update(update)
+        self.apply_update({})  # TODO(jerry): ? This was `apply_update(update)` but update is undefined
 
     def set_value(self, value):
         '''
@@ -722,7 +722,7 @@ class Store(object):
                 states = self.inner[mother].divide_value()
 
                 for daughter, state in zip(daughters, states):
-                    daughter_id = daughter['daughter']
+                    # daughter_id = daughter['daughter']
 
                     # use initial state as default, merge in divided values
                     initial_state = deep_merge(
@@ -795,7 +795,7 @@ class Store(object):
                 if '_updater' in update:
                     update = update.get('_value', self.default)
 
-            value = self.value
+            # value = self.value
             if port_mapping is not None:
                 updater_topology = {
                     updater_port: process_topology[proc_port]
@@ -1336,6 +1336,7 @@ class Experiment(object):
             self.processes,
             self.topology,
             self.initial_state)
+        self.states = []  # TODO(jerry): What value does self.update() need?
 
         # emitter settings
         emitter_config = config.get('emitter', 'timeseries')
@@ -1395,7 +1396,7 @@ class Experiment(object):
     def invoke_process(self, process, path, interval, states):
         if process.parallel:
             # add parallel process if it doesn't exist
-            if not path in self.parallel:
+            if path not in self.parallel:
                 self.parallel[path] = ParallelProcess(process)
             # trigger the computation of the parallel process
             self.parallel[path].update(interval, states)
@@ -1451,7 +1452,7 @@ class Experiment(object):
                 del self.deriver_paths[path]
 
     def run_derivers(self):
-        updates = []
+        # updates = []
         paths = list(self.deriver_paths.keys())
         for path in paths:
             # deriver could have been deleted by another deriver
@@ -1513,7 +1514,7 @@ class Experiment(object):
             # go through each process and find those that are able to update
             # based on their current time being less than the global time.
             for path, process in self.process_paths.items():
-                if not path in front:
+                if path not in front:
                     front[path] = empty_front(time)
                 process_time = front[path]['time']
 
@@ -1888,6 +1889,7 @@ def test_timescales():
     class Slow(Process):
         name = 'slow'
         defaults = {'timestep': 3.0}
+
         def __init__(self, config=None):
             super(Slow, self).__init__(config)
 
@@ -1910,6 +1912,7 @@ def test_timescales():
     class Fast(Process):
         name = 'fast'
         defaults = {'timestep': 0.3}
+
         def __init__(self, config=None):
             super(Fast, self).__init__(config)
 

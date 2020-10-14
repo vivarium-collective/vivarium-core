@@ -35,7 +35,7 @@ shell startup file:
 
 .. code-block:: bash
 
-    alias pycd='export PYTHONPATH="$PWD:$PYTHONPATH"'
+    alias pycd='export PYTHONPATH="$PWD"'
 
 Now when you are about to work on Vivarium Core, navigate to the root of
 the Vivarium Core repository (``vivarium_work/vivarium-core``) and run
@@ -53,11 +53,7 @@ installed.
 Python 3
 --------
 
-We wrote Vivarium Core in Python 3. While we did also write it to be
-Python-2-compatible, `the Python Software Foundation has deprecated
-Python 2 <https://www.python.org/dev/peps/pep-0373/>`_, so we strongly
-recommend using Python 3. We also no longer guarantee compatibility with
-Python 2.
+Vivarium Core now requires Python 3.6 or later.
 
 *Check Installation*
 

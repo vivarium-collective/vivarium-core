@@ -4,7 +4,7 @@ def first(l):
 
 def first_value(d):
     if d:
-        return d[list(d.keys())[0]]
+        return d[list(d.keys())[0]]  # TODO(jerry): iter(d.values()).__next__() would be faster
 
 class Datum(dict):
     '''
@@ -24,7 +24,9 @@ class Datum(dict):
     schema = {}
     defaults = {}
 
+    # noinspection PyMissingConstructor
     def __init__(self, config):
+        # TODO(jerry): Call `super().__init__()`?
         self.update(self.defaults)
         self.update(config)
         self.__dict__ = self
@@ -37,7 +39,7 @@ class Datum(dict):
                 elif isinstance(value, dict):
                     value = {inner: realize(item) for inner, item in value.items()}
                 else:
-                    value = realize(item)
+                    value = realize(value)  # TODO(jerry): value? item is undefined
                 self[schema] = value
 
     def to_dict(self):

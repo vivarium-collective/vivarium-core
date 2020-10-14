@@ -11,7 +11,7 @@ def plot_compartment_topology(compartment, settings, out_dir='out', filename='to
     Make a plot of the topology
      - compartment: a compartment
     """
-    store_rgb = [x/255 for x in [239,131,148]]
+    store_rgb = [x/255 for x in [239, 131, 148]]
     process_rgb = [x / 255 for x in [249, 204, 86]]
     node_size = 4500
     font_size = 8
@@ -72,7 +72,7 @@ def plot_compartment_topology(compartment, settings, out_dir='out', filename='to
                            node_size=node_size,
                            node_shape='o')
     # edges
-    colors = list(range(1,len(edges)+1))
+    colors = list(range(1, len(edges)+1))
     nx.draw_networkx_edges(G, pos,
                            edge_color=colors,
                            width=1.5)

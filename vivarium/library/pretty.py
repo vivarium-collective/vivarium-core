@@ -17,9 +17,9 @@ def _json_serialize(elem):
     if isinstance(elem, (Generator, Process)):
         to_strip_regex = ' at 0x[0-9a-f]+>$'
         return re.sub(to_strip_regex, '>', repr(elem))
-    if type(elem) == type(1 * units.fg):
+    if type(elem) == type(1 * units.fg):  # TODO(jerry): use isinstance()
         return str(elem)
-    if type(elem) == type(units.fg):
+    if type(elem) == type(units.fg):  # TODO(jerry): use isinstance()
         return repr(elem)
     return repr(elem)
 

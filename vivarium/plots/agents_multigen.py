@@ -50,6 +50,8 @@ def plot_agents_multigen(data, settings={}, out_dir='out', filename='agents'):
             * **ylabels_map** (:py:class:`dict`): Map from path tuples to
               strings to use as the y-axis labels for each path's plot.
               If not specified, no y-axis label is used.
+        out_dir (str): TODO
+        filename (str): TODO
 
     TODO -- add legend with agent color
     '''

@@ -4,6 +4,7 @@ import collections
 import copy
 from functools import reduce
 import operator
+import traceback
 
 
 tuple_separator = '___'
@@ -27,10 +28,10 @@ def deep_merge_check(dct, merge_dct):
                 and isinstance(merge_dct[k], collections.abc.Mapping)):
             try:
                 deep_merge_check(dct[k], merge_dct[k])
-            except:
-                raise Exception('dict merge mismatch: key "{}" has values {} AND {}'.format(k, dct[k], merge_dct[k]))
+            except ValueError:
+                raise ValueError('dict merge mismatch: key "{}" has values {} AND {}'.format(k, dct[k], merge_dct[k]))
         elif k in dct and (dct[k] is not merge_dct[k]):
-            raise Exception('dict merge mismatch: key "{}" has values {} AND {}'.format(k, dct[k], merge_dct[k]))
+            raise ValueError('dict merge mismatch: key "{}" has values {} AND {}'.format(k, dct[k], merge_dct[k]))
         else:
             dct[k] = merge_dct[k]
     return dct
@@ -216,9 +217,11 @@ def get_path_list_from_dict(dictionary):
 
 
 def get_value_from_path(dictionary, path):
+    # noinspection PyBroadException
     try:
         return reduce(operator.getitem, path, dictionary)
-    except:
+    except Exception:
+        traceback.print_exc()
         return None
 
 

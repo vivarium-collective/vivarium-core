@@ -4,6 +4,7 @@ import copy
 import csv
 import os
 import io
+from typing import Any
 import uuid
 
 import numpy as np
@@ -15,14 +16,11 @@ from vivarium.core.process import (
     Generator,
     generate_derivers,
 )
-from vivarium.core import emitter as emit
 from vivarium.library.dict_utils import (
     deep_merge,
     deep_merge_check,
     flatten_timeseries,
-    get_path_list_from_dict,
 )
-from vivarium.library.units import units
 
 from vivarium.processes.timeline import TimelineProcess
 from vivarium.processes.nonspatial_environment import NonSpatialEnvironment
@@ -172,9 +170,9 @@ def make_agents(
     Arguments:
     * **agent_ids**: list of agent ids
     * **compartment**: the compartment of the agent type
-    * **config**: comparment configuration
+    * **config**: compartment configuration
     Returns:
-        the intialized agent processes and topology
+        the initialized agent processes and topology
     """
     if config is None:
         config = {}
@@ -249,6 +247,9 @@ def agent_environment_experiment(
         initial_state = {}
 
     # initialize the agents
+    agents = {
+        'processes': {},
+        'topology': {}}
     if isinstance(agents_config, dict):
         # dict with single agent config
         agent_type = agents_config['type']
@@ -263,9 +264,6 @@ def agent_environment_experiment(
 
     elif isinstance(agents_config, list):
         # list with multiple agent configurations
-        agents = {
-            'processes': {},
-            'topology': {}}
         for config in agents_config:
             agent_type = config['type']
             agent_ids = config['ids']
@@ -299,7 +297,7 @@ def agent_environment_experiment(
     if settings.get('agent_names') is True:
         # add an AgentNames processes, which saves the current agent names
         # to as store at the top level of the hierarchy
-        processes['agent_names'] = AgentNames({})
+        # processes['agent_names'] = AgentNames({})  # TODO(jerry): vivarium_cell.processes.AgentNames?
         topology['agent_names'] = {
             'agents': ('agents',),
             'names': ('names',)
@@ -331,7 +329,7 @@ def process_in_experiment(
     initial_state = settings.get('initial_state', {})
     emitter = settings.get('emitter', {'type': 'timeseries'})
     emit_step = settings.get('emit_step')
-    timeline = settings.get('timeline', [])
+    timeline = settings.get('timeline', {})
     environment = settings.get('environment', {})
     paths = settings.get('topology', {})
 
@@ -516,7 +514,7 @@ def save_timeseries(timeseries, out_dir='out'):
 
 def save_flat_timeseries(timeseries, out_dir='out'):
     '''Save a timeseries as a CSV in out_dir'''
-    rows = np.transpose(list(timeseries.values())).tolist()
+    rows = np.transpose(list(timeseries.values())).tolist()  # type: Any
     with open(os.path.join(out_dir, 'simulation_data.csv'), 'w') as f:
         writer = csv.writer(f)
         writer.writerow(timeseries.keys())
@@ -590,7 +588,7 @@ def _prepare_timeseries_for_comparison(
         if 'time' not in keys:
             keys.append('time')
     keys = list(keys)
-    time_index = keys.index('time')
+    # time_index = keys.index('time')
     shared_times = set(timeseries1['time']) & set(timeseries2['time'])
     frac_timepoints_checked = (
         len(shared_times)
@@ -859,7 +857,7 @@ class ToyDeriveVolume(Deriver):
     name = 'toy_derive_volume'
 
     def __init__(self, initial_parameters={}):
-        parameters = {}
+        parameters = {}  # TODO(jerry): Ignore initial_parameters?
         super(ToyDeriveVolume, self).__init__(parameters)
 
     def ports_schema(self):
@@ -925,7 +923,7 @@ class ToyCompartment(Generator):
     def generate_processes(self, config):
         return {
             'metabolism': ToyMetabolism(
-                {'mass_conversion_rate': 0.5}), # example of overriding default parameters
+                {'mass_conversion_rate': 0.5}),  # example of overriding default parameters
             'transport': ToyTransport(),
             'death': ToyDeath({'targets': [
                 'metabolism',
