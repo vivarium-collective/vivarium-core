@@ -297,7 +297,7 @@ def agent_environment_experiment(
     if settings.get('agent_names') is True:
         # add an AgentNames processes, which saves the current agent names
         # to as store at the top level of the hierarchy
-        # processes['agent_names'] = AgentNames({})  # TODO(jerry): vivarium_cell.processes.AgentNames?
+        # processes['agent_names'] = AgentNames({})  # TODO(eagmon): Bring AgentNames back into vivarium-core?
         topology['agent_names'] = {
             'agents': ('agents',),
             'names': ('names',)

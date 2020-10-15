@@ -123,9 +123,7 @@ class Generator(object):
 
         self.config = copy.deepcopy(self.defaults)
         self.config = deep_merge(self.config, config)
-        self.schema_override = {}
-        if '_schema' in self.config:
-            self.schema_override = self.config.pop('_schema')
+        self.schema_override = self.config.pop('_schema', {})
 
     def initial_state(self, config=None):
         """Get initial state in embedded path dictionary
@@ -232,26 +230,12 @@ class Process(Generator):
     """
     defaults = {}
 
-    # noinspection PyMissingConstructor
     def __init__(self, parameters=None):
-        if parameters is None:
-            parameters = {}
-        if 'name' in parameters:
-            self.name = parameters['name']
-        if not hasattr(self, 'name'):
-            self.name = self.__class__.__name__
+        super().__init__(parameters)
 
-        self.parameters = copy.deepcopy(self.defaults)
+        self.parameters = self.config
         self.config = {}  # config is required for generate
-        self.schema_override = {}
-        if '_schema' in parameters:
-            self.schema_override = parameters.pop('_schema')
-
-        self.parallel = False
-        if '_parallel' in parameters:
-            self.parallel = parameters.pop('_parallel')
-
-        deep_merge(self.parameters, parameters)
+        self.parallel = self.config.pop('_parallel', False)
 
     def generate_processes(self, config):
         return {self.name: self}

@@ -75,7 +75,6 @@ def get_emitter(config):
 
 def configure_emitter(config, processes, topology):
     emitter_config = config.get('emitter', {})
-    # emitter_config['keys'] = get_emitter_keys(processes, topology)  # TODO: there is no get_emitter_keys()
     emitter_config['experiment_id'] = config.get('experiment_id')
     emitter_config['simulation_id'] = config.get('simulation_id')
     return get_emitter(emitter_config)
@@ -203,7 +202,6 @@ class DatabaseEmitter(Emitter):
     client = None
     default_host = 'localhost:27017'
 
-    # noinspection PyMissingConstructor
     def __init__(self, config):
         super().__init__(config)
         self.experiment_id = config.get('experiment_id')
