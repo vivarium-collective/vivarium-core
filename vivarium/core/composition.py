@@ -326,11 +326,14 @@ def agent_environment_experiment(
 
 def process_in_experiment(
         process,
-        settings={}
+        settings=None,
+        initial_state=None,
 ):
-    initial_state = settings.get('initial_state', {})
-    emitter = settings.get('emitter', {'type': 'timeseries'})
-    emit_step = settings.get('emit_step')
+    if settings is None:
+        settings = {}
+    if initial_state is None:
+        initial_state = {}
+
     timeline = settings.get('timeline', [])
     environment = settings.get('environment', {})
     paths = settings.get('topology', {})
@@ -380,22 +383,31 @@ def process_in_experiment(
     processes = deep_merge(processes, derivers['processes'])
     topology = deep_merge(topology, derivers['topology'])
 
-    return Experiment({
+    # initialize the experiment
+    experiment_config = {
         'processes': processes,
         'topology': topology,
-        'emitter': emitter,
-        'emit_step': emit_step,
-        'initial_state': initial_state})
+        'initial_state': initial_state}
+    for key, setting in settings.items():
+        if key in experiment_config_keys:
+            experiment_config[key] = setting
+    return Experiment(experiment_config)
+
 
 def compartment_in_experiment(
         compartment,
-        settings={}
+        settings=None,
+        initial_state=None,
 ):
+    if settings is None:
+        settings = {}
+    if initial_state is None:
+        initial_state = {}
+
     compartment_config = settings.get('compartment', {})
     timeline = settings.get('timeline')
     environment = settings.get('environment')
     outer_path = settings.get('outer_path', tuple())
-    emit_step = settings.get('emit_step')
 
     network = compartment.generate(compartment_config, outer_path)
     processes = network['processes']
@@ -436,12 +448,15 @@ def compartment_in_experiment(
             },
         })
 
-    return Experiment({
+    # initialize the experiment
+    experiment_config = {
         'processes': processes,
         'topology': topology,
-        'emitter': settings.get('emitter', {'type': 'timeseries'}),
-        'emit_step': emit_step,
-        'initial_state': settings.get('initial_state', {})})
+        'initial_state': initial_state}
+    for key, setting in settings.items():
+        if key in experiment_config_keys:
+            experiment_config[key] = setting
+    return Experiment(experiment_config)
 
 
 
