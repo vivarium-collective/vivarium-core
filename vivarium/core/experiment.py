@@ -1362,11 +1362,11 @@ class Experiment(object):
         log.info('\nTOPOLOGY:')
         log.info(pf(self.topology))
 
-        log.info('\nSTATE:')
-        log.info(pf(self.state.get_value()))
-
-        log.info('\nCONFIG:')
-        log.info(pf(self.state.get_config(True)))
+        # log.info('\nSTATE:')
+        # log.info(pf(self.state.get_value()))
+        #
+        # log.info('\nCONFIG:')
+        # log.info(pf(self.state.get_config(True)))
 
     def find_process_paths(self, processes):
         tree = depth(processes)
