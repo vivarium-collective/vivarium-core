@@ -15,7 +15,7 @@ from multiprocessing import Process as Multiprocess
 
 from vivarium.library.units import Quantity
 from vivarium.core.registry import process_registry, serializer_registry
-from vivarium.library.dict_utils import deep_merge
+from vivarium.library.dict_utils import deep_merge, deep_merge_check
 
 DEFAULT_TIME_STEP = 1.0
 
@@ -126,6 +126,9 @@ class Generator(object):
         if '_schema' in self.config:
             self.schema_override = self.config.pop('_schema')
 
+        self.merge_processes = {}
+        self.merge_topology = {}
+
     def initial_state(self, config=None):
         """Get initial state in embedded path dictionary
 
@@ -207,6 +210,10 @@ class Generator(object):
         processes = deep_merge(derivers['processes'], processes)
         topology = deep_merge(derivers['topology'], topology)
 
+        # add merged processes
+        processes = deep_merge(processes, self.merge_processes)
+        topology = deep_merge(topology, self.merge_topology)
+
         override_schemas(self.schema_override, processes)
 
         return {
@@ -222,6 +229,13 @@ class Generator(object):
         return {
             process_id: process.parameters
             for process_id, process in processes.items()}
+
+    def merge(self, processes, topology):
+        for name, process in processes.items():
+            assert isinstance(process, Process)
+
+        self.merge_processes = deep_merge_check(self.merge_processes, processes)
+        self.merge_topology = deep_merge_check(self.merge_topology, topology)
 
 
 class Process(Generator):
@@ -241,6 +255,9 @@ class Process(Generator):
 
         self.parameters = copy.deepcopy(self.defaults)
         self.config = {}  # config is required for generate
+        self.merge_processes = {}  # merge_processes is required for generate
+        self.merge_topology = {}   # merge_topology is required for generate
+
         self.schema_override = {}
         if '_schema' in parameters:
             self.schema_override = parameters.pop('_schema')
@@ -250,6 +267,9 @@ class Process(Generator):
             self.parallel = parameters.pop('_parallel')
 
         deep_merge(self.parameters, parameters)
+
+        # TODO -- register process
+        # process_registry.register(self.name, self)
 
     def generate_processes(self, config):
         return {self.name: self}
@@ -376,3 +396,66 @@ class ParallelProcess(object):
     def end(self):
         self.parent.send((-1, None))
         self.multiprocess.join()
+
+
+def test_generator_merge():
+    class ToyProcess(Process):
+        name = 'toy'
+
+        def ports_schema(self):
+            return {
+                'A': {
+                    'a': {'_default': 0},
+                    'b': {'_default': 0}},
+                'B': {
+                    'a': {'_default': 0},
+                    'b': {'_default': 0}}}
+
+        def next_update(self, timestep, states):
+            return {
+                'A': {
+                    'a': 1,
+                    'b': states['A']['a']},
+                'B': {
+                    'a': states['A']['b'],
+                    'b': states['B']['a']}}
+
+    class ToyComposite(Generator):
+        defaults = {
+            'A':  {'name': 'A'},
+            'B': {'name': 'B'}}
+
+        def generate_processes(self, config=None):
+            return {
+                'A': ToyProcess(config['A']),
+                'B': ToyProcess(config['B'])}
+
+        def generate_topology(self, config=None):
+            return {
+                'A': {
+                    'A': ('aaa',),
+                    'B': ('bbb',)},
+                'B': {
+                    'A': ('bbb',),
+                    'B': ('ccc',)}}
+
+    generator = ToyComposite()
+    initial_network = generator.generate()
+
+    # merge
+    merge_processes = {
+        'C': ToyProcess({'name': 'C'})}
+    merge_topology = {
+        'C': {
+            'A': ('aaa',),
+            'B': ('bbb',)}}
+    generator.merge(
+        merge_processes,
+        merge_topology)
+
+    config = {'A': {'name': 'D'}, 'B': {'name': 'E'}}
+    merged_network = generator.generate(config)
+
+
+if __name__ == '__main__':
+    test_generator_merge()
