@@ -1363,11 +1363,11 @@ class Experiment(object):
         log.info('\nTOPOLOGY:')
         log.info(pf(self.topology))
 
-        log.info('\nSTATE:')
-        log.info(pf(self.state.get_value()))
-
-        log.info('\nCONFIG:')
-        log.info(pf(self.state.get_config(True)))
+        # log.info('\nSTATE:')
+        # log.info(pf(self.state.get_value()))
+        #
+        # log.info('\nCONFIG:')
+        # log.info(pf(self.state.get_config(True)))
 
     def find_process_paths(self, processes):
         tree = depth(processes)
@@ -1604,7 +1604,7 @@ def print_progress_bar(
     progress = ("{0:." + str(decimals) + "f}").format(total - iteration)
     filled_length = int(length * iteration // total)
     bar = '█' * filled_length + '-' * (length - filled_length)
-    print(f'\r Progress:|{bar}| {progress} seconds remaining    ', end='\r')
+    print(f'\rProgress:|{bar}| {progress} seconds remaining    ', end='\r')
     # Print New Line on Complete
     if iteration == total:
         print()
