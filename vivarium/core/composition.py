@@ -24,6 +24,7 @@ from vivarium.library.dict_utils import (
 
 from vivarium.processes.timeline import TimelineProcess
 from vivarium.processes.nonspatial_environment import NonSpatialEnvironment
+from vivarium.processes.agent_names import AgentNames
 
 REFERENCE_DATA_DIR = os.path.join('vivarium', 'reference_data')
 BASE_OUT_DIR = 'out'
@@ -297,7 +298,7 @@ def agent_environment_experiment(
     if settings.get('agent_names') is True:
         # add an AgentNames processes, which saves the current agent names
         # to as store at the top level of the hierarchy
-        # processes['agent_names'] = AgentNames({})  # TODO(eagmon): Bring AgentNames back into vivarium-core?
+        processes['agent_names'] = AgentNames({})
         topology['agent_names'] = {
             'agents': ('agents',),
             'names': ('names',)
@@ -603,7 +604,6 @@ def _prepare_timeseries_for_comparison(
         if 'time' not in keys:
             keys.append('time')
     keys = list(keys)
-    # time_index = keys.index('time')
     shared_times = set(timeseries1['time']) & set(timeseries2['time'])
     frac_timepoints_checked = (
         len(shared_times)

@@ -48,8 +48,6 @@ def plot_simulation_output(timeseries_raw, settings={}, out_dir='out', filename=
     plt.rc('font', size=plot_fontsize)
     plt.rc('axes', titlesize=plot_fontsize)
 
-    # skip_keys = ['time']
-
     # get settings
     max_rows = settings.get('max_rows', 25)
     remove_zeros = settings.get('remove_zeros', True)

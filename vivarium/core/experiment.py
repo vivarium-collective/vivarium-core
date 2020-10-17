@@ -573,11 +573,6 @@ class Store(object):
             value = reducer(value, path, node)
         return value
 
-    def reduce_to(self, path, reducer, initial=None):
-        value = self.reduce(reducer, initial)
-        assoc_path({}, path, value)
-        self.apply_update({})  # TODO(jerry): ? This was `apply_update(update)` but update is undefined
-
     def set_value(self, value):
         '''
         Set the value for the given tree elements directly instead of using
@@ -795,7 +790,6 @@ class Store(object):
                 if '_updater' in update:
                     update = update.get('_value', self.default)
 
-            # value = self.value
             if port_mapping is not None:
                 updater_topology = {
                     updater_port: process_topology[proc_port]
@@ -1452,7 +1446,6 @@ class Experiment(object):
                 del self.deriver_paths[path]
 
     def run_derivers(self):
-        # updates = []
         paths = list(self.deriver_paths.keys())
         for path in paths:
             # deriver could have been deleted by another deriver
