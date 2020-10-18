@@ -1198,7 +1198,6 @@ def inverse_topology(outer, update, topology):
                         inverse,
                         inner,
                         lambda current: deep_merge_multi_update(current, value))
-
                 else:
                     assoc_path(inverse, inner, value)
 
@@ -2342,4 +2341,5 @@ if __name__ == '__main__':
     # test_sine()
     # test_parallel()
     # test_complex_topology()
+    
     test_inverse_topology_merge()
