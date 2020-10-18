@@ -28,7 +28,12 @@ def pf(x):
 from multiprocessing import Pool
 
 from vivarium.library.units import Quantity
-from vivarium.library.dict_utils import merge_dicts, deep_merge, deep_merge_check
+from vivarium.library.dict_utils import (
+    merge_dicts,
+    deep_merge,
+    deep_merge_check,
+    deep_merge_multi_update,
+)
 from vivarium.core.emitter import get_emitter
 from vivarium.core.process import (
     Generator,
@@ -795,7 +800,13 @@ class Store(object):
                 if '_updater' in update:
                     update = update.get('_value', self.default)
 
-            value = self.value
+            if isinstance(update, dict) and '_multi_update' in update:
+                updates = update.get('_multi_update', self.default)
+                assert isinstance(updates, list)
+                for update in updates:
+                    self.value = updater(self.value, update, state_dict)
+                return EMPTY_UPDATES
+
             if port_mapping is not None:
                 updater_topology = {
                     updater_port: process_topology[proc_port]
@@ -1181,18 +1192,13 @@ def inverse_topology(outer, update, topology):
                         path))
 
             else:
-
-                import ipdb;
-                ipdb.set_trace()
-                # value gets deep_merged, which removes existing values....
-
-
                 inner = normalize_path(outer + path)
                 if isinstance(value, dict):
                     inverse = update_in(
                         inverse,
                         inner,
-                        lambda current: deep_merge(current, value))
+                        lambda current: deep_merge_multi_update(current, value))
+
                 else:
                     assoc_path(inverse, inner, value)
 
@@ -1994,34 +2000,50 @@ def test_inverse_topology():
 
 
 def test_inverse_topology_merge():
-    # sometimes 2 ports with the same variable feed into the same store
-    # both updates need to be applied
-    update = {
-        'port1': {
-            'b': 5},
-        'port2': {
-            'b': 10},
-        'port3': {
-            'b': 10},
-    }
+    class MultiPort(Process):
+        name = 'multi_port'
+        def ports_schema(self):
+            return {
+                'A': {
+                    'a': {
+                        '_default': 0,
+                        '_emit': True}},
+                'B': {
+                    'a': {
+                        '_default': 0,
+                        '_emit': True}}}
+        def next_update(self, timestep, states):
+            return {
+                'A': {'a': 1},
+                'B': {'a': 1}}
 
-    topology = {
-        'port1': ('x',),
-        'port2': ('x',),
-        'port3': ('y',)}
+    class MergePort(Generator):
+        """combines both of MultiPort's ports into one store"""
+        name = 'multi_port_generator'
+        def generate_processes(self, config):
+            return {
+                'multi_port': MultiPort({})}
+        def generate_topology(self, config):
+            return {
+                'multi_port': {
+                    'A': ('aaa',),
+                    'B': ('aaa',)}}
 
-    path = tuple()
-    inverse = inverse_topology(path, update, topology)
-    expected_inverse = {
-        'x': {
-            'b': 10},  # TODO -- what if we want 5 + 10 from port 1 and port3 together?
-        'y': {
-            'b': 10}
-    }
+    # run experiment
+    merge_port = MergePort({})
+    network = merge_port.generate()
+    exp = Experiment({
+        'processes': network['processes'],
+        'topology': network['topology']})
 
-    import ipdb; ipdb.set_trace()
+    exp.update(2)
+    output = exp.emitter.get_timeseries()
+    pp(output)
+    expected_output = {
+        'aaa': {'a': [0, 2, 4]},
+        'time': [0.0, 1.0, 2.0]}
 
-    assert inverse == expected_inverse
+    assert output == expected_output
 
 def test_complex_topology():
     class Po(Process):
