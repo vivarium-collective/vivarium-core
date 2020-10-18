@@ -2010,11 +2010,16 @@ def test_inverse_topology_merge():
                 'B': {
                     'a': {
                         '_default': 0,
+                        '_emit': True}},
+                'C': {
+                    'a': {
+                        '_default': 0,
                         '_emit': True}}}
         def next_update(self, timestep, states):
             return {
                 'A': {'a': 1},
-                'B': {'a': 1}}
+                'B': {'a': 1},
+                'C': {'a': 1}}
 
     class MergePort(Generator):
         """combines both of MultiPort's ports into one store"""
@@ -2026,7 +2031,8 @@ def test_inverse_topology_merge():
             return {
                 'multi_port': {
                     'A': ('aaa',),
-                    'B': ('aaa',)}}
+                    'B': ('aaa',),
+                    'C': ('aaa',)}}
 
     # run experiment
     merge_port = MergePort({})
@@ -2037,9 +2043,8 @@ def test_inverse_topology_merge():
 
     exp.update(2)
     output = exp.emitter.get_timeseries()
-    pp(output)
     expected_output = {
-        'aaa': {'a': [0, 2, 4]},
+        'aaa': {'a': [0, 3, 6]},
         'time': [0.0, 1.0, 2.0]}
 
     assert output == expected_output
@@ -2341,5 +2346,5 @@ if __name__ == '__main__':
     # test_sine()
     # test_parallel()
     # test_complex_topology()
-    
+
     test_inverse_topology_merge()

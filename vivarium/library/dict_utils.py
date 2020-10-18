@@ -68,10 +68,13 @@ def deep_merge_multi_update(dct, merge_dct):
                 and isinstance(merge_dct[k], collections.abc.Mapping)):
             deep_merge_multi_update(dct[k], merge_dct[k])
         elif k in dct:
-            # key already exits -- put values together in a list under '_multi_update' key
-            dct[k] = {
-                '_multi_update': [
-                    dct[k], merge_dct[k]]}
+            # put values together in a list under '_multi_update' key
+            if isinstance(dct[k], dict) and '_multi_update' in dct[k]:
+                dct[k]['_multi_update'].append(merge_dct[k])
+            else:
+                dct[k] = {
+                    '_multi_update': [
+                        dct[k], merge_dct[k]]}
         else:
             dct[k] = merge_dct[k]
     return dct
