@@ -1181,6 +1181,12 @@ def inverse_topology(outer, update, topology):
                         path))
 
             else:
+
+                import ipdb;
+                ipdb.set_trace()
+                # value gets deep_merged, which removes existing values....
+
+
                 inner = normalize_path(outer + path)
                 if isinstance(value, dict):
                     inverse = update_in(
@@ -1986,6 +1992,37 @@ def test_inverse_topology():
     assert inverse == expected_inverse
 
 
+
+def test_inverse_topology_merge():
+    # sometimes 2 ports with the same variable feed into the same store
+    # both updates need to be applied
+    update = {
+        'port1': {
+            'b': 5},
+        'port2': {
+            'b': 10},
+        'port3': {
+            'b': 10},
+    }
+
+    topology = {
+        'port1': ('x',),
+        'port2': ('x',),
+        'port3': ('y',)}
+
+    path = tuple()
+    inverse = inverse_topology(path, update, topology)
+    expected_inverse = {
+        'x': {
+            'b': 10},  # TODO -- what if we want 5 + 10 from port 1 and port3 together?
+        'y': {
+            'b': 10}
+    }
+
+    import ipdb; ipdb.set_trace()
+
+    assert inverse == expected_inverse
+
 def test_complex_topology():
     class Po(Process):
         name = 'po'
@@ -2282,6 +2319,5 @@ if __name__ == '__main__':
     # test_multi()
     # test_sine()
     # test_parallel()
-
-    test_complex_topology()
-
+    # test_complex_topology()
+    test_inverse_topology_merge()
