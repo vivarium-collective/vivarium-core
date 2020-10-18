@@ -1998,7 +1998,7 @@ def test_inverse_topology():
 
 
 
-def test_inverse_topology_merge():
+def test_multi_port_merge():
     class MultiPort(Process):
         name = 'multi_port'
         def ports_schema(self):
@@ -2048,6 +2048,7 @@ def test_inverse_topology_merge():
         'time': [0.0, 1.0, 2.0]}
 
     assert output == expected_output
+
 
 def test_complex_topology():
     class Po(Process):
@@ -2347,4 +2348,4 @@ if __name__ == '__main__':
     # test_parallel()
     # test_complex_topology()
 
-    test_inverse_topology_merge()
+    test_multi_port_merge()
