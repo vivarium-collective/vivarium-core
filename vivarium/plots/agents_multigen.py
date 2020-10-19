@@ -186,23 +186,26 @@ def plot_agents_multigen(data, settings={}, out_dir='out', filename='agents'):
     # plot the agents
     plotted_agents = []
     for time_idx, (time, time_data) in enumerate(data.items()):
-        agents = time_data[agents_key]
-        for agent_id, agent_data in agents.items():
-            if agent_id not in plotted_agents:
-                plotted_agents.append(agent_id)
-                for port_schema_path in port_schema_paths:
-                    agent_port_schema_path = (agents_key, agent_id) + port_schema_path
-                    if agent_port_schema_path not in timeseries:
-                        continue
+        if agents_key not in time_data:
+            print('{} key missing at time {}'.format(agents_key, time))
+        else:
+            agents = time_data[agents_key]
+            for agent_id, agent_data in agents.items():
+                if agent_id not in plotted_agents:
+                    plotted_agents.append(agent_id)
+                    for port_schema_path in port_schema_paths:
+                        agent_port_schema_path = (agents_key, agent_id) + port_schema_path
+                        if agent_port_schema_path not in timeseries:
+                            continue
 
-                    series = timeseries[agent_port_schema_path]
-                    if not isinstance(series[0], (float, int)):
-                        continue
-                    n_times = len(series)
-                    plot_times = time_vec[time_idx:time_idx+n_times]
+                        series = timeseries[agent_port_schema_path]
+                        if not isinstance(series[0], (float, int)):
+                            continue
+                        n_times = len(series)
+                        plot_times = time_vec[time_idx:time_idx+n_times]
 
-                    ax = port_axes[port_schema_path]
-                    ax.plot(plot_times, series)
+                        ax = port_axes[port_schema_path]
+                        ax.plot(plot_times, series)
 
     # save figure
     fig_path = os.path.join(out_dir, filename)
