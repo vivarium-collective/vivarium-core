@@ -12,6 +12,8 @@ import copy
 import math
 import random
 import datetime
+import time as clock
+import uuid
 
 import numpy as np
 import logging as log
@@ -1307,7 +1309,7 @@ class Experiment(object):
         """
         self.config = config
         self.experiment_id = config.get(
-            'experiment_id', timestamp(datetime.datetime.utcnow()))
+            'experiment_id', str(uuid.uuid1()))
         self.processes = config['processes']
         self.topology = config['topology']
         self.initial_state = config.get('initial_state', {})
@@ -1483,6 +1485,7 @@ class Experiment(object):
 
         time = 0
         emit_time = self.emit_step
+        clock_start = clock.time()
 
         def empty_front(t):
             return {
@@ -1565,9 +1568,15 @@ class Experiment(object):
                         self.emit_data()
                         emit_time += self.emit_step
 
+        # post-simulation
         for process_name, advance in front.items():
             assert advance['time'] == time == interval
             assert len(advance['update']) == 0
+
+        clock_finish = clock.time() - clock_start
+
+        if self.display_info:
+            self.print_summary(clock_finish)
 
     def end(self):
         for parallel in self.parallel.values():
@@ -1584,12 +1593,17 @@ class Experiment(object):
         if self.description:
             print('Description: {}'.format(self.description))
 
+    def print_summary(self, clock_finish):
+        if clock_finish < 1:
+            print('Completed in {:.6f} real seconds'.format(clock_finish))
+        else:
+            print('Completed in {:.2f} real seconds'.format(clock_finish))
 
 def print_progress_bar(
         iteration,
         total,
         decimals=1,
-        length=50,
+        length=60,
 ):
     """ Call in a loop to create terminal progress bar
 
@@ -1599,11 +1613,10 @@ def print_progress_bar(
         decimals:  (Optional) positive number of decimals in percent complete
         length:    (Optional) character length of bar
     """
-    # progress = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
     progress = ("{0:." + str(decimals) + "f}").format(total - iteration)
     filled_length = int(length * iteration // total)
     bar = '█' * filled_length + '-' * (length - filled_length)
-    print(f'\rProgress:|{bar}| {progress} seconds remaining    ', end='\r')
+    print(f'\rProgress:|{bar}| {progress}/{float(total)} simulated seconds remaining    ', end='\r')
     # Print New Line on Complete
     if iteration == total:
         print()
