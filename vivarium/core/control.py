@@ -114,7 +114,7 @@ class Control(object):
             for plot_id in plot_ids:
                 self.run_one_plot(plot_id, data, out_dir=out_dir)
         else:
-            self.run_one_plot(plot_id, data, out_dir=out_dir)
+            self.run_one_plot(plot_ids, data, out_dir=out_dir)
 
     def run_workflow(self, workflow_id):
         workflow = self.workflows_library[workflow_id]
