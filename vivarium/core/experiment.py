@@ -33,6 +33,7 @@ from vivarium.library.dict_utils import (
     deep_merge,
     deep_merge_check,
     deep_merge_multi_update,
+    MULTI_UPDATE_KEY,
 )
 from vivarium.core.emitter import get_emitter
 from vivarium.core.process import (
@@ -800,8 +801,8 @@ class Store(object):
                 if '_updater' in update:
                     update = update.get('_value', self.default)
 
-            if isinstance(update, dict) and '_multi_update' in update:
-                updates = update.get('_multi_update', self.default)
+            if isinstance(update, dict) and MULTI_UPDATE_KEY in update:
+                updates = update.get(MULTI_UPDATE_KEY, self.default)
                 assert isinstance(updates, list)
                 for update in updates:
                     self.value = updater(self.value, update, state_dict)

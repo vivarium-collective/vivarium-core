@@ -6,6 +6,8 @@ from functools import reduce
 import operator
 
 
+MULTI_UPDATE_KEY = '_multi_update'
+
 tuple_separator = '___'
 
 def merge_dicts(dicts):
@@ -69,7 +71,7 @@ def deep_merge_multi_update(dct, merge_dct):
             deep_merge_multi_update(dct[k], merge_dct[k])
         elif k in dct:
             # put values together in a list under '_multi_update' key
-            if isinstance(dct[k], dict) and '_multi_update' in dct[k]:
+            if isinstance(dct[k], dict) and MULTI_UPDATE_KEY in dct[k]:
                 dct[k]['_multi_update'].append(merge_dct[k])
             else:
                 dct[k] = {
