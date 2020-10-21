@@ -248,11 +248,7 @@ class Process(Generator):
         super().__init__(parameters)
 
         self.parameters = self.config
-        self.config = {}  # config is required for generate
         self.parallel = self.config.pop('_parallel', False)
-
-        self.merge_processes = {}  # merge_processes is required for generate
-        self.merge_topology = {}   # merge_topology is required for generate
 
     def generate_processes(self, config):
         return {self.name: self}
