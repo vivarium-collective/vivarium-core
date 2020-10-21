@@ -1330,7 +1330,6 @@ class Experiment(object):
             self.processes,
             self.topology,
             self.initial_state)
-        self.states = []  # TODO(jerry): What value does self.update() need?
 
         # emitter settings
         emitter_config = config.get('emitter', 'timeseries')
@@ -1490,8 +1489,8 @@ class Experiment(object):
             full_step = INFINITY
 
             if VERBOSE:
-                for state_id in self.states:
-                    print('{}: {}'.format(time, self.states[state_id].to_dict()))
+                for state_id in self.state:
+                    print('{}: {}'.format(time, self.state[state_id].to_dict()))
 
             # find any parallel processes that were removed and terminate them
             for terminated in self.parallel.keys() - self.process_paths.keys():
