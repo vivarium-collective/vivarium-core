@@ -62,6 +62,7 @@ the variables in each of the daughter cells.
 
 from __future__ import absolute_import, division, print_function
 
+import math
 import random
 
 import numpy as np
@@ -188,7 +189,7 @@ def divide_split(state):
             return [half + remainder, half]
         else:
             return [half, half + remainder]
-    elif state == float('inf') or state == 'Infinity':
+    elif math.isinf(state) or state == 'Infinity':
         # some concentrations are considered infinite in the environment
         # an alternative option is to not divide the local environment state
         return [state, state]

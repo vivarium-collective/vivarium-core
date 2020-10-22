@@ -43,8 +43,6 @@ def pf(x):
     return pretty.pformat(x)
 
 
-INFINITY = float('inf')
-VERBOSE = False
 EMPTY_UPDATES = None, None, None
 
 log.basicConfig(level=os.environ.get("LOGLEVEL", log.WARNING))
@@ -95,13 +93,6 @@ def update_in(d, path, f):
         updated[head] = update_in(d[head], path[1:], f)
         return updated
     return f(d)
-
-
-def dissoc(d, removing):
-    return {
-        key: value
-        for key, value in d.items()
-        if key not in removing}
 
 
 def delete_in(d, path):
@@ -665,7 +656,7 @@ class Store(object):
                     self.delete_path(path)
                     deletions.append(tuple(here + path))
 
-                update = dissoc(update, ['_delete'])
+                update.pop('_delete', None)
 
             if '_add' in update:
                 # add a list of sub-states
@@ -678,7 +669,7 @@ class Store(object):
                     target.apply_defaults()
                     target.set_value(state)
 
-                update = dissoc(update, ['_add'])
+                update.pop('_add', None)
 
             if '_generate' in update:
                 # generate a list of new processes
@@ -704,7 +695,7 @@ class Store(object):
                     self.apply_subschema_path(path)
                     self.get_path(path).apply_defaults()
 
-                update = dissoc(update, '_generate')
+                update.pop('_generate', None)
 
             if '_divide' in update:
                 # use dividers to find initial states for daughters
@@ -752,7 +743,7 @@ class Store(object):
                 self.delete_path(mother_path)
                 deletions.append(tuple(here + mother_path))
 
-                update = dissoc(update, '_divide')
+                update.pop('_divide', None)
 
             for key, value in update.items():
                 if key in self.inner:
@@ -1486,11 +1477,7 @@ class Experiment(object):
         front = {}
 
         while time < interval:
-            full_step = INFINITY
-
-            if VERBOSE:
-                for state_id in self.state:
-                    print('{}: {}'.format(time, self.state[state_id].to_dict()))
+            full_step = math.inf
 
             # find any parallel processes that were removed and terminate them
             for terminated in self.parallel.keys() - self.process_paths.keys():
@@ -1523,7 +1510,7 @@ class Experiment(object):
                     front[path]['time'] = future
                     front[path]['update'] = update
 
-            if full_step == INFINITY:
+            if full_step == math.inf:
                 # no processes ran, jump to next process
                 next_event = interval
                 for path in front.keys():
