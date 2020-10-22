@@ -18,6 +18,7 @@ import logging as log
 import pprint
 
 from multiprocessing import Pool
+from typing import Any, Dict
 
 from vivarium.library.units import Quantity
 from vivarium.library.dict_utils import deep_merge
@@ -609,7 +610,7 @@ class Store(object):
         * `_updater` - Override the default updater with any updater you want.
         * `_delete` - The value here is a list of paths (tuples) to delete from
           the tree.
-        * `_add` - Adds a state into the subtree:
+        * `_add` - Adds states into the subtree, given a list of dicts containing:
 
             * path - Path to the added state key.
             * state - The value of the added state.
@@ -648,19 +649,20 @@ class Store(object):
 
         if self.inner or self.subschema:
             process_updates, topology_updates, deletions = {}, {}, []
+            update = dict(update)  # avoid mutating the caller's dict
 
-            if '_delete' in update:
+            delete_paths = update.pop('_delete', None)
+            if delete_paths is not None:
                 # delete a list of paths
                 here = self.path_for()
-                for path in update['_delete']:
+                for path in delete_paths:
                     self.delete_path(path)
                     deletions.append(tuple(here + path))
 
-                update.pop('_delete', None)
-
-            if '_add' in update:
+            add_entries = update.pop('_add', None)
+            if add_entries is not None:
                 # add a list of sub-states
-                for added in update['_add']:
+                for added in add_entries:
                     path = added['path']
                     state = added['state']
 
@@ -669,11 +671,10 @@ class Store(object):
                     target.apply_defaults()
                     target.set_value(state)
 
-                update.pop('_add', None)
-
-            if '_generate' in update:
+            generate_entries = update.pop('_generate', None)
+            if generate_entries is not None:
                 # generate a list of new processes
-                for generate in update['_generate']:
+                for generate in generate_entries:
                     path = generate.get('path', tuple())
 
                     self.generate(
@@ -695,11 +696,9 @@ class Store(object):
                     self.apply_subschema_path(path)
                     self.get_path(path).apply_defaults()
 
-                update.pop('_generate', None)
-
-            if '_divide' in update:
+            divide = update.pop('_divide', None)
+            if divide is not None:
                 # use dividers to find initial states for daughters
-                divide = update['_divide']
                 mother = divide['mother']
                 daughters = divide['daughters']
                 initial_state = self.inner[mother].get_value(
@@ -742,8 +741,6 @@ class Store(object):
                 mother_path = (mother,)
                 self.delete_path(mother_path)
                 deletions.append(tuple(here + mother_path))
-
-                update.pop('_divide', None)
 
             for key, value in update.items():
                 if key in self.inner:
@@ -1253,6 +1250,7 @@ class MultiInvoke(object):
 
 class Experiment(object):
     def __init__(self, config):
+        # type: (Dict[str, Any]) -> None
         """Defines simulations
 
         Arguments:
@@ -2077,9 +2075,7 @@ def test_multi():
     with Pool(processes=4) as pool:
         multi = MultiInvoke(pool)
         proton = make_proton()
-        experiment = Experiment(dict(
-            proton,
-            invoke=multi.invoke))
+        experiment = Experiment({**proton, 'invoke': multi.invoke})
 
         log.debug(pf(experiment.state.get_config(True)))
 

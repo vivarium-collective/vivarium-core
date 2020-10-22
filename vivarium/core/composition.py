@@ -333,7 +333,7 @@ def process_in_experiment(
     if initial_state is None:
         initial_state = {}
 
-    timeline = settings.get('timeline', [])
+    timeline = settings.get('timeline', {})
     environment = settings.get('environment', {})
     paths = settings.get('topology', {})
 

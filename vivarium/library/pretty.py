@@ -3,6 +3,8 @@ import json
 import numpy as np
 import re
 
+import pint
+
 from vivarium.library.units import units
 from vivarium.core.process import Process, Generator
 
@@ -17,9 +19,9 @@ def _json_serialize(elem):
     if isinstance(elem, (Generator, Process)):
         to_strip_regex = ' at 0x[0-9a-f]+>$'
         return re.sub(to_strip_regex, '>', repr(elem))
-    if type(elem) == type(1 * units.fg):  # TODO(jerry): use isinstance()
+    if isinstance(elem, pint.Quantity):
         return str(elem)
-    if type(elem) == type(units.fg):  # TODO(jerry): use isinstance()
+    if isinstance(elem, pint.Unit):
         return repr(elem)
     return repr(elem)
 
@@ -38,6 +40,8 @@ def format_dict(d, sort_keys=True):
     ...         '3.0': np.int64(5),
     ...     },
     ...     'a': 'hi!',
+    ...     'quantity': 1 * units.fg,
+    ...     'unit': units.fg,
     ... }
     >>> print(format_dict(d))
     {
@@ -45,7 +49,9 @@ def format_dict(d, sort_keys=True):
         "foo": {
             "3.0": 5,
             "bar": 1
-        }
+        },
+        "quantity": "1 femtogram",
+        "unit": "<Unit('femtogram')>"
     }
 
     Arguments:
