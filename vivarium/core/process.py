@@ -112,9 +112,10 @@ class Generator(object):
     All :term:`compartment` classes must inherit from this class.
     """
     defaults = {}
+
     def __init__(self, config=None):
         if config is None:
-             config = {}
+            config = {}
         if 'name' in config:
             self.name = config['name']
         elif not hasattr(self, 'name'):
@@ -122,9 +123,7 @@ class Generator(object):
 
         self.config = copy.deepcopy(self.defaults)
         self.config = deep_merge(self.config, config)
-        self.schema_override = {}
-        if '_schema' in self.config:
-            self.schema_override = self.config.pop('_schema')
+        self.schema_override = self.config.pop('_schema', {})
 
         self.merge_processes = {}
         self.merge_topology = {}
@@ -246,30 +245,10 @@ class Process(Generator):
     defaults = {}
 
     def __init__(self, parameters=None):
-        if parameters is None:
-             parameters = {}
-        if 'name' in parameters:
-            self.name = parameters['name']
-        if not hasattr(self, 'name'):
-            self.name = self.__class__.__name__
+        super().__init__(parameters)
 
-        self.parameters = copy.deepcopy(self.defaults)
-        self.config = {}  # config is required for generate
-        self.merge_processes = {}  # merge_processes is required for generate
-        self.merge_topology = {}   # merge_topology is required for generate
-
-        self.schema_override = {}
-        if '_schema' in parameters:
-            self.schema_override = parameters.pop('_schema')
-
-        self.parallel = False
-        if '_parallel' in parameters:
-            self.parallel = parameters.pop('_parallel')
-
-        deep_merge(self.parameters, parameters)
-
-        # TODO -- register process
-        # process_registry.register(self.name, self)
+        self.parameters = self.config
+        self.parallel = self.config.pop('_parallel', False)
 
     def generate_processes(self, config):
         return {self.name: self}
@@ -353,7 +332,7 @@ class Process(Generator):
 
         return {
             port: {}
-            for port, values in self.ports.items()}
+            for port, values in self.ports().items()}
 
 
 class Deriver(Process):

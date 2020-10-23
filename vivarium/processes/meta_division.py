@@ -13,7 +13,6 @@ from vivarium.core.composition import (
     GENERATORS_KEY,
     PROCESS_OUT_DIR,
 )
-from vivarium.core.experiment import pp
 
 # processes
 from vivarium.processes.exchange_a import ExchangeA

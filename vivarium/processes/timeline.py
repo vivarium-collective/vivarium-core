@@ -1,11 +1,9 @@
 from __future__ import absolute_import, division, print_function
 
-import copy
-
 import logging as log
 
 from vivarium.library.dict_utils import deep_merge_combine_lists
-from vivarium.core.process import Process, Generator
+from vivarium.core.process import Process
 
 
 

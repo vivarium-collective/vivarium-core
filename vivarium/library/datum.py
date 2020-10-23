@@ -4,7 +4,7 @@ def first(l):
 
 def first_value(d):
     if d:
-        return d[list(d.keys())[0]]
+        return d[list(d.keys())[0]]  # TODO(jerry): iter(d.values()).__next__() would be faster
 
 class Datum(dict):
     '''
@@ -25,9 +25,9 @@ class Datum(dict):
     defaults = {}
 
     def __init__(self, config):
-        self.update(self.defaults)
+        super().__init__(self.defaults)
         self.update(config)
-        self.__dict__ = self
+        self.__dict__ = self  # TODO(jerry): Instead define `def __getattr__(self, item): return self[item]`?
 
         for schema, realize in self.schema.items():
             if schema in self:
@@ -37,7 +37,7 @@ class Datum(dict):
                 elif isinstance(value, dict):
                     value = {inner: realize(item) for inner, item in value.items()}
                 else:
-                    value = realize(item)
+                    value = realize(value)
                 self[schema] = value
 
     def to_dict(self):

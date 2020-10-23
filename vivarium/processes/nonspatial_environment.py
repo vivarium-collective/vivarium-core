@@ -1,12 +1,9 @@
 from __future__ import absolute_import, division, print_function
 
-import copy
-
 import numpy as np
 from scipy import constants
 
 from vivarium.library.units import units
-from vivarium.library.dict_utils import deep_merge
 from vivarium.core.process import Deriver
 
 AVOGADRO = constants.N_A * 1 / units.mol
