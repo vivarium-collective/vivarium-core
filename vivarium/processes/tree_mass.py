@@ -152,7 +152,7 @@ def test_tree_mass():
     output = experiment.emitter.get_data()
     experiment.end()
 
-    assert output[0.0]['global']['mass']  == 4
+    assert output[0.0]['global']['mass'] == 4
     return output
 
 

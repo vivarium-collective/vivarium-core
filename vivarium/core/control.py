@@ -7,15 +7,12 @@ Run experiments and analyses from the command line
 """
 
 import os
-import sys
 import argparse
 import copy
 
 from vivarium.core.experiment import timestamp
 from vivarium.core.composition import (
-    compose_experiment,
     simulate_compartment_in_experiment,
-    simulate_experiment,
     ToyCompartment,
     BASE_OUT_DIR,
 )
@@ -25,11 +22,10 @@ from vivarium.plots.simulation_output import plot_simulation_output
 
 
 def make_dir(out_dir):
-    if not os.path.exists(out_dir):
-        os.makedirs(out_dir)
+    os.makedirs(out_dir, exist_ok=True)
 
 
-class Control():
+class Control(object):
 
     def __init__(
             self,
@@ -118,7 +114,7 @@ class Control():
             for plot_id in plot_ids:
                 self.run_one_plot(plot_id, data, out_dir=out_dir)
         else:
-            self.run_one_plot(plot_id, data, out_dir=out_dir)
+            self.run_one_plot(plot_ids, data, out_dir=out_dir)
 
     def run_workflow(self, workflow_id):
         workflow = self.workflows_library[workflow_id]
@@ -193,7 +189,7 @@ def toy_control():
     }
 
     control = Control(
-        out_dir='control_test',
+        out_dir=os.path.join('out', 'control_test'),
         experiments=experiment_library,
         compartments=compartment_library,
         plots=plot_library,

@@ -10,28 +10,21 @@ from __future__ import absolute_import, division, print_function
 import os
 import copy
 import math
-import random
 import datetime
+import time as clock
+import uuid
 
 import numpy as np
 import logging as log
 
 import pprint
-pretty=pprint.PrettyPrinter(indent=2)
-
-def pp(x):
-    pretty.pprint(x)
-
-def pf(x):
-    return pretty.pformat(x)
 
 from multiprocessing import Pool
+from typing import Any, Dict
 
 from vivarium.library.units import Quantity
 from vivarium.library.dict_utils import (
-    merge_dicts,
     deep_merge,
-    deep_merge_check,
     deep_merge_multi_update,
     MULTI_UPDATE_KEY,
 )
@@ -48,9 +41,15 @@ from vivarium.core.registry import (
     serializer_registry,
 )
 
+pretty = pprint.PrettyPrinter(indent=2)
 
-INFINITY = float('inf')
-VERBOSE = False
+def pp(x):
+    pretty.pprint(x)
+
+def pf(x):
+    return pretty.pformat(x)
+
+
 EMPTY_UPDATES = None, None, None
 
 log.basicConfig(level=os.environ.get("LOGLEVEL", log.WARNING))
@@ -103,13 +102,6 @@ def update_in(d, path, f):
     return f(d)
 
 
-def dissoc(d, removing):
-    return {
-        key: value
-        for key, value in d.items()
-        if key not in removing}
-
-
 def delete_in(d, path):
     if len(path) > 0:
         head = path[0]
@@ -118,7 +110,7 @@ def delete_in(d, path):
             if head in d:
                 del d[head]
         elif head in d:
-            down = d[head]
+            # down = d[head]
             delete_in(d[head], path[1:])
 
 
@@ -155,7 +147,7 @@ def schema_for(port, keys, initial_state, default=0.0, updater='accumulate'):
         for key in keys}
 
 
-def always_true(x):
+def always_true(_):
     return True
 
 
@@ -188,14 +180,14 @@ class Store(object):
     * **_emit** (:py:class:`bool`): Whether to emit the variable to the
       :term:`emitter`. This is ``False`` by default.
     """
-    schema_keys = set([
+    schema_keys = {
         '_default',
         '_updater',
         '_value',
         '_properties',
         '_emit',
         '_serializer',
-    ])
+    }
 
     def __init__(self, config, outer=None, source=None):
         self.outer = outer
@@ -579,11 +571,6 @@ class Store(object):
             value = reducer(value, path, node)
         return value
 
-    def reduce_to(self, path, reducer, initial=None):
-        value = self.reduce(reducer, initial)
-        assoc_path({}, path, value)
-        self.apply_update(update)
-
     def set_value(self, value):
         '''
         Set the value for the given tree elements directly instead of using
@@ -629,7 +616,7 @@ class Store(object):
         * `_updater` - Override the default updater with any updater you want.
         * `_delete` - The value here is a list of paths (tuples) to delete from
           the tree.
-        * `_add` - Adds a state into the subtree:
+        * `_add` - Adds states into the subtree, given a list of dicts containing:
 
             * path - Path to the added state key.
             * state - The value of the added state.
@@ -668,19 +655,20 @@ class Store(object):
 
         if self.inner or self.subschema:
             process_updates, topology_updates, deletions = {}, {}, []
+            update = dict(update)  # avoid mutating the caller's dict
 
-            if '_delete' in update:
+            delete_paths = update.pop('_delete', None)
+            if delete_paths is not None:
                 # delete a list of paths
                 here = self.path_for()
-                for path in update['_delete']:
+                for path in delete_paths:
                     self.delete_path(path)
                     deletions.append(tuple(here + path))
 
-                update = dissoc(update, ['_delete'])
-
-            if '_add' in update:
+            add_entries = update.pop('_add', None)
+            if add_entries is not None:
                 # add a list of sub-states
-                for added in update['_add']:
+                for added in add_entries:
                     path = added['path']
                     state = added['state']
 
@@ -689,11 +677,10 @@ class Store(object):
                     target.apply_defaults()
                     target.set_value(state)
 
-                update = dissoc(update, ['_add'])
-
-            if '_generate' in update:
+            generate_entries = update.pop('_generate', None)
+            if generate_entries is not None:
                 # generate a list of new processes
-                for generate in update['_generate']:
+                for generate in generate_entries:
                     path = generate.get('path', tuple())
 
                     self.generate(
@@ -715,11 +702,9 @@ class Store(object):
                     self.apply_subschema_path(path)
                     self.get_path(path).apply_defaults()
 
-                update = dissoc(update, '_generate')
-
-            if '_divide' in update:
+            divide = update.pop('_divide', None)
+            if divide is not None:
                 # use dividers to find initial states for daughters
-                divide = update['_divide']
                 mother = divide['mother']
                 daughters = divide['daughters']
                 initial_state = self.inner[mother].get_value(
@@ -728,7 +713,7 @@ class Store(object):
                 states = self.inner[mother].divide_value()
 
                 for daughter, state in zip(daughters, states):
-                    daughter_id = daughter['daughter']
+                    # daughter_id = daughter['daughter']
 
                     # use initial state as default, merge in divided values
                     initial_state = deep_merge(
@@ -762,8 +747,6 @@ class Store(object):
                 mother_path = (mother,)
                 self.delete_path(mother_path)
                 deletions.append(tuple(here + mother_path))
-
-                update = dissoc(update, '_divide')
 
             for key, value in update.items():
                 if key in self.inner:
@@ -1280,6 +1263,7 @@ class MultiInvoke(object):
 
 class Experiment(object):
     def __init__(self, config):
+        # type: (Dict[str, Any]) -> None
         """Defines simulations
 
         Arguments:
@@ -1319,7 +1303,7 @@ class Experiment(object):
         """
         self.config = config
         self.experiment_id = config.get(
-            'experiment_id', timestamp(datetime.datetime.utcnow()))
+            'experiment_id', str(uuid.uuid1()))
         self.processes = config['processes']
         self.topology = config['topology']
         self.initial_state = config.get('initial_state', {})
@@ -1407,7 +1391,7 @@ class Experiment(object):
     def invoke_process(self, process, path, interval, states):
         if process.parallel:
             # add parallel process if it doesn't exist
-            if not path in self.parallel:
+            if path not in self.parallel:
                 self.parallel[path] = ParallelProcess(process)
             # trigger the computation of the parallel process
             self.parallel[path].update(interval, states)
@@ -1463,7 +1447,6 @@ class Experiment(object):
                 del self.deriver_paths[path]
 
     def run_derivers(self):
-        updates = []
         paths = list(self.deriver_paths.keys())
         for path in paths:
             # deriver could have been deleted by another deriver
@@ -1495,6 +1478,7 @@ class Experiment(object):
 
         time = 0
         emit_time = self.emit_step
+        clock_start = clock.time()
 
         def empty_front(t):
             return {
@@ -1505,11 +1489,7 @@ class Experiment(object):
         front = {}
 
         while time < interval:
-            full_step = INFINITY
-
-            if VERBOSE:
-                for state_id in self.states:
-                    print('{}: {}'.format(time, self.states[state_id].to_dict()))
+            full_step = math.inf
 
             # find any parallel processes that were removed and terminate them
             for terminated in self.parallel.keys() - self.process_paths.keys():
@@ -1525,7 +1505,7 @@ class Experiment(object):
             # go through each process and find those that are able to update
             # based on their current time being less than the global time.
             for path, process in self.process_paths.items():
-                if not path in front:
+                if path not in front:
                     front[path] = empty_front(time)
                 process_time = front[path]['time']
 
@@ -1542,7 +1522,7 @@ class Experiment(object):
                     front[path]['time'] = future
                     front[path]['update'] = update
 
-            if full_step == INFINITY:
+            if full_step == math.inf:
                 # no processes ran, jump to next process
                 next_event = interval
                 for path in front.keys():
@@ -1577,9 +1557,15 @@ class Experiment(object):
                         self.emit_data()
                         emit_time += self.emit_step
 
+        # post-simulation
         for process_name, advance in front.items():
             assert advance['time'] == time == interval
             assert len(advance['update']) == 0
+
+        clock_finish = clock.time() - clock_start
+
+        if self.display_info:
+            self.print_summary(clock_finish)
 
     def end(self):
         for parallel in self.parallel.values():
@@ -1596,12 +1582,17 @@ class Experiment(object):
         if self.description:
             print('Description: {}'.format(self.description))
 
+    def print_summary(self, clock_finish):
+        if clock_finish < 1:
+            print('Completed in {:.6f} real seconds'.format(clock_finish))
+        else:
+            print('Completed in {:.2f} real seconds'.format(clock_finish))
 
 def print_progress_bar(
         iteration,
         total,
         decimals=1,
-        length=50,
+        length=60,
 ):
     """ Call in a loop to create terminal progress bar
 
@@ -1611,11 +1602,10 @@ def print_progress_bar(
         decimals:  (Optional) positive number of decimals in percent complete
         length:    (Optional) character length of bar
     """
-    # progress = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
     progress = ("{0:." + str(decimals) + "f}").format(total - iteration)
     filled_length = int(length * iteration // total)
     bar = '█' * filled_length + '-' * (length - filled_length)
-    print(f'\rProgress:|{bar}| {progress} seconds remaining    ', end='\r')
+    print(f'\rProgress:|{bar}| {progress}/{float(total)} simulated seconds remaining    ', end='\r')
     # Print New Line on Complete
     if iteration == total:
         print()
@@ -1900,6 +1890,7 @@ def test_timescales():
     class Slow(Process):
         name = 'slow'
         defaults = {'timestep': 3.0}
+
         def __init__(self, config=None):
             super(Slow, self).__init__(config)
 
@@ -1922,6 +1913,7 @@ def test_timescales():
     class Fast(Process):
         name = 'fast'
         defaults = {'timestep': 0.3}
+
         def __init__(self, config=None):
             super(Fast, self).__init__(config)
 
@@ -2160,9 +2152,7 @@ def test_multi():
     with Pool(processes=4) as pool:
         multi = MultiInvoke(pool)
         proton = make_proton()
-        experiment = Experiment(dict(
-            proton,
-            invoke=multi.invoke))
+        experiment = Experiment({**proton, 'invoke': multi.invoke})
 
         log.debug(pf(experiment.state.get_config(True)))
 

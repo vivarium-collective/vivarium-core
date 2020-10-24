@@ -5,12 +5,9 @@ Swap Processes Process
 """
 
 import os
-import uuid
-import logging as log
 
 from vivarium.core.process import (
     Deriver,
-    Process,
     Generator,
 )
 from vivarium.core.composition import (
