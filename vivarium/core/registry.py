@@ -189,7 +189,7 @@ def divide_split(state):
             return [half + remainder, half]
         else:
             return [half, half + remainder]
-    elif math.isinf(state) or state == 'Infinity':
+    elif state == float('inf') or state == 'Infinity':
         # some concentrations are considered infinite in the environment
         # an alternative option is to not divide the local environment state
         return [state, state]
