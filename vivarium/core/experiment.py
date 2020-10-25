@@ -653,7 +653,17 @@ class Store(object):
               in the tree.
         '''
 
-        if self.inner or self.subschema:
+        if isinstance(update, dict) and MULTI_UPDATE_KEY in update:
+            # apply multiple updates to same node
+            multi_update = update[MULTI_UPDATE_KEY]
+            assert isinstance(multi_update, list)
+            for update_value in multi_update:
+                self.apply_update(update_value, process_topology, state)
+            return EMPTY_UPDATES
+
+        elif self.inner or self.subschema:
+            # Branch update: this node has an inner
+
             process_updates, topology_updates, deletions = {}, {}, []
             update = dict(update)  # avoid mutating the caller's dict
 
@@ -770,8 +780,11 @@ class Store(object):
             return topology_updates, process_updates, deletions
 
         else:
+            # Leaf update: this node has no inner
+
             updater, port_mapping = self.get_updater(update)
             state_dict = None
+
             if isinstance(update, dict) and '_reduce' in update:
                 assert port_mapping is None
                 reduction = update['_reduce']
@@ -783,13 +796,6 @@ class Store(object):
             if isinstance(update, dict) and self.schema_keys & set(update.keys()):
                 if '_updater' in update:
                     update = update.get('_value', self.default)
-
-            if isinstance(update, dict) and MULTI_UPDATE_KEY in update:
-                updates = update.get(MULTI_UPDATE_KEY, self.default)
-                assert isinstance(updates, list)
-                for update in updates:
-                    self.value = updater(self.value, update, state_dict)
-                return EMPTY_UPDATES
 
             if port_mapping is not None:
                 updater_topology = {
