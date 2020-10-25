@@ -1485,6 +1485,7 @@ class Experiment(object):
         time = 0
         emit_time = self.emit_step
         clock_start = clock.time()
+        process_eval_time = {}
 
         def empty_front(t):
             return {
@@ -1511,6 +1512,8 @@ class Experiment(object):
             # go through each process and find those that are able to update
             # based on their current time being less than the global time.
             for path, process in self.process_paths.items():
+                if path not in process_eval_time:
+                    process_eval_time[path] = 0
                 if path not in front:
                     front[path] = empty_front(time)
                 process_time = front[path]['time']
@@ -1520,7 +1523,9 @@ class Experiment(object):
                     timestep = future - process_time
 
                     # calculate the update for this process
+                    t = clock.time()
                     update = self.process_update(path, process, timestep)
+                    process_eval_time[path] += clock.time() - t
 
                     # store the update to apply at its projected time
                     if timestep < full_step:
@@ -1571,7 +1576,7 @@ class Experiment(object):
         clock_finish = clock.time() - clock_start
 
         if self.display_info:
-            self.print_summary(clock_finish)
+            self.print_summary(clock_finish, process_eval_time)
 
     def end(self):
         for parallel in self.parallel.values():
@@ -1588,11 +1593,15 @@ class Experiment(object):
         if self.description:
             print('Description: {}'.format(self.description))
 
-    def print_summary(self, clock_finish):
+    def print_summary(self, clock_finish, process_eval_time=None):
         if clock_finish < 1:
-            print('Completed in {:.6f} real seconds'.format(clock_finish))
+            print('Completed in {:.6f} seconds'.format(clock_finish))
         else:
-            print('Completed in {:.2f} real seconds'.format(clock_finish))
+            print('Completed in {:.2f} seconds'.format(clock_finish))
+        if process_eval_time:
+            print('evaluation time:')
+            for p, t in process_eval_time.items():
+                print(' {}: {:.6f} seconds'.format(p,t))
 
 def print_progress_bar(
         iteration,
