@@ -1,6 +1,12 @@
 # Changelog
 
 
+## v0.0.36
+
+* multi_update for experiment allos multiple updates to a variable from the same process
+* fix some inspection errors & warnings
+* merge for generator class
+
 ## v0.0.34
 
 * Control object in vivarium/cor/control for streamlining experiments
