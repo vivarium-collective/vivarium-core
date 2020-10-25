@@ -23,7 +23,11 @@ from multiprocessing import Pool
 from typing import Any, Dict
 
 from vivarium.library.units import Quantity
-from vivarium.library.dict_utils import deep_merge
+from vivarium.library.dict_utils import (
+    deep_merge,
+    deep_merge_multi_update,
+    MULTI_UPDATE_KEY,
+)
 from vivarium.core.emitter import get_emitter
 from vivarium.core.process import (
     Generator,
@@ -649,7 +653,17 @@ class Store(object):
               in the tree.
         '''
 
-        if self.inner or self.subschema:
+        if isinstance(update, dict) and MULTI_UPDATE_KEY in update:
+            # apply multiple updates to same node
+            multi_update = update[MULTI_UPDATE_KEY]
+            assert isinstance(multi_update, list)
+            for update_value in multi_update:
+                self.apply_update(update_value, process_topology, state)
+            return EMPTY_UPDATES
+
+        elif self.inner or self.subschema:
+            # Branch update: this node has an inner
+
             process_updates, topology_updates, deletions = {}, {}, []
             update = dict(update)  # avoid mutating the caller's dict
 
@@ -766,8 +780,11 @@ class Store(object):
             return topology_updates, process_updates, deletions
 
         else:
+            # Leaf update: this node has no inner
+
             updater, port_mapping = self.get_updater(update)
             state_dict = None
+
             if isinstance(update, dict) and '_reduce' in update:
                 assert port_mapping is None
                 reduction = update['_reduce']
@@ -1170,7 +1187,7 @@ def inverse_topology(outer, update, topology):
                     inverse = update_in(
                         inverse,
                         inner,
-                        lambda current: deep_merge(current, value))
+                        lambda current: deep_merge_multi_update(current, value))
                 else:
                     assoc_path(inverse, inner, value)
 
@@ -1979,6 +1996,59 @@ def test_inverse_topology():
     assert inverse == expected_inverse
 
 
+
+def test_multi_port_merge():
+    class MultiPort(Process):
+        name = 'multi_port'
+        def ports_schema(self):
+            return {
+                'A': {
+                    'a': {
+                        '_default': 0,
+                        '_emit': True}},
+                'B': {
+                    'a': {
+                        '_default': 0,
+                        '_emit': True}},
+                'C': {
+                    'a': {
+                        '_default': 0,
+                        '_emit': True}}}
+        def next_update(self, timestep, states):
+            return {
+                'A': {'a': 1},
+                'B': {'a': 1},
+                'C': {'a': 1}}
+
+    class MergePort(Generator):
+        """combines both of MultiPort's ports into one store"""
+        name = 'multi_port_generator'
+        def generate_processes(self, config):
+            return {
+                'multi_port': MultiPort({})}
+        def generate_topology(self, config):
+            return {
+                'multi_port': {
+                    'A': ('aaa',),
+                    'B': ('aaa',),
+                    'C': ('aaa',)}}
+
+    # run experiment
+    merge_port = MergePort({})
+    network = merge_port.generate()
+    exp = Experiment({
+        'processes': network['processes'],
+        'topology': network['topology']})
+
+    exp.update(2)
+    output = exp.emitter.get_timeseries()
+    expected_output = {
+        'aaa': {'a': [0, 3, 6]},
+        'time': [0.0, 1.0, 2.0]}
+
+    assert output == expected_output
+
+
 def test_complex_topology():
     class Po(Process):
         name = 'po'
@@ -2273,6 +2343,6 @@ if __name__ == '__main__':
     # test_multi()
     # test_sine()
     # test_parallel()
+    # test_complex_topology()
 
-    test_complex_topology()
-
+    test_multi_port_merge()
