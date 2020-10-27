@@ -24,7 +24,7 @@ def order_list_of_paths(path_list):
         return path_list
 
 
-def plot_agents_multigen(data, settings={}, out_dir='out', filename='agents'):
+def plot_agents_multigen(data, settings={}, out_dir=None, filename=None):
     '''Plot values over time for multiple agents and generations
 
     Plot multi-agent simulation output, with all agents data combined for every
@@ -209,7 +209,9 @@ def plot_agents_multigen(data, settings={}, out_dir='out', filename='agents'):
                         ax = port_axes[port_schema_path]
                         ax.plot(plot_times, series)
 
-    # save figure
-    fig_path = os.path.join(out_dir, filename)
-    plt.subplots_adjust(wspace=0.2, hspace=0.2)
-    plt.savefig(fig_path, bbox_inches='tight')
+    if out_dir:
+        if filename is None:
+            filename = 'agents'
+        fig_path = os.path.join(out_dir, filename)
+        plt.subplots_adjust(wspace=0.2, hspace=0.2)
+        plt.savefig(fig_path, bbox_inches='tight')
