@@ -58,6 +58,7 @@ def plot_agents_multigen(data, settings={}, out_dir=None, filename=None):
 
     agents_key = settings.get('agents_key', 'agents')
     max_rows = settings.get('max_rows', 25)
+    column_width = settings.get('column_width', 4)
     remove_zeros = settings.get('remove_zeros', False)
     remove_flat = settings.get('remove_flat', False)
     skip_paths = settings.get('skip_paths', [])
@@ -142,7 +143,7 @@ def plot_agents_multigen(data, settings={}, out_dir=None, filename=None):
     # initialize figure
     n_rows = highest_row + 1
     n_cols = col_idx + 1
-    fig = plt.figure(figsize=(4 * n_cols, 2 * n_rows))
+    fig = plt.figure(figsize=(column_width * n_cols, column_width/2 * n_rows))
     grid = plt.GridSpec(ncols=n_cols, nrows=n_rows, wspace=0.4, hspace=1.5)
 
     # make the subplot axes
