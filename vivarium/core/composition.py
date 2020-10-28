@@ -236,7 +236,8 @@ def agent_environment_experiment(
         initial_state: the initial state for the hierarchy, with
             environment at the top level.
         initial_agent_state: the initial_state for agents, set under each agent_id.
-        settings: settings include **emitter** and **agent_names**.
+        settings: settings include **emitter** and **agent_names**. May
+            also include **timeline**.
         invoke: is the invoke object for calling updates.
 
     Returns:
@@ -303,6 +304,19 @@ def agent_environment_experiment(
             'agents': ('agents',),
             'names': ('names',)
         }
+
+    if 'timeline' in settings:
+        # Adding a timeline to a process requires the timeline argument
+        # in settings to have a 'timeline' key. An optional 'paths' key
+        # overrides the topology mapping from {port: path}.
+        timeline = settings['timeline']
+        timeline_process = TimelineProcess(timeline)
+        timeline_paths = timeline.get('paths', {})
+        processes.update({'timeline_process': timeline_process})
+        timeline_ports = {
+            port: timeline_paths.get(port, (port,))
+            for port in timeline_process.ports()}
+        topology.update({'timeline_process': timeline_ports})
 
     experiment_config = {
         'processes': processes,
