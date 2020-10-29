@@ -25,6 +25,7 @@ from vivarium.processes.divide_condition import DivideCondition
 from vivarium.core.registry import (
     update_accumulate, update_set, update_merge, update_nonnegative_accumulate,
     divide_set, divide_split, divide_split_dict, divide_zero, assert_no_divide,
+    divide_binomial,
     NumpySerializer, NumpyScalarSerializer, UnitsSerializer, ProcessSerializer,
     GeneratorSerializer, FunctionSerializer
 )
@@ -48,6 +49,7 @@ updater_registry.register('merge', update_merge)
 updater_registry.register('nonnegative_accumulate', update_nonnegative_accumulate)
 
 # register dividers
+divider_registry.register('binomial', divide_binomial)
 divider_registry.register('set', divide_set)
 divider_registry.register('split', divide_split)
 divider_registry.register('split_dict', divide_split_dict)
