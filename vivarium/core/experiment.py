@@ -1590,15 +1590,15 @@ class Experiment(object):
 
     def print_summary(self, clock_finish):
         if clock_finish < 1:
-            print('Completed in {:.6f} real seconds'.format(clock_finish))
+            print('Completed in {:.6f} seconds'.format(clock_finish))
         else:
-            print('Completed in {:.2f} real seconds'.format(clock_finish))
+            print('Completed in {:.2f} seconds'.format(clock_finish))
 
 def print_progress_bar(
         iteration,
         total,
         decimals=1,
-        length=60,
+        length=50,
 ):
     """ Call in a loop to create terminal progress bar
 
