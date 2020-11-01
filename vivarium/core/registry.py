@@ -199,6 +199,13 @@ def divide_split(state):
     else:
         raise Exception('can not divide state {} of type {}'.format(state, type(state)))
 
+def divide_binomial(state):
+    """Binomial Divider
+    """
+    counts_1 = np.random.binomial(state, 0.5)
+    counts_2 = state - counts_1
+    return [counts_1, counts_2]
+
 def divide_zero(state):
     """Zero Divider
 

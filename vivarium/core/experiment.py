@@ -1603,11 +1603,12 @@ class Experiment(object):
             for p, t in process_eval_time.items():
                 print(' {}: {:.6f} seconds'.format(p,t))
 
+
 def print_progress_bar(
         iteration,
         total,
         decimals=1,
-        length=60,
+        length=50,
 ):
     """ Call in a loop to create terminal progress bar
 

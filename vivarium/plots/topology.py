@@ -6,17 +6,17 @@ import matplotlib.pyplot as plt
 import networkx as nx
 
 
-def plot_compartment_topology(compartment, settings, out_dir='out', filename='topology'):
+def plot_compartment_topology(compartment, settings={}, out_dir=None, filename=None):
     """
     Make a plot of the topology
      - compartment: a compartment
     """
     store_rgb = [x/255 for x in [239, 131, 148]]
     process_rgb = [x / 255 for x in [249, 204, 86]]
-    node_size = 4500
-    font_size = 8
-    node_distance = 1.5
-    buffer = 0.2
+    node_size = 8000
+    font_size = 10
+    node_distance = 2.5
+    buffer = 1.0
     label_pos = 0.75
 
     network = compartment.generate({})
@@ -32,10 +32,15 @@ def plot_compartment_topology(compartment, settings, out_dir='out', filename='to
     store_nodes = []
     edges = {}
     for process_id, connections in topology.items():
+        process_id = str(process_id)
+        process_id = process_id.replace("'", "").replace("_", "_\n")
         process_nodes.append(process_id)
         G.add_node(process_id)
 
         for port, store_id in connections.items():
+            store_id = str(store_id)
+            store_id = store_id.replace("'", "").replace(" ", "").replace("(", "").replace(")", "").replace(",", "\n")
+
             if store_id not in store_nodes:
                 store_nodes.append(store_id)
             if store_id not in list(G.nodes):
@@ -53,7 +58,7 @@ def plot_compartment_topology(compartment, settings, out_dir='out', filename='to
     # get positions
     pos = {}
     n_rows = max(len(process_nodes), len(store_nodes))
-    plt.figure(1, figsize=(10, n_rows * node_distance))
+    plt.figure(1, figsize=(12, n_rows * node_distance))
 
     for idx, node_id in enumerate(process_nodes, 1):
         pos[node_id] = np.array([-1, -idx])
@@ -89,11 +94,14 @@ def plot_compartment_topology(compartment, settings, out_dir='out', filename='to
     xmin, xmax, ymin, ymax = plt.axis()
     plt.xlim(xmin - buffer, xmax + buffer)
     plt.ylim(ymin - buffer, ymax + buffer)
-
-    # save figure
-    fig_path = os.path.join(out_dir, filename)
     plt.axis('off')
-    plt.savefig(fig_path, bbox_inches='tight')
-    plt.close()
+
+    if out_dir:
+        if filename is None:
+            filename = 'topology'
+        # save figure
+        fig_path = os.path.join(out_dir, filename)
+        plt.savefig(fig_path, bbox_inches='tight')
+        plt.close()
 
 

@@ -24,7 +24,7 @@ def order_list_of_paths(path_list):
         return path_list
 
 
-def plot_agents_multigen(data, settings={}, out_dir='out', filename='agents'):
+def plot_agents_multigen(data, settings={}, out_dir=None, filename=None):
     '''Plot values over time for multiple agents and generations
 
     Plot multi-agent simulation output, with all agents data combined for every
@@ -58,6 +58,7 @@ def plot_agents_multigen(data, settings={}, out_dir='out', filename='agents'):
 
     agents_key = settings.get('agents_key', 'agents')
     max_rows = settings.get('max_rows', 25)
+    column_width = settings.get('column_width', 4)
     remove_zeros = settings.get('remove_zeros', False)
     remove_flat = settings.get('remove_flat', False)
     skip_paths = settings.get('skip_paths', [])
@@ -142,7 +143,7 @@ def plot_agents_multigen(data, settings={}, out_dir='out', filename='agents'):
     # initialize figure
     n_rows = highest_row + 1
     n_cols = col_idx + 1
-    fig = plt.figure(figsize=(4 * n_cols, 2 * n_rows))
+    fig = plt.figure(figsize=(column_width * n_cols, column_width/2 * n_rows))
     grid = plt.GridSpec(ncols=n_cols, nrows=n_rows, wspace=0.4, hspace=1.5)
 
     # make the subplot axes
@@ -209,7 +210,9 @@ def plot_agents_multigen(data, settings={}, out_dir='out', filename='agents'):
                         ax = port_axes[port_schema_path]
                         ax.plot(plot_times, series)
 
-    # save figure
-    fig_path = os.path.join(out_dir, filename)
-    plt.subplots_adjust(wspace=0.2, hspace=0.2)
-    plt.savefig(fig_path, bbox_inches='tight')
+    if out_dir:
+        if filename is None:
+            filename = 'agents'
+        fig_path = os.path.join(out_dir, filename)
+        plt.subplots_adjust(wspace=0.2, hspace=0.2)
+        plt.savefig(fig_path, bbox_inches='tight')
