@@ -1244,17 +1244,25 @@ class Defer(object):
 
 
 class InvokeProcess(object):
+    """ A normal invoke object
+
+    An object with *get* method to set up and retrieve a process update
+    """
     def __init__(self, process, interval, states):
         self.process = process
         self.interval = interval
         self.states = states
+
+        self.time_before = clock.time()
         self.update = invoke_process(
             self.process,
             self.interval,
             self.states)
 
     def get(self, timeout=0):
-        return self.update
+        update = self.update
+        eval_time = clock.time() - self.time_before
+        return update
 
 
 class MultiInvoke(object):
@@ -1426,6 +1434,13 @@ class Experiment(object):
         return absolute, process_topology, state
 
     def apply_update(self, update, process_topology, state):
+
+
+        print('UPDATE: ' + str(update))
+        # import ipdb; ipdb.set_trace()
+
+
+
         topology_updates, process_updates, deletions = self.state.apply_update(
             update, process_topology, state)
 
@@ -1477,6 +1492,10 @@ class Experiment(object):
             update, process_topology, state = update_tuple
             self.apply_update(update.get(), process_topology, state)
 
+            # TODO -- update is a Defer object....
+            import ipdb;
+            ipdb.set_trace()
+
         self.run_derivers()
 
     def update(self, interval):
@@ -1523,9 +1542,7 @@ class Experiment(object):
                     timestep = future - process_time
 
                     # calculate the update for this process
-                    t = clock.time()
                     update = self.process_update(path, process, timestep)
-                    process_eval_time[path] += clock.time() - t
 
                     # store the update to apply at its projected time
                     if timestep < full_step:
@@ -1555,6 +1572,9 @@ class Experiment(object):
                         paths.append(path)
 
                 self.send_updates(updates)
+
+                # TODO -- get eval time here??
+                # process_eval_time[path] += process.eval_time
 
                 time = future
                 self.local_time += full_step
@@ -2050,7 +2070,7 @@ def test_multi_port_merge():
         'processes': network['processes'],
         'topology': network['topology']})
 
-    exp.update(2)
+    exp.update(20)
     output = exp.emitter.get_timeseries()
     expected_output = {
         'aaa': {'a': [0, 3, 6]},

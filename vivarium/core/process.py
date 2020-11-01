@@ -4,9 +4,8 @@ Process and Compartment Classes
 ==========================================
 """
 
-from __future__ import absolute_import, division, print_function
-
 import copy
+import time as clock
 import numpy as np
 
 from bson.objectid import ObjectId
@@ -366,11 +365,16 @@ class ParallelProcess(object):
             args=(self.child, self.process))
         self.multiprocess.start()
 
+        self.time_before = None
+
     def update(self, interval, states):
+        self.time_before = clock.time()
         self.parent.send((interval, states))
 
     def get(self):
-        return self.parent.recv()
+        update = self.parent.recv()
+        eval_time = clock.time() - self.time_before
+        return update
 
     def end(self):
         self.parent.send((-1, None))
