@@ -216,3 +216,5 @@ def plot_agents_multigen(data, settings={}, out_dir=None, filename=None):
         fig_path = os.path.join(out_dir, filename)
         plt.subplots_adjust(wspace=0.2, hspace=0.2)
         plt.savefig(fig_path, bbox_inches='tight')
+    else:
+        return fig

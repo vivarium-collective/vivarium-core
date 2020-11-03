@@ -20,7 +20,7 @@ def set_axes(ax, show_xaxis=False):
         ax.tick_params(bottom=False, labelbottom=False)
 
 
-def plot_simulation_output(timeseries_raw, settings={}, out_dir='out', filename='simulation'):
+def plot_simulation_output(timeseries_raw, settings={}, out_dir=None, filename=None):
     '''
     Plot simulation output, with rows organized into separate columns.
 
@@ -143,7 +143,12 @@ def plot_simulation_output(timeseries_raw, settings={}, out_dir='out', filename=
                 row_idx += 1
             ax.set_xlim([time_vec[0], time_vec[-1]])
 
-    # save figure
-    fig_path = os.path.join(out_dir, filename)
-    plt.subplots_adjust(wspace=0.8, hspace=1.0)
-    plt.savefig(fig_path, bbox_inches='tight')
+    if out_dir:
+        if filename is None:
+            filename = 'simulation'
+        # save figure
+        fig_path = os.path.join(out_dir, filename)
+        plt.subplots_adjust(wspace=0.8, hspace=1.0)
+        plt.savefig(fig_path, bbox_inches='tight')
+    else:
+        return fig

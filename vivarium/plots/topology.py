@@ -58,7 +58,7 @@ def plot_compartment_topology(compartment, settings={}, out_dir=None, filename=N
     # get positions
     pos = {}
     n_rows = max(len(process_nodes), len(store_nodes))
-    plt.figure(1, figsize=(12, n_rows * node_distance))
+    fig = plt.figure(1, figsize=(12, n_rows * node_distance))
 
     for idx, node_id in enumerate(process_nodes, 1):
         pos[node_id] = np.array([-1, -idx])
@@ -103,5 +103,5 @@ def plot_compartment_topology(compartment, settings={}, out_dir=None, filename=N
         fig_path = os.path.join(out_dir, filename)
         plt.savefig(fig_path, bbox_inches='tight')
         plt.close()
-
-
+    else:
+        return fig
