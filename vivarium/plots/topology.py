@@ -6,7 +6,12 @@ import matplotlib.pyplot as plt
 import networkx as nx
 
 
-def plot_compartment_topology(compartment, settings={}, out_dir=None, filename=None):
+def plot_compartment_topology(
+        compartment,
+        settings={},
+        out_dir=None,
+        filename=None,
+):
     """
     Make a plot of the topology
      - compartment: a compartment
@@ -97,6 +102,7 @@ def plot_compartment_topology(compartment, settings={}, out_dir=None, filename=N
     plt.axis('off')
 
     if out_dir:
+        os.makedirs(out_dir, exist_ok=True)
         if filename is None:
             filename = 'topology'
         # save figure
