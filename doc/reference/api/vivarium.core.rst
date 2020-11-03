@@ -8,6 +8,7 @@ Submodules
    :maxdepth: 4
 
    vivarium.core.composition
+   vivarium.core.control
    vivarium.core.emitter
    vivarium.core.experiment
    vivarium.core.process

@@ -1,14 +1,14 @@
-import os
-import glob
 import setuptools
 from distutils.core import setup
+
+_ = setuptools  # don't warn about this unused import; it might have side effects
 
 with open("README.md", 'r') as readme:
     long_description = readme.read()
 
 setup(
     name='vivarium-core',
-    version='0.0.31',
+    version='0.0.37',
     packages=[
         'vivarium',
         'vivarium.core',
@@ -24,7 +24,7 @@ setup(
     license='MIT',
     entry_points={
         'console_scripts': []},
-    short_description=(
+    description=(
         'Engine for composing and simulating computational biology '
         'models with the Vivarium interface.'
     ),
@@ -40,4 +40,5 @@ setup(
         'Pint',
         'pymongo',
         'pytest',
-        'scipy'])
+        'scipy',
+    ])

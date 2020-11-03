@@ -23,6 +23,7 @@ False
 from __future__ import division, absolute_import, print_function
 
 import pint
+# noinspection PyProtectedMember
 from pint.quantity import _Quantity as Quantity
 
 

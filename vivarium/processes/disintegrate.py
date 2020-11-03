@@ -5,8 +5,6 @@ Disintegrate Process
 """
 
 import os
-import uuid
-import logging as log
 
 from vivarium.core.experiment import pp
 from vivarium.core.process import (
@@ -17,7 +15,6 @@ from vivarium.core.composition import (
     simulate_compartment_in_experiment,
     PROCESS_OUT_DIR,
 )
-from vivarium.plots.simulation_output import plot_simulation_output
 from vivarium.processes.exchange_a import ExchangeA
 
 

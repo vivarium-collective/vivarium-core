@@ -4,6 +4,7 @@ import copy
 import csv
 import os
 import io
+from typing import Any
 import uuid
 
 import numpy as np
@@ -15,28 +16,152 @@ from vivarium.core.process import (
     Generator,
     generate_derivers,
 )
-from vivarium.core import emitter as emit
 from vivarium.library.dict_utils import (
     deep_merge,
     deep_merge_check,
     flatten_timeseries,
-    get_path_list_from_dict,
 )
-from vivarium.library.units import units
 
 from vivarium.processes.timeline import TimelineProcess
 from vivarium.processes.nonspatial_environment import NonSpatialEnvironment
-
+from vivarium.processes.agent_names import AgentNames
 
 REFERENCE_DATA_DIR = os.path.join('vivarium', 'reference_data')
-TEST_OUT_DIR = os.path.join('out', 'tests')
-PROCESS_OUT_DIR = os.path.join('out', 'processes')
-COMPARTMENT_OUT_DIR = os.path.join('out', 'composites')
-COMPOSITE_OUT_DIR = os.path.join('out', 'composites')
-EXPERIMENT_OUT_DIR = os.path.join('out', 'experiments')
+BASE_OUT_DIR = 'out'
+TEST_OUT_DIR = os.path.join(BASE_OUT_DIR, 'tests')
+PROCESS_OUT_DIR = os.path.join(BASE_OUT_DIR, 'processes')
+COMPARTMENT_OUT_DIR = os.path.join(BASE_OUT_DIR, 'compartments')
+COMPOSITE_OUT_DIR = os.path.join(BASE_OUT_DIR, 'composites')
+EXPERIMENT_OUT_DIR = os.path.join(BASE_OUT_DIR, 'experiments')
+
+GENERATORS_KEY = '_generators'
 
 
-# loading functions
+######################################################
+# compartment_hierarchy_experiment loading functions #
+######################################################
+
+
+def add_generator_to_tree(
+        processes,
+        topology,
+        generator_type,
+        generator_config={},
+        generator_topology={}
+):
+    # generate
+    composite = generator_type(generator_config)
+    network = composite.generate()
+    new_processes = network['processes']
+    new_topology = network['topology']
+
+    # replace process names that already exist
+    replace_name = []
+    for name, p in new_processes.items():
+        if name in processes:
+            replace_name.append(name)
+    for name in replace_name:
+        new_name = name + '_' + str(uuid.uuid1())
+        new_processes[new_name] = new_processes[name]
+        new_topology[new_name] = new_topology[name]
+        del new_processes[name]
+        del new_topology[name]
+
+    # extend processes and topology list
+    new_topology = deep_merge(new_topology, generator_topology)
+    deep_merge(topology, new_topology)
+    deep_merge_check(processes, new_processes)
+
+    return processes, topology
+
+def initialize_hierarchy(hierarchy):
+    processes = {}
+    topology = {}
+    for key, level in hierarchy.items():
+        if key == GENERATORS_KEY:
+            if isinstance(level, list):
+                for generator_def in level:
+                    add_generator_to_tree(
+                        processes=processes,
+                        topology=topology,
+                        generator_type=generator_def['type'],
+                        generator_config=generator_def.get('config', {}),
+                        generator_topology=generator_def.get('topology', {}))
+
+            elif isinstance(level, dict):
+                add_generator_to_tree(
+                    processes=processes,
+                    topology=topology,
+                    generator_type=level['type'],
+                    generator_config=level.get('config', {}),
+                    generator_topology=level.get('topology', {}))
+        else:
+            network = initialize_hierarchy(level)
+            deep_merge_check(processes, {key: network['processes']})
+            deep_merge(topology, {key: network['topology']})
+
+    return {
+        'processes': processes,
+        'topology': topology}
+
+
+# list of keys expected in experiment settings
+experiment_config_keys = [
+        'experiment_id',
+        'experiment_name',
+        'description',
+        'initial_state',
+        'emitter',
+        'emit_step',
+        'progress_bar',
+        'invoke',
+    ]
+
+
+def compose_experiment(
+        hierarchy=None,
+        settings=None,
+        initial_state=None,
+):
+    """Make an experiment with arbitrarily embedded compartments.
+
+    Arguments:
+        hierarchy: an embedded dictionary mapping the desired topology of
+            nodes, with generators declared under a global GENERATOR_KEY that maps
+            to a dictionary with 'type', 'config' , and 'topology' for the
+            processes in the generator. Generators include lone processes.
+        settings: experiment configuration settings.
+        initial_state: is the initial_state.
+
+    Returns:
+        The experiment.
+    """
+    if settings is None:
+        settings = {}
+    if initial_state is None:
+        initial_state = {}
+
+    # make the hierarchy
+    network = initialize_hierarchy(hierarchy)
+    processes = network['processes']
+    topology = network['topology']
+
+    experiment_config = {
+        'processes': processes,
+        'topology': topology,
+        'initial_state': initial_state}
+
+    for key, setting in settings.items():
+        if key in experiment_config_keys:
+            experiment_config[key] = setting
+    return Experiment(experiment_config)
+
+
+
+##################################################
+# agent_environment_experiment loading functions #
+##################################################
+
 def make_agents(
         agent_ids,
         compartment,
@@ -46,9 +171,9 @@ def make_agents(
     Arguments:
     * **agent_ids**: list of agent ids
     * **compartment**: the compartment of the agent type
-    * **config**: comparment configuration
+    * **config**: compartment configuration
     Returns:
-        the intialized agent processes and topology
+        the initialized agent processes and topology
     """
     if config is None:
         config = {}
@@ -91,100 +216,8 @@ def make_agent_ids(agents_config):
     # remove configs with number = 0
     for index in sorted(remove, reverse=True):
         del agents_config[index]
+
     return agent_ids
-
-
-def add_process_to_tree(process_def, processes, topology):
-    process_type = process_def['type']
-    process_config = process_def['config']
-    process_topology = process_def['topology']
-
-    # make the process
-    process = process_type(process_config)
-
-    # extend processes and topology list
-    name = process_def.get('name', process.name)
-    deep_merge(processes, {name: process})
-    deep_merge(topology, {name: process_topology})
-
-def add_generator_to_tree(generator_def, processes, topology):
-    generator_type = generator_def['type']
-    generator_config = generator_def['config']
-
-    # generate
-    composite = generator_type(generator_config)
-    network = composite.generate()
-    new_processes = network['processes']
-    new_topology = network['topology']
-
-    # replace process names that already exist
-    replace_name = []
-    for name, p in new_processes.items():
-        if name in processes:
-            replace_name.append(name)
-    for name in replace_name:
-        new_name = name + '_' +str(uuid.uuid1())
-        new_processes[new_name] = new_processes[name]
-        new_topology[new_name] = new_topology[name]
-        del new_processes[name]
-        del new_topology[name]
-
-    # extend processes and topology list
-    composite_name = generator_def.get('name', composite.name)
-    deep_merge_check(processes, {composite_name: new_processes})
-    deep_merge(topology, {composite_name: new_topology})
-
-
-def initialize_hierarchy(hierarchy):
-    processes = {}
-    topology = {}
-    for key, level in hierarchy.items():
-        if key == 'processes':
-            if isinstance(level, list):
-                for process_def in level:
-                    add_process_to_tree(process_def, processes, topology)
-            elif isinstance(level, dict):
-                add_process_to_tree(level, processes, topology)
-        elif key == 'generators':
-            if isinstance(level, list):
-                for generator_def in level:
-                    add_generator_to_tree(generator_def, processes, topology)
-            elif isinstance(level, dict):
-                add_generator_to_tree(level, processes, topology)
-        else:
-            network = initialize_hierarchy(level)
-            deep_merge_check(processes, {key: network['processes']})
-            deep_merge(topology, {key: network['topology']})
-
-    return {
-        'processes': processes,
-        'topology': topology}
-
-
-def compartment_hierarchy_experiment(
-        hierarchy=None,
-        settings=None,
-        initial_state=None,
-):
-    if settings is None:
-        settings = {}
-    if initial_state is None:
-        initial_state = {}
-
-    # experiment settings
-    emitter = settings.get('emitter', {'type': 'timeseries'})
-
-    # make the hierarchy
-    network = initialize_hierarchy(hierarchy)
-    processes = network['processes']
-    topology = network['topology']
-
-    experiment_config = {
-        'processes': processes,
-        'topology': topology,
-        'emitter': emitter,
-        'initial_state': initial_state}
-    return Experiment(experiment_config)
 
 
 def agent_environment_experiment(
@@ -203,7 +236,8 @@ def agent_environment_experiment(
         initial_state: the initial state for the hierarchy, with
             environment at the top level.
         initial_agent_state: the initial_state for agents, set under each agent_id.
-        settings: settings include **emitter** and **agent_names**.
+        settings: settings include **emitter** and **agent_names**. May
+            also include **timeline**.
         invoke: is the invoke object for calling updates.
 
     Returns:
@@ -214,10 +248,10 @@ def agent_environment_experiment(
     if initial_state is None:
         initial_state = {}
 
-    # experiment settings
-    emitter = settings.get('emitter', {'type': 'timeseries'})
-
     # initialize the agents
+    agents = {
+        'processes': {},
+        'topology': {}}
     if isinstance(agents_config, dict):
         # dict with single agent config
         agent_type = agents_config['type']
@@ -232,9 +266,6 @@ def agent_environment_experiment(
 
     elif isinstance(agents_config, list):
         # list with multiple agent configurations
-        agents = {
-            'processes': {},
-            'topology': {}}
         for config in agents_config:
             agent_type = config['type']
             agent_ids = config['ids']
@@ -274,92 +305,49 @@ def agent_environment_experiment(
             'names': ('names',)
         }
 
+    if 'timeline' in settings:
+        # Adding a timeline to a process requires the timeline argument
+        # in settings to have a 'timeline' key. An optional 'paths' key
+        # overrides the topology mapping from {port: path}.
+        timeline = settings['timeline']
+        timeline_process = TimelineProcess(timeline)
+        timeline_paths = timeline.get('paths', {})
+        processes.update({'timeline_process': timeline_process})
+        timeline_ports = {
+            port: timeline_paths.get(port, (port,))
+            for port in timeline_process.ports()}
+        topology.update({'timeline_process': timeline_ports})
+
     experiment_config = {
         'processes': processes,
         'topology': topology,
-        'emitter': emitter,
         'initial_state': initial_state,
     }
-    if settings.get('experiment_name'):
-        experiment_config['experiment_name'] = settings.get('experiment_name')
-    if settings.get('description'):
-        experiment_config['description'] = settings.get('description')
+
     if invoke:
         experiment_config['invoke'] = invoke
-    if 'emit_step' in settings:
-        experiment_config['emit_step'] = settings['emit_step']
+    for key, setting in settings.items():
+        if key in experiment_config_keys:
+            experiment_config[key] = setting
     return Experiment(experiment_config)
 
-def process_in_compartment(
-        process,
-        topology={}
-):
-    """ put a lone process in a compartment"""
-    class ProcessCompartment(Generator):
-        def __init__(self, config):
-            super(ProcessCompartment, self).__init__(config)
-            self.schema_override = {}
-            self.topology = topology
-            self.process = process(self.config)
 
-        def generate_processes(self, config):
-            return {'process': self.process}
 
-        def generate_topology(self, config):
-            return {
-                'process': {
-                    port: self.topology.get(port, (port,)) for port in self.process.ports_schema().keys()}}
-
-    return ProcessCompartment
-
-def make_experiment_from_configs(
-        agents_config={},
-        environment_config={},
-        initial_state={},
-        settings={},
-):
-    # experiment settings
-    emitter = settings.get('emitter', {'type': 'timeseries'})
-
-    # initialize the agents
-    agent_type = agents_config['agent_type']
-    agent_ids = agents_config['agent_ids']
-    agent = agent_type(agents_config['config'])
-    agents = make_agents(agent_ids, agent, agents_config['config'])
-
-    # initialize the environment
-    environment_type = environment_config['environment_type']
-    environment = environment_type(environment_config['config'])
-
-    return make_experiment_from_compartments(
-        environment.generate({}), agents, emitter, initial_state)
-
-def make_experiment_from_compartment_dicts(
-        environment_dict,
-        agents_dict,
-        emitter_dict,
-        initial_state
-):
-    # environment_dict comes from environment.generate()
-    # agents_dict comes from make_agents
-    processes = environment_dict['processes']
-    topology = environment_dict['topology']
-    processes['agents'] = agents_dict['processes']
-    topology['agents'] = agents_dict['topology']
-    return Experiment({
-        'processes': processes,
-        'topology': topology,
-        'emitter': emitter_dict,
-        'initial_state': initial_state})
+###########################
+# basic loading functions #
+###########################
 
 def process_in_experiment(
         process,
-        settings={}
+        settings=None,
+        initial_state=None,
 ):
-    initial_state = settings.get('initial_state', {})
-    emitter = settings.get('emitter', {'type': 'timeseries'})
-    emit_step = settings.get('emit_step')
-    timeline = settings.get('timeline', [])
+    if settings is None:
+        settings = {}
+    if initial_state is None:
+        initial_state = {}
+
+    timeline = settings.get('timeline', {})
     environment = settings.get('environment', {})
     paths = settings.get('topology', {})
 
@@ -408,22 +396,31 @@ def process_in_experiment(
     processes = deep_merge(processes, derivers['processes'])
     topology = deep_merge(topology, derivers['topology'])
 
-    return Experiment({
+    # initialize the experiment
+    experiment_config = {
         'processes': processes,
         'topology': topology,
-        'emitter': emitter,
-        'emit_step': emit_step,
-        'initial_state': initial_state})
+        'initial_state': initial_state}
+    for key, setting in settings.items():
+        if key in experiment_config_keys:
+            experiment_config[key] = setting
+    return Experiment(experiment_config)
+
 
 def compartment_in_experiment(
         compartment,
-        settings={}
+        settings=None,
+        initial_state=None,
 ):
+    if settings is None:
+        settings = {}
+    if initial_state is None:
+        initial_state = {}
+
     compartment_config = settings.get('compartment', {})
     timeline = settings.get('timeline')
     environment = settings.get('environment')
     outer_path = settings.get('outer_path', tuple())
-    emit_step = settings.get('emit_step')
 
     network = compartment.generate(compartment_config, outer_path)
     processes = network['processes']
@@ -464,15 +461,22 @@ def compartment_in_experiment(
             },
         })
 
-    return Experiment({
+    # initialize the experiment
+    experiment_config = {
         'processes': processes,
         'topology': topology,
-        'emitter': settings.get('emitter', {'type': 'timeseries'}),
-        'emit_step': emit_step,
-        'initial_state': settings.get('initial_state', {})})
+        'initial_state': initial_state}
+    for key, setting in settings.items():
+        if key in experiment_config_keys:
+            experiment_config[key] = setting
+    return Experiment(experiment_config)
 
 
-# simulation functions
+
+########################
+# simulation functions #
+########################
+
 def simulate_process(process, settings={}):
     experiment = process_in_experiment(process, settings)
     return simulate_experiment(experiment, settings)
@@ -505,7 +509,7 @@ def simulate_experiment(experiment, settings={}):
     # run simulation
     experiment.update(total_time)
     experiment.end()
-    
+
     # return data from emitter
     if return_raw_data:
         return experiment.emitter.get_data()
@@ -513,7 +517,11 @@ def simulate_experiment(experiment, settings={}):
         return experiment.emitter.get_timeseries()
 
 
-# timeseries functions
+
+########################
+# timeseries functions #
+########################
+
 def agent_timeseries_from_data(data, agents_key='cells'):
     timeseries = {}
     for time, all_states in data.items():
@@ -536,7 +544,7 @@ def save_timeseries(timeseries, out_dir='out'):
 
 def save_flat_timeseries(timeseries, out_dir='out'):
     '''Save a timeseries as a CSV in out_dir'''
-    rows = np.transpose(list(timeseries.values())).tolist()
+    rows = np.transpose(list(timeseries.values())).tolist()  # type: Any
     with open(os.path.join(out_dir, 'simulation_data.csv'), 'w') as f:
         writer = csv.writer(f)
         writer.writerow(timeseries.keys())
@@ -610,7 +618,6 @@ def _prepare_timeseries_for_comparison(
         if 'time' not in keys:
             keys.append('time')
     keys = list(keys)
-    time_index = keys.index('time')
     shared_times = set(timeseries1['time']) & set(timeseries2['time'])
     frac_timepoints_checked = (
         len(shared_times)
@@ -750,7 +757,11 @@ def assert_timeseries_close(
             )
 
 
-# TESTS
+
+#########
+# Tests #
+#########
+
 class ToyLinearGrowthDeathProcess(Process):
 
     name = 'toy_linear_growth_death'
@@ -807,7 +818,10 @@ class TestSimulateProcess:
         assert masses == expected_masses
 
 
-# toy processes
+#################
+# Toy processes #
+#################
+
 class ToyMetabolism(Process):
     name = 'toy_metabolism'
 
@@ -872,7 +886,7 @@ class ToyDeriveVolume(Deriver):
     name = 'toy_derive_volume'
 
     def __init__(self, initial_parameters={}):
-        parameters = {}
+        parameters = {}  # TODO(jerry): Ignore initial_parameters?
         super(ToyDeriveVolume, self).__init__(parameters)
 
     def ports_schema(self):
@@ -926,6 +940,7 @@ class ToyDeath(Process):
 
         return update
 
+
 class ToyCompartment(Generator):
     '''
     a toy compartment for testing
@@ -937,7 +952,7 @@ class ToyCompartment(Generator):
     def generate_processes(self, config):
         return {
             'metabolism': ToyMetabolism(
-                {'mass_conversion_rate': 0.5}), # example of overriding default parameters
+                {'mass_conversion_rate': 0.5}),  # example of overriding default parameters
             'transport': ToyTransport(),
             'death': ToyDeath({'targets': [
                 'metabolism',

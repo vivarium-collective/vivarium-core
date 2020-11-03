@@ -62,12 +62,13 @@ the variables in each of the daughter cells.
 
 from __future__ import absolute_import, division, print_function
 
+import math
 import random
 
 import numpy as np
 
 from vivarium.library.dict_utils import deep_merge
-from vivarium.library.units import Quantity, units
+from vivarium.library.units import Quantity
 
 
 class Registry(object):
@@ -77,7 +78,8 @@ class Registry(object):
     def register(self, key, item):
         if key in self.registry:
             if item != self.registry[key]:
-                raise Exception('registry already contains an entry for {}: {} --> {}'.format(key, self.registry[key], item))
+                raise Exception('registry already contains an entry for {}: {} --> {}'.format(
+                    key, self.registry[key], item))
         else:
             self.registry[key] = item
 
@@ -85,7 +87,7 @@ class Registry(object):
         return self.registry.get(key)
 
 
-## Intialize registries
+## Initialize registries
 # These are imported into module __init__.py files,
 # where the functions and classes are registered upon import
 
@@ -197,6 +199,13 @@ def divide_split(state):
     else:
         raise Exception('can not divide state {} of type {}'.format(state, type(state)))
 
+def divide_binomial(state):
+    """Binomial Divider
+    """
+    counts_1 = np.random.binomial(state, 0.5)
+    counts_2 = state - counts_1
+    return [counts_1, counts_2]
+
 def divide_zero(state):
     """Zero Divider
 
@@ -278,11 +287,11 @@ class UnitsSerializer(Serializer):
 
 class ProcessSerializer(Serializer):
     def serialize(self, data):
-        return dict(data.parameters, _name = data.name)
+        return dict(data.parameters, _name=data.name)
 
 class GeneratorSerializer(Serializer):
     def serialize(self, data):
-        return dict(data.config, _name = str(type(data)))
+        return dict(data.config, _name=str(type(data)))
 
 class FunctionSerializer(Serializer):
     def serialize(self, data):

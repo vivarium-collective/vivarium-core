@@ -70,7 +70,7 @@ def test_experiment():
     atp = path_ts[('cell', 'ATP')]
     adp = path_ts[('cell', 'ADP')]
     g6p = path_ts[('cell', 'G6P')]
-    glc = path_ts [('cell', 'GLC')]
+    glc = path_ts[('cell', 'GLC')]
 
     assert len(atp) == len(adp) == len(g6p) == len(glc)
 

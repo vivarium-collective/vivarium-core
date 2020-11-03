@@ -9,15 +9,14 @@ from vivarium.core.process import (
     Generator
 )
 from vivarium.core.composition import (
-    compartment_hierarchy_experiment,
+    compose_experiment,
+    GENERATORS_KEY,
     PROCESS_OUT_DIR,
 )
-from vivarium.core.experiment import pp
 
 # processes
 from vivarium.processes.exchange_a import ExchangeA
 from vivarium.processes.timeline import TimelineProcess
-
 
 NAME = 'meta_division'
 
@@ -27,6 +26,7 @@ def daughter_uuid(mother_id):
     return [
         str(uuid.uuid1()),
         str(uuid.uuid1())]
+
 
 def daughter_phylogeny_id(mother_id):
     return [
@@ -39,7 +39,6 @@ def divider_set_false(state):
 
 
 class MetaDivision(Deriver):
-
     name = NAME
     defaults = {
         'initial_state': {},
@@ -79,7 +78,7 @@ class MetaDivision(Deriver):
         if divide:
             daughter_ids = self.daughter_ids_function(self.agent_id)
             daughter_updates = []
-            
+
             for daughter_id in daughter_ids:
                 compartment = self.compartment.generate({
                     'agent_id': daughter_id})
@@ -101,8 +100,7 @@ class MetaDivision(Deriver):
                         'mother': self.agent_id,
                         'daughters': daughter_updates}}}
         else:
-             return {}   
-
+            return {}
 
 
 # test
@@ -164,7 +162,7 @@ def test_division():
 
     # declare the hierarchy
     hierarchy = {
-        'processes': [
+        GENERATORS_KEY: [
             {
                 'type': TimelineProcess,
                 'config': {'timeline': timeline},
@@ -175,20 +173,21 @@ def test_division():
             }
         ],
         'agents': {
-            'generators': [
-                {
-                    'name': agent_id,
+            agent_id: {
+                GENERATORS_KEY: {
                     'type': ToyAgent,
                     'config': {'agent_id': agent_id}
                 },
-            ]
+            }
         }
     }
 
     # configure experiment
-    experiment = compartment_hierarchy_experiment(
+    settings = {}
+    experiment = compose_experiment(
         hierarchy=hierarchy,
-        initial_state=initial_state)
+        initial_state=initial_state,
+        settings=settings)
 
     # run simulation
     experiment.update(time_total)
@@ -204,12 +203,13 @@ def test_division():
 
     return output
 
+
 def run_division():
     out_dir = os.path.join(PROCESS_OUT_DIR, NAME)
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
     output = test_division()
-    pp(output)
+    # pp(output)
 
 
 if __name__ == '__main__':

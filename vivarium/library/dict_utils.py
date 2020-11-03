@@ -4,7 +4,10 @@ import collections
 import copy
 from functools import reduce
 import operator
+import traceback
 
+
+MULTI_UPDATE_KEY = '_multi_update'
 
 tuple_separator = '___'
 
@@ -27,10 +30,10 @@ def deep_merge_check(dct, merge_dct):
                 and isinstance(merge_dct[k], collections.abc.Mapping)):
             try:
                 deep_merge_check(dct[k], merge_dct[k])
-            except:
-                raise Exception('dict merge mismatch: key "{}" has values {} AND {}'.format(k, dct[k], merge_dct[k]))
+            except ValueError:
+                raise ValueError('dict merge mismatch: key "{}" has values {} AND {}'.format(k, dct[k], merge_dct[k]))
         elif k in dct and (dct[k] is not merge_dct[k]):
-            raise Exception('dict merge mismatch: key "{}" has values {} AND {}'.format(k, dct[k], merge_dct[k]))
+            raise ValueError('dict merge mismatch: key "{}" has values {} AND {}'.format(k, dct[k], merge_dct[k]))
         else:
             dct[k] = merge_dct[k]
     return dct
@@ -38,7 +41,7 @@ def deep_merge_check(dct, merge_dct):
 def deep_merge_combine_lists(dct, merge_dct):
     """ Recursive dict merge with lists
 
-    Values are lists are combined into one list without repeating values.
+    Values that are lists are combined into one list without repeating values.
     This mutates dct - the contents of merge_dct are added to dct (which is also returned).
     If you want to keep dct you could call it like deep_merge(dict(dct), merge_dct)
     """
@@ -50,6 +53,31 @@ def deep_merge_combine_lists(dct, merge_dct):
             for i in v:
                 if i not in dct[k]:
                     dct[k].append(i)
+        else:
+            dct[k] = merge_dct[k]
+    return dct
+
+def deep_merge_multi_update(dct, merge_dct):
+    """ Recursive dict merge combines multiple values
+
+    If a value already exists for a key, it is added in a list
+    """
+    if dct is None:
+        dct = {}
+    if merge_dct is None:
+        merge_dct = {}
+    for k, v in merge_dct.items():
+        if (k in dct and isinstance(dct[k], dict)
+                and isinstance(merge_dct[k], collections.abc.Mapping)):
+            deep_merge_multi_update(dct[k], merge_dct[k])
+        elif k in dct:
+            # put values together in a list under '_multi_update' key
+            if isinstance(dct[k], dict) and MULTI_UPDATE_KEY in dct[k]:
+                dct[k]['_multi_update'].append(merge_dct[k])
+            else:
+                dct[k] = {
+                    '_multi_update': [
+                        dct[k], merge_dct[k]]}
         else:
             dct[k] = merge_dct[k]
     return dct
@@ -216,9 +244,11 @@ def get_path_list_from_dict(dictionary):
 
 
 def get_value_from_path(dictionary, path):
+    # noinspection PyBroadException
     try:
         return reduce(operator.getitem, path, dictionary)
-    except:
+    except Exception:
+        traceback.print_exc()
         return None
 
 
