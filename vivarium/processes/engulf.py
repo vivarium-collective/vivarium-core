@@ -15,7 +15,8 @@ from vivarium.core.process import (
 )
 from vivarium.library.units import units
 from vivarium.core.composition import (
-    compartment_hierarchy_experiment,
+    compose_experiment,
+    GENERATORS_KEY,
     PROCESS_OUT_DIR,
 )
 from vivarium.plots.simulation_output import plot_simulation_output
@@ -104,7 +105,7 @@ class ToyAgent(Generator):
                 'outer': outer_path}}
 
 
-def test_disintegrate():
+def test_engulf():
     agent_1_id = '1'
     agent_2_id = '2'
 
@@ -128,7 +129,7 @@ def test_disintegrate():
 
     # declare the hierarchy
     hierarchy = {
-        'processes': [
+        GENERATORS_KEY: [
             {
                 'type': TimelineProcess,
                 'config': {'timeline': timeline},
@@ -139,25 +140,27 @@ def test_disintegrate():
             }
         ],
         'agents': {
-            'generators': [
-                {
-                    'name': agent_1_id,
+            agent_1_id: {
+                GENERATORS_KEY: {
                     'type': ToyAgent,
                     'config': {'agent_id': agent_1_id}
-                },
-                {
-                    'name': agent_2_id,
+                }
+            },
+            agent_2_id: {
+                GENERATORS_KEY: {
                     'type': ToyAgent,
                     'config': {'agent_id': agent_2_id}
-                },
-            ]
+                }
+            }
         }
     }
 
     # configure experiment
-    experiment = compartment_hierarchy_experiment(
+    settings = {}
+    experiment = compose_experiment(
         hierarchy=hierarchy,
-        initial_state=initial_state)
+        initial_state=initial_state,
+        settings=settings)
 
     # run simulation
     experiment.update(time_total)
@@ -172,13 +175,13 @@ def test_disintegrate():
 
     return output
 
-def run_disintegrate():
+def run_engulf():
     out_dir = os.path.join(PROCESS_OUT_DIR, NAME)
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
-    output = test_disintegrate()
+    output = test_engulf()
     pp(output)
 
 
 if __name__ == '__main__':
-    run_disintegrate()
+    run_engulf()

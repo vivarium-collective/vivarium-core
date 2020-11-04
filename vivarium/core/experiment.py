@@ -691,50 +691,34 @@ class Store(object):
 
             move_entries = update.pop('_move', None)
             if move_entries is not None:
-                # move nodes
+                # move nodes from source to target path
                 for move in move_entries:
                     source_path = move['source']
-                    target_path = move['target'] + source_path
+                    target_path = move['target'] + (source_path[-1],)
 
-                    # source node
-                    source_node = self.get_path(source_path)
-                    source_values = source_node.get_value()
+                    # get the source node, move to target path
+                    source_node = self.delete_path(source_path)
+                    target = self.establish_path(target_path, {})
+                    target.set_value(source_node)
+                    # target.apply_defaults()
 
-                    # absolute_source_path = self.path_for() + source_path
-                    source_processes = self.processes(source_path)
-                    source_topology = {}
-
-                    import ipdb;
-                    ipdb.set_trace()
-
-                    # self.generate(
-                    #     target_path,
-                    #     source_processes,
-                    #     source_topology,
-                    #     source_values)
-
+                    # add process_updates
+                    source_processes = source_node.get_processes()
                     assoc_path(
                         process_updates,
                         target_path,
                         source_processes)
 
-                    assoc_path(
-                        topology_updates,
-                        target_path,
-                        source_topology)
+                    import ipdb;
+                    ipdb.set_trace()
 
-                    self.apply_subschema_path(target_path)
-                    target = self.get_path(target_path)
-                    target.apply_defaults()
-                    # target.set_value(initial_state)
+                    # TODO -- update topology
+                    # assoc_path(
+                    #     topology_updates,
+                    #     target_path,
+                    #     source_topology)
 
-                    # # remove source node
-                    # self.delete_path(source_path)
-
-                    here = self.path_for()
-                    mother_path = (mother,)
-                    self.delete_path(mother_path)
-                    deletions.append(tuple(here + mother_path))
+                    deletions.append(source_path)
 
             generate_entries = update.pop('_generate', None)
             if generate_entries is not None:
@@ -955,19 +939,32 @@ class Store(object):
         '''
         node = self.get_path(path)
         base = [(path, node)]
-        # base = [(path, self)]
         if hasattr(node, 'inner'):
-            # for key, child in self.inner.items():
             for key, child in node.inner.items():
                 down = tuple(path + (key,))
                 base += child.depth(down)
         return base
 
-    def processes(self, path=()):
-        processes = {
-            path_from: state
-            for path_from, state in self.depth(path)
-            if state and isinstance(state, Process)}
+    def get_processes(self, path=()):
+        '''
+        Get process at the given path relative to this node.
+
+        TODO -- make a test for this
+        '''
+        processes = {}
+        if path:
+            step = path[0]
+            child = self.inner.get(step)
+        else:
+            child = None
+
+        if child:
+            processes[step] = child.get_path(path[1:])
+        else:
+            processes = {
+                name: value
+                for name, value in self.get_value().items()
+                if isinstance(value, Process)}
         return processes
 
     def apply_subschema_path(self, path):
