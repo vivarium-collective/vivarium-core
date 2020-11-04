@@ -1039,11 +1039,12 @@ class Store(object):
                 set(schema.keys()) - set(topology.keys()))
             if mismatch_topology:
                 raise Exception(
-                    'topology at path {} and source {} has keys that are not in the schema: {}'.format(
-                        self.path_for(), source, mismatch_topology))
+                    'the topology for process {} at path {} uses undeclared ports: {}'.format(
+                        source, self.path_for(), mismatch_topology))
             if mismatch_schema:
-                log.debug('{} schema has keys not in topology: {}'.format(
-                    source, mismatch_schema))
+                raise Exception(
+                    'process {} has ports that are not included in the topology: {}'.format(
+                        source, mismatch_schema))
             for port, subschema in schema.items():
                 path = topology.get(port, (port,))
 
