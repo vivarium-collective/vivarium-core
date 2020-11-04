@@ -937,12 +937,17 @@ class Store(object):
         Create a mapping of every path in the tree to the node living at
         that path in the tree.
         '''
-        node = self.get_path(path)
-        base = [(path, node)]
-        if hasattr(node, 'inner'):
-            for key, child in node.inner.items():
-                down = tuple(path + (key,))
-                base += child.depth(down)
+        # node = self.get_path(path)
+        # base = [(path, node)]
+        # if hasattr(node, 'inner'):
+        #     for key, child in node.inner.items():
+        #         down = tuple(path + (key,))
+        #         base += child.depth(down)
+        # return base
+        base = [(path, self)]
+        for key, child in self.inner.items():
+            down = tuple(path + (key,))
+            base += child.depth(down)
         return base
 
     def get_processes(self, path=()):
