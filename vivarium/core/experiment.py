@@ -464,6 +464,8 @@ class Store(object):
 
             if child:
                 return child.get_path(path[1:])
+            elif isinstance(self.value, Process):
+                return self.value
             else:
                 # TODO: more handling for bad paths?
                 # TODO: check deleted?
@@ -687,6 +689,37 @@ class Store(object):
                     target.apply_defaults()
                     target.set_value(state)
 
+            move_entries = update.pop('_move', None)
+            if move_entries is not None:
+                # move nodes from source to target path
+                for move in move_entries:
+                    source_path = move['source']
+                    target_path = move['target'] + (source_path[-1],)
+
+                    # get the source node, move to target path
+                    source_node = self.delete_path(source_path)
+                    target = self.establish_path(target_path, {})
+                    target.set_value(source_node)
+                    # target.apply_defaults()
+
+                    # add process_updates
+                    source_processes = source_node.get_processes()
+                    assoc_path(
+                        process_updates,
+                        target_path,
+                        source_processes)
+
+                    import ipdb;
+                    ipdb.set_trace()
+
+                    # TODO -- update topology
+                    # assoc_path(
+                    #     topology_updates,
+                    #     target_path,
+                    #     source_topology)
+
+                    deletions.append(source_path)
+
             generate_entries = update.pop('_generate', None)
             if generate_entries is not None:
                 # generate a list of new processes
@@ -904,18 +937,35 @@ class Store(object):
         Create a mapping of every path in the tree to the node living at
         that path in the tree.
         '''
-
-        base = [(path, self)]
-        for key, child in self.inner.items():
-            down = tuple(path + (key,))
-            base += child.depth(down)
+        node = self.get_path(path)
+        base = [(path, node)]
+        if hasattr(node, 'inner'):
+            for key, child in node.inner.items():
+                down = tuple(path + (key,))
+                base += child.depth(down)
         return base
 
-    def processes(self, path=()):
-        return {
-            path: state
-            for path, state in self.depth()
-            if state.value and isinstance(state.value, Process)}
+    def get_processes(self, path=()):
+        '''
+        Get process at the given path relative to this node.
+
+        TODO -- make a test for this
+        '''
+        processes = {}
+        if path:
+            step = path[0]
+            child = self.inner.get(step)
+        else:
+            child = None
+
+        if child:
+            processes[step] = child.get_path(path[1:])
+        else:
+            processes = {
+                name: value
+                for name, value in self.get_value().items()
+                if isinstance(value, Process)}
+        return processes
 
     def apply_subschema_path(self, path):
         if path:
@@ -2346,3 +2396,4 @@ if __name__ == '__main__':
     # test_complex_topology()
 
     test_multi_port_merge()
+    
