@@ -15,7 +15,7 @@ from multiprocessing import Process as Multiprocess
 
 from vivarium.library.units import Quantity
 from vivarium.core.registry import process_registry, serializer_registry
-from vivarium.library.dict_utils import deep_merge, deep_merge_check
+from vivarium.library.dict_utils import deep_merge, deep_merge_check, deep_merge_multi_update
 
 DEFAULT_TIME_STEP = 1.0
 
@@ -75,6 +75,7 @@ def override_schemas(overrides, processes):
         else:
             override_schemas(override, process)
 
+
 def generate_derivers(processes, topology):
     deriver_processes = {}
     deriver_topology = {}
@@ -106,6 +107,148 @@ def generate_derivers(processes, topology):
         'topology': deriver_topology}
 
 
+def normalize_path(path):
+    progress = []
+    for step in path:
+        if step == '..' and len(progress) > 0:
+            progress = progress[:-1]
+        else:
+            progress.append(step)
+    return progress
+
+
+def get_in(d, path, default=None):
+    if path:
+        head = path[0]
+        if head in d:
+            return get_in(d[head], path[1:])
+        return default
+    return d
+
+
+def assoc_path(d, path, value):
+    if path:
+        head = path[0]
+        if len(path) == 1:
+            d[head] = value
+        else:
+            if head not in d:
+                d[head] = {}
+            assoc_path(d[head], path[1:], value)
+    elif isinstance(value, dict):
+        deep_merge(d, value)
+
+
+def without(d, removing):
+    return {
+        key: value
+        for key, value in d.items()
+        if key != removing}
+
+
+def update_in(d, path, f):
+    if path:
+        head = path[0]
+        d.setdefault(head, {})
+        updated = copy.deepcopy(d)
+        updated[head] = update_in(d[head], path[1:], f)
+        return updated
+    return f(d)
+
+
+def inverse_topology(outer, update, topology):
+    '''
+    Transform an update from the form its process produced into
+    one aligned to the given topology.
+
+    The inverse of this function (using a topology to construct a view for
+    the perspective of a Process ports_schema()) lives in `Store`, called
+    `topology_state`. This one stands alone as it does not require a store
+    to calculate.
+    '''
+
+    inverse = {}
+    for key, path in topology.items():
+        if key == '*':
+
+            if isinstance(path, dict):
+                node = inverse
+                if '_path' in path:
+                    inner = normalize_path(outer + path['_path'])
+                    node = get_in(inverse, inner)
+                    if node is None:
+                        node = {}
+                        assoc_path(inverse, inner, node)
+                    path = without(path, '_path')
+
+                for child, child_update in update.items():
+                    node[child] = inverse_topology(
+                        tuple(),
+                        update[child],
+                        path)
+
+            else:
+                for child, child_update in update.items():
+                    inner = normalize_path(outer + path + (child,))
+                    if isinstance(child_update, dict):
+                        inverse = update_in(
+                            inverse,
+                            inner,
+                            lambda current: deep_merge(
+                                current, child_update))
+                    else:
+                        assoc_path(inverse, inner, child_update)
+
+        elif key in update:
+            value = update[key]
+            if isinstance(path, dict):
+                node = inverse
+                if '_path' in path:
+                    inner = normalize_path(outer + path['_path'])
+                    node = get_in(inverse, inner)
+                    if node is None:
+                        node = {}
+                        assoc_path(inverse, inner, node)
+                    path = without(path, '_path')
+
+                    for update_key in update[key].keys():
+                        if update_key not in path:
+                            path[update_key] = (update_key,)
+
+                deep_merge(
+                    node,
+                    inverse_topology(
+                        tuple(),
+                        value,
+                        path))
+
+            else:
+                inner = normalize_path(outer + path)
+                if isinstance(value, dict):
+                    inverse = update_in(
+                        inverse,
+                        inner,
+                        lambda current: deep_merge_multi_update(current, value))
+                else:
+                    assoc_path(inverse, inner, value)
+    return inverse
+
+def get_composite_initial_state(processes, topology):
+    initial_state = {}
+    for path, node in processes.items():
+        if isinstance(node, dict):
+            for key in node.keys():
+                initial_state[key] = get_composite_initial_state(node, topology[path])
+        elif isinstance(node, Process):
+            process_topology = topology[path]
+            process_state = node.initial_state()
+            process_path = tuple()
+            state = inverse_topology(process_path, process_state, process_topology)
+            initial_state = deep_merge(initial_state, state)
+
+    return initial_state
+
+
 class Generator(object):
     """Generator parent class
 
@@ -129,7 +272,7 @@ class Generator(object):
         self.merge_topology = {}
 
     def initial_state(self, config=None):
-        """Get initial state in embedded path dictionary
+        """ Merge all processes' initial states
 
         Every subclass may override this method.
 
@@ -142,7 +285,11 @@ class Generator(object):
             dict: Subclass implementations must return a dictionary
             mapping state paths to initial values.
         """
-        raise Exception('{} does not include an "initial_state" function'.format(self.name))
+        network = self.generate(config)
+        processes = network['processes']
+        topology = network['topology']
+        initial_state = get_composite_initial_state(processes, topology)
+        return initial_state
 
     def generate_processes(self, config):
         """Generate processes dictionary
@@ -249,6 +396,22 @@ class Process(Generator):
 
         self.parameters = self.config
         self.parallel = self.config.pop('_parallel', False)
+
+    def initial_state(self, config=None):
+        """Get initial state in embedded path dictionary
+
+        Every subclass may override this method.
+
+        Arguments:
+            config (dict): A dictionary of configuration options. All
+                subclass implementation must accept this parameter, but
+                some may ignore it.
+
+        Returns:
+            dict: Subclass implementations must return a dictionary
+            mapping state paths to initial values.
+        """
+        raise Exception('{} does not include an "initial_state" function'.format(self.name))
 
     def generate_processes(self, config):
         return {self.name: self}
@@ -377,6 +540,60 @@ class ParallelProcess(object):
         self.multiprocess.join()
 
 
+def test_generator_initial_state():
+    """
+    test that initial state in generator merges individual processes' initial states
+    """
+    class AA(Process):
+        name = 'AA'
+        def initial_state(self, config=None):
+            return {'a_port': {'a': 1}}
+        def ports_schema(self):
+            return {'a_port': {'a': {'_emit': True}}}
+        def next_update(self, timestep, states):
+            return {'a_port': {'a': 1}}
+
+    class BB(Generator):
+        name = 'BB'
+        def generate_processes(self, config):
+            return {
+                'a1': AA({}),
+                'a2': AA({}),
+                'a3': {
+                    'a3_store': AA({})}
+            }
+        def generate_topology(self, config):
+            return {
+                'a1': {
+                    'a_port': ('a1_store',)
+                },
+                'a2': {
+                    'a_port': {
+                        'a': ('a1_store', 'b')}
+                },
+                'a3': {
+                    'a3_store': {
+                        'a_port': ('a3_1_store',)},
+                }
+            }
+
+    # run experiment
+    bb_composite = BB({})
+    initial_state = bb_composite.initial_state()
+    expected_initial_state = {
+        'a3_store': {
+            'a3_1_store': {
+                'a': 1
+            }
+        },
+        'a1_store': {
+            'a': 1,
+            'b': 1
+        }
+    }
+    assert initial_state == expected_initial_state
+
+
 def test_generator_merge():
     class ToyProcess(Process):
         name = 'toy'
@@ -437,4 +654,6 @@ def test_generator_merge():
 
 
 if __name__ == '__main__':
-    test_generator_merge()
+    # test_generator_merge()
+
+    test_generator_initial_state()
