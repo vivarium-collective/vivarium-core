@@ -1042,9 +1042,10 @@ class Store(object):
                     'the topology for process {} at path {} uses undeclared ports: {}'.format(
                         source, self.path_for(), mismatch_topology))
             if mismatch_schema:
-                raise Exception(
+                raise UserWarning(
                     'process {} has ports that are not included in the topology: {}'.format(
                         source, mismatch_schema))
+
             for port, subschema in schema.items():
                 path = topology.get(port, (port,))
 
@@ -1996,6 +1997,58 @@ def test_inverse_topology():
 
     assert inverse == expected_inverse
 
+def test_2_store_1_port():
+    """
+    Split one port of a processes into two stores
+    """
+    class OnePort(Process):
+        name = 'one_port'
+        def ports_schema(self):
+            return {
+                'A': {
+                    'a': {
+                        '_default': 0,
+                        '_emit': True},
+                    'b': {
+                        '_default': 0,
+                        '_emit': True}
+                }
+            }
+        def next_update(self, timestep, states):
+            return {
+                'A': {
+                    'a': 1,
+                    'b': 2}}
+
+    class SplitPort(Generator):
+        """splits OnePort's ports into two stores"""
+        name = 'split_port_generator'
+        def generate_processes(self, config):
+            return {
+                'one_port': OnePort({})}
+        def generate_topology(self, config):
+            return {
+                'one_port': {
+                    'A': {
+                        'a': ('internal', 'a',),
+                        'b': ('external', 'a',)
+                    }
+                }}
+
+    # run experiment
+    split_port = SplitPort({})
+    network = split_port.generate()
+    exp = Experiment({
+        'processes': network['processes'],
+        'topology': network['topology']})
+
+    exp.update(2)
+    output = exp.emitter.get_timeseries()
+    expected_output = {
+        'external': {'a': [0, 2, 4]},
+        'internal': {'a': [0, 1, 2]},
+        'time': [0.0, 1.0, 2.0]}
+    assert output == expected_output
 
 
 def test_multi_port_merge():
@@ -2345,5 +2398,6 @@ if __name__ == '__main__':
     # test_sine()
     # test_parallel()
     # test_complex_topology()
+    # test_multi_port_merge()
 
-    test_multi_port_merge()
+    test_2_store_1_port()
