@@ -113,6 +113,7 @@ experiment_config_keys = [
         'initial_state',
         'emitter',
         'emit_step',
+        'display_info',
         'progress_bar',
         'invoke',
     ]
