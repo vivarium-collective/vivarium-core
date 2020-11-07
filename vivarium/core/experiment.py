@@ -4,9 +4,6 @@ Experiment and Store Classes
 ==========================================
 '''
 
-
-from __future__ import absolute_import, division, print_function
-
 import os
 import copy
 import math
@@ -34,7 +31,10 @@ from vivarium.core.process import (
     Process,
     ParallelProcess,
     serialize_dictionary,
-    inverse_topology, get_in, assoc_path, without, update_in, delete_in,
+)
+from vivarium.library.topology import (
+    get_in, delete_in, assoc_path,
+    without, update_in, inverse_topology
 )
 from vivarium.core.registry import (
     divider_registry,
