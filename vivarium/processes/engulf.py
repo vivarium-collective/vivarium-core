@@ -43,6 +43,7 @@ class Engulf(Deriver):
         self.inner_path = self.parameters['inner_path']
 
     def ports_schema(self):
+        ''' trigger list includes ids of things to engulf '''
         return {
             'trigger': {
                 '_default': [],
@@ -60,7 +61,9 @@ class Engulf(Deriver):
             neighbor_ids = states['trigger']
             # move neighbors from outer to inner, reset trigger
             return {
-                'trigger': {'_updater': 'set', '_value': []},
+                'trigger': {
+                    '_updater': 'set',
+                    '_value': []},
                 'outer': {
                     '_move': [{
                         'source': (id,),

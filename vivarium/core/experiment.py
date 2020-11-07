@@ -113,6 +113,11 @@ def delete_in(d, path):
             # down = d[head]
             delete_in(d[head], path[1:])
 
+def explode(path_list, f=lambda x: x):
+    d = {}
+    for path, node in path_list:
+        assoc_path(d, path, f(node))
+    return d
 
 def depth(tree, path=()):
     '''
@@ -698,15 +703,15 @@ class Store(object):
 
                     # get the source node, move to target path
                     source_node = self.delete_path(source_path)
-                    target = self.establish_path(target_path, {})
-                    target.set_value(source_node)
-                    # target.apply_defaults()
+                    target = self.add_inner(target_path, source_node)
+
+                    source_nodes = target.depth(predicate=lambda x: isinstance(x.value, Process))
+                    source_processes = explode(source_nodes, lambda x: x.value)
 
                     # add process_updates
-                    source_processes = source_node.get_processes()
                     assoc_path(
                         process_updates,
-                        target_path,
+                        target_path[:-1],
                         source_processes)
 
                     import ipdb;
@@ -932,45 +937,41 @@ class Store(object):
                 key: state.inner_value(key)
                 for key in keys}
 
-    def depth(self, path=()):
+    def depth(self, path=(), predicate=None):
         '''
         Create a mapping of every path in the tree to the node living at
         that path in the tree.
         '''
-        # node = self.get_path(path)
-        # base = [(path, node)]
-        # if hasattr(node, 'inner'):
-        #     for key, child in node.inner.items():
-        #         down = tuple(path + (key,))
-        #         base += child.depth(down)
-        # return base
-        base = [(path, self)]
+        base = []
+        if predicate is None or predicate(self):
+            base += [(path, self)]
+
         for key, child in self.inner.items():
             down = tuple(path + (key,))
-            base += child.depth(down)
+            base += child.depth(down, predicate)
         return base
 
     def get_processes(self, path=()):
         '''
         Get process at the given path relative to this node.
-
-        TODO -- make a test for this
         '''
-        processes = {}
-        if path:
-            step = path[0]
-            child = self.inner.get(step)
-        else:
-            child = None
+        pass
 
-        if child:
-            processes[step] = child.get_path(path[1:])
-        else:
-            processes = {
-                name: value
-                for name, value in self.get_value().items()
-                if isinstance(value, Process)}
-        return processes
+        # processes = {}
+        # if path:
+        #     step = path[0]
+        #     child = self.inner.get(step)
+        # else:
+        #     child = None
+        #
+        # if child:
+        #     processes[step] = child.get_path(path[1:])
+        # else:
+        #     processes = {
+        #         name: value
+        #         for name, value in self.get_value().items()
+        #         if isinstance(value, Process)}
+        # return processes
 
     def apply_subschema_path(self, path):
         if path:
@@ -1059,6 +1060,11 @@ class Store(object):
         else:
             self.apply_config(config, source=source)
             return self
+
+    def add_inner(self, path, node):
+        target = self.establish_path(path[:-1], {})
+        target.inner.update({path[-1]: node})
+        return target
 
     def outer_path(self, path, source=None):
         '''
@@ -1483,6 +1489,10 @@ class Experiment(object):
     def apply_update(self, update, process_topology, state):
         topology_updates, process_updates, deletions = self.state.apply_update(
             update, process_topology, state)
+
+        # TODO -- topology_updates, process_updates need to be (path, value) pairs, to allow for '..'
+        # deletions are already lists of paths?
+        # this is how topology updates are applied.
 
         if topology_updates:
             self.topology = deep_merge(self.topology, topology_updates)
