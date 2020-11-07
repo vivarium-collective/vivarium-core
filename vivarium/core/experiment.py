@@ -80,6 +80,7 @@ def get_in(d, path, default=None):
 
 
 def assoc_path(d, path, value):
+    path = normalize_path(path)
     if path:
         head = path[0]
         if len(path) == 1:
@@ -2330,6 +2331,13 @@ def test_sine():
         'amplitude': 0.1,
         'phase': 1.5}))
 
+def test_assoc_path():
+    x = {'a': {'b': 1, 'c': 2}, 'e': {'f': 3}}
+    assoc_path(x, ('a', 'b'), 5)
+    assert x == {'a': {'b': 5, 'c': 2}, 'e': {'f': 3}}
+    assoc_path(x, ('a', 'b', '..'), 5)
+    assert x =={'a': 5, 'e': {'f': 3}}
+
 
 if __name__ == '__main__':
     # test_recursive_store()
@@ -2340,5 +2348,6 @@ if __name__ == '__main__':
     # test_sine()
     # test_parallel()
     # test_complex_topology()
+    # test_multi_port_merge()
 
-    test_multi_port_merge()
+    test_assoc_path()
