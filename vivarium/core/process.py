@@ -204,14 +204,14 @@ class Generator(object):
         processes = self.generate_processes(config)
         topology = self.generate_topology(config)
 
+        # add merged processes
+        processes = deep_merge(processes, self.merge_processes)
+        topology = deep_merge(topology, self.merge_topology)
+
         # add derivers
         derivers = generate_derivers(processes, topology)
         processes = deep_merge(derivers['processes'], processes)
         topology = deep_merge(derivers['topology'], topology)
-
-        # add merged processes
-        processes = deep_merge(processes, self.merge_processes)
-        topology = deep_merge(topology, self.merge_topology)
 
         override_schemas(self.schema_override, processes)
 
