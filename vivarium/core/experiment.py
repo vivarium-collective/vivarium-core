@@ -699,16 +699,8 @@ class Store(object):
                         generate['topology'],
                         generate['initial_state'])
 
-                    # TODO -- add processes and topologies as (path, node) lists
-                    # assoc_path(
-                    #     process_updates,
-                    #     path,
-                    #     generate['processes'])
-                    #
-                    # assoc_path(
-                    #     topology_updates,
-                    #     path,
-                    #     generate['topology'])
+                    process_updates.append((path, generate['processes']))
+                    topology_updates.append((path, generate['topology']))
 
                     self.apply_subschema_path(path)
                     self.get_path(path).apply_defaults()
@@ -739,16 +731,8 @@ class Store(object):
                         daughter['topology'],
                         daughter['initial_state'])
 
-                    # TODO -- add processes and topologies as (path, node) lists
-                    # assoc_path(
-                    #     process_updates,
-                    #     path,
-                    #     daughter['processes'])
-                    #
-                    # assoc_path(
-                    #     topology_updates,
-                    #     path,
-                    #     daughter['topology'])
+                    process_updates.append((path, daughter['processes']))
+                    topology_updates.append((path, daughter['topology']))
 
                     self.apply_subschema_path(path)
                     target = self.get_path(path)
@@ -767,16 +751,16 @@ class Store(object):
                         value, process_topology, state)
 
                     if inner_topology:
-                        # TODO -- add inner_topology needs to be appended, not merged
-                        # topology_updates = deep_merge(
-                        #     topology_updates,
-                        #     {key: inner_topology})
+                        topology_paths = [
+                            ((key,) + path, value)
+                            for path, value in inner_topology]
+                        topology_updates.extend(topology_paths)
 
                     if inner_processes:
-                        # TODO -- add inner_processes needs to be appended, not merged
-                        # process_updates = deep_merge(
-                        #     process_updates,
-                        #     {key: inner_processes})
+                        process_paths = [
+                            ((key,) + path, value)
+                            for path, value in inner_processes]
+                        process_updates.extend(process_paths)
 
                     if inner_deletions:
                         deletions += inner_deletions
@@ -1433,14 +1417,20 @@ class Experiment(object):
         topology_updates, process_updates, deletions = self.state.apply_update(
             update, process_topology, state)
 
-        # TODO -- convert topology_updates to dict, then merge
         if topology_updates:
-            # self.topology = deep_merge(self.topology, topology_updates)
+            # convert (path, value) pairs in topology_updates to dict, then merge
+            topology_updates_dict = {}
+            for path, value in topology_updates:
+                assoc_path(topology_updates_dict, path, value)
+            self.topology = deep_merge(self.topology, topology_updates_dict)
 
-        # TODO -- convert process_updates to dict, then merge
         if process_updates:
-            # self.processes = deep_merge(self.processes, process_updates)
-            self.find_process_paths(process_updates)
+            # convert (path, value) pairs in process_updates to dict, then merge
+            process_updates_dict = {}
+            for path, value in process_updates:
+                assoc_path(process_updates_dict, path, value)
+            self.processes = deep_merge(self.processes, process_updates_dict)
+            self.find_process_paths(process_updates_dict)
 
         if deletions:
             for deletion in deletions:
