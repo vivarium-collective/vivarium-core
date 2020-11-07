@@ -664,7 +664,7 @@ class Store(object):
         elif self.inner or self.subschema:
             # Branch update: this node has an inner
 
-            process_updates, topology_updates, deletions = {}, {}, []
+            process_updates, topology_updates, deletions = [], [], []
             update = dict(update)  # avoid mutating the caller's dict
 
             delete_paths = update.pop('_delete', None)
@@ -699,15 +699,16 @@ class Store(object):
                         generate['topology'],
                         generate['initial_state'])
 
-                    assoc_path(
-                        process_updates,
-                        path,
-                        generate['processes'])
-
-                    assoc_path(
-                        topology_updates,
-                        path,
-                        generate['topology'])
+                    # TODO -- add processes and topologies as (path, node) lists
+                    # assoc_path(
+                    #     process_updates,
+                    #     path,
+                    #     generate['processes'])
+                    #
+                    # assoc_path(
+                    #     topology_updates,
+                    #     path,
+                    #     generate['topology'])
 
                     self.apply_subschema_path(path)
                     self.get_path(path).apply_defaults()
@@ -738,15 +739,16 @@ class Store(object):
                         daughter['topology'],
                         daughter['initial_state'])
 
-                    assoc_path(
-                        process_updates,
-                        path,
-                        daughter['processes'])
-
-                    assoc_path(
-                        topology_updates,
-                        path,
-                        daughter['topology'])
+                    # TODO -- add processes and topologies as (path, node) lists
+                    # assoc_path(
+                    #     process_updates,
+                    #     path,
+                    #     daughter['processes'])
+                    #
+                    # assoc_path(
+                    #     topology_updates,
+                    #     path,
+                    #     daughter['topology'])
 
                     self.apply_subschema_path(path)
                     target = self.get_path(path)
@@ -765,14 +767,16 @@ class Store(object):
                         value, process_topology, state)
 
                     if inner_topology:
-                        topology_updates = deep_merge(
-                            topology_updates,
-                            {key: inner_topology})
+                        # TODO -- add inner_topology needs to be appended, not merged
+                        # topology_updates = deep_merge(
+                        #     topology_updates,
+                        #     {key: inner_topology})
 
                     if inner_processes:
-                        process_updates = deep_merge(
-                            process_updates,
-                            {key: inner_processes})
+                        # TODO -- add inner_processes needs to be appended, not merged
+                        # process_updates = deep_merge(
+                        #     process_updates,
+                        #     {key: inner_processes})
 
                     if inner_deletions:
                         deletions += inner_deletions
@@ -1429,11 +1433,13 @@ class Experiment(object):
         topology_updates, process_updates, deletions = self.state.apply_update(
             update, process_topology, state)
 
+        # TODO -- convert topology_updates to dict, then merge
         if topology_updates:
-            self.topology = deep_merge(self.topology, topology_updates)
+            # self.topology = deep_merge(self.topology, topology_updates)
 
+        # TODO -- convert process_updates to dict, then merge
         if process_updates:
-            self.processes = deep_merge(self.processes, process_updates)
+            # self.processes = deep_merge(self.processes, process_updates)
             self.find_process_paths(process_updates)
 
         if deletions:
