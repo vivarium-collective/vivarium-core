@@ -14,7 +14,7 @@ from multiprocessing import Process as Multiprocess
 from vivarium.library.topology import get_in, assoc_path, without, update_in, inverse_topology
 from vivarium.library.units import Quantity
 from vivarium.core.registry import process_registry, serializer_registry
-from vivarium.library.dict_utils import deep_merge, deep_merge_check, deep_merge_multi_update
+from vivarium.library.dict_utils import deep_merge, deep_merge_check
 
 DEFAULT_TIME_STEP = 1.0
 
