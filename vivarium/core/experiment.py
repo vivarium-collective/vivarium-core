@@ -34,7 +34,7 @@ from vivarium.core.process import (
     Process,
     ParallelProcess,
     serialize_dictionary,
-    inverse_topology, get_in, assoc_path, without, update_in,
+    inverse_topology, get_in, assoc_path, without, update_in, delete_in,
 )
 from vivarium.core.registry import (
     divider_registry,
@@ -69,18 +69,6 @@ def key_for_value(d, looking):
             found = key
             break
     return found
-
-
-def delete_in(d, path):
-    if len(path) > 0:
-        head = path[0]
-        if len(path) == 1:
-            # at the node to be deleted
-            if head in d:
-                del d[head]
-        elif head in d:
-            # down = d[head]
-            delete_in(d[head], path[1:])
 
 
 def depth(tree, path=()):

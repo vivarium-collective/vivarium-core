@@ -125,6 +125,16 @@ def get_in(d, path, default=None):
         return default
     return d
 
+def delete_in(d, path):
+    if len(path) > 0:
+        head = path[0]
+        if len(path) == 1:
+            # at the node to be deleted
+            if head in d:
+                del d[head]
+        elif head in d:
+            # down = d[head]
+            delete_in(d[head], path[1:])
 
 def assoc_path(d, path, value):
     if path:
