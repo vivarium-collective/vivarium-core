@@ -35,7 +35,7 @@ from vivarium.core.process import (
 from vivarium.library.topology import (
     get_in, delete_in, assoc_path,
     without, update_in, inverse_topology,
-    explode,
+    path_list_to_dict,
 )
 from vivarium.core.registry import (
     divider_registry,
@@ -656,7 +656,7 @@ class Store(object):
 
                     # get the source processes and topology
                     source_process_paths = source_node.depth(predicate=lambda x: isinstance(x.value, Process))
-                    source_processes = explode(source_process_paths, lambda x: x.value)
+                    source_processes = path_list_to_dict(source_process_paths, lambda x: x.value)
                     source_topology = get_in(experiment_topology, source_absolute)
 
                     # move source node to target path

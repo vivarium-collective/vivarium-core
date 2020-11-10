@@ -54,7 +54,7 @@ def update_in(d, path, f):
     return f(d)
 
 
-def explode(path_list, f=lambda x: x):
+def path_list_to_dict(path_list, f=lambda x: x):
     d = {}
     for path, node in path_list:
         assoc_path(d, path, f(node))
