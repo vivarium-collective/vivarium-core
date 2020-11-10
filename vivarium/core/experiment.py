@@ -4,9 +4,6 @@ Experiment and Store Classes
 ==========================================
 '''
 
-
-from __future__ import absolute_import, division, print_function
-
 import os
 import copy
 import math
@@ -34,6 +31,11 @@ from vivarium.core.process import (
     Process,
     ParallelProcess,
     serialize_dictionary,
+)
+from vivarium.library.topology import (
+    get_in, delete_in, assoc_path,
+    without, update_in, inverse_topology,
+    explode,
 )
 from vivarium.core.registry import (
     divider_registry,
@@ -69,56 +71,6 @@ def key_for_value(d, looking):
             break
     return found
 
-
-def get_in(d, path, default=None):
-    if path:
-        head = path[0]
-        if head in d:
-            return get_in(d[head], path[1:])
-        return default
-    return d
-
-
-def assoc_path(d, path, value):
-    if path:
-        head = path[0]
-        if len(path) == 1:
-            d[head] = value
-        else:
-            if head not in d:
-                d[head] = {}
-            assoc_path(d[head], path[1:], value)
-    elif isinstance(value, dict):
-        deep_merge(d, value)
-
-
-def update_in(d, path, f):
-    if path:
-        head = path[0]
-        d.setdefault(head, {})
-        updated = copy.deepcopy(d)
-        updated[head] = update_in(d[head], path[1:], f)
-        return updated
-    return f(d)
-
-
-def delete_in(d, path):
-    if len(path) > 0:
-        head = path[0]
-        if len(path) == 1:
-            # at the node to be deleted
-            if head in d:
-                del d[head]
-        elif head in d:
-            # down = d[head]
-            delete_in(d[head], path[1:])
-
-def explode(path_list, f=lambda x: x):
-    d = {}
-    for path, node in path_list:
-        assoc_path(d, path, f(node))
-    return d
-
 def depth(tree, path=()):
     '''
     Create a mapping of every path in the tree to the node living at
@@ -136,12 +88,6 @@ def depth(tree, path=()):
 
     return base
 
-
-def without(d, removing):
-    return {
-        key: value
-        for key, value in d.items()
-        if key != removing}
 
 def schema_for(port, keys, initial_state, default=0.0, updater='accumulate'):
     return {
@@ -1104,11 +1050,13 @@ class Store(object):
                 set(schema.keys()) - set(topology.keys()))
             if mismatch_topology:
                 raise Exception(
-                    'topology at path {} and source {} has keys that are not in the schema: {}'.format(
-                        self.path_for(), source, mismatch_topology))
+                    'the topology for process {} at path {} uses undeclared ports: {}'.format(
+                        source, self.path_for(), mismatch_topology))
             if mismatch_schema:
-                log.debug('{} schema has keys not in topology: {}'.format(
-                    source, mismatch_schema))
+                log.info(
+                    'process {} has ports that are not included in the topology: {}'.format(
+                        source, mismatch_schema))
+
             for port, subschema in schema.items():
                 path = topology.get(port, (port,))
 
@@ -1180,85 +1128,6 @@ class Store(object):
         target.apply_defaults()
 
 
-def inverse_topology(outer, update, topology):
-    '''
-    Transform an update from the form its process produced into
-    one aligned to the given topology.
-
-    The inverse of this function (using a topology to construct a view for
-    the perspective of a Process ports_schema()) lives in `Store`, called
-    `topology_state`. This one stands alone as it does not require a store
-    to calculate.
-    '''
-
-    inverse = {}
-    for key, path in topology.items():
-        if key == '*':
-
-            if isinstance(path, dict):
-                node = inverse
-                if '_path' in path:
-                    inner = normalize_path(outer + path['_path'])
-                    node = get_in(inverse, inner)
-                    if node is None:
-                        node = {}
-                        assoc_path(inverse, inner, node)
-                    path = without(path, '_path')
-
-                for child, child_update in update.items():
-                    node[child] = inverse_topology(
-                        tuple(),
-                        update[child],
-                        path)
-
-            else:
-                for child, child_update in update.items():
-                    inner = normalize_path(outer + path + (child,))
-                    if isinstance(child_update, dict):
-                        inverse = update_in(
-                            inverse,
-                            inner,
-                            lambda current: deep_merge(
-                                current, child_update))
-                    else:
-                        assoc_path(inverse, inner, child_update)
-
-        elif key in update:
-            value = update[key]
-            if isinstance(path, dict):
-                node = inverse
-                if '_path' in path:
-                    inner = normalize_path(outer + path['_path'])
-                    node = get_in(inverse, inner)
-                    if node is None:
-                        node = {}
-                        assoc_path(inverse, inner, node)
-                    path = without(path, '_path')
-
-                    for update_key in update[key].keys():
-                        if update_key not in path:
-                            path[update_key] = (update_key,)
-
-                deep_merge(
-                    node,
-                    inverse_topology(
-                        tuple(),
-                        value,
-                        path))
-
-            else:
-                inner = normalize_path(outer + path)
-                if isinstance(value, dict):
-                    inverse = update_in(
-                        inverse,
-                        inner,
-                        lambda current: deep_merge_multi_update(current, value))
-                else:
-                    assoc_path(inverse, inner, value)
-
-    return inverse
-
-
 def invert_topology(update, args):
     path, topology = args
     return inverse_topology(path[:-1], update, topology)
@@ -1272,16 +1141,6 @@ def generate_state(processes, topology, initial_state):
     state.apply_defaults()
 
     return state
-
-
-def normalize_path(path):
-    progress = []
-    for step in path:
-        if step == '..' and len(progress) > 0:
-            progress = progress[:-1]
-        else:
-            progress.append(step)
-    return progress
 
 
 def timestamp(dt=None):
@@ -2060,6 +1919,58 @@ def test_inverse_topology():
 
     assert inverse == expected_inverse
 
+def test_2_store_1_port():
+    """
+    Split one port of a processes into two stores
+    """
+    class OnePort(Process):
+        name = 'one_port'
+        def ports_schema(self):
+            return {
+                'A': {
+                    'a': {
+                        '_default': 0,
+                        '_emit': True},
+                    'b': {
+                        '_default': 0,
+                        '_emit': True}
+                }
+            }
+        def next_update(self, timestep, states):
+            return {
+                'A': {
+                    'a': 1,
+                    'b': 2}}
+
+    class SplitPort(Generator):
+        """splits OnePort's ports into two stores"""
+        name = 'split_port_generator'
+        def generate_processes(self, config):
+            return {
+                'one_port': OnePort({})}
+        def generate_topology(self, config):
+            return {
+                'one_port': {
+                    'A': {
+                        'a': ('internal', 'a',),
+                        'b': ('external', 'a',)
+                    }
+                }}
+
+    # run experiment
+    split_port = SplitPort({})
+    network = split_port.generate()
+    exp = Experiment({
+        'processes': network['processes'],
+        'topology': network['topology']})
+
+    exp.update(2)
+    output = exp.emitter.get_timeseries()
+    expected_output = {
+        'external': {'a': [0, 2, 4]},
+        'internal': {'a': [0, 1, 2]},
+        'time': [0.0, 1.0, 2.0]}
+    assert output == expected_output
 
 
 def test_multi_port_merge():
@@ -2409,5 +2320,6 @@ if __name__ == '__main__':
     # test_sine()
     # test_parallel()
     # test_complex_topology()
+    # test_multi_port_merge()
 
-    test_multi_port_merge()
+    test_2_store_1_port()
