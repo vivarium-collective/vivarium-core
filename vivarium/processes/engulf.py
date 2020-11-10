@@ -170,11 +170,11 @@ def test_engulf():
     output = experiment.emitter.get_data()
     experiment.end()  # end required for parallel processes
 
-    # assert len(output['agents']['1']['dead']) == time_dead + 1
-    # assert len(output['time']) == time_total + 1
-
-    import ipdb;
-    ipdb.set_trace()
+    # assert that initial agents store has agents 1 & 2,
+    # final has only agent 1, and agent 1 subcompartment has 2
+    assert [*output[0.0]['agents'].keys()] == ['1', '2']
+    assert [*output[10.0]['agents'].keys()] == ['1']
+    assert [*output[10.0]['agents']['1']['subcompartments'].keys()] == ['2']
 
     return output
 

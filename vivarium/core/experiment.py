@@ -612,7 +612,7 @@ class Store(object):
             if self.value is None:
                 self.value = self.default
 
-    def apply_update(self, update, process_topology=None, state=None):
+    def apply_update(self, update, process_topology=None, state=None, experiment_topology=None):
         '''
         Given an arbitrary update, map all the values in that update
         to their positions in the tree where they apply, and update
@@ -665,7 +665,7 @@ class Store(object):
             multi_update = update[MULTI_UPDATE_KEY]
             assert isinstance(multi_update, list)
             for update_value in multi_update:
-                self.apply_update(update_value, process_topology, state)
+                self.apply_update(update_value, process_topology, state, experiment_topology)
             return EMPTY_UPDATES
 
         elif self.inner or self.subschema:
@@ -700,32 +700,34 @@ class Store(object):
                 for move in move_entries:
                     source_path = move['source']
                     target_path = move['target'] + (source_path[-1],)
+                    here = self.path_for()
+                    source_absolute = tuple(here + source_path)
 
-                    # get the source node, move to target path
-                    source_node = self.delete_path(source_path)
+                    # get the source node
+                    source = self.get_path(source_path[:-1])
+                    node = source_path[-1]
+                    source_node = source.inner[node]
+
+                    # get the source processes and topology
+                    source_process_paths = source_node.depth(predicate=lambda x: isinstance(x.value, Process))
+                    source_processes = explode(source_process_paths, lambda x: x.value)
+                    source_topology = get_in(experiment_topology, source_absolute)
+
+                    # move source node to target path
                     target = self.add_inner(target_path, source_node)
-                    target_paths = target.depth(predicate=lambda x: isinstance(x.value, Process))
-                    target_processes = explode(target_paths, lambda x: x.value)
 
                     assoc_path(
                         process_updates,
-                        target_path[:-1],
-                        target_processes)
+                        target_path,
+                        source_processes)
 
+                    assoc_path(
+                        topology_updates,
+                        target_path,
+                        source_topology)
 
-                    import ipdb;
-                    ipdb.set_trace()
-                    # TODO -- get absolute path??? what if move includes '..'?
-                    # The topology_update here requires an update to the outer.
-                    # inner_topology, inner_processes, inner_deletions = target.apply_update(
-                    #     value, process_topology, state)
-
-                    # assoc_path(
-                    #     topology_updates,
-                    #     target_path,
-                    #     source_topology)
-
-                    deletions.append(source_path)
+                    self.delete_path(source_path)
+                    deletions.append(source_absolute)
 
             generate_entries = update.pop('_generate', None)
             if generate_entries is not None:
@@ -802,9 +804,7 @@ class Store(object):
                 if key in self.inner:
                     inner = self.inner[key]
                     inner_topology, inner_processes, inner_deletions = inner.apply_update(
-                        value, process_topology, state)
-
-                    # TODO -- if inner_topology, inner_processes has '..', apply it up one level in topology_updates, process_updates
+                        value, process_topology, state, experiment_topology)
 
                     if inner_topology:
                         topology_updates = deep_merge(
@@ -1492,7 +1492,7 @@ class Experiment(object):
 
     def apply_update(self, update, process_topology, state):
         topology_updates, process_updates, deletions = self.state.apply_update(
-            update, process_topology, state)
+            update, process_topology, state, self.topology)
 
         if topology_updates:
             self.topology = deep_merge(self.topology, topology_updates)
