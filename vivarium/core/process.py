@@ -225,6 +225,8 @@ class Generator(object):
         topology = self.generate_topology(config)
 
         # add merged processes
+        # TODO -- if merge_processes are not initialized, config can be passed in.
+        # TODO -- here, it is assumed all merge_processes are initialized
         processes = deep_merge(processes, self.merge_processes)
         topology = deep_merge(topology, self.merge_topology)
 
@@ -249,12 +251,13 @@ class Generator(object):
             process_id: process.parameters
             for process_id, process in processes.items()}
 
-    def merge(self, processes, topology):
+    def merge(self, processes={}, topology={}, schema_override={}):
         for name, process in processes.items():
             assert isinstance(process, Process)
 
         self.merge_processes = deep_merge_check(self.merge_processes, processes)
-        self.merge_topology = deep_merge_check(self.merge_topology, topology)
+        self.merge_topology = deep_merge(self.merge_topology, topology)
+        self.schema_override = deep_merge(self.schema_override, schema_override)
 
 
 class Process(Generator):
