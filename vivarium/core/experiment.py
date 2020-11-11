@@ -901,28 +901,6 @@ class Store(object):
             base += child.depth(down, predicate)
         return base
 
-    def get_processes(self, path=()):
-        '''
-        Get process at the given path relative to this node.
-        '''
-        pass
-
-        # processes = {}
-        # if path:
-        #     step = path[0]
-        #     child = self.inner.get(step)
-        # else:
-        #     child = None
-        #
-        # if child:
-        #     processes[step] = child.get_path(path[1:])
-        # else:
-        #     processes = {
-        #         name: value
-        #         for name, value in self.get_value().items()
-        #         if isinstance(value, Process)}
-        # return processes
-
     def apply_subschema_path(self, path):
         if path:
             inner = self.inner[path[0]]
