@@ -620,14 +620,6 @@ class Store(object):
             process_updates, topology_updates, deletions = {}, {}, []
             update = dict(update)  # avoid mutating the caller's dict
 
-            delete_paths = update.pop('_delete', None)
-            if delete_paths is not None:
-                # delete a list of paths
-                here = self.path_for()
-                for path in delete_paths:
-                    self.delete_path(path)
-                    deletions.append(tuple(here + path))
-
             add_entries = update.pop('_add', None)
             if add_entries is not None:
                 # add a list of sub-states
@@ -745,6 +737,14 @@ class Store(object):
                 mother_path = (mother,)
                 self.delete_path(mother_path)
                 deletions.append(tuple(here + mother_path))
+
+            delete_paths = update.pop('_delete', None)
+            if delete_paths is not None:
+                # delete a list of paths
+                here = self.path_for()
+                for path in delete_paths:
+                    self.delete_path(path)
+                    deletions.append(tuple(here + path))
 
             for key, value in update.items():
                 if key in self.inner:
@@ -991,7 +991,11 @@ class Store(object):
 
     def add_inner(self, path, node):
         target = self.establish_path(path[:-1], {})
-        target.inner.update({path[-1]: node})
+        if path[-1] in target.get_value():
+            # this path already exists, update it
+            self.apply_update({path[-1]: node.get_value()})
+        else:
+            target.inner.update({path[-1]: node})
         return target
 
     def outer_path(self, path, source=None):
@@ -1028,8 +1032,8 @@ class Store(object):
                 set(schema.keys()) - set(topology.keys()))
             if mismatch_topology:
                 raise Exception(
-                    'the topology for process {} at path {} uses undeclared ports: {}'.format(
-                        source, self.path_for(), mismatch_topology))
+                    'topology for the process {} \n at path {} uses undeclared ports: {}'.format(
+                        source, self.path_for(), str(mismatch_topology)))
             if mismatch_schema:
                 log.info(
                     'process {} has ports that are not included in the topology: {}'.format(

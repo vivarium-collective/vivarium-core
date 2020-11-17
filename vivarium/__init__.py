@@ -21,7 +21,7 @@ from vivarium.processes.derive_counts import DeriveCounts
 from vivarium.processes.timeline import TimelineProcess
 from vivarium.processes.nonspatial_environment import NonSpatialEnvironment
 from vivarium.processes.swap_processes import SwapProcesses
-from vivarium.processes.disintegrate import Disintegrate
+from vivarium.processes.remove import Remove
 from vivarium.processes.divide_condition import DivideCondition
 
 # import updaters, dividers, serializers
@@ -43,7 +43,7 @@ process_registry.register(DeriveCounts.name, DeriveCounts)
 process_registry.register(TimelineProcess.name, TimelineProcess)
 process_registry.register(NonSpatialEnvironment.name, NonSpatialEnvironment)
 process_registry.register(SwapProcesses.name, SwapProcesses)
-process_registry.register(Disintegrate.name, Disintegrate)
+process_registry.register(Remove.name, Remove)
 
 # register updaters
 updater_registry.register('accumulate', update_accumulate)
