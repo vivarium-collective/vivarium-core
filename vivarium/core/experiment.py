@@ -991,7 +991,7 @@ class Store(object):
 
     def add_inner(self, path, node):
         target = self.establish_path(path[:-1], {})
-        if path[-1] in target.get_value():
+        if target.get_value() and path[-1] in target.get_value():
             # this path already exists, update it
             self.apply_update({path[-1]: node.get_value()})
         else:
