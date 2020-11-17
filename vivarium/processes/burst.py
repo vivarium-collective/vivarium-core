@@ -184,7 +184,7 @@ def test_burst():
 
     # asserts total A is the same at the beginning and the end
     assert output[0.0]['agents'][agent_1_id]['outer']['A'] == initial_A
-    output[5.0]['agents'][agent_1_id]['outer']['A'] + output[5.0]['agents'][agent_1_id]['inner']['A'] == initial_A
+    assert output[5.0]['agents'][agent_1_id]['outer']['A'] + output[5.0]['agents'][agent_1_id]['inner']['A'] == initial_A
 
     return output
 
