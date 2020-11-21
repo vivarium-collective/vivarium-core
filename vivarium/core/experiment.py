@@ -642,9 +642,10 @@ class Store(object):
                     source_absolute = tuple(here + source_path)
 
                     # get the source node
-                    source = self.get_path(source_path[:-1])
-                    node = source_path[-1]
-                    source_node = source.inner[node]
+                    source_node = self.get_path(source_path)
+                    # source = self.get_path(source_path[:-1])
+                    # node = source_path[-1]
+                    # source_node = source.inner[node]
 
                     # get the source processes and topology
                     source_process_paths = source_node.depth(predicate=lambda x: isinstance(x.value, Process))
