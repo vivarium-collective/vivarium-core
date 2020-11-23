@@ -562,6 +562,13 @@ class Store(object):
         to their positions in the tree where they apply, and update
         these values using each node's `_updater`.
 
+        Arguments:
+            update: The update being applied.
+            process_topology: The topology of the process from which this update was passed.
+            state: The state at the start of the time step.
+            experiment_topology: The topology of the full experiment, with all processes and
+                their port mappings.
+
         There are five topology update methods, which use the following special update keys:
 
         * `_add` - Adds states into the subtree, given a list of dicts containing:
@@ -636,12 +643,12 @@ class Store(object):
                 # add a list of sub-states
                 for added in add_entries:
                     path = added['path']
-                    state = added['state']
+                    added_state = added['state']
 
                     target = self.establish_path(path, {})
                     self.apply_subschema_path(path)
                     target.apply_defaults()
-                    target.set_value(state)
+                    target.set_value(added_state)
 
             move_entries = update.pop('_move', None)
             if move_entries is not None:
@@ -709,15 +716,14 @@ class Store(object):
                 initial_state = self.inner[mother].get_value(
                     condition=lambda child: not (isinstance(child.value, Process)),
                     f=lambda child: copy.deepcopy(child))
-                states = self.inner[mother].divide_value()
+                daughter_states = self.inner[mother].divide_value()
 
-                for daughter, state in zip(daughters, states):
-                    # daughter_id = daughter['daughter']
+                for daughter, daughter_state in zip(daughters, daughter_states):
 
                     # use initial state as default, merge in divided values
                     initial_state = deep_merge(
                         initial_state,
-                        state)
+                        daughter_state)
 
                     path = daughter['path']
 
