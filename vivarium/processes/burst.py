@@ -63,7 +63,7 @@ class Burst(Deriver):
                 'outer': {
                     # move each inner state to outer
                     '_move': [{
-                        'source': (self.agent_id, 'inner', state,),
+                        'source': (self.agent_id,) + self.inner_path + (state,),
                         'target': tuple(),
                     } for state in inner_states],
                     # remove self
