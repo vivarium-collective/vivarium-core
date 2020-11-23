@@ -415,8 +415,6 @@ class Store(object):
 
             if child:
                 return child.get_path(path[1:])
-            elif isinstance(self.value, Process):
-                return self.value
             else:
                 # TODO: more handling for bad paths?
                 # TODO: check deleted?
@@ -564,15 +562,20 @@ class Store(object):
         to their positions in the tree where they apply, and update
         these values using each node's `_updater`.
 
-        There are five special update keys:
+        There are five topology update methods, which use the following special update keys:
 
-        * `_updater` - Override the default updater with any updater you want.
-        * `_delete` - The value here is a list of paths (tuples) to delete from
-          the tree.
         * `_add` - Adds states into the subtree, given a list of dicts containing:
 
             * path - Path to the added state key.
             * state - The value of the added state.
+
+        * `_move` - Moves a node from a source to a target location in the tree.
+            This uses an update to an :term:`outer` port, which contains both the
+            source and target node locations. Can move multiple nodes according to
+            a list of dicts containing:
+
+            * source - the source path from an outer process port
+            * target - the location where the node will be placed.
 
         * `_generate` - The value has four keys, which are essentially
           the arguments to the `generate()` function:
@@ -588,6 +591,14 @@ class Store(object):
             * mother - The id of the mother (for removal)
             * daughters - List of two new daughter generate directives, of the
                 same form as the `_generate` value above.
+
+        * `_delete` - The value here is a list of paths (tuples) to delete from
+          the tree.
+
+
+        Additional special update keys are used for different update operations:
+
+        * `_updater` - Override the default updater with any updater you want.
 
         * `_reduce` - This allows a reduction over the entire subtree from some
           point downward. Its three keys are:
@@ -643,17 +654,14 @@ class Store(object):
 
                     # get the source node
                     source_node = self.get_path(source_path)
-                    # source = self.get_path(source_path[:-1])
-                    # node = source_path[-1]
-                    # source_node = source.inner[node]
 
                     # get the source processes and topology
-                    source_process_paths = source_node.depth(predicate=lambda x: isinstance(x.value, Process))
+                    source_process_paths = source_node.depth(filter=lambda x: isinstance(x.value, Process))
                     source_processes = path_list_to_dict(source_process_paths, lambda x: x.value)
                     source_topology = get_in(experiment_topology, source_absolute)
 
                     # move source node to target path
-                    target = self.add_inner(target_path, source_node)
+                    target = self.add_node(target_path, source_node)
 
                     assoc_path(
                         process_updates,
@@ -888,18 +896,20 @@ class Store(object):
                 key: state.inner_value(key)
                 for key in keys}
 
-    def depth(self, path=(), predicate=None):
+    def depth(self, path=(), filter=None):
         '''
         Create a mapping of every path in the tree to the node living at
-        that path in the tree.
+        that path in the tree. An optional `filter` argument is a function
+        that can declares the instances that will be returned, for example:
+            * filter=lambda x: isinstance(x.value, Process)
         '''
         base = []
-        if predicate is None or predicate(self):
+        if filter is None or filter(self):
             base += [(path, self)]
 
         for key, child in self.inner.items():
             down = tuple(path + (key,))
-            base += child.depth(down, predicate)
+            base += child.depth(down, filter)
         return base
 
     def apply_subschema_path(self, path):
@@ -990,7 +1000,8 @@ class Store(object):
             self.apply_config(config, source=source)
             return self
 
-    def add_inner(self, path, node):
+    def add_node(self, path, node):
+        ''' Add a node instance at the provided path '''
         target = self.establish_path(path[:-1], {})
         if target.get_value() and path[-1] in target.get_value():
             # this path already exists, update it
