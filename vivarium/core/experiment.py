@@ -901,7 +901,7 @@ class Store(object):
         Create a mapping of every path in the tree to the node living at
         that path in the tree. An optional `filter` argument is a function
         that can declares the instances that will be returned, for example:
-            * filter=lambda x: isinstance(x.value, Process)
+        * filter=lambda x: isinstance(x.value, Process)
         '''
         base = []
         if filter is None or filter(self):
