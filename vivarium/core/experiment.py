@@ -19,7 +19,7 @@ import pprint
 from multiprocessing import Pool
 from typing import Any, Dict
 
-from vivarium.library.units import Quantity
+from vivarium.library.units import units, Quantity
 from vivarium.library.dict_utils import (
     deep_merge,
     deep_merge_multi_update,
@@ -2080,6 +2080,55 @@ def test_sine():
         'phase': 1.5}))
 
 
+def test_units():
+    class UnitsMicrometer(Process):
+        name = 'units_micrometer'
+        def ports_schema(self):
+            return {
+                'A': {
+                    'a': {
+                        '_default': 0 * units.um,
+                        '_emit': True}}}
+        def next_update(self, timestep, states):
+            return {
+                'A': {'a': 1 * units.um}}
+    class UnitsMillimeter(Process):
+        name = 'units_millimeter'
+        def ports_schema(self):
+            return {
+                'A': {
+                    'a': {
+                        '_default': 0 * units.mm,
+                        '_emit': True}}}
+        def next_update(self, timestep, states):
+            return {
+                'A': {'a': 1 * units.mm}}
+    class MultiUnits(Generator):
+        name = 'multi_units_generator'
+        def generate_processes(self, config):
+            return {
+                'units_micrometer': UnitsMicrometer({}),
+                'units_millimeter': UnitsMillimeter({})}
+        def generate_topology(self, config):
+            return {
+                'units_micrometer': {'A': ('aaa',)},
+                'units_millimeter': {'A': ('aaa',)}}
+
+    # run experiment
+    multi_unit = MultiUnits({})
+    network = multi_unit.generate()
+    exp = Experiment({
+        'processes': network['processes'],
+        'topology': network['topology']})
+
+    exp.update(5)
+    output = exp.emitter.get_timeseries()
+
+    pp(output['aaa'])
+
+    import ipdb; ipdb.set_trace()
+
+
 if __name__ == '__main__':
     # test_recursive_store()
     # test_timescales()
@@ -2089,5 +2138,6 @@ if __name__ == '__main__':
     # test_parallel()
     # test_complex_topology()
     # test_multi_port_merge()
+    # test_2_store_1_port()
 
-    test_2_store_1_port()
+    test_units()
