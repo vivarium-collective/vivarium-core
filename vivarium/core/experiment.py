@@ -1481,6 +1481,181 @@ def print_progress_bar(
         print()
 
 # Tests
+quark_colors = ['green', 'red', 'blue']
+quark_spins = ['up', 'down']
+electron_spins = ['-1/2', '1/2']
+electron_orbitals = [
+    str(orbit) + 's'
+    for orbit in range(1, 8)]
+
+
+class Proton(Process):
+    name = 'proton'
+    defaults = {
+        'time_step': 1.0,
+        'radius': 0.0}
+
+    def __init__(self, parameters=None):
+        super(Proton, self).__init__(parameters)
+
+    def ports_schema(self):
+        return {
+            'radius': {
+                '_updater': 'set',
+                '_default': self.parameters['radius']},
+            'quarks': {
+                '_divider': 'split_dict',
+                '*': {
+                    'color': {
+                        '_updater': 'set',
+                        '_default': quark_colors[0]},
+                    'spin': {
+                        '_updater': 'set',
+                        '_default': quark_spins[0]}}},
+            'electrons': {
+                '*': {
+                    'orbital': {
+                        '_updater': 'set',
+                        '_default': electron_orbitals[0]},
+                    'spin': {
+                        '_default': electron_spins[0]}}}}
+
+    def next_update(self, timestep, states):
+        update = {}
+
+        collapse = np.random.random()
+        if collapse < states['radius'] * timestep:
+            update['radius'] = collapse
+            update['quarks'] = {}
+
+            for name, quark in states['quarks'].items():
+                update['quarks'][name] = {
+                    'color': np.random.choice(quark_colors),
+                    'spin': np.random.choice(quark_spins)}
+
+            update['electrons'] = {}
+            orbitals = electron_orbitals.copy()
+            for name, electron in states['electrons'].items():
+                np.random.shuffle(orbitals)
+                update['electrons'][name] = {
+                    'orbital': orbitals.pop()}
+
+        return update
+
+
+class Electron(Process):
+    name = 'electron'
+    defaults = {
+        'time_step': 1.0,
+        'spin': electron_spins[0]}
+
+    def __init__(self, parameters=None):
+        super(Electron, self).__init__(parameters)
+
+    def ports_schema(self):
+        return {
+            'spin': {
+                '_updater': 'set',
+                '_default': self.parameters['spin']},
+            'proton': {
+                'radius': {
+                    '_default': 0.0}}}
+
+    def next_update(self, timestep, states):
+        update = {}
+
+        if np.random.random() < states['proton']['radius']:
+            update['spin'] = np.random.choice(electron_spins)
+
+        return update
+
+
+class Sine(Process):
+    name = 'sine'
+    defaults = {
+        'initial_phase': 0.0}
+
+    def __init__(self, parameters=None):
+        super(Sine, self).__init__(parameters)
+
+    def ports_schema(self):
+        return {
+            'frequency': {
+                '_default': 440.0},
+            'amplitude': {
+                '_default': 1.0},
+            'phase': {
+                '_default': self.parameters['initial_phase']},
+            'signal': {
+                '_default': 0.0,
+                '_updater': 'set'}}
+
+    def next_update(self, timestep, states):
+        phase_shift = timestep * states['frequency'] % 1.0
+        signal = states['amplitude'] * math.sin(
+            2 * math.pi * (states['phase'] + phase_shift))
+
+        return {
+            'phase': phase_shift,
+            'signal': signal}
+
+
+def make_proton(parallel=False):
+    processes = {
+        'proton': Proton({'_parallel': parallel}),
+        'electrons': {
+            'a': {
+                'electron': Electron({'_parallel': parallel})},
+            'b': {
+                'electron': Electron()}}}
+
+    spin_path = ('internal', 'spin')
+    radius_path = ('structure', 'radius')
+
+    topology = {
+        'proton': {
+            'radius': radius_path,
+            'quarks': ('internal', 'quarks'),
+            'electrons': {
+                '_path': ('electrons',),
+                '*': {
+                    'orbital': ('shell', 'orbital'),
+                    'spin': spin_path}}},
+        'electrons': {
+            'a': {
+                'electron': {
+                    'spin': spin_path,
+                    'proton': {
+                        '_path': ('..', '..'),
+                        'radius': radius_path}}},
+            'b': {
+                'electron': {
+                    'spin': spin_path,
+                    'proton': {
+                        '_path': ('..', '..'),
+                        'radius': radius_path}}}}}
+
+    initial_state = {
+        'structure': {
+            'radius': 0.7},
+        'internal': {
+            'quarks': {
+                'x': {
+                    'color': 'green',
+                    'spin': 'up'},
+                'y': {
+                    'color': 'red',
+                    'spin': 'up'},
+                'z': {
+                    'color': 'blue',
+                    'spin': 'down'}}}}
+
+    return {
+        'processes': processes,
+        'topology': topology,
+        'initial_state': initial_state}
+
+
 def test_recursive_store():
     environment_config = {
         'environment': {
@@ -1557,190 +1732,6 @@ def test_recursive_store():
     state = Store(environment_config)
     state.apply_update({})
     state.state_for(['environment'], ['temperature'])
-
-
-def test_in():
-    blank = {}
-    path = ['where', 'are', 'we']
-    assoc_path(blank, path, 5)
-    print(blank)
-    print(get_in(blank, path))
-    blank = update_in(blank, path, lambda x: x + 6)
-    print(blank)
-
-
-quark_colors = ['green', 'red', 'blue']
-quark_spins = ['up', 'down']
-electron_spins = ['-1/2', '1/2']
-electron_orbitals = [
-    str(orbit) + 's'
-    for orbit in range(1, 8)]
-
-
-class Proton(Process):
-    name = 'proton'
-    defaults = {
-        'time_step': 1.0,
-        'radius': 0.0}
-
-    def __init__(self, parameters=None):
-        super(Proton, self).__init__(parameters)
-
-    def ports_schema(self):
-        return {
-            'radius': {
-                '_updater': 'set',
-                '_default': self.parameters['radius']},
-            'quarks': {
-                '_divider': 'split_dict',
-                '*': {
-                    'color': {
-                        '_updater': 'set',
-                        '_default': quark_colors[0]},
-                    'spin': {
-                        '_updater': 'set',
-                        '_default': quark_spins[0]}}},
-            'electrons': {
-                '*': {
-                    'orbital': {
-                        '_updater': 'set',
-                        '_default': electron_orbitals[0]},
-                    'spin': {
-                        '_default': electron_spins[0]}}}}
-
-    def next_update(self, timestep, states):
-        update = {}
-
-        collapse = np.random.random()
-        if collapse < states['radius'] * timestep:
-            update['radius'] = collapse
-            update['quarks'] = {}
-
-            for name, quark in states['quarks'].items():
-                update['quarks'][name] = {
-                    'color': np.random.choice(quark_colors),
-                    'spin': np.random.choice(quark_spins)}
-
-            update['electrons'] = {}
-            orbitals = electron_orbitals.copy()
-            for name, electron in states['electrons'].items():
-                np.random.shuffle(orbitals)
-                update['electrons'][name] = {
-                    'orbital': orbitals.pop()}
-
-        return update
-
-class Electron(Process):
-    name = 'electron'
-    defaults = {
-        'time_step': 1.0,
-        'spin': electron_spins[0]}
-
-    def __init__(self, parameters=None):
-        super(Electron, self).__init__(parameters)
-
-    def ports_schema(self):
-        return {
-            'spin': {
-                '_updater': 'set',
-                '_default': self.parameters['spin']},
-            'proton': {
-                'radius': {
-                    '_default': 0.0}}}
-
-    def next_update(self, timestep, states):
-        update = {}
-
-        if np.random.random() < states['proton']['radius']:
-            update['spin'] = np.random.choice(electron_spins)
-
-        return update
-
-
-def make_proton(parallel=False):
-    processes = {
-        'proton': Proton({'_parallel': parallel}),
-        'electrons': {
-            'a': {
-                'electron': Electron({'_parallel': parallel})},
-            'b': {
-                'electron': Electron()}}}
-
-    spin_path = ('internal', 'spin')
-    radius_path = ('structure', 'radius')
-
-    topology = {
-        'proton': {
-            'radius': radius_path,
-            'quarks': ('internal', 'quarks'),
-            'electrons': {
-                '_path': ('electrons',),
-                '*': {
-                    'orbital': ('shell', 'orbital'),
-                    'spin': spin_path}}},
-        'electrons': {
-            'a': {
-                'electron': {
-                    'spin': spin_path,
-                    'proton': {
-                        '_path': ('..', '..'),
-                        'radius': radius_path}}},
-            'b': {
-                'electron': {
-                    'spin': spin_path,
-                    'proton': {
-                        '_path': ('..', '..'),
-                        'radius': radius_path}}}}}
-
-    initial_state = {
-        'structure': {
-            'radius': 0.7},
-        'internal': {
-            'quarks': {
-                'x': {
-                    'color': 'green',
-                    'spin': 'up'},
-                'y': {
-                    'color': 'red',
-                    'spin': 'up'},
-                'z': {
-                    'color': 'blue',
-                    'spin': 'down'}}}}
-
-    return {
-        'processes': processes,
-        'topology': topology,
-        'initial_state': initial_state}
-
-
-class Sine(Process):
-    name = 'sine'
-    defaults = {
-        'initial_phase': 0.0}
-
-    def __init__(self, parameters=None):
-        super(Sine, self).__init__(parameters)
-
-    def ports_schema(self):
-        return {
-            'frequency': {
-                '_default': 440.0},
-            'amplitude': {
-                '_default': 1.0},
-            'phase': {
-                '_default': self.parameters['initial_phase']},
-            'signal': {
-                '_default': 0.0,
-                '_updater': 'set'}}
-
-    def next_update(self, timestep, states):
-        phase_shift = timestep * states['frequency'] % 1.0
-        signal = states['amplitude'] * math.sin(
-            2 * math.pi * (states['phase'] + phase_shift))
-
-        return {
-            'phase': phase_shift,
-            'signal': signal}
 
 
 def test_topology_ports():
@@ -1827,37 +1818,6 @@ def test_timescales():
 
     experiment.update(10.0)
 
-
-def test_inverse_topology():
-    update = {
-        'port1': {
-            'a': 5},
-        'port2': {
-            'b': 10},
-        'port3': {
-            'b': 10},
-        'global': {
-            'c': 20}}
-
-    topology = {
-        'port1': ('boundary', 'x'),
-        'global': ('boundary',),
-        'port2': ('boundary', 'y'),
-        'port3': ('boundary', 'x')}
-
-    path = ('agent',)
-    inverse = inverse_topology(path, update, topology)
-    expected_inverse = {
-        'agent': {
-            'boundary': {
-                'x': {
-                    'a': 5,
-                    'b': 10},
-                'y': {
-                    'b': 10},
-                'c': 20}}}
-
-    assert inverse == expected_inverse
 
 def test_2_store_1_port():
     """
@@ -2098,124 +2058,6 @@ def test_parallel():
     experiment.end()
 
 
-class TestUpdateIn:
-    d = {
-        'foo': {
-            1: {
-                'a': 'b',
-            },
-        },
-        'bar': {
-            'c': 'd',
-        },
-    }
-
-    def test_simple(self):
-        updated = copy.deepcopy(self.d)
-        updated = update_in(
-            updated, ('foo', 1, 'a'), lambda current: 'updated')
-        expected = {
-            'foo': {
-                1: {
-                    'a': 'updated',
-                },
-            },
-            'bar': {
-                'c': 'd',
-            },
-        }
-        assert updated == expected
-
-    def test_add_leaf(self):
-        updated = copy.deepcopy(self.d)
-        updated = update_in(
-            updated, ('foo', 1, 'new'), lambda current: 'updated')
-        expected = {
-            'foo': {
-                1: {
-                    'a': 'b',
-                    'new': 'updated',
-                },
-            },
-            'bar': {
-                'c': 'd',
-            },
-        }
-        assert updated == expected
-
-    def test_add_dict(self):
-        updated = copy.deepcopy(self.d)
-        updated = update_in(
-            updated, ('foo', 2), lambda current: {'a': 'updated'})
-        expected = {
-            'foo': {
-                1: {
-                    'a': 'b',
-                },
-                2: {
-                    'a': 'updated',
-                },
-            },
-            'bar': {
-                'c': 'd',
-            },
-        }
-        assert updated == expected
-
-    def test_complex_merge(self):
-        updated = copy.deepcopy(self.d)
-        updated = update_in(
-            updated, ('foo',),
-            lambda current: deep_merge(
-                current,
-                {'foo': {'a': 'updated'}, 'b': 2}),
-            )
-        expected = {
-            'foo': {
-                'foo': {
-                    'a': 'updated',
-                },
-                'b': 2,
-                1: {
-                    'a': 'b',
-                },
-            },
-            'bar': {
-                'c': 'd',
-            },
-        }
-        assert updated == expected
-
-    def test_add_to_root(self):
-        updated = copy.deepcopy(self.d)
-        updated = update_in(
-            updated,
-            tuple(),
-            lambda current: deep_merge(current, ({'a': 'updated'})),
-        )
-        expected = {
-            'foo': {
-                1: {
-                    'a': 'b',
-                },
-            },
-            'bar': {
-                'c': 'd',
-            },
-            'a': 'updated'
-        }
-        assert updated == expected
-
-    def test_set_root(self):
-        updated = copy.deepcopy(self.d)
-        updated = update_in(
-            updated, tuple(), lambda current: {'a': 'updated'})
-        expected = {
-            'a': 'updated',
-        }
-        assert updated == expected
-
-
 def test_depth():
     nested = {
         'A': {
@@ -2230,19 +2072,6 @@ def test_depth():
     assert dissected[('A', 'AB', 'ABC')] == 11
 
 
-def test_deletion():
-    nested = {
-        'A': {
-            'AA': 5,
-            'AB': {
-                'ABC': 11}},
-        'B': {
-            'BA': 6}}
-
-    delete_in(nested, ('A', 'AA'))
-    assert 'AA' not in nested['A']
-
-
 def test_sine():
     sine = Sine()
     print(sine.next_update(0.25 / 440.0, {
@@ -2253,7 +2082,6 @@ def test_sine():
 
 if __name__ == '__main__':
     # test_recursive_store()
-    # test_in()
     # test_timescales()
     # test_topology_ports()
     # test_multi()

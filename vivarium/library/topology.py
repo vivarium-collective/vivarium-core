@@ -140,3 +140,176 @@ def normalize_path(path):
         else:
             progress.append(step)
     return progress
+
+
+class TestUpdateIn:
+    d = {
+        'foo': {
+            1: {
+                'a': 'b',
+            },
+        },
+        'bar': {
+            'c': 'd',
+        },
+    }
+
+    def test_simple(self):
+        updated = copy.deepcopy(self.d)
+        updated = update_in(
+            updated, ('foo', 1, 'a'), lambda current: 'updated')
+        expected = {
+            'foo': {
+                1: {
+                    'a': 'updated',
+                },
+            },
+            'bar': {
+                'c': 'd',
+            },
+        }
+        assert updated == expected
+
+    def test_add_leaf(self):
+        updated = copy.deepcopy(self.d)
+        updated = update_in(
+            updated, ('foo', 1, 'new'), lambda current: 'updated')
+        expected = {
+            'foo': {
+                1: {
+                    'a': 'b',
+                    'new': 'updated',
+                },
+            },
+            'bar': {
+                'c': 'd',
+            },
+        }
+        assert updated == expected
+
+    def test_add_dict(self):
+        updated = copy.deepcopy(self.d)
+        updated = update_in(
+            updated, ('foo', 2), lambda current: {'a': 'updated'})
+        expected = {
+            'foo': {
+                1: {
+                    'a': 'b',
+                },
+                2: {
+                    'a': 'updated',
+                },
+            },
+            'bar': {
+                'c': 'd',
+            },
+        }
+        assert updated == expected
+
+    def test_complex_merge(self):
+        updated = copy.deepcopy(self.d)
+        updated = update_in(
+            updated, ('foo',),
+            lambda current: deep_merge(
+                current,
+                {'foo': {'a': 'updated'}, 'b': 2}),
+            )
+        expected = {
+            'foo': {
+                'foo': {
+                    'a': 'updated',
+                },
+                'b': 2,
+                1: {
+                    'a': 'b',
+                },
+            },
+            'bar': {
+                'c': 'd',
+            },
+        }
+        assert updated == expected
+
+    def test_add_to_root(self):
+        updated = copy.deepcopy(self.d)
+        updated = update_in(
+            updated,
+            tuple(),
+            lambda current: deep_merge(current, ({'a': 'updated'})),
+        )
+        expected = {
+            'foo': {
+                1: {
+                    'a': 'b',
+                },
+            },
+            'bar': {
+                'c': 'd',
+            },
+            'a': 'updated'
+        }
+        assert updated == expected
+
+    def test_set_root(self):
+        updated = copy.deepcopy(self.d)
+        updated = update_in(
+            updated, tuple(), lambda current: {'a': 'updated'})
+        expected = {
+            'a': 'updated',
+        }
+        assert updated == expected
+
+
+def test_inverse_topology():
+    update = {
+        'port1': {
+            'a': 5},
+        'port2': {
+            'b': 10},
+        'port3': {
+            'b': 10},
+        'global': {
+            'c': 20}}
+
+    topology = {
+        'port1': ('boundary', 'x'),
+        'global': ('boundary',),
+        'port2': ('boundary', 'y'),
+        'port3': ('boundary', 'x')}
+
+    path = ('agent',)
+    inverse = inverse_topology(path, update, topology)
+    expected_inverse = {
+        'agent': {
+            'boundary': {
+                'x': {
+                    'a': 5,
+                    'b': 10},
+                'y': {
+                    'b': 10},
+                'c': 20}}}
+
+    assert inverse == expected_inverse
+
+
+def test_deletion():
+    nested = {
+        'A': {
+            'AA': 5,
+            'AB': {
+                'ABC': 11}},
+        'B': {
+            'BA': 6}}
+
+    delete_in(nested, ('A', 'AA'))
+    assert 'AA' not in nested['A']
+
+
+def test_in():
+    blank = {}
+    path = ['where', 'are', 'we']
+    assoc_path(blank, path, 5)
+    print(blank)
+    print(get_in(blank, path))
+    blank = update_in(blank, path, lambda x: x + 6)
+    print(blank)
