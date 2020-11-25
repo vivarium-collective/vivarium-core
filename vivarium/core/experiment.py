@@ -258,18 +258,23 @@ class Store(object):
             if self.inner:
                 raise Exception('trying to assign leaf values to a branch at: {}'.format(self.path_for()))
             self.leaf = True
-            # self.units = config.get('_units', self.units)
+
+            # if '_units' in config:
+            #     self.units = config['_units']
+            #     self.serializer = serializer_registry.access('units')(self.units)
+
             if '_serializer' in config:
                 self.serializer = config['_serializer']
                 if isinstance(self.serializer, str):
-                    self.serializer = serializer_registry.access(self.serializer)
+                    self.serializer = serializer_registry.access(self.serializer)()
 
             if '_default' in config:
                 self.default = self.check_default(config.get('_default'))
                 if isinstance(self.default, Quantity):
                     self.units = self.default.units
+                    self.serializer = self.serializer or serializer_registry.access('units')(self.units)
                 if isinstance(self.default, np.ndarray):
-                    self.serializer = self.serializer or serializer_registry.access('numpy')
+                    self.serializer = self.serializer or serializer_registry.access('numpy')()
 
             if '_value' in config:
                 self.value = self.check_value(config.get('_value'))
@@ -2098,7 +2103,7 @@ def test_units():
             return {
                 'A': {
                     'a': {
-                        '_default': 0 * units.mm,
+                        # '_default': 0 * units.mm,
                         '_emit': True}}}
         def next_update(self, timestep, states):
             return {
@@ -2125,8 +2130,6 @@ def test_units():
     output = exp.emitter.get_timeseries()
 
     pp(output['aaa'])
-
-    import ipdb; ipdb.set_trace()
 
 
 if __name__ == '__main__':

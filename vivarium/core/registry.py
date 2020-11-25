@@ -282,8 +282,12 @@ class NumpyScalarSerializer(Serializer):
         )
 
 class UnitsSerializer(Serializer):
+    def __init__(self, unit):
+        self.unit = unit
     def serialize(self, data):
-        return data.magnitude
+        return data.to(self.unit).magnitude
+    def deserialize(self, data):
+        return data * self.unit
 
 class ProcessSerializer(Serializer):
     def serialize(self, data):
