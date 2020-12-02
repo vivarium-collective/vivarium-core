@@ -261,20 +261,20 @@ class Store(object):
 
             # if '_units' in config:
             #     self.units = config['_units']
-            #     self.serializer = serializer_registry.access('units')(self.units)
+            #     self.serializer = serializer_registry.access('units')
 
             if '_serializer' in config:
                 self.serializer = config['_serializer']
                 if isinstance(self.serializer, str):
-                    self.serializer = serializer_registry.access(self.serializer)()
+                    self.serializer = serializer_registry.access(self.serializer)
 
             if '_default' in config:
                 self.default = self.check_default(config.get('_default'))
                 if isinstance(self.default, Quantity):
                     self.units = self.default.units
-                    self.serializer = self.serializer or serializer_registry.access('units')(self.units)
+                    self.serializer = self.serializer or serializer_registry.access('units')
                 if isinstance(self.default, np.ndarray):
-                    self.serializer = self.serializer or serializer_registry.access('numpy')()
+                    self.serializer = self.serializer or serializer_registry.access('numpy')
 
             if '_value' in config:
                 self.value = self.check_value(config.get('_value'))
@@ -466,7 +466,10 @@ class Store(object):
         else:
             if self.emit:
                 if self.serializer:
-                    return self.serializer.serialize(self.value)
+                    if self.units:
+                        return self.serializer.serialize(self.value, self.units)
+                    else:
+                        return self.serializer.serialize(self.value)
                 elif isinstance(self.value, Process):
                     return self.value.pull_data()
                 else:
@@ -1254,14 +1257,19 @@ class Experiment(object):
             'name': self.experiment_name,
             'description': self.description,
             'topology': self.topology,
-            # TODO -- handle large parameter sets in self.processes to meet mongoDB limit
-            # 'processes': serialize_dictionary(self.processes),
-            # 'state': self.state.get_config()
+            'processes': serialize_dictionary(self.processes),
+            'state': self.state.get_config()
         }
         emit_config = {
             'table': 'configuration',
             'data': data}
-        self.emitter.emit(emit_config)
+        try:
+            self.emitter.emit(emit_config)
+        except:
+            # TODO -- handle large parameter sets in self.processes to meet mongoDB limit
+            del emit_config['data']['processes']
+            del emit_config['data']['state']
+            self.emitter.emit(emit_config)
 
     def invoke_process(self, process, path, interval, states):
         if process.parallel:
