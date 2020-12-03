@@ -2101,7 +2101,13 @@ def test_units():
                 'A': {
                     'a': {
                         '_default': 0 * units.um,
-                        '_emit': True}}}
+                        '_emit': True},
+                    'b': {
+                        '_default': 'string b',
+                        '_emit': True,
+                    }
+                }
+            }
         def next_update(self, timestep, states):
             return {
                 'A': {'a': 1 * units.um}}

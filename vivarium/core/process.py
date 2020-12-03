@@ -44,11 +44,26 @@ def serialize_value(value):
     else:
         return value
 
+def deserialize_value(value):
+    if isinstance(value, dict):
+        return deserialize_dictionary(value)
+    elif isinstance(value, list):
+        return deserialize_list(value)
+    elif isinstance(value, str):
+        try:
+            return serializer_registry.access('units').deserialize(value)
+        except:
+            return value
+    else:
+        return value
+
+
 def serialize_list(lst):
     serialized = []
     for value in lst:
         serialized.append(serialize_value(value))
     return serialized
+
 
 def serialize_dictionary(d):
     serialized = {}
@@ -57,6 +72,22 @@ def serialize_dictionary(d):
             key = str(key)
         serialized[key] = serialize_value(value)
     return serialized
+
+
+def deserialize_list(lst):
+    deserialized = []
+    for value in lst:
+        deserialized.append(deserialize_value(value))
+    return deserialized
+
+
+def deserialize_dictionary(d):
+    deserialized = {}
+    for key, value in d.items():
+        if not isinstance(key, str):
+            key = str(key)
+        deserialized[key] = deserialize_value(value)
+    return deserialized
 
 
 def assoc_in(d, path, value):

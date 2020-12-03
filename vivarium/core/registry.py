@@ -59,16 +59,13 @@ the variables in each of the daughter cells.
     randomly decide which daughter cell receives the remainder.
 """
 
-
-from __future__ import absolute_import, division, print_function
-
 import math
 import random
 
 import numpy as np
 
 from vivarium.library.dict_utils import deep_merge
-from vivarium.library.units import Quantity
+from vivarium.library.units import Quantity, units
 
 
 class Registry(object):
@@ -285,11 +282,13 @@ class UnitsSerializer(Serializer):
     def serialize(self, data, unit=None):
         if unit is not None:
             data.to(unit)
-        return data.magnitude
+        return str(data)
+
     def deserialize(self, data, unit=None):
+        unit_data = units(data)
         if unit is not None:
-            data *= unit
-        return data
+            unit_data.to(unit)
+        return unit_data
 
 class ProcessSerializer(Serializer):
     def serialize(self, data):

@@ -7,6 +7,7 @@ from urllib.parse import quote_plus
 
 from vivarium.library.dict_utils import (
     value_in_embedded_dict, make_path_dict)
+from vivarium.core.process import deserialize_value
 
 HISTORY_INDEXES = [
     'time',
@@ -100,7 +101,6 @@ def timeseries_from_data(data):
     embedded_timeseries['time'] = times_vector
     return embedded_timeseries
 
-
 class Emitter(object):
     '''Emit data to terminal
     '''
@@ -113,11 +113,14 @@ class Emitter(object):
     def get_data(self):
         return {}
 
+    def deserialize_data(self):
+        return deserialize_value(self.get_data())
+
     def get_path_timeseries(self):
-        return path_timeseries_from_data(self.get_data())
+        return path_timeseries_from_data(self.deserialize_data())
 
     def get_timeseries(self):
-        return timeseries_from_data(self.get_data())
+        return timeseries_from_data(self.deserialize_data())
 
 
 class NullEmitter(Emitter):
