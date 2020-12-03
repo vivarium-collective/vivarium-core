@@ -113,14 +113,14 @@ class Emitter(object):
     def get_data(self):
         return {}
 
-    def deserialize_data(self):
+    def get_data_deserialized(self):
         return deserialize_value(self.get_data())
 
     def get_path_timeseries(self):
-        return path_timeseries_from_data(self.deserialize_data())
+        return path_timeseries_from_data(self.get_data_deserialized())
 
     def get_timeseries(self):
-        return timeseries_from_data(self.deserialize_data())
+        return timeseries_from_data(self.get_data_deserialized())
 
 
 class NullEmitter(Emitter):

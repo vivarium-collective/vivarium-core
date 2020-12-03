@@ -84,8 +84,6 @@ def deserialize_list(lst):
 def deserialize_dictionary(d):
     deserialized = {}
     for key, value in d.items():
-        if not isinstance(key, str):
-            key = str(key)
         deserialized[key] = deserialize_value(value)
     return deserialized
 

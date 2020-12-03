@@ -259,9 +259,9 @@ class Store(object):
                 raise Exception('trying to assign leaf values to a branch at: {}'.format(self.path_for()))
             self.leaf = True
 
-            # if '_units' in config:
-            #     self.units = config['_units']
-            #     self.serializer = serializer_registry.access('units')
+            if '_units' in config:
+                self.units = config['_units']
+                self.serializer = serializer_registry.access('units')
 
             if '_serializer' in config:
                 self.serializer = config['_serializer']
@@ -271,7 +271,7 @@ class Store(object):
             if '_default' in config:
                 self.default = self.check_default(config.get('_default'))
                 if isinstance(self.default, Quantity):
-                    self.units = self.default.units
+                    self.units = self.units or self.default.units
                     self.serializer = self.serializer or serializer_registry.access('units')
                 if isinstance(self.default, np.ndarray):
                     self.serializer = self.serializer or serializer_registry.access('numpy')
