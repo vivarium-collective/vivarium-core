@@ -3,7 +3,6 @@ attrs==20.1.0
 Babel==2.8.0
 certifi==2020.6.20
 chardet==3.0.4
-confluent-kafka==1.5.0
 cycler==0.10.0
 decorator==4.4.2
 docutils==0.16
