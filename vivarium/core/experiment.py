@@ -642,7 +642,7 @@ class Store(object):
             if add_entries is not None:
                 # add a list of sub-states
                 for added in add_entries:
-                    path = added['path']
+                    path = (added['key'],)
                     added_state = added['state']
 
                     target = self.establish_path(path, {})
@@ -654,8 +654,8 @@ class Store(object):
             if move_entries is not None:
                 # move nodes from source to target path
                 for move in move_entries:
-                    source_path = move['source']
-                    target_path = move['target'] + (source_path[-1],)
+                    source_key = move['source']
+                    source_path = (source_key,)
                     here = self.path_for()
                     source_absolute = tuple(here + source_path)
 
@@ -668,7 +668,11 @@ class Store(object):
                     source_topology = get_in(experiment_topology, source_absolute)
 
                     # move source node to target path
-                    target = self.add_node(target_path, source_node)
+                    target_port = move['target']
+                    target_topology = get_in(state.topology, target_port)
+                    target_node = state.outer.get_path(target_topology)
+                    target = target_node.add_node(source_path, source_node)
+                    target_path = target.path_for()
 
                     assoc_path(
                         process_updates,
@@ -1098,6 +1102,7 @@ class Store(object):
                 process_state = Store({
                     '_value': subprocess,
                     '_updater': 'set',
+                    '_topology': subtopology,
                     '_serializer': 'process'}, outer=self)
                 self.inner[key] = process_state
 

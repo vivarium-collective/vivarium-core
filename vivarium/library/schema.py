@@ -76,6 +76,6 @@ def listener_schema(elements):
 def add_elements(elements, id):
     return {
         '_add': [{
-            'path': (element[id],),
+            'key': element[id],
             'state': element}
             for element in elements]}
