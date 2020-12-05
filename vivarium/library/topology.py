@@ -54,6 +54,13 @@ def update_in(d, path, f):
     return f(d)
 
 
+def path_list_to_dict(path_list, f=lambda x: x):
+    d = {}
+    for path, node in path_list:
+        assoc_path(d, path, f(node))
+    return d
+
+
 def inverse_topology(outer, update, topology):
     '''
     Transform an update from the form its process produced into

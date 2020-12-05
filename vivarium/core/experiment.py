@@ -34,7 +34,8 @@ from vivarium.core.process import (
 )
 from vivarium.library.topology import (
     get_in, delete_in, assoc_path,
-    without, update_in, inverse_topology
+    without, update_in, inverse_topology,
+    path_list_to_dict,
 )
 from vivarium.core.registry import (
     divider_registry,
@@ -69,7 +70,6 @@ def key_for_value(d, looking):
             found = key
             break
     return found
-
 
 def depth(tree, path=()):
     '''
@@ -556,21 +556,33 @@ class Store(object):
             if self.value is None:
                 self.value = self.default
 
-    def apply_update(self, update, process_topology=None, state=None):
+    def apply_update(self, update, process_topology=None, state=None, experiment_topology=None):
         '''
         Given an arbitrary update, map all the values in that update
         to their positions in the tree where they apply, and update
         these values using each node's `_updater`.
 
-        There are five special update keys:
+        Arguments:
+            update: The update being applied.
+            process_topology: The topology of the process from which this update was passed.
+            state: The state at the start of the time step.
+            experiment_topology: The topology of the full experiment, with all processes and
+                their port mappings.
 
-        * `_updater` - Override the default updater with any updater you want.
-        * `_delete` - The value here is a list of paths (tuples) to delete from
-          the tree.
+        There are five topology update methods, which use the following special update keys:
+
         * `_add` - Adds states into the subtree, given a list of dicts containing:
 
             * path - Path to the added state key.
             * state - The value of the added state.
+
+        * `_move` - Moves a node from a source to a target location in the tree.
+            This uses an update to an :term:`outer` port, which contains both the
+            source and target node locations. Can move multiple nodes according to
+            a list of dicts containing:
+
+            * source - the source path from an outer process port
+            * target - the location where the node will be placed.
 
         * `_generate` - The value has four keys, which are essentially
           the arguments to the `generate()` function:
@@ -586,6 +598,14 @@ class Store(object):
             * mother - The id of the mother (for removal)
             * daughters - List of two new daughter generate directives, of the
                 same form as the `_generate` value above.
+
+        * `_delete` - The value here is a list of paths (tuples) to delete from
+          the tree.
+
+
+        Additional special update keys are used for different update operations:
+
+        * `_updater` - Override the default updater with any updater you want.
 
         * `_reduce` - This allows a reduction over the entire subtree from some
           point downward. Its three keys are:
@@ -609,7 +629,7 @@ class Store(object):
             multi_update = update[MULTI_UPDATE_KEY]
             assert isinstance(multi_update, list)
             for update_value in multi_update:
-                self.apply_update(update_value, process_topology, state)
+                self.apply_update(update_value, process_topology, state, experiment_topology)
             return EMPTY_UPDATES
 
         elif self.inner or self.subschema:
@@ -618,25 +638,50 @@ class Store(object):
             process_updates, topology_updates, deletions = {}, {}, []
             update = dict(update)  # avoid mutating the caller's dict
 
-            delete_paths = update.pop('_delete', None)
-            if delete_paths is not None:
-                # delete a list of paths
-                here = self.path_for()
-                for path in delete_paths:
-                    self.delete_path(path)
-                    deletions.append(tuple(here + path))
-
             add_entries = update.pop('_add', None)
             if add_entries is not None:
                 # add a list of sub-states
                 for added in add_entries:
                     path = added['path']
-                    state = added['state']
+                    added_state = added['state']
 
                     target = self.establish_path(path, {})
                     self.apply_subschema_path(path)
                     target.apply_defaults()
-                    target.set_value(state)
+                    target.set_value(added_state)
+
+            move_entries = update.pop('_move', None)
+            if move_entries is not None:
+                # move nodes from source to target path
+                for move in move_entries:
+                    source_path = move['source']
+                    target_path = move['target'] + (source_path[-1],)
+                    here = self.path_for()
+                    source_absolute = tuple(here + source_path)
+
+                    # get the source node
+                    source_node = self.get_path(source_path)
+
+                    # get the source processes and topology
+                    source_process_paths = source_node.depth(filter=lambda x: isinstance(x.value, Process))
+                    source_processes = path_list_to_dict(source_process_paths, lambda x: x.value)
+                    source_topology = get_in(experiment_topology, source_absolute)
+
+                    # move source node to target path
+                    target = self.add_node(target_path, source_node)
+
+                    assoc_path(
+                        process_updates,
+                        target_path,
+                        source_processes)
+
+                    assoc_path(
+                        topology_updates,
+                        target_path,
+                        source_topology)
+
+                    self.delete_path(source_path)
+                    deletions.append(source_absolute)
 
             generate_entries = update.pop('_generate', None)
             if generate_entries is not None:
@@ -671,15 +716,14 @@ class Store(object):
                 initial_state = self.inner[mother].get_value(
                     condition=lambda child: not (isinstance(child.value, Process)),
                     f=lambda child: copy.deepcopy(child))
-                states = self.inner[mother].divide_value()
+                daughter_states = self.inner[mother].divide_value()
 
-                for daughter, state in zip(daughters, states):
-                    # daughter_id = daughter['daughter']
+                for daughter, daughter_state in zip(daughters, daughter_states):
 
                     # use initial state as default, merge in divided values
                     initial_state = deep_merge(
                         initial_state,
-                        state)
+                        daughter_state)
 
                     path = daughter['path']
 
@@ -709,11 +753,19 @@ class Store(object):
                 self.delete_path(mother_path)
                 deletions.append(tuple(here + mother_path))
 
+            delete_paths = update.pop('_delete', None)
+            if delete_paths is not None:
+                # delete a list of paths
+                here = self.path_for()
+                for path in delete_paths:
+                    self.delete_path(path)
+                    deletions.append(tuple(here + path))
+
             for key, value in update.items():
                 if key in self.inner:
                     inner = self.inner[key]
                     inner_topology, inner_processes, inner_deletions = inner.apply_update(
-                        value, process_topology, state)
+                        value, process_topology, state, experiment_topology)
 
                     if inner_topology:
                         topology_updates = deep_merge(
@@ -850,23 +902,21 @@ class Store(object):
                 key: state.inner_value(key)
                 for key in keys}
 
-    def depth(self, path=()):
+    def depth(self, path=(), filter=None):
         '''
         Create a mapping of every path in the tree to the node living at
-        that path in the tree.
+        that path in the tree. An optional `filter` argument is a function
+        that can declares the instances that will be returned, for example:
+        * filter=lambda x: isinstance(x.value, Process)
         '''
+        base = []
+        if filter is None or filter(self):
+            base += [(path, self)]
 
-        base = [(path, self)]
         for key, child in self.inner.items():
             down = tuple(path + (key,))
-            base += child.depth(down)
+            base += child.depth(down, filter)
         return base
-
-    def processes(self, path=()):
-        return {
-            path: state
-            for path, state in self.depth()
-            if state.value and isinstance(state.value, Process)}
 
     def apply_subschema_path(self, path):
         if path:
@@ -956,6 +1006,16 @@ class Store(object):
             self.apply_config(config, source=source)
             return self
 
+    def add_node(self, path, node):
+        ''' Add a node instance at the provided path '''
+        target = self.establish_path(path[:-1], {})
+        if target.get_value() and path[-1] in target.get_value():
+            # this path already exists, update it
+            self.apply_update({path[-1]: node.get_value()})
+        else:
+            target.inner.update({path[-1]: node})
+        return target
+
     def outer_path(self, path, source=None):
         '''
         Address a topology with the `_path` keyword if present,
@@ -990,8 +1050,8 @@ class Store(object):
                 set(schema.keys()) - set(topology.keys()))
             if mismatch_topology:
                 raise Exception(
-                    'the topology for process {} at path {} uses undeclared ports: {}'.format(
-                        source, self.path_for(), mismatch_topology))
+                    'topology for the process {} \n at path {} uses undeclared ports: {}'.format(
+                        source, self.path_for(), str(mismatch_topology)))
             if mismatch_schema:
                 log.info(
                     'process {} has ports that are not included in the topology: {}'.format(
@@ -1291,7 +1351,7 @@ class Experiment(object):
 
     def apply_update(self, update, process_topology, state):
         topology_updates, process_updates, deletions = self.state.apply_update(
-            update, process_topology, state)
+            update, process_topology, state, self.topology)
 
         if topology_updates:
             self.topology = deep_merge(self.topology, topology_updates)

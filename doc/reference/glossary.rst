@@ -113,6 +113,13 @@ Glossary
         documentation for the ``Experiment`` class and our :doc:`guide
         to experiments </guides/experiments>` for more details.
 
+    Inner
+    inner
+        A once-removed internal node position relative to a given node in
+        the :term:`tree`. Nodes can have multiple inners connected to them.
+        The reciprocal relationship is an :term:`outer`, but a node can have
+        at most one outer.
+
     Masking
     masking
         When Vivarium passes stores to processes, it includes only the
@@ -131,6 +138,13 @@ Glossary
         cell's internal processes and the interactions between cells and
         their environment at different temporal scales since these
         processes require different degrees of temporal precision.
+
+    Outer
+    outer
+        A once-removed external node position relative to a given node in
+        the :term:`tree`. Each node, except for the top-most node, has one
+        outer node that it exists within. The reciprocal relationship is an
+        :term:`inner`, but a node can have many inners.
 
     Path Timeseries
     Path timeseries
@@ -357,6 +371,8 @@ Glossary
     hierarchy
     Hierarchies
     hierarchies
+    Compartment Hierarchy
+    compartment hierarchy
     Tree
     tree
     Trees
