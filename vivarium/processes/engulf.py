@@ -65,9 +65,9 @@ class Engulf(Deriver):
                 'outer': {
                     '_move': [{
                         # points to key in 'outer' port
-                        'source': neighbor, # (id,),
+                        'source': neighbor,
                         # points to which port it will be moved
-                        'target': 'inner' # (self.agent_id,) + self.inner_path
+                        'target': 'inner'
                     } for neighbor in neighbors]
                 }
             }
@@ -105,29 +105,29 @@ class ToyAgent(Generator):
 
 
 def test_engulf():
-    agent_1_id = '1'
-    agent_2_id = '2'
-    agent_ids = [agent_1_id, agent_2_id]
+    num_agents = 3
+    agent_ids = [
+        str(agent_id + 1)
+        for agent_id in range(num_agents)]
 
     # initial state
     initial_state = {
         'concentrations': {'A': 10.0},
         'agents': {
-            agent_1_id: {
-                'concentrations': {'A': 1.0},
-                'trigger': []},
-            agent_2_id: {
-                'concentrations': {'A': 2.0},
-                'trigger': []}}}
+            agent_id: {
+                'concentrations': {'A': float(int(agent_id))},
+                'trigger': []}
+            for agent_id in agent_ids}}
 
     # timeline triggers engulf for agent_1
     time_engulf = 3
     time_expel = 8
     time_total = 10
     timeline = [
-        (0, {('agents', agent_1_id, 'trigger'): []}),
-        (time_engulf, {('agents', agent_1_id, 'engulf-trigger'): [agent_2_id]}),
-        (time_expel, {('agents', agent_1_id, 'expel-trigger'): [agent_2_id]}),
+        (0, {('agents', agent_ids[0], 'trigger'): []}),
+        (3, {('agents', agent_ids[2], 'engulf-trigger'): [agent_ids[1]]}),
+        (5, {('agents', agent_ids[0], 'engulf-trigger'): [agent_ids[2]]}),
+        (8, {('agents', agent_ids[0], 'agents', agent_ids[2], 'expel-trigger'): [agent_ids[1]]}),
         (time_total, {})]
 
     # declare the hierarchy
@@ -170,12 +170,15 @@ def test_engulf():
     output = experiment.emitter.get_data()
     experiment.end()  # end required for parallel processes
 
+    import ipdb; ipdb.set_trace()
+
     # assert that initial agents store has agents 1 & 2,
     # final has only agent 1, and agent 1 subcompartment has 2
-    assert [*output[0.0]['agents'].keys()] == ['1', '2']
-    assert [*output[5.0]['agents'].keys()] == ['1']
-    assert [*output[5.0]['agents']['1']['agents'].keys()] == ['2']
-    assert [*output[10.0]['agents'].keys()] == ['1', '2']
+    assert [*output[0.0]['agents'].keys()] == agent_ids
+    assert [*output[4.0]['agents'].keys()] == ['1', '3']
+    assert [*output[6.0]['agents']['1']['agents'].keys()] == ['3']
+    assert [*output[10.0]['agents'].keys()] == ['1']
+    assert [*output[10.0]['agents']['1']['agents'].keys()] == ['3', '2']
 
     return output
 
