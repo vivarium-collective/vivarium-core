@@ -780,16 +780,8 @@ class Store(object):
 
                     if inner_topology:
                         topology_updates.extend(inner_topology)
-                        # topology_updates = deep_merge(
-                        #     topology_updates,
-                        #     {key: inner_topology})
-
                     if inner_processes:
                         process_updates.extend(inner_processes)
-                        # process_updates = deep_merge(
-                        #     process_updates,
-                        #     {key: inner_processes})
-
                     if inner_deletions:
                         deletions.extend(inner_deletions)
 
