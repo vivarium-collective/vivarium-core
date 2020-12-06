@@ -190,9 +190,9 @@ def test_burst():
     output = experiment.emitter.get_data()
     experiment.end()  # end required for parallel processes
 
-    # # asserts total A is the same at the beginning and the end
-    # assert output[0.0]['concentrations']['A'] == initial_A
-    # assert output[5.0]['concentrations']['A'] + output[5.0]['agents'][agent_1_id]['concentrations']['A'] == initial_A
+    # asserts total A is the same at the beginning and the end
+    assert output[0.0]['concentrations']['A'] == initial_A
+    assert output[5.0]['concentrations']['A'] + output[5.0]['agents'][agent_1_id]['concentrations']['A'] == initial_A
 
     return output
 
