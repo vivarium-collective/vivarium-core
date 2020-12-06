@@ -662,7 +662,6 @@ class Store(object):
             if move_entries is not None:
                 # move nodes from source to target path
                 for move in move_entries:
-
                     # get the source node
                     source_key = move['source']
                     source_path = (source_key,)
@@ -687,9 +686,10 @@ class Store(object):
                     here = self.path_for()
                     source_absolute = tuple(here + source_path)
                     source_topology = get_in(experiment_topology, source_absolute)
-                    topology_updates.append((
-                        target_path,
-                        source_topology))
+                    if source_topology:
+                        topology_updates.append((
+                            target_path,
+                            source_topology))
 
                     self.delete_path(source_path)
                     deletions.append(source_absolute)
@@ -764,13 +764,7 @@ class Store(object):
                 self.delete_path(mother_path)
                 deletions.append(tuple(here + mother_path))
 
-            delete_paths = update.pop('_delete', None)
-            if delete_paths is not None:
-                # delete a list of paths
-                here = self.path_for()
-                for path in delete_paths:
-                    self.delete_path(path)
-                    deletions.append(tuple(here + path))
+            delete_keys = update.pop('_delete', None)
 
             for key, value in update.items():
                 if key in self.inner:
@@ -784,6 +778,14 @@ class Store(object):
                         process_updates.extend(inner_processes)
                     if inner_deletions:
                         deletions.extend(inner_deletions)
+
+            if delete_keys is not None:
+                # delete a list of paths
+                here = self.path_for()
+                for key in delete_keys:
+                    path = (key,)
+                    self.delete_path(path)
+                    deletions.append(tuple(here + path))
 
             return topology_updates, process_updates, deletions
 

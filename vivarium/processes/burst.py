@@ -52,12 +52,16 @@ class Burst(Deriver):
             },
             'outer': {
                 '*': {}
-            }
+            },
+            'compartment': {
+                '*': {}
+            },
         }
 
     def next_update(self, timestep, states):
         if states['trigger']:
             inner_states = states['inner']
+
             return {
                 'inner': {
                     '_move': [{
@@ -66,8 +70,10 @@ class Burst(Deriver):
                         # points to which port it will be moved
                         'target': 'outer',
                     } for state in inner_states],
+                },
+                'compartment': {
                     # remove self
-                    '_delete': [('..', '..', self.agent_id)]
+                    '_delete': [self.agent_id]
                 },
                 'trigger': {
                     '_updater': 'set',
@@ -84,7 +90,8 @@ class ToyAgent(Generator):
         'exchange': {
             'uptake_rate': 0.1},
         'inner_path': ('concentrations',),
-        'outer_path': ('..', '..', 'concentrations')
+        'outer_path': ('..', '..', 'concentrations'),
+        'compartment_path': ('..', '..', 'agents'),
     }
 
     def generate_processes(self, config):
@@ -102,6 +109,7 @@ class ToyAgent(Generator):
                 'trigger': ('trigger',),
                 'inner': config['inner_path'],
                 'outer': config['outer_path'],
+                'compartment': config['compartment_path'],
             }}
 
 
