@@ -34,13 +34,11 @@ class Engulf(Deriver):
     """
     name = NAME
     defaults = {
-        'inner_path': ('inner',)
-    }
+        'agent_id': 'DEFAULT'}
 
     def __init__(self, parameters=None):
         super(Engulf, self).__init__(parameters)
         self.agent_id = self.parameters['agent_id']
-        self.inner_path = self.parameters['inner_path']
 
     def ports_schema(self):
         ''' trigger list includes ids of things to engulf '''
@@ -58,7 +56,7 @@ class Engulf(Deriver):
 
     def next_update(self, timestep, states):
         if states['trigger']:
-            neighbor_ids = states['trigger']
+            neighbors = states['trigger']
             # move neighbors from outer to inner, reset trigger
             return {
                 'trigger': {
@@ -66,9 +64,11 @@ class Engulf(Deriver):
                     '_value': []},
                 'outer': {
                     '_move': [{
-                        'source': (id,),
-                        'target': (self.agent_id,) + self.inner_path
-                    } for id in neighbor_ids]
+                        # points to key in 'outer' port
+                        'source': neighbor, # (id,),
+                        # points to which port it will be moved
+                        'target': 'inner' # (self.agent_id,) + self.inner_path
+                    } for neighbor in neighbors]
                 }
             }
         else:
@@ -84,28 +84,17 @@ class ToyAgent(Generator):
     }
 
     def generate_processes(self, config):
-        agent_id = config['agent_id']
-        outer_path = config['outer_path']
-        inner_path = config['inner_path']
-        engulf_config = dict(
-            outer_path=outer_path,
-            inner_path=inner_path,
-            agent_id=agent_id)
         return {
             'exchange': ExchangeA(config['exchange']),
-            'engulf': Engulf(engulf_config)}
+            'engulf': Engulf(config['engulf'])}
 
     def generate_topology(self, config):
-        outer_path = config['outer_path']
-        inner_path = config['inner_path']
         return {
-            'exchange': {
-                'internal': ('internal',),
-                'external': ('external',)},
+            'exchange': config['exchange'],
             'engulf': {
                 'trigger': ('trigger',),
-                'inner': inner_path,
-                'outer': outer_path}}
+                'inner': config['engulf']['inner_path'],
+                'outer': config['engulf']['outer_path']}}
 
 
 def test_engulf():
@@ -114,12 +103,13 @@ def test_engulf():
 
     # initial state
     initial_state = {
+        'external': {'A': 10.0},
         'agents': {
             agent_1_id: {
-                'external': {'A': 1},
+                'internal': {'A': 0.1},
                 'trigger': []},
             agent_2_id: {
-                'external': {'A': 1},
+                'internal': {'A': 0.5},
                 'trigger': []}}}
 
     # timeline triggers engulf for agent_1
@@ -146,7 +136,12 @@ def test_engulf():
             agent_1_id: {
                 GENERATORS_KEY: {
                     'type': ToyAgent,
-                    'config': {'agent_id': agent_1_id}
+                    'config': {
+                        'exchange': {
+                            'internal': ('internal',),
+                            'external': ('external',)},
+                        'engulf': {
+                            'agent_id': agent_1_id}}
                 }
             },
             agent_2_id: {
@@ -164,6 +159,8 @@ def test_engulf():
         hierarchy=hierarchy,
         initial_state=initial_state,
         settings=settings)
+
+    import ipdb; ipdb.set_trace()
 
     # run simulation
     experiment.update(time_total)
