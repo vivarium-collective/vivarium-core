@@ -170,10 +170,7 @@ def test_engulf():
     output = experiment.emitter.get_data()
     experiment.end()  # end required for parallel processes
 
-    import ipdb; ipdb.set_trace()
-
-    # assert that initial agents store has agents 1 & 2,
-    # final has only agent 1, and agent 1 subcompartment has 2
+    # assert the engulfing/expelling saga
     assert [*output[0.0]['agents'].keys()] == agent_ids
     assert [*output[4.0]['agents'].keys()] == ['1', '3']
     assert [*output[6.0]['agents']['1']['agents'].keys()] == ['3']

@@ -663,8 +663,6 @@ class Store(object):
                 # move nodes from source to target path
                 for move in move_entries:
 
-                    import ipdb; ipdb.set_trace()
-
                     # get the source node
                     source_key = move['source']
                     source_path = (source_key,)
@@ -1354,9 +1352,6 @@ class Experiment(object):
     def process_update(self, path, process, interval):
         state = self.state.get_path(path)
         process_topology = get_in(self.topology, path)
-
-        if state is None:
-            import ipdb; ipdb.set_trace()
 
         # translate the values from the tree structure into the form
         # that this process expects, based on its declared topology
