@@ -98,6 +98,10 @@ def schema_for(port, keys, initial_state, default=0.0, updater='accumulate'):
         for key in keys}
 
 
+def topology_path(topology, path):
+    pass
+
+
 def always_true(_):
     return True
 
@@ -245,6 +249,10 @@ class Store(object):
         if '_subtopology' in config:
             self.merge_subtopology(config['_subtopology'])
             config = without(config, '_subtopology')
+
+        if '_topology' in config:
+            self.topology = config['_topology']
+            config = without(config, '_topology')
 
         if '_divider' in config:
             self.divider = config['_divider']
@@ -635,7 +643,7 @@ class Store(object):
         elif self.inner or self.subschema:
             # Branch update: this node has an inner
 
-            process_updates, topology_updates, deletions = {}, {}, []
+            process_updates, topology_updates, deletions = [], [], []
             update = dict(update)  # avoid mutating the caller's dict
 
             add_entries = update.pop('_add', None)
@@ -654,35 +662,34 @@ class Store(object):
             if move_entries is not None:
                 # move nodes from source to target path
                 for move in move_entries:
-                    source_key = move['source']
-                    source_path = (source_key,)
-                    here = self.path_for()
-                    source_absolute = tuple(here + source_path)
 
                     # get the source node
+                    source_key = move['source']
+                    source_path = (source_key,)
                     source_node = self.get_path(source_path)
-
-                    # get the source processes and topology
-                    source_process_paths = source_node.depth(filter=lambda x: isinstance(x.value, Process))
-                    source_processes = path_list_to_dict(source_process_paths, lambda x: x.value)
-                    source_topology = get_in(experiment_topology, source_absolute)
 
                     # move source node to target path
                     target_port = move['target']
-                    target_topology = get_in(state.topology, target_port)
+                    target_topology = state.topology[target_port]
                     target_node = state.outer.get_path(target_topology)
                     target = target_node.add_node(source_path, source_node)
-                    target_path = target.path_for()
+                    target_path = target.path_for() + source_path
 
-                    assoc_path(
-                        process_updates,
-                        target_path,
-                        source_processes)
+                    # find the process updates
+                    source_process_paths = source_node.depth(
+                        filter=lambda x: isinstance(x.value, Process))
+                    source_processes = [
+                        (target_path + source_path, source_process.value)
+                        for source_path, source_process in source_process_paths]
+                    process_updates.extend(source_processes)
 
-                    assoc_path(
-                        topology_updates,
+                    # find the topology updates
+                    here = self.path_for()
+                    source_absolute = tuple(here + source_path)
+                    source_topology = get_in(experiment_topology, source_absolute)
+                    topology_updates.append((
                         target_path,
-                        source_topology)
+                        source_topology))
 
                     self.delete_path(source_path)
                     deletions.append(source_absolute)
@@ -772,17 +779,19 @@ class Store(object):
                         value, process_topology, state, experiment_topology)
 
                     if inner_topology:
-                        topology_updates = deep_merge(
-                            topology_updates,
-                            {key: inner_topology})
+                        topology_updates.extend(inner_topology)
+                        # topology_updates = deep_merge(
+                        #     topology_updates,
+                        #     {key: inner_topology})
 
                     if inner_processes:
-                        process_updates = deep_merge(
-                            process_updates,
-                            {key: inner_processes})
+                        process_updates.extend(inner_processes)
+                        # process_updates = deep_merge(
+                        #     process_updates,
+                        #     {key: inner_processes})
 
                     if inner_deletions:
-                        deletions += inner_deletions
+                        deletions.extend(inner_deletions)
 
             return topology_updates, process_updates, deletions
 
@@ -1299,13 +1308,16 @@ class Experiment(object):
         # log.info('\nCONFIG:')
         # log.info(pf(self.state.get_config(True)))
 
+    def add_process_path(self, process, path):
+        if process.is_deriver():
+            self.deriver_paths[path] = process
+        else:
+            self.process_paths[path] = process
+
     def find_process_paths(self, processes):
         tree = depth(processes)
         for path, process in tree.items():
-            if process.is_deriver():
-                self.deriver_paths[path] = process
-            else:
-                self.process_paths[path] = process
+            self.add_process_path(process, path)
 
     def emit_configuration(self):
         data = {
@@ -1359,11 +1371,13 @@ class Experiment(object):
             update, process_topology, state, self.topology)
 
         if topology_updates:
-            self.topology = deep_merge(self.topology, topology_updates)
+            for path, update in topology_updates:
+                assoc_path(self.topology, path, update)
 
         if process_updates:
-            self.processes = deep_merge(self.processes, process_updates)
-            self.find_process_paths(process_updates)
+            for path, process in process_updates:
+                assoc_path(self.processes, path, process)
+                self.add_process_path(process, path)
 
         if deletions:
             for deletion in deletions:

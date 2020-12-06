@@ -79,45 +79,55 @@ class Engulf(Deriver):
 class ToyAgent(Generator):
     defaults = {
         'exchange': {'uptake_rate': 0.1},
-        'outer_path': ('..', '..', 'agents'),
-        'inner_path': ('subcompartments',),
-    }
+        'engulf': {
+            'outer_path': ('..', '..', 'agents'),
+            'inner_path': ('agents',)}}
 
     def generate_processes(self, config):
         return {
             'exchange': ExchangeA(config['exchange']),
-            'engulf': Engulf(config['engulf'])}
+            'engulf': Engulf(config['engulf']),
+            'expel': Engulf(config['engulf'])}
 
     def generate_topology(self, config):
         return {
-            'exchange': config['exchange'],
+            'exchange': {
+                'external': config['exchange']['external_path'],
+                'internal': config['exchange']['internal_path']},
             'engulf': {
-                'trigger': ('trigger',),
+                'trigger': ('engulf-trigger',),
                 'inner': config['engulf']['inner_path'],
-                'outer': config['engulf']['outer_path']}}
+                'outer': config['engulf']['outer_path']},
+            'expel': {
+                'trigger': ('expel-trigger',),
+                'inner': config['engulf']['outer_path'],
+                'outer': config['engulf']['inner_path']}}
 
 
 def test_engulf():
     agent_1_id = '1'
     agent_2_id = '2'
+    agent_ids = [agent_1_id, agent_2_id]
 
     # initial state
     initial_state = {
-        'external': {'A': 10.0},
+        'concentrations': {'A': 10.0},
         'agents': {
             agent_1_id: {
-                'internal': {'A': 0.1},
+                'concentrations': {'A': 1.0},
                 'trigger': []},
             agent_2_id: {
-                'internal': {'A': 0.5},
+                'concentrations': {'A': 2.0},
                 'trigger': []}}}
 
     # timeline triggers engulf for agent_1
-    time_engulf = 5
+    time_engulf = 3
+    time_expel = 8
     time_total = 10
     timeline = [
         (0, {('agents', agent_1_id, 'trigger'): []}),
-        (time_engulf, {('agents', agent_1_id, 'trigger'): [agent_2_id]}),
+        (time_engulf, {('agents', agent_1_id, 'engulf-trigger'): [agent_2_id]}),
+        (time_expel, {('agents', agent_1_id, 'expel-trigger'): [agent_2_id]}),
         (time_total, {})]
 
     # declare the hierarchy
@@ -133,23 +143,18 @@ def test_engulf():
             }
         ],
         'agents': {
-            agent_1_id: {
+            agent_id: {
                 GENERATORS_KEY: {
                     'type': ToyAgent,
                     'config': {
                         'exchange': {
-                            'internal': ('internal',),
-                            'external': ('external',)},
+                            'internal_path': ('concentrations',),
+                            'external_path': ('..', '..', 'concentrations')},
                         'engulf': {
-                            'agent_id': agent_1_id}}
+                            'inner_path': ('agents',),
+                            'outer_path': ('..', '..', 'agents')}}
                 }
-            },
-            agent_2_id: {
-                GENERATORS_KEY: {
-                    'type': ToyAgent,
-                    'config': {'agent_id': agent_2_id}
-                }
-            }
+            } for agent_id in agent_ids
         }
     }
 
@@ -160,8 +165,6 @@ def test_engulf():
         initial_state=initial_state,
         settings=settings)
 
-    import ipdb; ipdb.set_trace()
-
     # run simulation
     experiment.update(time_total)
     output = experiment.emitter.get_data()
@@ -170,8 +173,9 @@ def test_engulf():
     # assert that initial agents store has agents 1 & 2,
     # final has only agent 1, and agent 1 subcompartment has 2
     assert [*output[0.0]['agents'].keys()] == ['1', '2']
-    assert [*output[10.0]['agents'].keys()] == ['1']
-    assert [*output[10.0]['agents']['1']['subcompartments'].keys()] == ['2']
+    assert [*output[5.0]['agents'].keys()] == ['1']
+    assert [*output[5.0]['agents']['1']['agents'].keys()] == ['2']
+    assert [*output[10.0]['agents'].keys()] == ['1', '2']
 
     return output
 
