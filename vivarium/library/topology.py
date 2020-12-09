@@ -54,12 +54,23 @@ def update_in(d, path, f):
     return f(d)
 
 
-def path_list_to_dict(path_list, f=lambda x: x):
+def paths_to_dict(path_list, f=lambda x: x):
     d = {}
     for path, node in path_list:
         assoc_path(d, path, f(node))
     return d
 
+
+def dict_to_paths(root, d):
+    if isinstance(d, dict):
+        deeper = []
+        for key, down in d.items():
+            paths = dict_to_paths(root + (key,), down)
+            deeper.extend(paths)
+        return deeper
+    else:
+        return [(root, d)]
+        
 
 def inverse_topology(outer, update, topology):
     '''

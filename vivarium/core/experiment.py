@@ -35,7 +35,7 @@ from vivarium.core.process import (
 from vivarium.library.topology import (
     get_in, delete_in, assoc_path,
     without, update_in, inverse_topology,
-    path_list_to_dict,
+    paths_to_dict, dict_to_paths
 )
 from vivarium.core.registry import (
     divider_registry,
@@ -698,7 +698,10 @@ class Store(object):
             if generate_entries is not None:
                 # generate a list of new processes
                 for generate in generate_entries:
-                    path = generate.get('path', tuple())
+                    key = generate.get('key')
+                    path = (key,) if key else tuple()
+
+                    here = self.path_for()
 
                     self.generate(
                         path,
@@ -706,15 +709,14 @@ class Store(object):
                         generate['topology'],
                         generate['initial_state'])
 
-                    assoc_path(
-                        process_updates,
-                        path,
-                        generate['processes'])
+                    root = here + path
+                    process_paths = dict_to_paths(root, generate['processes'])
+                    process_updates.extend(process_paths)
 
-                    assoc_path(
-                        topology_updates,
-                        path,
-                        generate['topology'])
+                    topology_paths = [
+                        (root + (key,), topology)
+                        for key, topology in generate['topology'].items()]
+                    topology_updates.extend(topology_paths)
 
                     self.apply_subschema_path(path)
                     self.get_path(path).apply_defaults()
@@ -729,6 +731,8 @@ class Store(object):
                     f=lambda child: copy.deepcopy(child))
                 daughter_states = self.inner[mother].divide_value()
 
+                here = self.path_for()
+
                 for daughter, daughter_state in zip(daughters, daughter_states):
 
                     # use initial state as default, merge in divided values
@@ -736,30 +740,29 @@ class Store(object):
                         initial_state,
                         daughter_state)
 
-                    path = daughter['path']
+                    daughter_key = daughter['key']
+                    daughter_path = (daughter_key,)
 
                     self.generate(
-                        path,
+                        daughter_path,
                         daughter['processes'],
                         daughter['topology'],
                         daughter['initial_state'])
 
-                    assoc_path(
-                        process_updates,
-                        path,
-                        daughter['processes'])
+                    root = here + daughter_path
+                    process_paths = dict_to_paths(root, daughter['processes'])
+                    process_updates.extend(process_paths)
 
-                    assoc_path(
-                        topology_updates,
-                        path,
-                        daughter['topology'])
+                    topology_paths = [
+                        (root + (key,), topology)
+                        for key, topology in daughter['topology'].items()]
+                    topology_updates.extend(topology_paths)
 
-                    self.apply_subschema_path(path)
-                    target = self.get_path(path)
+                    self.apply_subschema_path(daughter_path)
+                    target = self.get_path(daughter_path)
                     target.apply_defaults()
                     target.set_value(initial_state)
 
-                here = self.path_for()
                 mother_path = (mother,)
                 self.delete_path(mother_path)
                 deletions.append(tuple(here + mother_path))

@@ -38,13 +38,13 @@ class Remove(Deriver):
             'trigger': {
                 '_default': False,
                 '_emit': True},
-            'agents': {}}
+            'agents': {'*': {}}}
 
     def next_update(self, timestep, states):
         if states['trigger']:
             return {
                 'agents': {
-                    '_delete': [(self.agent_id,)]}}
+                    '_delete': [self.agent_id]}}
         else:
             return {}
 
