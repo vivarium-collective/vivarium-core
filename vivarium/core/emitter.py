@@ -102,7 +102,8 @@ def timeseries_from_data(data):
     return embedded_timeseries
 
 class Emitter(object):
-    '''Emit data to terminal
+    '''
+    Emit data to terminal
     '''
     def __init__(self, config):
         self.config = config
@@ -124,7 +125,8 @@ class Emitter(object):
 
 
 class NullEmitter(Emitter):
-    '''Don't emit anything
+    '''
+    Don't emit anything
     '''
     def emit(self, data):
         pass

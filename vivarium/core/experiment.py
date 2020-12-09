@@ -466,10 +466,7 @@ class Store(object):
         else:
             if self.emit:
                 if self.serializer:
-                    if self.units:
-                        return self.serializer.serialize(self.value, self.units)
-                    else:
-                        return self.serializer.serialize(self.value)
+                    return self.serializer.serialize(self.value, self.units)
                 elif isinstance(self.value, Process):
                     return self.value.pull_data()
                 else:
