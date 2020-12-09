@@ -149,10 +149,10 @@ def test_tree_mass():
 
     # run experiment and get output
     experiment.update(1)
-    output = experiment.emitter.get_data()
+    output = experiment.emitter.get_data_deserialized()
     experiment.end()
 
-    assert output[0.0]['global']['mass'] == 4
+    assert output[0.0]['global']['mass'] == 4 * units.g
     return output
 
 

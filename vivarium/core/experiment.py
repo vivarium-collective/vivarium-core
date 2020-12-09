@@ -19,7 +19,7 @@ import pprint
 from multiprocessing import Pool
 from typing import Any, Dict
 
-from vivarium.library.units import Quantity
+from vivarium.library.units import units, Quantity
 from vivarium.library.dict_utils import (
     deep_merge,
     deep_merge_multi_update,
@@ -258,7 +258,11 @@ class Store(object):
             if self.inner:
                 raise Exception('trying to assign leaf values to a branch at: {}'.format(self.path_for()))
             self.leaf = True
-            # self.units = config.get('_units', self.units)
+
+            if '_units' in config:
+                self.units = config['_units']
+                self.serializer = serializer_registry.access('units')
+
             if '_serializer' in config:
                 self.serializer = config['_serializer']
                 if isinstance(self.serializer, str):
@@ -267,7 +271,8 @@ class Store(object):
             if '_default' in config:
                 self.default = self.check_default(config.get('_default'))
                 if isinstance(self.default, Quantity):
-                    self.units = self.default.units
+                    self.units = self.units or self.default.units
+                    self.serializer = self.serializer or serializer_registry.access('units')
                 if isinstance(self.default, np.ndarray):
                     self.serializer = self.serializer or serializer_registry.access('numpy')
 
@@ -461,7 +466,7 @@ class Store(object):
         else:
             if self.emit:
                 if self.serializer:
-                    return self.serializer.serialize(self.value)
+                    return self.serializer.serialize(self.value, self.units)
                 elif isinstance(self.value, Process):
                     return self.value.pull_data()
                 else:
@@ -1309,14 +1314,19 @@ class Experiment(object):
             'name': self.experiment_name,
             'description': self.description,
             'topology': self.topology,
-            # TODO -- handle large parameter sets in self.processes to meet mongoDB limit
-            # 'processes': serialize_dictionary(self.processes),
-            # 'state': self.state.get_config()
+            'processes': serialize_dictionary(self.processes),
+            'state': self.state.get_config()
         }
         emit_config = {
             'table': 'configuration',
             'data': data}
-        self.emitter.emit(emit_config)
+        try:
+            self.emitter.emit(emit_config)
+        except:
+            # TODO -- handle large parameter sets in self.processes to meet mongoDB limit
+            del emit_config['data']['processes']
+            del emit_config['data']['state']
+            self.emitter.emit(emit_config)
 
     def invoke_process(self, process, path, interval, states):
         if process.parallel:
@@ -2140,6 +2150,59 @@ def test_sine():
         'phase': 1.5}))
 
 
+def test_units():
+    class UnitsMicrometer(Process):
+        name = 'units_micrometer'
+        def ports_schema(self):
+            return {
+                'A': {
+                    'a': {
+                        '_default': 0 * units.um,
+                        '_emit': True},
+                    'b': {
+                        '_default': 'string b',
+                        '_emit': True,
+                    }
+                }
+            }
+        def next_update(self, timestep, states):
+            return {
+                'A': {'a': 1 * units.um}}
+    class UnitsMillimeter(Process):
+        name = 'units_millimeter'
+        def ports_schema(self):
+            return {
+                'A': {
+                    'a': {
+                        # '_default': 0 * units.mm,
+                        '_emit': True}}}
+        def next_update(self, timestep, states):
+            return {
+                'A': {'a': 1 * units.mm}}
+    class MultiUnits(Generator):
+        name = 'multi_units_generator'
+        def generate_processes(self, config):
+            return {
+                'units_micrometer': UnitsMicrometer({}),
+                'units_millimeter': UnitsMillimeter({})}
+        def generate_topology(self, config):
+            return {
+                'units_micrometer': {'A': ('aaa',)},
+                'units_millimeter': {'A': ('aaa',)}}
+
+    # run experiment
+    multi_unit = MultiUnits({})
+    network = multi_unit.generate()
+    exp = Experiment({
+        'processes': network['processes'],
+        'topology': network['topology']})
+
+    exp.update(5)
+    output = exp.emitter.get_timeseries()
+
+    pp(output['aaa'])
+
+
 if __name__ == '__main__':
     # test_recursive_store()
     # test_timescales()
@@ -2149,5 +2212,6 @@ if __name__ == '__main__':
     # test_parallel()
     # test_complex_topology()
     # test_multi_port_merge()
+    # test_2_store_1_port()
 
-    test_2_store_1_port()
+    test_units()
