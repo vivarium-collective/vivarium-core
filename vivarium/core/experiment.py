@@ -273,7 +273,10 @@ class Store(object):
                 if isinstance(self.default, Quantity):
                     self.units = self.units or self.default.units
                     self.serializer = self.serializer or serializer_registry.access('units')
-                if isinstance(self.default, np.ndarray):
+                elif isinstance(self.default, list) and isinstance(self.default[0], Quantity):
+                    self.units = self.units or self.default[0].units
+                    self.serializer = self.serializer or serializer_registry.access('units')
+                elif isinstance(self.default, np.ndarray):
                     self.serializer = self.serializer or serializer_registry.access('numpy')
 
             if '_value' in config:
@@ -466,7 +469,9 @@ class Store(object):
         else:
             if self.emit:
                 if self.serializer:
-                    if self.units:
+                    if isinstance(self.value, list) and self.units:
+                        return self.serializer.serialize([v.to(self.units) for v in self.value])
+                    elif self.units:
                         return self.serializer.serialize(self.value.to(self.units))
                     else:
                         return self.serializer.serialize(self.value)

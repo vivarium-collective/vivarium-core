@@ -280,15 +280,26 @@ class NumpyScalarSerializer(Serializer):
 
 class UnitsSerializer(Serializer):
     def serialize(self, data, unit=None):
-        if unit is not None:
-            data.to(unit)
-        return str(data)
+        if isinstance(data, list):
+            if unit is not None:
+                data = [d.to(unit) for d in data]
+            return [str(d) for d in data]
+        else:
+            if unit is not None:
+                data.to(unit)
+            return str(data)
 
     def deserialize(self, data, unit=None):
-        unit_data = units(data)
-        if unit is not None:
-            unit_data.to(unit)
+        if isinstance(data, list):
+            unit_data = [units(d) for d in data]
+            if unit is not None:
+                unit_data = [d.to(unit) for d in data]
+        else:
+            unit_data = units(data)
+            if unit is not None:
+                unit_data.to(unit)
         return unit_data
+
 
 class ProcessSerializer(Serializer):
     def serialize(self, data):
