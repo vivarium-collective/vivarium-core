@@ -273,7 +273,7 @@ class Store(object):
                 if isinstance(self.default, Quantity):
                     self.units = self.units or self.default.units
                     self.serializer = self.serializer or serializer_registry.access('units')
-                elif isinstance(self.default, list) and isinstance(self.default[0], Quantity):
+                elif isinstance(self.default, list) and (len(self.default) > 0) and isinstance(self.default[0], Quantity):
                     self.units = self.units or self.default[0].units
                     self.serializer = self.serializer or serializer_registry.access('units')
                 elif isinstance(self.default, np.ndarray):
