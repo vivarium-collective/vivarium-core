@@ -466,7 +466,10 @@ class Store(object):
         else:
             if self.emit:
                 if self.serializer:
-                    return self.serializer.serialize(self.value, self.units)
+                    if self.units:
+                        return self.serializer.serialize(self.value.to(self.units))
+                    else:
+                        return self.serializer.serialize(self.value)
                 elif isinstance(self.value, Process):
                     return self.value.pull_data()
                 else:
@@ -2198,9 +2201,21 @@ def test_units():
         'topology': network['topology']})
 
     exp.update(5)
-    output = exp.emitter.get_timeseries()
+    timeseries = exp.emitter.get_timeseries()
+    print('TIMESERIES')
+    pp(timeseries)
 
-    pp(output['aaa'])
+    data = exp.emitter.get_data()
+    print('DATA')
+    pp(data)
+
+    data_deserialized = exp.emitter.get_data_deserialized()
+    print('DESERIALIZED')
+    pp(data_deserialized)
+
+    data_unitless = exp.emitter.get_data_unitless()
+    print('UNITLESS')
+    pp(data_unitless)
 
 
 if __name__ == '__main__':

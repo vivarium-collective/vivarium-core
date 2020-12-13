@@ -5,9 +5,13 @@ from pymongo import MongoClient
 import json
 from urllib.parse import quote_plus
 
+from vivarium.library.units import remove_units
 from vivarium.library.dict_utils import (
-    value_in_embedded_dict, make_path_dict)
+    value_in_embedded_dict,
+    make_path_dict,
+)
 from vivarium.core.process import deserialize_value
+
 
 HISTORY_INDEXES = [
     'time',
@@ -116,6 +120,9 @@ class Emitter(object):
 
     def get_data_deserialized(self):
         return deserialize_value(self.get_data())
+
+    def get_data_unitless(self):
+        return remove_units(self.get_data_deserialized())
 
     def get_path_timeseries(self):
         return path_timeseries_from_data(self.get_data_deserialized())
