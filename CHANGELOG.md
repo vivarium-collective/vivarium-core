@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.0.39
+
+* improved units handling, with a units serializer for emit_data, and convert data to timeseries stripping the units.
 
 ## v0.0.36
 
