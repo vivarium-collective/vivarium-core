@@ -112,8 +112,17 @@ def plot_simulation_output(
     row_idx = 0
     col_idx = 0
     for port in port_lengths.keys():
-        # get this port's states
-        port_timeseries = {path[1:]: ts for path, ts in timeseries.items() if path[0] is port}
+
+        # get this port's timeseries
+        port_timeseries = {}
+        for path, ts in timeseries.items():
+            if path[0] is port:
+                k = path[1:]
+                if isinstance(k[0], tuple):
+                    port_timeseries[k[0]] = ts
+                else:
+                    port_timeseries[k] = ts
+
         for state_id, series in sorted(port_timeseries.items()):
             if remove_first_timestep:
                 series = series[1:]
