@@ -117,11 +117,12 @@ def plot_simulation_output(
         port_timeseries = {}
         for path, ts in timeseries.items():
             if path[0] is port:
-                k = path[1:]
-                if isinstance(k[0], tuple):
-                    port_timeseries[k[0]] = ts
-                else:
-                    port_timeseries[k] = ts
+                next_path = path[1:]
+                if any(isinstance(item, tuple) for item in next_path):
+                    next_path = tuple([
+                        item[0] if isinstance(item, tuple) else item
+                        for item in next_path])
+                port_timeseries[next_path] = ts
 
         for state_id, series in sorted(port_timeseries.items()):
             if remove_first_timestep:
