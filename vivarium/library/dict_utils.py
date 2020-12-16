@@ -6,6 +6,8 @@ from functools import reduce
 import operator
 import traceback
 
+from vivarium.library.units import units, Quantity
+
 
 MULTI_UPDATE_KEY = '_multi_update'
 
@@ -206,7 +208,8 @@ def keys_list(d):
 
 def value_in_embedded_dict(data, timeseries={}, time_index=None):
     """
-    converts data from a single time step into an embedded dictionary with lists of values
+    converts data from a single time step into an embedded dictionary with lists of values.
+    If the value has a unit, saves under a key with (key, unit_string).
     """
     for key, value in data.items():
         if isinstance(value, dict):
@@ -214,9 +217,15 @@ def value_in_embedded_dict(data, timeseries={}, time_index=None):
                 timeseries[key] = {}
             timeseries[key] = value_in_embedded_dict(value, timeseries[key], time_index)
         elif time_index is None:
-            if key not in timeseries:
-                timeseries[key] = []
-            timeseries[key].append(value)
+            if isinstance(value, Quantity):
+                unit_key = (key, str(value.units))
+                if unit_key not in timeseries:
+                    timeseries[unit_key] = []
+                timeseries[unit_key].append(value.magnitude)
+            else:
+                if key not in timeseries:
+                    timeseries[key] = []
+                timeseries[key].append(value)
         else:
             if key not in timeseries:
                 timeseries[key] = {
