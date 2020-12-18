@@ -34,13 +34,11 @@ class Engulf(Deriver):
     """
     name = NAME
     defaults = {
-        'inner_path': ('inner',)
-    }
+        'agent_id': 'DEFAULT'}
 
     def __init__(self, parameters=None):
         super(Engulf, self).__init__(parameters)
         self.agent_id = self.parameters['agent_id']
-        self.inner_path = self.parameters['inner_path']
 
     def ports_schema(self):
         ''' trigger list includes ids of things to engulf '''
@@ -58,7 +56,7 @@ class Engulf(Deriver):
 
     def next_update(self, timestep, states):
         if states['trigger']:
-            neighbor_ids = states['trigger']
+            neighbors = states['trigger']
             # move neighbors from outer to inner, reset trigger
             return {
                 'trigger': {
@@ -66,9 +64,11 @@ class Engulf(Deriver):
                     '_value': []},
                 'outer': {
                     '_move': [{
-                        'source': (id,),
-                        'target': (self.agent_id,) + self.inner_path
-                    } for id in neighbor_ids]
+                        # points to key in 'outer' port
+                        'source': neighbor,
+                        # points to which port it will be moved
+                        'target': 'inner'
+                    } for neighbor in neighbors]
                 }
             }
         else:
@@ -79,55 +79,55 @@ class Engulf(Deriver):
 class ToyAgent(Generator):
     defaults = {
         'exchange': {'uptake_rate': 0.1},
-        'outer_path': ('..', '..', 'agents'),
-        'inner_path': ('subcompartments',),
-    }
+        'engulf': {
+            'outer_path': ('..', '..', 'agents'),
+            'inner_path': ('agents',)}}
 
     def generate_processes(self, config):
-        agent_id = config['agent_id']
-        outer_path = config['outer_path']
-        inner_path = config['inner_path']
-        engulf_config = dict(
-            outer_path=outer_path,
-            inner_path=inner_path,
-            agent_id=agent_id)
         return {
             'exchange': ExchangeA(config['exchange']),
-            'engulf': Engulf(engulf_config)}
+            'engulf': Engulf(config['engulf']),
+            'expel': Engulf(config['engulf'])}
 
     def generate_topology(self, config):
-        outer_path = config['outer_path']
-        inner_path = config['inner_path']
         return {
             'exchange': {
-                'internal': ('internal',),
-                'external': ('external',)},
+                'external': config['exchange']['external_path'],
+                'internal': config['exchange']['internal_path']},
             'engulf': {
-                'trigger': ('trigger',),
-                'inner': inner_path,
-                'outer': outer_path}}
+                'trigger': ('engulf-trigger',),
+                'inner': config['engulf']['inner_path'],
+                'outer': config['engulf']['outer_path']},
+            'expel': {
+                'trigger': ('expel-trigger',),
+                'inner': config['engulf']['outer_path'],
+                'outer': config['engulf']['inner_path']}}
 
 
 def test_engulf():
-    agent_1_id = '1'
-    agent_2_id = '2'
+    num_agents = 3
+    agent_ids = [
+        str(agent_id + 1)
+        for agent_id in range(num_agents)]
 
     # initial state
     initial_state = {
+        'concentrations': {'A': 10.0},
         'agents': {
-            agent_1_id: {
-                'external': {'A': 1},
-                'trigger': []},
-            agent_2_id: {
-                'external': {'A': 1},
-                'trigger': []}}}
+            agent_id: {
+                'concentrations': {'A': float(int(agent_id))},
+                'trigger': []}
+            for agent_id in agent_ids}}
 
     # timeline triggers engulf for agent_1
-    time_engulf = 5
+    time_engulf = 3
+    time_expel = 8
     time_total = 10
     timeline = [
-        (0, {('agents', agent_1_id, 'trigger'): []}),
-        (time_engulf, {('agents', agent_1_id, 'trigger'): [agent_2_id]}),
+        (0, {('agents', agent_ids[0], 'trigger'): []}),
+        (3, {('agents', agent_ids[2], 'engulf-trigger'): [agent_ids[1]]}),
+        (5, {('agents', agent_ids[0], 'engulf-trigger'): [agent_ids[2]]}),
+        (8, {('agents', agent_ids[0], 'agents', agent_ids[2], 'expel-trigger'): [agent_ids[1]]}),
         (time_total, {})]
 
     # declare the hierarchy
@@ -143,18 +143,18 @@ def test_engulf():
             }
         ],
         'agents': {
-            agent_1_id: {
+            agent_id: {
                 GENERATORS_KEY: {
                     'type': ToyAgent,
-                    'config': {'agent_id': agent_1_id}
+                    'config': {
+                        'exchange': {
+                            'internal_path': ('concentrations',),
+                            'external_path': ('..', '..', 'concentrations')},
+                        'engulf': {
+                            'inner_path': ('agents',),
+                            'outer_path': ('..', '..', 'agents')}}
                 }
-            },
-            agent_2_id: {
-                GENERATORS_KEY: {
-                    'type': ToyAgent,
-                    'config': {'agent_id': agent_2_id}
-                }
-            }
+            } for agent_id in agent_ids
         }
     }
 
@@ -170,11 +170,12 @@ def test_engulf():
     output = experiment.emitter.get_data()
     experiment.end()  # end required for parallel processes
 
-    # assert that initial agents store has agents 1 & 2,
-    # final has only agent 1, and agent 1 subcompartment has 2
-    assert [*output[0.0]['agents'].keys()] == ['1', '2']
+    # assert the engulfing/expelling saga
+    assert [*output[0.0]['agents'].keys()] == agent_ids
+    assert [*output[4.0]['agents'].keys()] == ['1', '3']
+    assert [*output[6.0]['agents']['1']['agents'].keys()] == ['3']
     assert [*output[10.0]['agents'].keys()] == ['1']
-    assert [*output[10.0]['agents']['1']['subcompartments'].keys()] == ['2']
+    assert [*output[10.0]['agents']['1']['agents'].keys()] == ['3', '2']
 
     return output
 

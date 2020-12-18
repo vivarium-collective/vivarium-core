@@ -35,7 +35,7 @@ from vivarium.core.process import (
 from vivarium.library.topology import (
     get_in, delete_in, assoc_path,
     without, update_in, inverse_topology,
-    path_list_to_dict,
+    paths_to_dict, dict_to_paths
 )
 from vivarium.core.registry import (
     divider_registry,
@@ -96,6 +96,10 @@ def schema_for(port, keys, initial_state, default=0.0, updater='accumulate'):
                 port, {}).get(key, default),
             '_updater': updater}
         for key in keys}
+
+
+def topology_path(topology, path):
+    pass
 
 
 def always_true(_):
@@ -245,6 +249,10 @@ class Store(object):
         if '_subtopology' in config:
             self.merge_subtopology(config['_subtopology'])
             config = without(config, '_subtopology')
+
+        if '_topology' in config:
+            self.topology = config['_topology']
+            config = without(config, '_topology')
 
         if '_divider' in config:
             self.divider = config['_divider']
@@ -648,14 +656,14 @@ class Store(object):
         elif self.inner or self.subschema:
             # Branch update: this node has an inner
 
-            process_updates, topology_updates, deletions = {}, {}, []
+            process_updates, topology_updates, deletions = [], [], []
             update = dict(update)  # avoid mutating the caller's dict
 
             add_entries = update.pop('_add', None)
             if add_entries is not None:
                 # add a list of sub-states
                 for added in add_entries:
-                    path = added['path']
+                    path = (added['key'],)
                     added_state = added['state']
 
                     target = self.establish_path(path, {})
@@ -667,31 +675,34 @@ class Store(object):
             if move_entries is not None:
                 # move nodes from source to target path
                 for move in move_entries:
-                    source_path = move['source']
-                    target_path = move['target'] + (source_path[-1],)
-                    here = self.path_for()
-                    source_absolute = tuple(here + source_path)
-
                     # get the source node
+                    source_key = move['source']
+                    source_path = (source_key,)
                     source_node = self.get_path(source_path)
 
-                    # get the source processes and topology
-                    source_process_paths = source_node.depth(filter=lambda x: isinstance(x.value, Process))
-                    source_processes = path_list_to_dict(source_process_paths, lambda x: x.value)
-                    source_topology = get_in(experiment_topology, source_absolute)
-
                     # move source node to target path
-                    target = self.add_node(target_path, source_node)
+                    target_port = move['target']
+                    target_topology = state.topology[target_port]
+                    target_node = state.outer.get_path(target_topology)
+                    target = target_node.add_node(source_path, source_node)
+                    target_path = target.path_for() + source_path
 
-                    assoc_path(
-                        process_updates,
-                        target_path,
-                        source_processes)
+                    # find the process updates
+                    source_process_paths = source_node.depth(
+                        filter=lambda x: isinstance(x.value, Process))
+                    source_processes = [
+                        (target_path + source_path, source_process.value)
+                        for source_path, source_process in source_process_paths]
+                    process_updates.extend(source_processes)
 
-                    assoc_path(
-                        topology_updates,
-                        target_path,
-                        source_topology)
+                    # find the topology updates
+                    here = self.path_for()
+                    source_absolute = tuple(here + source_path)
+                    source_topology = get_in(experiment_topology, source_absolute)
+                    if source_topology:
+                        topology_updates.append((
+                            target_path,
+                            source_topology))
 
                     self.delete_path(source_path)
                     deletions.append(source_absolute)
@@ -700,7 +711,10 @@ class Store(object):
             if generate_entries is not None:
                 # generate a list of new processes
                 for generate in generate_entries:
-                    path = generate.get('path', tuple())
+                    key = generate.get('key')
+                    path = (key,) if key else tuple()
+
+                    here = self.path_for()
 
                     self.generate(
                         path,
@@ -708,15 +722,14 @@ class Store(object):
                         generate['topology'],
                         generate['initial_state'])
 
-                    assoc_path(
-                        process_updates,
-                        path,
-                        generate['processes'])
+                    root = here + path
+                    process_paths = dict_to_paths(root, generate['processes'])
+                    process_updates.extend(process_paths)
 
-                    assoc_path(
-                        topology_updates,
-                        path,
-                        generate['topology'])
+                    topology_paths = [
+                        (root + (key,), topology)
+                        for key, topology in generate['topology'].items()]
+                    topology_updates.extend(topology_paths)
 
                     self.apply_subschema_path(path)
                     self.get_path(path).apply_defaults()
@@ -731,6 +744,8 @@ class Store(object):
                     f=lambda child: copy.deepcopy(child))
                 daughter_states = self.inner[mother].divide_value()
 
+                here = self.path_for()
+
                 for daughter, daughter_state in zip(daughters, daughter_states):
 
                     # use initial state as default, merge in divided values
@@ -738,41 +753,34 @@ class Store(object):
                         initial_state,
                         daughter_state)
 
-                    path = daughter['path']
+                    daughter_key = daughter['key']
+                    daughter_path = (daughter_key,)
 
                     self.generate(
-                        path,
+                        daughter_path,
                         daughter['processes'],
                         daughter['topology'],
                         daughter['initial_state'])
 
-                    assoc_path(
-                        process_updates,
-                        path,
-                        daughter['processes'])
+                    root = here + daughter_path
+                    process_paths = dict_to_paths(root, daughter['processes'])
+                    process_updates.extend(process_paths)
 
-                    assoc_path(
-                        topology_updates,
-                        path,
-                        daughter['topology'])
+                    topology_paths = [
+                        (root + (key,), topology)
+                        for key, topology in daughter['topology'].items()]
+                    topology_updates.extend(topology_paths)
 
-                    self.apply_subschema_path(path)
-                    target = self.get_path(path)
+                    self.apply_subschema_path(daughter_path)
+                    target = self.get_path(daughter_path)
                     target.apply_defaults()
                     target.set_value(initial_state)
 
-                here = self.path_for()
                 mother_path = (mother,)
                 self.delete_path(mother_path)
                 deletions.append(tuple(here + mother_path))
 
-            delete_paths = update.pop('_delete', None)
-            if delete_paths is not None:
-                # delete a list of paths
-                here = self.path_for()
-                for path in delete_paths:
-                    self.delete_path(path)
-                    deletions.append(tuple(here + path))
+            delete_keys = update.pop('_delete', None)
 
             for key, value in update.items():
                 if key in self.inner:
@@ -781,17 +789,19 @@ class Store(object):
                         value, process_topology, state, experiment_topology)
 
                     if inner_topology:
-                        topology_updates = deep_merge(
-                            topology_updates,
-                            {key: inner_topology})
-
+                        topology_updates.extend(inner_topology)
                     if inner_processes:
-                        process_updates = deep_merge(
-                            process_updates,
-                            {key: inner_processes})
-
+                        process_updates.extend(inner_processes)
                     if inner_deletions:
-                        deletions += inner_deletions
+                        deletions.extend(inner_deletions)
+
+            if delete_keys is not None:
+                # delete a list of paths
+                here = self.path_for()
+                for key in delete_keys:
+                    path = (key,)
+                    self.delete_path(path)
+                    deletions.append(tuple(here + path))
 
             return topology_updates, process_updates, deletions
 
@@ -1026,6 +1036,7 @@ class Store(object):
             # this path already exists, update it
             self.apply_update({path[-1]: node.get_value()})
         else:
+            node.outer = target
             target.inner.update({path[-1]: node})
         return target
 
@@ -1111,6 +1122,7 @@ class Store(object):
                 process_state = Store({
                     '_value': subprocess,
                     '_updater': 'set',
+                    '_topology': subtopology,
                     '_serializer': 'process'}, outer=self)
                 self.inner[key] = process_state
 
@@ -1307,13 +1319,16 @@ class Experiment(object):
         # log.info('\nCONFIG:')
         # log.info(pf(self.state.get_config(True)))
 
+    def add_process_path(self, process, path):
+        if process.is_deriver():
+            self.deriver_paths[path] = process
+        else:
+            self.process_paths[path] = process
+
     def find_process_paths(self, processes):
         tree = depth(processes)
         for path, process in tree.items():
-            if process.is_deriver():
-                self.deriver_paths[path] = process
-            else:
-                self.process_paths[path] = process
+            self.add_process_path(process, path)
 
     def emit_configuration(self):
         data = {
@@ -1372,11 +1387,13 @@ class Experiment(object):
             update, process_topology, state, self.topology)
 
         if topology_updates:
-            self.topology = deep_merge(self.topology, topology_updates)
+            for path, update in topology_updates:
+                assoc_path(self.topology, path, update)
 
         if process_updates:
-            self.processes = deep_merge(self.processes, process_updates)
-            self.find_process_paths(process_updates)
+            for path, process in process_updates:
+                assoc_path(self.processes, path, process)
+                self.add_process_path(process, path)
 
         if deletions:
             for deletion in deletions:
