@@ -61,6 +61,9 @@ class MetaDivision(Deriver):
 
         super(MetaDivision, self).__init__(initial_parameters)
 
+    def initial_state(self, config=None):
+        return {}
+
     def ports_schema(self):
         return {
             'global': {

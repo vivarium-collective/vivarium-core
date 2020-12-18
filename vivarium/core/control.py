@@ -83,7 +83,8 @@ class Control(object):
     def run_experiment(self, experiment_id):
         experiment = self.experiments_library[experiment_id]
         if isinstance(experiment, dict):
-            return experiment['experiment']()
+            kwargs = experiment.get('kwargs', {})
+            return experiment['experiment'](**kwargs)
         elif callable(experiment):
             return experiment()
 

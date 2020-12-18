@@ -65,6 +65,14 @@ class TreeMass(Deriver):
         super(TreeMass, self).__init__(parameters)
         self.from_path = self.parameters['from_path']
 
+    def initial_state(self, config=None):
+        return {
+            'global': {
+                'initial_mass': self.parameters['initial_mass'],
+                'mass': self.parameters['initial_mass'],
+            }
+        }
+
     def ports_schema(self):
         return {
             'global': {
