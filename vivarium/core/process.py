@@ -174,24 +174,12 @@ class Generator(object):
         self.merge_topology = {}
 
     def initial_state(self, config=None):
-        """ Merge all processes' initial states
-
-        Every subclass may override this method.
-
-        Arguments:
-            config (dict): A dictionary of configuration options. All
-                subclass implementation must accept this parameter, but
-                some may ignore it.
-
-        Returns:
-            dict: Subclass implementations must return a dictionary
-            mapping state paths to initial values.
-        """
-        network = self.generate(config)
-        processes = network['processes']
-        topology = network['topology']
-        initial_state = get_composite_initial_state(processes, topology)
-        return initial_state
+        return Exception('{} does not include an "initial_state" function'.format(self.name))
+    #     network = self.generate(config)
+    #     processes = network['processes']
+    #     topology = network['topology']
+    #     initial_state = get_composite_initial_state(processes, topology)
+    #     return initial_state
 
     def generate_processes(self, config):
         """Generate processes dictionary
@@ -279,6 +267,41 @@ class Generator(object):
         return {
             process_id: process.parameters
             for process_id, process in processes.items()}
+
+    # def merge(self, processes={}, topology={}, schema_override={}):
+    #     for name, process in processes.items():
+    #         assert isinstance(process, Process)
+    #
+    #     self.merge_processes = deep_merge_check(self.merge_processes, processes)
+    #     self.merge_topology = deep_merge(self.merge_topology, topology)
+    #     self.schema_override = deep_merge(self.schema_override, schema_override)
+
+
+class Composite(Generator):
+    """Composite parent class
+
+    All :term:`composite` classes must inherit from this class.
+    """
+
+    def initial_state(self, config=None):
+        """ Merge all processes' initial states
+
+        Every subclass may override this method.
+
+        Arguments:
+            config (dict): A dictionary of configuration options. All
+                subclass implementation must accept this parameter, but
+                some may ignore it.
+
+        Returns:
+            dict: Subclass implementations must return a dictionary
+            mapping state paths to initial values.
+        """
+        network = self.generate(config)
+        processes = network['processes']
+        topology = network['topology']
+        initial_state = get_composite_initial_state(processes, topology)
+        return initial_state
 
     def merge(self, processes={}, topology={}, schema_override={}):
         for name, process in processes.items():
