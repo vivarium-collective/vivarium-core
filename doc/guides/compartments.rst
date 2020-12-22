@@ -208,17 +208,17 @@ might look like this:
     }
 
 -------------------
-Example Compartment
+Example Composite
 -------------------
 
 To put all this information together, let's take a look at an example
-compartment that combines the glucose phosphorylation process from the
+composite that combines the glucose phosphorylation process from the
 :py:doc:`process-writing tutorial <../tutorials/write_process>` with an
 injector, which lets us "inject" molecules into a store.
 
 .. code-block:: python
 
-	class InjectedGlcPhosphorylation(Compartment):
+	class InjectedGlcPhosphorylation(Composite):
 
 		defaults = {
 			'glucose_phosphorylation': {

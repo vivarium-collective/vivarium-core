@@ -174,12 +174,7 @@ class Generator(object):
         self.merge_topology = {}
 
     def initial_state(self, config=None):
-        return Exception('{} does not include an "initial_state" function'.format(self.name))
-    #     network = self.generate(config)
-    #     processes = network['processes']
-    #     topology = network['topology']
-    #     initial_state = get_composite_initial_state(processes, topology)
-    #     return initial_state
+        raise Exception('{} does not include an "initial_state" function'.format(self.name))
 
     def generate_processes(self, config):
         """Generate processes dictionary
@@ -268,13 +263,6 @@ class Generator(object):
             process_id: process.parameters
             for process_id, process in processes.items()}
 
-    # def merge(self, processes={}, topology={}, schema_override={}):
-    #     for name, process in processes.items():
-    #         assert isinstance(process, Process)
-    #
-    #     self.merge_processes = deep_merge_check(self.merge_processes, processes)
-    #     self.merge_topology = deep_merge(self.merge_topology, topology)
-    #     self.schema_override = deep_merge(self.schema_override, schema_override)
 
 
 class Composite(Generator):
@@ -544,7 +532,7 @@ def test_generator_merge():
                     'a': states['A']['b'],
                     'b': states['B']['a']}}
 
-    class ToyComposite(Generator):
+    class ToyComposite(Composite):
         defaults = {
             'A':  {'name': 'A'},
             'B': {'name': 'B'}}
