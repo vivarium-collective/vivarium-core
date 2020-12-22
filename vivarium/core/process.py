@@ -469,7 +469,7 @@ def test_generator_initial_state():
         def next_update(self, timestep, states):
             return {'a_port': {'a': 1}}
 
-    class BB(Generator):
+    class BB(Composite):
         name = 'BB'
         def generate_processes(self, config):
             return {
