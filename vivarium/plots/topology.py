@@ -6,30 +6,13 @@ import matplotlib.pyplot as plt
 import networkx as nx
 
 
-def plot_compartment_topology(
-        compartment,
-        settings={},
-        out_dir=None,
-        filename=None,
+def get_network(
+    generator,
+    settings={},
 ):
-    """
-    Make a plot of the topology
-     - compartment: a compartment
-    """
-    store_rgb = [x/255 for x in [239, 131, 148]]
-    process_rgb = [x / 255 for x in [249, 204, 86]]
-    node_size = 8000
-    font_size = 10
-    node_distance = 2.5
-    buffer = 1.0
-    label_pos = 0.75
-
-    network = compartment.generate({})
+    network = generator.generate({})
     topology = network['topology']
     processes = network['processes']
-
-    # get figure settings
-    show_ports = settings.get('show_ports', True)
 
     # make graph from topology
     G = nx.Graph()
@@ -59,6 +42,37 @@ def plot_compartment_topology(
     overlap = [name for name in process_nodes if name in store_nodes]
     if overlap:
         print('{} shared by processes and stores'.format(overlap))
+
+    return G, process_nodes, store_nodes
+
+
+
+def plot_topology(
+        generator,
+        settings={},
+        out_dir=None,
+        filename=None,
+):
+    """
+    Make a plot of the topology
+     - generator: a generator
+    """
+    store_rgb = [x/255 for x in [239, 131, 148]]
+    process_rgb = [x / 255 for x in [249, 204, 86]]
+    node_size = 8000
+    font_size = 10
+    node_distance = 2.5
+    buffer = 1.0
+    label_pos = 0.75
+
+    # get figure settings
+    show_ports = settings.get('show_ports', True)
+
+    G, process_nodes, store_nodes = get_network(
+        generator,
+        settings,
+    )
+
 
     # get positions
     pos = {}
@@ -111,3 +125,13 @@ def plot_compartment_topology(
         plt.close()
     else:
         return fig
+
+
+def plot_compartment_topology(
+        compartment,
+        settings={},
+        out_dir=None,
+        filename=None,
+):
+    return plot_topology(
+        compartment, settings, out_dir, filename)
