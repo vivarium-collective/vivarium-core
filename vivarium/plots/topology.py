@@ -3,6 +3,7 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 import networkx as nx
+import pydot
 
 from vivarium.core.process import Process, Generator
 from vivarium.core.experiment import Experiment
@@ -59,6 +60,26 @@ def get_networkx_graph(
         G.add_edge(process_id, store_id)
 
     return G, process_nodes, store_nodes, edges
+
+
+def get_graphviz_graph(
+        bigraph,
+        settings={}
+):
+    process_nodes, store_nodes, edges = get_graph(bigraph)
+
+    G = pydot.Graph()
+    for node_id in process_nodes:
+        node = pydot.Node(node_id, type='Process')
+        G.add_node(node)
+    for node_id in store_nodes:
+        node = pydot.Node(node_id, type='Store')
+        G.add_node(node)
+    for (process_id, store_id), port in edges.items():
+        edge = pydot.Edge(process_id, store_id, port=port)
+        G.add_edge(edge)
+
+    return G
 
 
 
@@ -149,6 +170,10 @@ def plot_compartment_topology(
     return plot_topology_networkx(
         compartment, settings, out_dir, filename)
 
+def plot_graphviz(G):
+    import ipdb;
+    ipdb.set_trace()
+    pass
 
 
 # tests
@@ -200,8 +225,8 @@ class MergePort(Generator):
             },
         }
 
-def test_composite_topology():
 
+def test_composite_topology():
     composite = MergePort({})
     plot_topology_networkx(
         composite,
@@ -214,7 +239,11 @@ def test_composite_topology():
 def test_graph():
     composite = MergePort({})
     bigraph = composite.generate()
-    process_nodes, store_nodes, edges = get_graph(bigraph)
+    G = get_graphviz_graph(bigraph)
+    plot_graphviz(G)
+
+
+
 
 
 def test_experiment_topology():
@@ -226,4 +255,6 @@ def test_experiment_topology():
 
 
 if __name__ == '__main__':
-    test_composite_topology()
+    # test_composite_topology()
+
+    test_graph()
