@@ -3,18 +3,19 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 import networkx as nx
-import pydot
 
 from vivarium.core.process import Process, Generator
 from vivarium.core.experiment import Experiment
 
 
 
-def get_graph(
-        bigraph,
+def get_bipartite_graph(
+        topology,
         settings={}
 ):
-    topology = bigraph['topology']
+    ''' Get a graph with Processes, Stores, and edges from a Vivarium topology '''
+    if 'topology' in topology:
+        topology = topology['topology']
 
     process_nodes = []
     store_nodes = []
@@ -45,64 +46,125 @@ def get_graph(
 
 
 def get_networkx_graph(
-    bigraph,
+    topology,
     settings={},
 ):
-    process_nodes, store_nodes, edges = get_graph(bigraph)
+    ''' Make a networkX graph from a Vivarium topology '''
+    process_nodes, store_nodes, edges = get_bipartite_graph(topology)
 
     # make networkX graph
     G = nx.Graph()
     for node_id in process_nodes:
-        G.add_node(node_id)
+        G.add_node(node_id, type='Process')
     for node_id in store_nodes:
-        G.add_node(node_id)
+        G.add_node(node_id, type='Store')
     for (process_id, store_id), port in edges.items():
-        G.add_edge(process_id, store_id)
-
-    return G, process_nodes, store_nodes, edges
-
-
-def get_graphviz_graph(
-        bigraph,
-        settings={}
-):
-    process_nodes, store_nodes, edges = get_graph(bigraph)
-
-    G = pydot.Graph()
-    for node_id in process_nodes:
-        node = pydot.Node(node_id, type='Process')
-        G.add_node(node)
-    for node_id in store_nodes:
-        node = pydot.Node(node_id, type='Store')
-        G.add_node(node)
-    for (process_id, store_id), port in edges.items():
-        edge = pydot.Edge(process_id, store_id, port=port)
-        G.add_edge(edge)
+        G.add_edge(process_id, store_id, port=port)
 
     return G
 
 
+
+def graph_figure(
+        graph,
+        format='bipartite',
+        show_ports=True,
+        store_rgb='tab:blue',
+        process_rgb='tab:orange',
+        node_size=8000,
+        font_size=10,
+        node_distance=2.5,
+        buffer=1.0,
+        label_pos=0.75,
+):
+    node_attributes = dict(graph.nodes.data())
+    process_nodes = [
+        node_id for node_id, attributes in node_attributes.items()
+        if attributes['type'] == 'Process']
+    store_nodes = [
+        node_id for node_id, attributes in node_attributes.items()
+        if attributes['type'] == 'Store']
+
+    edge_list = list(graph.edges)
+    edges = {
+        edge: graph.edges[edge]['port']
+        for edge in edge_list}
+
+    # get positions
+    pos = {}
+    if format == 'bipartite':
+        for idx, node_id in enumerate(process_nodes, 1):
+            pos[node_id] = np.array([-1, -idx])
+        for idx, node_id in enumerate(store_nodes, 1):
+            pos[node_id] = np.array([1, -idx])
+
+    # plot
+    n_rows = max(len(process_nodes), len(store_nodes))
+    fig = plt.figure(1, figsize=(12, n_rows * node_distance))
+
+    # nx.draw(graph, pos=pos, node_size=node_size)
+    nx.draw_networkx_nodes(graph, pos,
+                           nodelist=process_nodes,
+                           node_color=process_rgb,
+                           node_size=node_size,
+                           node_shape='s'
+                           )
+    nx.draw_networkx_nodes(graph, pos,
+                           nodelist=store_nodes,
+                           node_color=store_rgb,
+                           node_size=node_size,
+                           node_shape='o'
+                           )
+    # edges
+    colors = list(range(1, len(edges) + 1))
+    nx.draw_networkx_edges(graph, pos,
+                           edge_color=colors,
+                           width=1.5)
+    # labels
+    nx.draw_networkx_labels(graph, pos,
+                            font_size=font_size)
+    if show_ports:
+        nx.draw_networkx_edge_labels(graph, pos,
+                                     edge_labels=edges,
+                                     font_size=font_size,
+                                     label_pos=label_pos)
+
+    # add buffer
+    xmin, xmax, ymin, ymax = plt.axis()
+    plt.xlim(xmin - buffer, xmax + buffer)
+    plt.ylim(ymin - buffer, ymax + buffer)
+    plt.axis('off')
+
+    return fig
+
+def save_network(out_dir='out', filename='network'):
+    os.makedirs(out_dir, exist_ok=True)
+    if filename is None:
+        filename = 'topology'
+    # save figure
+    fig_path = os.path.join(out_dir, filename)
+    plt.savefig(fig_path, bbox_inches='tight')
+    plt.close()
 
 def plot_topology_networkx(
         composite,
         settings={},
         out_dir=None,
         filename=None,
+        show_ports=True,
+        store_rgb=[x / 255 for x in [239, 131, 148]],
+        process_rgb=[x / 255 for x in [249, 204, 86]],
+        node_size=8000,
+        font_size=10,
+        node_distance=2.5,
+        buffer=1.0,
+        label_pos=0.75,
 ):
-    """
-    Make a plot of the topology
-     - composite: a composite
-    """
-    store_rgb = [x/255 for x in [239, 131, 148]]
-    process_rgb = [x / 255 for x in [249, 204, 86]]
-    node_size = 8000
-    font_size = 10
-    node_distance = 2.5
-    buffer = 1.0
-    label_pos = 0.75
+    """ Make a plot of the topology
 
-    # get figure settings
-    show_ports = settings.get('show_ports', True)
+    Arguments:
+     - composite: an initialized composite
+    """
 
     bigraph = composite.generate({})
     G, process_nodes, store_nodes, edges = get_networkx_graph(
@@ -150,13 +212,7 @@ def plot_topology_networkx(
     plt.axis('off')
 
     if out_dir:
-        os.makedirs(out_dir, exist_ok=True)
-        if filename is None:
-            filename = 'topology'
-        # save figure
-        fig_path = os.path.join(out_dir, filename)
-        plt.savefig(fig_path, bbox_inches='tight')
-        plt.close()
+        save_network(out_dir, filename)
     else:
         return fig
 
@@ -170,10 +226,6 @@ def plot_compartment_topology(
     return plot_topology_networkx(
         compartment, settings, out_dir, filename)
 
-def plot_graphviz(G):
-    import ipdb;
-    ipdb.set_trace()
-    pass
 
 
 # tests
@@ -238,11 +290,16 @@ def test_composite_topology():
 
 def test_graph():
     composite = MergePort({})
-    bigraph = composite.generate()
-    G = get_graphviz_graph(bigraph)
-    plot_graphviz(G)
+    network = composite.generate()
 
+    # make networkx graph
+    G = get_networkx_graph(network)
 
+    # make graph figure
+    fig = graph_figure(G)
+
+    # save fig
+    save_network(out_dir='out', filename='network')
 
 
 
