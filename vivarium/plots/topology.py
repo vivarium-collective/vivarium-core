@@ -146,76 +146,6 @@ def save_network(out_dir='out', filename='network'):
     plt.savefig(fig_path, bbox_inches='tight')
     plt.close()
 
-def plot_topology_networkx(
-        composite,
-        settings={},
-        out_dir=None,
-        filename=None,
-        show_ports=True,
-        store_rgb=[x / 255 for x in [239, 131, 148]],
-        process_rgb=[x / 255 for x in [249, 204, 86]],
-        node_size=8000,
-        font_size=10,
-        node_distance=2.5,
-        buffer=1.0,
-        label_pos=0.75,
-):
-    """ Make a plot of the topology
-
-    Arguments:
-     - composite: an initialized composite
-    """
-
-    bigraph = composite.generate({})
-    G, process_nodes, store_nodes, edges = get_networkx_graph(
-        bigraph,
-        settings)
-
-    # get positions
-    pos = {}
-    for idx, node_id in enumerate(process_nodes, 1):
-        pos[node_id] = np.array([-1, -idx])
-    for idx, node_id in enumerate(store_nodes, 1):
-        pos[node_id] = np.array([1, -idx])
-
-    # plot
-    n_rows = max(len(process_nodes), len(store_nodes))
-    fig = plt.figure(1, figsize=(12, n_rows * node_distance))
-    nx.draw_networkx_nodes(G, pos,
-                           nodelist=process_nodes,
-                           node_color=process_rgb,
-                           node_size=node_size,
-                           node_shape='s')
-    nx.draw_networkx_nodes(G, pos,
-                           nodelist=store_nodes,
-                           node_color=store_rgb,
-                           node_size=node_size,
-                           node_shape='o')
-    # edges
-    colors = list(range(1, len(edges)+1))
-    nx.draw_networkx_edges(G, pos,
-                           edge_color=colors,
-                           width=1.5)
-    # labels
-    nx.draw_networkx_labels(G, pos,
-                            font_size=font_size)
-    if show_ports:
-        nx.draw_networkx_edge_labels(G, pos,
-                                 edge_labels=edges,
-                                 font_size=font_size,
-                                 label_pos=label_pos)
-
-    # add buffer
-    xmin, xmax, ymin, ymax = plt.axis()
-    plt.xlim(xmin - buffer, xmax + buffer)
-    plt.ylim(ymin - buffer, ymax + buffer)
-    plt.axis('off')
-
-    if out_dir:
-        save_network(out_dir, filename)
-    else:
-        return fig
-
 
 def plot_compartment_topology(
         compartment,
@@ -223,9 +153,19 @@ def plot_compartment_topology(
         out_dir=None,
         filename=None,
 ):
-    return plot_topology_networkx(
-        compartment, settings, out_dir, filename)
 
+    network = compartment.generate()
+
+    # make networkx graph
+    G = get_networkx_graph(network)
+
+    # make graph figure
+    fig = graph_figure(G)
+
+    # save fig
+    save_network(
+        out_dir=out_dir,
+        filename=filename)
 
 
 # tests
@@ -278,16 +218,6 @@ class MergePort(Generator):
         }
 
 
-def test_composite_topology():
-    composite = MergePort({})
-    plot_topology_networkx(
-        composite,
-        settings={},
-        out_dir='out',
-        filename='merge_port_topology',
-    )
-
-
 def test_graph():
     composite = MergePort({})
     network = composite.generate()
@@ -312,6 +242,4 @@ def test_experiment_topology():
 
 
 if __name__ == '__main__':
-    # test_composite_topology()
-
     test_graph()
