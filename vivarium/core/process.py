@@ -1,6 +1,6 @@
 """
 ==========================================
-Process and Compartment Classes
+Generator, Process, and Composite Classes
 ==========================================
 """
 
@@ -36,7 +36,7 @@ def serialize_value(value):
         return serialize_dictionary(serializer_registry.access('process').serialize(value))
     elif isinstance(value, Generator):
         return serialize_dictionary(
-            serializer_registry.access('compartment').serialize(value))
+            serializer_registry.access('generator').serialize(value))
     elif isinstance(value, (np.integer, np.floating)):
         return serializer_registry.access('numpy_scalar').serialize(value)
     elif isinstance(value, ObjectId):
@@ -154,7 +154,7 @@ def get_composite_initial_state(processes, topology):
 class Generator(object):
     """Generator parent class
 
-    All :term:`compartment` classes must inherit from this class.
+    All :term:`generator` classes must inherit from this class.
     """
     defaults = {}
 
@@ -210,7 +210,7 @@ class Generator(object):
         return {}
 
     def generate(self, config=None, path=tuple()):
-        '''Generate processes and topology dictionaries for the compartment
+        '''Generate processes and topology dictionaries
 
         Arguments:
             config (dict): Updates values in the configuration declared

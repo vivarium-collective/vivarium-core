@@ -27,7 +27,7 @@ from vivarium.library.dict_utils import (
 )
 from vivarium.core.emitter import get_emitter
 from vivarium.core.process import (
-    Generator,
+    Composite,
     Process,
     ParallelProcess,
     serialize_dictionary,
@@ -1937,7 +1937,7 @@ def test_2_store_1_port():
                     'a': 1,
                     'b': 2}}
 
-    class SplitPort(Generator):
+    class SplitPort(Composite):
         """splits OnePort's ports into two stores"""
         name = 'split_port_generator'
         def generate_processes(self, config):
@@ -1991,7 +1991,7 @@ def test_multi_port_merge():
                 'B': {'a': 1},
                 'C': {'a': 1}}
 
-    class MergePort(Generator):
+    class MergePort(Composite):
         """combines both of MultiPort's ports into one store"""
         name = 'multi_port_generator'
         def generate_processes(self, config):
@@ -2068,7 +2068,7 @@ def test_complex_topology():
                     'v': states['E']['u']}}
 
 
-    class PoQo(Generator):
+    class PoQo(Composite):
         def generate_processes(self, config=None):
             P = Po(config)
             Q = Qo(config)
@@ -2204,7 +2204,7 @@ def test_units():
         def next_update(self, timestep, states):
             return {
                 'A': {'a': 1 * units.mm}}
-    class MultiUnits(Generator):
+    class MultiUnits(Composite):
         name = 'multi_units_generator'
         def generate_processes(self, config):
             return {
