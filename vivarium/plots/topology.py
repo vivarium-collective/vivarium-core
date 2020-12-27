@@ -168,29 +168,46 @@ class MultiPort(Process):
     name = 'multi_port'
     def ports_schema(self):
         return {
-            'A': {
-                'a': {
+            'a': {
+                'molecule': {
                     '_default': 0,
                     '_emit': True}},
-            'B': {
-                'a': {
+            'b': {
+                'molecule': {
                     '_default': 0,
                     '_emit': True}},
-            'C': {
-                'a': {
+            'c': {
+                'molecule': {
                     '_default': 0,
                     '_emit': True}}}
 
     def next_update(self, timestep, states):
         return {
-            'A': {'a': 1},
-            'B': {'a': 1},
-            'C': {'a': 1}}
+            'a': {'molecule': 1},
+            'b': {'molecule': 1},
+            'c': {'molecule': 1}}
 
 
 class MergePort(Generator):
     """combines both of MultiPort's ports into one store"""
     name = 'multi_port_generator'
+    defaults = {
+        'topology': {
+            'multiport1': {
+                'a': ('A',),
+                'b': ('B',),
+                'c': ('C',),
+            },
+            'multiport2': {
+                'a': ('A',),
+                'b': ('B',),
+                'c': ('C',),
+            },
+        }
+    }
+    def __init__(self, config=None):
+        super().__init__(config)
+        self.topology = self.config['topology']
 
     def generate_processes(self, config):
         return {
@@ -199,22 +216,16 @@ class MergePort(Generator):
         }
 
     def generate_topology(self, config):
-        return {
-            'multiport1': {
-                'A': ('aaa',),
-                'B': ('bbb',),
-                'C': ('aaa',),
-            },
-            'multiport2': {
-                'A': ('aaa',),
-                'B': ('aaa',),
-                'C': ('ccc',),
-            },
-        }
+        return self.topology
 
+def test_graph(
+        save_fig=False,
+        topology={
+            'multiport1': {},
+            'multiport2': {}}
+    ):
 
-def test_graph():
-    composite = MergePort({})
+    composite = MergePort({'topology': topology})
     network = composite.generate()
 
     # make networkx graph
@@ -223,9 +234,17 @@ def test_graph():
     # make graph figure
     fig = graph_figure(G)
 
-    return fig
+    if save_fig:
+        save_network(out_dir='out/topology', filename=str(topology))
+
 
 
 if __name__ == '__main__':
-    fig =test_graph()
-    save_network(out_dir='out', filename='network')
+    test_graph(
+        save_fig=True,
+        topology={
+            'multiport1': {
+                'b': ('D',),
+            },
+            'multiport2': {}}
+    )
