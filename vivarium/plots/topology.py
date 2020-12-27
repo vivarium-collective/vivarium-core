@@ -9,10 +9,7 @@ from vivarium.core.experiment import Experiment
 
 
 
-def get_bipartite_graph(
-        topology,
-        settings={}
-):
+def get_bipartite_graph(topology):
     ''' Get a graph with Processes, Stores, and edges from a Vivarium topology '''
     if 'topology' in topology:
         topology = topology['topology']
@@ -45,10 +42,7 @@ def get_bipartite_graph(
     return process_nodes, store_nodes, edges
 
 
-def get_networkx_graph(
-    topology,
-    settings={},
-):
+def get_networkx_graph(topology):
     ''' Make a networkX graph from a Vivarium topology '''
     process_nodes, store_nodes, edges = get_bipartite_graph(topology)
 
@@ -137,11 +131,9 @@ def graph_figure(
 
     return fig
 
+
 def save_network(out_dir='out', filename='network'):
     os.makedirs(out_dir, exist_ok=True)
-    if filename is None:
-        filename = 'topology'
-    # save figure
     fig_path = os.path.join(out_dir, filename)
     plt.savefig(fig_path, bbox_inches='tight')
     plt.close()
@@ -160,12 +152,15 @@ def plot_compartment_topology(
     G = get_networkx_graph(network)
 
     # make graph figure
-    fig = graph_figure(G)
+    fig = graph_figure(G, **settings)
 
-    # save fig
-    save_network(
-        out_dir=out_dir,
-        filename=filename)
+    if out_dir is not None:
+        # save fig
+        save_network(
+            out_dir=out_dir,
+            filename=filename)
+    else:
+        return fig
 
 
 # tests
@@ -228,18 +223,9 @@ def test_graph():
     # make graph figure
     fig = graph_figure(G)
 
-    # save fig
-    save_network(out_dir='out', filename='network')
-
-
-
-def test_experiment_topology():
-    composite = MergePort({})
-    network = composite.generate()
-    exp = Experiment({
-        'processes': network['processes'],
-        'topology': network['topology']})
+    return fig
 
 
 if __name__ == '__main__':
-    test_graph()
+    fig =test_graph()
+    save_network(out_dir='out', filename='network')
