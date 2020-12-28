@@ -1268,7 +1268,7 @@ class Experiment(object):
         self.experiment_name = config.get('experiment_name', self.experiment_id)
         self.description = config.get('description', '')
         self.display_info = config.get('display_info', True)
-        self.progress_bar = config.get('progress_bar', True)
+        self.progress_bar = config.get('progress_bar', False)
         self.time_created = timestamp()
         if self.display_info:
             self.print_display()
