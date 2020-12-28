@@ -58,7 +58,6 @@ def get_networkx_graph(topology):
     return G
 
 
-
 def graph_figure(
         graph,
         format='bipartite',
@@ -71,6 +70,8 @@ def graph_figure(
         buffer=1.0,
         label_pos=0.75,
 ):
+    """ Make a figure from a networkx graph """
+    
     node_attributes = dict(graph.nodes.data())
     process_nodes = [
         node_id for node_id, attributes in node_attributes.items()
@@ -145,6 +146,7 @@ def plot_compartment_topology(
         out_dir=None,
         filename=None,
 ):
+    """ Plot a composite's topology """
 
     network = compartment.generate()
 
@@ -240,11 +242,24 @@ def test_graph(
 
 
 if __name__ == '__main__':
-    test_graph(
-        save_fig=True,
-        topology={
+    # topology = {
+    #         'multiport1': {
+    #             'a': ('D',),
+    #             'b': ('D',),
+    #             'c': ('D',),
+    #         },
+    #         'multiport2': {}}
+
+    topology = {
             'multiport1': {
-                'b': ('D',),
+                'a': ('A', 'AA',),
+                'b': ('A', 'BB',),
+                'c': ('A', 'CC',),
             },
             'multiport2': {}}
+
+
+    test_graph(
+        save_fig=True,
+        topology=topology,
     )
