@@ -191,7 +191,7 @@ class Generator(object):
             mapping process names to instantiated and configured process
             objects.
         """
-        return {}
+        raise Exception('{} does not include an "generate_processes" function'.format(self.name))
 
     def generate_topology(self, config):
         """Generate topology dictionary
@@ -207,7 +207,7 @@ class Generator(object):
             dict: Subclass implementations must return a :term:`topology`
             dictionary.
         """
-        return {}
+        raise Exception('{} does not include an "generate_topology" function'.format(self.name))
 
     def generate(self, config=None, path=tuple()):
         '''Generate processes and topology dictionaries
@@ -253,8 +253,8 @@ class Generator(object):
             'processes': assoc_in({}, path, processes),
             'topology': assoc_in({}, path, topology)}
 
-    def or_default(self, parameters, key):
-        return parameters.get(key, self.defaults[key])
+    # def or_default(self, parameters, key):
+    #     return parameters.get(key, self.defaults[key])
 
     def get_parameters(self):
         network = self.generate({})
@@ -270,6 +270,9 @@ class Composite(Generator):
 
     All :term:`composite` classes must inherit from this class.
     """
+
+    def __init__(self, parameters=None):
+        super().__init__(parameters)
 
     def initial_state(self, config=None):
         """ Merge all processes' initial states
@@ -312,6 +315,8 @@ class Process(Generator):
 
         self.parameters = self.config
         self.parallel = self.config.pop('_parallel', False)
+        if self.config.get('_register'):
+            self.register()
 
     def initial_state(self, config=None):
         """Get initial state in embedded path dictionary
@@ -328,6 +333,9 @@ class Process(Generator):
             mapping state paths to initial values.
         """
         raise Exception('{} does not include an "initial_state" function'.format(self.name))
+
+    def register(self, name=None):
+        process_registry.register(name or self.name, self)
 
     def generate_processes(self, config):
         return {self.name: self}
