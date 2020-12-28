@@ -71,7 +71,7 @@ def graph_figure(
         label_pos=0.75,
 ):
     """ Make a figure from a networkx graph """
-    
+
     node_attributes = dict(graph.nodes.data())
     process_nodes = [
         node_id for node_id, attributes in node_attributes.items()
@@ -146,9 +146,24 @@ def plot_compartment_topology(
         out_dir=None,
         filename=None,
 ):
+    """ 
+    an old function, reproduced by plot_topology """
+    return plot_topology(
+        compartment,
+        settings,
+        out_dir,
+        filename)
+
+
+def plot_topology(
+        composite,
+        settings={},
+        out_dir=None,
+        filename=None,
+):
     """ Plot a composite's topology """
 
-    network = compartment.generate()
+    network = composite.generate()
 
     # make networkx graph
     G = get_networkx_graph(network)
