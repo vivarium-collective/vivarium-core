@@ -247,11 +247,11 @@ class Composite(Factory):
     All :term:`composite` classes must inherit from this class.
     """
 
-    def __init__(self, parameters=None):
-        super().__init__(parameters)
+    def __init__(self, config=None):
+        super().__init__(config)
 
-        self.merge_processes = {}
-        self.merge_topology = {}
+        self.merge_processes = self.config.pop('processes', {})
+        self.merge_topology = self.config.pop('topology', {})
 
     def initial_state(self, config=None):
         """ Merge all processes' initial states
@@ -370,6 +370,12 @@ class Process(Factory, metaclass=abc.ABCMeta):
         return {
             self.name: {
                 port: (port,) for port in ports.keys()}}
+
+    def get_composite(self, config):
+        composite = Composite({
+            'processes': self.generate_processes(config),
+            'topology': self.generate_topology(config)})
+        return composite
 
     def get_schema(self, override=None):
         ports = copy.deepcopy(self.ports_schema())
