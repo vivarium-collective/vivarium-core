@@ -6,6 +6,7 @@ Generator, Process, and Composite Classes
 
 import copy
 import numpy as np
+import abc
 
 from bson.objectid import ObjectId
 from multiprocessing import Pipe
@@ -151,7 +152,7 @@ def get_composite_initial_state(processes, topology):
     return initial_state
 
 
-class Generator(object):
+class Generator(metaclass=abc.ABCMeta):
     """Generator parent class
 
     All :term:`generator` classes must inherit from this class.
@@ -173,9 +174,7 @@ class Generator(object):
         self.merge_processes = {}
         self.merge_topology = {}
 
-    def initial_state(self, config=None):
-        raise Exception('{} does not include an "initial_state" function'.format(self.name))
-
+    @abc.abstractmethod
     def generate_processes(self, config):
         """Generate processes dictionary
 
@@ -191,8 +190,9 @@ class Generator(object):
             mapping process names to instantiated and configured process
             objects.
         """
-        raise Exception('{} does not include an "generate_processes" function'.format(self.name))
+        pass
 
+    @abc.abstractmethod
     def generate_topology(self, config):
         """Generate topology dictionary
 
@@ -207,7 +207,7 @@ class Generator(object):
             dict: Subclass implementations must return a :term:`topology`
             dictionary.
         """
-        raise Exception('{} does not include an "generate_topology" function'.format(self.name))
+        pass
 
     def generate(self, config=None, path=tuple()):
         '''Generate processes and topology dictionaries
@@ -242,19 +242,11 @@ class Generator(object):
         processes = deep_merge(processes, self.merge_processes)
         topology = deep_merge(topology, self.merge_topology)
 
-        # add derivers
-        derivers = generate_derivers(processes, topology)
-        processes = deep_merge(derivers['processes'], processes)
-        topology = deep_merge(derivers['topology'], topology)
-
         override_schemas(self.schema_override, processes)
 
         return {
             'processes': assoc_in({}, path, processes),
             'topology': assoc_in({}, path, topology)}
-
-    # def or_default(self, parameters, key):
-    #     return parameters.get(key, self.defaults[key])
 
     def get_parameters(self):
         network = self.generate({})
@@ -303,7 +295,7 @@ class Composite(Generator):
         self.schema_override = deep_merge(self.schema_override, schema_override)
 
 
-class Process(Generator):
+class Process(Generator, metaclass=abc.ABCMeta):
     """Process parent class
 
     All :term:`process` classes must inherit from this class.
@@ -388,6 +380,7 @@ class Process(Generator):
     def pull_data(self):
         return {}
 
+    @abc.abstractmethod
     def ports_schema(self):
         '''
         ports_schema returns a dictionary that declares which states are expected by the processes,
@@ -412,14 +405,13 @@ class Process(Generator):
         self.parameters[derived_key] = f(source)
         return self.parameters[derived_key]
 
+    @abc.abstractmethod
     def next_update(self, timestep, states):
         '''
         Find the next update given the current states this process cares about.
-        This is the main function a new process would override.'''
-
-        return {
-            port: {}
-            for port, values in self.ports().items()}
+        This is the main function a new process would override.
+        '''
+        pass
 
 
 class Deriver(Process):
