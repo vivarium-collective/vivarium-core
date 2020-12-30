@@ -35,7 +35,7 @@ def serialize_value(value):
         return serializer_registry.access('function').serialize(value)
     elif isinstance(value, Process):
         return serialize_dictionary(serializer_registry.access('process').serialize(value))
-    elif isinstance(value, Generator):
+    elif isinstance(value, Factory):
         return serialize_dictionary(
             serializer_registry.access('generator').serialize(value))
     elif isinstance(value, (np.integer, np.floating)):
@@ -152,10 +152,10 @@ def get_composite_initial_state(processes, topology):
     return initial_state
 
 
-class Generator(metaclass=abc.ABCMeta):
-    """Generator parent class
+class Factory(metaclass=abc.ABCMeta):
+    """Factory parent class
 
-    All :term:`generator` classes must inherit from this class.
+    All :term:`factory` classes must inherit from this class.
     """
     defaults = {}
 
@@ -170,9 +170,6 @@ class Generator(metaclass=abc.ABCMeta):
         self.config = copy.deepcopy(self.defaults)
         self.config = deep_merge(self.config, config)
         self.schema_override = self.config.pop('_schema', {})
-
-        self.merge_processes = {}
-        self.merge_topology = {}
 
     @abc.abstractmethod
     def generate_processes(self, config):
@@ -236,28 +233,15 @@ class Generator(metaclass=abc.ABCMeta):
         processes = self.generate_processes(config)
         topology = self.generate_topology(config)
 
-        # add merged processes
-        # TODO -- if merge_processes are not initialized, config can be passed in.
-        # TODO -- here, it is assumed all merge_processes are initialized
-        processes = deep_merge(processes, self.merge_processes)
-        topology = deep_merge(topology, self.merge_topology)
-
         override_schemas(self.schema_override, processes)
 
         return {
             'processes': assoc_in({}, path, processes),
             'topology': assoc_in({}, path, topology)}
 
-    def get_parameters(self):
-        network = self.generate({})
-        processes = network['processes']
-        return {
-            process_id: process.parameters
-            for process_id, process in processes.items()}
 
 
-
-class Composite(Generator):
+class Composite(Factory):
     """Composite parent class
 
     All :term:`composite` classes must inherit from this class.
@@ -265,6 +249,9 @@ class Composite(Generator):
 
     def __init__(self, parameters=None):
         super().__init__(parameters)
+
+        self.merge_processes = {}
+        self.merge_topology = {}
 
     def initial_state(self, config=None):
         """ Merge all processes' initial states
@@ -286,6 +273,52 @@ class Composite(Generator):
         initial_state = get_composite_initial_state(processes, topology)
         return initial_state
 
+    def generate(self, config=None, path=tuple()):
+        '''Generate processes and topology dictionaries
+
+        Arguments:
+            config (dict): Updates values in the configuration declared
+                in the constructor
+            path (tuple): Tuple with ('path', 'to', 'level') associates
+                the processes and topology at this level
+
+        Returns:
+            dict: Dictionary with two keys: ``processes``, which has a
+            value of a processes dictionary, and ``topology``, which has
+            a value of a topology dictionary. Both are suitable to be
+            passed to the constructor for
+            :py:class:`vivarium.core.experiment.Experiment`.
+        '''
+
+        # merge config with self.config
+        if config is None:
+            config = self.config
+        else:
+            default = copy.deepcopy(self.config)
+            config = deep_merge(default, config)
+
+        processes = self.generate_processes(config)
+        topology = self.generate_topology(config)
+
+        # add merged processes
+        # TODO -- if merge_processes are not initialized, config can be passed in.
+        # TODO -- here, it is assumed all merge_processes are initialized
+        processes = deep_merge(processes, self.merge_processes)
+        topology = deep_merge(topology, self.merge_topology)
+
+        override_schemas(self.schema_override, processes)
+
+        return {
+            'processes': assoc_in({}, path, processes),
+            'topology': assoc_in({}, path, topology)}
+
+    def get_parameters(self):
+        network = self.generate({})
+        processes = network['processes']
+        return {
+            process_id: process.parameters
+            for process_id, process in processes.items()}
+
     def merge(self, processes={}, topology={}, schema_override={}):
         for name, process in processes.items():
             assert isinstance(process, Process)
@@ -295,7 +328,7 @@ class Composite(Generator):
         self.schema_override = deep_merge(self.schema_override, schema_override)
 
 
-class Process(Generator, metaclass=abc.ABCMeta):
+class Process(Factory, metaclass=abc.ABCMeta):
     """Process parent class
 
     All :term:`process` classes must inherit from this class.

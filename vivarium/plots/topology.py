@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import networkx as nx
 
-from vivarium.core.process import Process, Generator
+from vivarium.core.process import Process, Factory
 from vivarium.core.experiment import Experiment
 
 
@@ -205,7 +205,7 @@ class MultiPort(Process):
             'c': {'molecule': 1}}
 
 
-class MergePort(Generator):
+class MergePort(Factory):
     """combines both of MultiPort's ports into one store"""
     name = 'multi_port_generator'
     defaults = {

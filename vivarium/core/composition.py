@@ -13,7 +13,7 @@ from vivarium.core.experiment import Experiment
 from vivarium.core.process import (
     Process,
     Deriver,
-    Generator,
+    Factory,
     generate_derivers,
 )
 from vivarium.library.dict_utils import (
@@ -942,7 +942,7 @@ class ToyDeath(Process):
         return update
 
 
-class ToyCompartment(Generator):
+class ToyCompartment(Factory):
     '''
     a toy compartment for testing
 

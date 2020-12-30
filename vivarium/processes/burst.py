@@ -11,7 +11,7 @@ import logging as log
 from vivarium.core.experiment import pp
 from vivarium.core.process import (
     Deriver,
-    Generator,
+    Factory,
 )
 from vivarium.library.units import units
 from vivarium.core.composition import (
@@ -85,7 +85,7 @@ class Burst(Deriver):
 
 
 # test
-class ToyAgent(Generator):
+class ToyAgent(Factory):
     defaults = {
         'exchange': {
             'uptake_rate': 0.1},

@@ -6,7 +6,7 @@ import logging as log
 
 from vivarium.core.process import (
     Deriver,
-    Generator
+    Factory
 )
 from vivarium.core.composition import (
     compose_experiment,
@@ -106,7 +106,7 @@ class MetaDivision(Deriver):
 
 
 # test
-class ToyAgent(Generator):
+class ToyAgent(Factory):
     defaults = {
         'exchange': {'uptake_rate': 0.1},
         'agents_path': ('..', '..', 'agents')}
