@@ -1,6 +1,6 @@
 """
 ==========================================
-Generator, Process, and Composite Classes
+Factory, Process, and Composite Classes
 ==========================================
 """
 
@@ -37,7 +37,7 @@ def serialize_value(value):
         return serialize_dictionary(serializer_registry.access('process').serialize(value))
     elif isinstance(value, Factory):
         return serialize_dictionary(
-            serializer_registry.access('generator').serialize(value))
+            serializer_registry.access('factory').serialize(value))
     elif isinstance(value, (np.integer, np.floating)):
         return serializer_registry.access('numpy_scalar').serialize(value)
     elif isinstance(value, ObjectId):
@@ -485,7 +485,7 @@ class ParallelProcess(object):
 
 def test_composite_initial_state():
     """
-    test that initial state in generator merges individual processes' initial states
+    test that initial state in composite merges individual processes' initial states
     """
     class AA(Process):
         name = 'AA'
