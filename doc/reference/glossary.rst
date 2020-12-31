@@ -113,6 +113,11 @@ Glossary
         documentation for the ``Experiment`` class and our :doc:`guide
         to experiments </guides/experiments>` for more details.
 
+    factory
+    Factory
+        An object with a generate method, which returns a dictionary of
+        :term:`Processes` and a dictionary of :term:`Topologies`.
+
     Inner
     inner
         A once-removed internal node position relative to a given node in
