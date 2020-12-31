@@ -187,7 +187,7 @@ class Factory(metaclass=abc.ABCMeta):
             mapping process names to instantiated and configured process
             objects.
         """
-        pass
+        return {}
 
     @abc.abstractmethod
     def generate_topology(self, config):
@@ -204,7 +204,7 @@ class Factory(metaclass=abc.ABCMeta):
             dict: Subclass implementations must return a :term:`topology`
             dictionary.
         """
-        pass
+        return {}
 
     def generate(self, config=None, path=tuple()):
         '''Generate processes and topology dictionaries
@@ -273,36 +273,19 @@ class Composite(Factory):
         initial_state = get_composite_initial_state(processes, topology)
         return initial_state
 
+    def generate_processes(self, config):
+        return {}
+
+    def generate_topology(self, config):
+        return {}
+
     def generate(self, config=None, path=tuple()):
-        '''Generate processes and topology dictionaries
-
-        Arguments:
-            config (dict): Updates values in the configuration declared
-                in the constructor
-            path (tuple): Tuple with ('path', 'to', 'level') associates
-                the processes and topology at this level
-
-        Returns:
-            dict: Dictionary with two keys: ``processes``, which has a
-            value of a processes dictionary, and ``topology``, which has
-            a value of a topology dictionary. Both are suitable to be
-            passed to the constructor for
-            :py:class:`vivarium.core.experiment.Experiment`.
-        '''
-
-        # merge config with self.config
-        if config is None:
-            config = self.config
-        else:
-            default = copy.deepcopy(self.config)
-            config = deep_merge(default, config)
-
-        processes = self.generate_processes(config)
-        topology = self.generate_topology(config)
+        network = super().generate(config=config, path=path)
+        processes = network['processes']
+        topology = network['topology']
 
         # add merged processes
-        # TODO -- if merge_processes are not initialized, config can be passed in.
-        # TODO -- here, it is assumed all merge_processes are initialized
+        # TODO - it is assumed all merge_processes are already initialized
         processes = deep_merge(processes, self.merge_processes)
         topology = deep_merge(topology, self.merge_topology)
 
@@ -371,7 +354,7 @@ class Process(Factory, metaclass=abc.ABCMeta):
             self.name: {
                 port: (port,) for port in ports.keys()}}
 
-    def get_composite(self, config):
+    def get_composite(self, config={}):
         composite = Composite({
             'processes': self.generate_processes(config),
             'topology': self.generate_topology(config)})
@@ -495,7 +478,7 @@ class ParallelProcess(object):
         self.multiprocess.join()
 
 
-def test_generator_initial_state():
+def test_composite_initial_state():
     """
     test that initial state in generator merges individual processes' initial states
     """
@@ -517,6 +500,7 @@ def test_generator_initial_state():
                 'a3': {
                     'a3_store': AA({})}
             }
+
         def generate_topology(self, config):
             return {
                 'a1': {
@@ -538,57 +522,54 @@ def test_generator_initial_state():
     expected_initial_state = {
         'a3_store': {
             'a3_1_store': {
-                'a': 1
-            }
-        },
+                'a': 1}},
         'a1_store': {
             'a': 1,
-            'b': 1
-        }
-    }
+            'b': 1}}
     assert initial_state == expected_initial_state
 
+class ToyProcess(Process):
+    name = 'toy'
 
-def test_generator_merge():
-    class ToyProcess(Process):
-        name = 'toy'
+    def ports_schema(self):
+        return {
+            'A': {
+                'a': {'_default': 0},
+                'b': {'_default': 0}},
+            'B': {
+                'a': {'_default': 0},
+                'b': {'_default': 0}}}
 
-        def ports_schema(self):
-            return {
-                'A': {
-                    'a': {'_default': 0},
-                    'b': {'_default': 0}},
-                'B': {
-                    'a': {'_default': 0},
-                    'b': {'_default': 0}}}
+    def next_update(self, timestep, states):
+        return {
+            'A': {
+                'a': 1,
+                'b': states['A']['a']},
+            'B': {
+                'a': states['A']['b'],
+                'b': states['B']['a']}}
 
-        def next_update(self, timestep, states):
-            return {
-                'A': {
-                    'a': 1,
-                    'b': states['A']['a']},
-                'B': {
-                    'a': states['A']['b'],
-                    'b': states['B']['a']}}
+class ToyComposite(Composite):
+    defaults = {
+        'A':  {'name': 'A'},
+        'B': {'name': 'B'}}
 
-    class ToyComposite(Composite):
-        defaults = {
-            'A':  {'name': 'A'},
-            'B': {'name': 'B'}}
+    def generate_processes(self, config=None):
+        return {
+            'A': ToyProcess(config['A']),
+            'B': ToyProcess(config['B'])}
 
-        def generate_processes(self, config=None):
-            return {
-                'A': ToyProcess(config['A']),
-                'B': ToyProcess(config['B'])}
+    def generate_topology(self, config=None):
+        return {
+            'A': {
+                'A': ('aaa',),
+                'B': ('bbb',)},
+            'B': {
+                'A': ('bbb',),
+                'B': ('ccc',)}}
 
-        def generate_topology(self, config=None):
-            return {
-                'A': {
-                    'A': ('aaa',),
-                    'B': ('bbb',)},
-                'B': {
-                    'A': ('bbb',),
-                    'B': ('ccc',)}}
+
+def test_composite_merge():
 
     generator = ToyComposite()
     initial_network = generator.generate()
@@ -608,7 +589,32 @@ def test_generator_merge():
     merged_network = generator.generate(config)
 
 
-if __name__ == '__main__':
-    # test_generator_merge()
+def test_get_composite():
+    a = ToyProcess({'name': 'a'})
 
-    test_generator_initial_state()
+    composite = a.get_composite()
+    composite.merge(
+        processes={'b': ToyProcess()},
+        topology={'b': {
+            'A': ('A',),
+            'B': ('B',),
+        }})
+
+    network = composite.generate()
+
+    expected_topology = {
+        'a': {
+            'A': ('A',),
+            'B': ('B',)},
+        'b': {
+            'A': ('A',),
+            'B': ('B',)}}
+
+    assert network['topology'] == expected_topology
+
+
+if __name__ == '__main__':
+    # test_composite_initial_state()
+    # test_composite_merge()
+
+    test_get_composite()
