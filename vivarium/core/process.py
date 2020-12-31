@@ -223,7 +223,6 @@ class Factory(metaclass=abc.ABCMeta):
             :py:class:`vivarium.core.experiment.Experiment`.
         '''
 
-        # merge config with self.config
         if config is None:
             config = self.config
         else:
@@ -290,7 +289,8 @@ class Composite(Factory):
         topology = network['topology']
 
         # add merged processes
-        # TODO - it is assumed all merge_processes are already initialized
+        # TODO - this assumes all merge_processes are already initialized.
+        # TODO - make option to initialize new processes here
         processes = deep_merge(processes, self.merge_processes)
         topology = deep_merge(topology, self.merge_topology)
 
@@ -316,7 +316,7 @@ class Composite(Factory):
         self.schema_override = deep_merge(self.schema_override, schema_override)
 
 
-class Process(Factory, metaclass=abc.ABCMeta):
+class Process(Composite, metaclass=abc.ABCMeta):
     """Process parent class
 
     All :term:`process` classes must inherit from this class.
@@ -358,12 +358,6 @@ class Process(Factory, metaclass=abc.ABCMeta):
         return {
             self.name: {
                 port: (port,) for port in ports.keys()}}
-
-    def get_composite(self, config={}):
-        composite = Composite({
-            'processes': self.generate_processes(config),
-            'topology': self.generate_topology(config)})
-        return composite
 
     def get_schema(self, override=None):
         ports = copy.deepcopy(self.ports_schema())
@@ -597,15 +591,14 @@ def test_composite_merge():
 def test_get_composite():
     a = ToyProcess({'name': 'a'})
 
-    composite = a.get_composite()
-    composite.merge(
+    a.merge(
         processes={'b': ToyProcess()},
         topology={'b': {
             'A': ('A',),
             'B': ('B',),
         }})
 
-    network = composite.generate()
+    network = a.generate()
 
     expected_topology = {
         'a': {

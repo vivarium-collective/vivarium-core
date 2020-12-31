@@ -34,8 +34,8 @@ COMPARTMENT_OUT_DIR = os.path.join(BASE_OUT_DIR, 'compartments')
 COMPOSITE_OUT_DIR = os.path.join(BASE_OUT_DIR, 'composites')
 EXPERIMENT_OUT_DIR = os.path.join(BASE_OUT_DIR, 'experiments')
 
-GENERATORS_KEY = '_generators'
 FACTORY_KEY = '_factory'
+GENERATORS_KEY = FACTORY_KEY  # TODO -- remove all uses of GENERATORS_KEY from dependent libraries
 
 
 ######################################################
@@ -79,7 +79,7 @@ def initialize_hierarchy(hierarchy):
     processes = {}
     topology = {}
     for key, level in hierarchy.items():
-        if key == GENERATORS_KEY or key == FACTORY_KEY:
+        if key == FACTORY_KEY:
             if isinstance(level, list):
                 for generator_def in level:
                     add_generator_to_tree(
