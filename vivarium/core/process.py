@@ -432,7 +432,7 @@ class Process(Composite, metaclass=abc.ABCMeta):
         Find the next update given the current states this process cares about.
         This is the main function a new process would override.
         '''
-        pass
+        return {}
 
 
 class Deriver(Process):
