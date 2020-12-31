@@ -233,6 +233,11 @@ class Factory(metaclass=abc.ABCMeta):
         processes = self.generate_processes(config)
         topology = self.generate_topology(config)
 
+        # add derivers
+        derivers = generate_derivers(processes, topology)
+        processes = deep_merge(derivers['processes'], processes)
+        topology = deep_merge(derivers['topology'], topology)
+
         override_schemas(self.schema_override, processes)
 
         return {
@@ -353,22 +358,6 @@ class Process(Factory, metaclass=abc.ABCMeta):
         return {
             self.name: {
                 port: (port,) for port in ports.keys()}}
-
-    def generate(self, config=None, path=tuple()):
-        network = super().generate(config=config, path=path)
-        processes = network['processes']
-        topology = network['topology']
-
-        # add derivers
-        derivers = generate_derivers(processes, topology)
-        processes = deep_merge(derivers['processes'], processes)
-        topology = deep_merge(derivers['topology'], topology)
-
-        override_schemas(self.schema_override, processes)
-
-        return {
-            'processes': assoc_in({}, path, processes),
-            'topology': assoc_in({}, path, topology)}
 
     def get_composite(self, config={}):
         composite = Composite({

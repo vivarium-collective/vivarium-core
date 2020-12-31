@@ -1229,7 +1229,7 @@ class Experiment(object):
                     maps :term:`process` names to process objects. You
                     will usually get this from the ``processes``
                     attribute of the dictionary from
-                    :py:meth:`vivarium.core.process.Generator.generate`.
+                    :py:meth:`vivarium.core.process.Factory.generate`.
                 * **topology** (:py:class:`dict`): A dictionary that
                     maps process names to sub-dictionaries. These
                     sub-dictionaries map the process's port names to
