@@ -151,7 +151,7 @@ class Store(object):
         self.subtopology = {}
         self.properties = {}
         self.default = None
-        self.updater_definition = None
+        self.updater = None
         self.value = None
         self.units = None
         self.divider = None
@@ -292,9 +292,9 @@ class Store(object):
                 if isinstance(self.value, Quantity):
                     self.units = self.value.units
 
-            self.updater_definition = config.get(
+            self.updater = config.get(
                 '_updater',
-                self.updater_definition or 'accumulate',
+                self.updater or 'accumulate',
             )
 
             self.properties = deep_merge(
@@ -319,19 +319,13 @@ class Store(object):
                     self.inner[key].apply_config(child, source=source)
 
     def get_updater(self, update):
-        updater_definition = self.updater_definition
+        updater = self.updater
         if isinstance(update, dict) and '_updater' in update:
-            updater_definition = update['_updater']
-        port_mapping = None
-        if isinstance(updater_definition, dict):
-            updater = updater_definition['updater']
-            port_mapping = updater_definition['port_mapping']
-        else:
-            updater = updater_definition
+            updater = update['_updater']
 
         if isinstance(updater, str):
             updater = updater_registry.access(updater)
-        return updater, port_mapping
+        return updater
 
     def get_config(self, sources=False):
         '''
@@ -364,8 +358,8 @@ class Store(object):
             config.update({
                 '_default': self.default,
                 '_value': self.value})
-            if self.updater_definition:
-                config['_updater'] = self.updater_definition
+            if self.updater:
+                config['_updater'] = self.updater
             if self.units:
                 config['_units'] = self.units
             if self.emit:
@@ -805,11 +799,9 @@ class Store(object):
         else:
             # Leaf update: this node has no inner
 
-            updater, port_mapping = self.get_updater(update)
-            state_dict = None
+            updater = self.get_updater(update)
 
             if isinstance(update, dict) and '_reduce' in update:
-                assert port_mapping is None
                 reduction = update['_reduce']
                 top = self.get_path(reduction.get('from'))
                 update = top.reduce(
@@ -820,15 +812,7 @@ class Store(object):
                 if '_updater' in update:
                     update = update.get('_value', self.default)
 
-            if port_mapping is not None:
-                updater_topology = {
-                    updater_port: state.topology[proc_port]
-                    for updater_port, proc_port in port_mapping.items()}
-
-                state_dict = state.outer.topology_state(
-                    updater_topology)
-
-            self.value = updater(self.value, update, state_dict)
+            self.value = updater(self.value, update)
 
             return EMPTY_UPDATES
 
