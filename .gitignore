@@ -9,6 +9,8 @@
 out/
 .idea/
 *.iml
+/.coverage
+/.coverage.*
 
 # User files #
 ################

@@ -2,6 +2,7 @@ astroid==2.4.2
 attrs==20.3.0
 certifi==2020.6.20
 confluent-kafka==1.5.0
+coverage==5.3.1
 cycler==0.10.0
 decorator==4.4.2
 iniconfig==1.1.1
@@ -21,8 +22,10 @@ pylint==2.6.0
 pymongo==3.11.0
 pyparsing==2.4.7
 pytest==6.1.2
+pytest-cov==2.10.1
 python-dateutil==2.8.1
 scipy==1.5.4
 six==1.15.0
 toml==0.10.2
+-e git+git@github.com:vivarium-collective/vivarium-core.git@9f77c3f11104f8affe7c77cccf210ddcb9160e8c#egg=vivarium_core
 wrapt==1.12.1
