@@ -1,17 +1,17 @@
-from __future__ import absolute_import, division, print_function
+"""Emitters
+"""
 
 from pymongo import MongoClient
-from confluent_kafka import Producer
 import json
-import copy
-try:
-    from urllib.parse import quote_plus  # Python 3
-except ImportError:
-    from urllib import quote_plus  # Python 2
+from urllib.parse import quote_plus
 
+from vivarium.library.units import remove_units
 from vivarium.library.dict_utils import (
-    merge_dicts, value_in_embedded_dict, get_path_list_from_dict, \
-    get_value_from_path, make_path_dict)
+    value_in_embedded_dict,
+    make_path_dict,
+)
+from vivarium.core.process import deserialize_value
+
 
 HISTORY_INDEXES = [
     'time',
@@ -27,15 +27,6 @@ CONFIGURATION_INDEXES = [
 SECRETS_PATH = 'secrets.json'
 
 
-def delivery_report(err, msg):
-    """
-    This is a utility method passed to the Kafka Producer to handle the delivery
-    of messages sent using `send(topic, message)`.
-    """
-    if err is not None:
-        print('message delivery failed: {}'.format(msg))
-        print('failed message: {}'.format(err))
-
 def create_indexes(table, columns):
     '''Create all of the necessary indexes for the given table name.'''
     for column in columns:
@@ -46,14 +37,13 @@ def get_emitter(config):
 
     The available emitter type names and their classes are:
 
-    * ``kafka``: :py:class:`KafkaEmitter`
     * ``database``: :py:class:`DatabaseEmitter`
     * ``null``: :py:class:`NullEmitter`
     * ``timeseries``: :py:class:`TimeSeriesEmitter`
 
     Arguments:
         config (dict): Requires three keys:
-            * type: Type of emitter ('kafka' for a kafka emitter).
+            * type: Type of emitter ('database' for a database emitter).
             * emitter: Any configuration the emitter type requires to initialize.
             * keys: A list of state keys to emit for each state label.
 
@@ -65,9 +55,7 @@ def get_emitter(config):
         config = {'type': 'print'}
     emitter_type = config.get('type', 'print')
 
-    if emitter_type == 'kafka':
-        emitter = KafkaEmitter(config)
-    elif emitter_type == 'database':
+    if emitter_type == 'database':
         emitter = DatabaseEmitter(config)
     elif emitter_type == 'null':
         emitter = NullEmitter(config)
@@ -80,7 +68,6 @@ def get_emitter(config):
 
 def configure_emitter(config, processes, topology):
     emitter_config = config.get('emitter', {})
-    emitter_config['keys'] = get_emitter_keys(processes, topology)
     emitter_config['experiment_id'] = config.get('experiment_id')
     emitter_config['simulation_id'] = config.get('simulation_id')
     return get_emitter(emitter_config)
@@ -118,7 +105,6 @@ def timeseries_from_data(data):
     embedded_timeseries['time'] = times_vector
     return embedded_timeseries
 
-
 class Emitter(object):
     '''
     Emit data to terminal
@@ -130,13 +116,19 @@ class Emitter(object):
         print(data)
 
     def get_data(self):
-        return []
+        return {}
+
+    def get_data_deserialized(self):
+        return deserialize_value(self.get_data())
+
+    def get_data_unitless(self):
+        return remove_units(self.get_data_deserialized())
 
     def get_path_timeseries(self):
-        return path_timeseries_from_data(self.get_data())
+        return path_timeseries_from_data(self.get_data_deserialized())
 
     def get_timeseries(self):
-        return timeseries_from_data(self.get_data())
+        return timeseries_from_data(self.get_data_deserialized())
 
 
 class NullEmitter(Emitter):
@@ -150,7 +142,7 @@ class NullEmitter(Emitter):
 class TimeSeriesEmitter(Emitter):
 
     def __init__(self, config):
-        keys = config.get('keys', {})
+        super().__init__(config)
         self.saved_data = {}
 
     def emit(self, data):
@@ -162,34 +154,6 @@ class TimeSeriesEmitter(Emitter):
 
     def get_data(self):
         return self.saved_data
-
-
-class KafkaEmitter(Emitter):
-    '''
-    Emit data to kafka
-
-    Example:
-
-    >>> config = {
-    ...     'host': 'localhost:9092',
-    ...     'topic': 'EMIT',
-    ... }
-    >>> emitter = KafkaEmitter(config)
-    '''
-    def __init__(self, config):
-        self.config = config
-        self.producer = Producer({
-            'bootstrap.servers': self.config['host']})
-
-    def emit(self, data):
-        encoded = json.dumps(data, ensure_ascii=False).encode('utf-8')
-
-        self.producer.produce(
-            self.config['topic'],
-            encoded,
-            callback=delivery_report)
-
-        self.producer.flush(timeout=0.1)
 
 
 class DatabaseEmitter(Emitter):
@@ -209,7 +173,7 @@ class DatabaseEmitter(Emitter):
     default_host = 'localhost:27017'
 
     def __init__(self, config):
-        self.config = config
+        super().__init__(config)
         self.experiment_id = config.get('experiment_id')
 
         # create singleton instance of mongo client

@@ -10,7 +10,7 @@ class DivideCondition(Deriver):
         super(DivideCondition, self).__init__(parameters)
         self.threshold = self.parameters['threshold']
 
-    def initial_state(self):
+    def initial_state(self, config=None):
         return {}
 
     def ports_schema(self):

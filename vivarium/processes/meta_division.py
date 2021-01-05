@@ -13,7 +13,9 @@ from vivarium.core.composition import (
     GENERATORS_KEY,
     PROCESS_OUT_DIR,
 )
-from vivarium.core.experiment import pp
+from vivarium.core.experiment import (
+    pp
+)
 
 # processes
 from vivarium.processes.exchange_a import ExchangeA
@@ -43,7 +45,6 @@ class MetaDivision(Deriver):
     name = NAME
     defaults = {
         'initial_state': {},
-        'daughter_path': ('agents',),
         'daughter_ids_function': daughter_phylogeny_id}
 
     def __init__(self, initial_parameters=None):
@@ -54,13 +55,14 @@ class MetaDivision(Deriver):
 
         # must provide a compartment to generate new daughters
         self.agent_id = initial_parameters['agent_id']
-        self.compartment = initial_parameters['compartment']
+        self.generator = initial_parameters['generator']
         self.daughter_ids_function = self.or_default(
             initial_parameters, 'daughter_ids_function')
-        self.daughter_path = self.or_default(
-            initial_parameters, 'daughter_path')
 
         super(MetaDivision, self).__init__(initial_parameters)
+
+    def initial_state(self, config=None):
+        return {}
 
     def ports_schema(self):
         return {
@@ -81,13 +83,12 @@ class MetaDivision(Deriver):
             daughter_updates = []
 
             for daughter_id in daughter_ids:
-                compartment = self.compartment.generate({
+                generator = self.generator.generate({
                     'agent_id': daughter_id})
                 daughter_updates.append({
-                    'daughter': daughter_id,
-                    'path': (daughter_id,) + self.daughter_path,
-                    'processes': compartment['processes'],
-                    'topology': compartment['topology'],
+                    'key': daughter_id,
+                    'processes': generator['processes'],
+                    'topology': generator['topology'],
                     'initial_state': {}})
 
             log.info(
@@ -103,23 +104,19 @@ class MetaDivision(Deriver):
         else:
             return {}
 
-        # test
 
-
+# test
 class ToyAgent(Generator):
     defaults = {
         'exchange': {'uptake_rate': 0.1},
-        'daughter_path': tuple(),
         'agents_path': ('..', '..', 'agents')}
 
     def generate_processes(self, config):
-        daughter_path = config['daughter_path']
         agent_id = config['agent_id']
         division_config = dict(
             {},
-            daughter_path=daughter_path,
             agent_id=agent_id,
-            compartment=self)
+            generator=self)
 
         return {
             'exchange': ExchangeA(config['exchange']),
@@ -211,7 +208,7 @@ def run_division():
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
     output = test_division()
-    # pp(output)
+    pp(output)
 
 
 if __name__ == '__main__':

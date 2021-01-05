@@ -1,14 +1,14 @@
-import os
-import glob
 import setuptools
 from distutils.core import setup
+
+_ = setuptools  # don't warn about this unused import; it might have side effects
 
 with open("README.md", 'r') as readme:
     long_description = readme.read()
 
 setup(
     name='vivarium-core',
-    version='0.0.34',
+    version='0.1.1',
     packages=[
         'vivarium',
         'vivarium.core',
@@ -33,7 +33,6 @@ setup(
     package_data={},
     include_package_data=True,
     install_requires=[
-        'confluent-kafka',
         'matplotlib',
         'networkx',
         'numpy',

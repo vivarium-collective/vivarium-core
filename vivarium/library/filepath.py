@@ -6,7 +6,6 @@ File and filename path utilities.
 from __future__ import absolute_import, division, print_function
 
 import datetime
-import errno
 import json
 import io
 import os
@@ -22,12 +21,7 @@ def makedirs(path, *paths):
     """
     full_path = os.path.join(path, *paths)
 
-    try:
-        os.makedirs(full_path)
-    except OSError as e:
-        if e.errno != errno.EEXIST or not os.path.isdir(full_path):
-            raise
-
+    os.makedirs(full_path, exist_ok=True)
     return full_path
 
 def timestamp(dt=None):
@@ -58,7 +52,7 @@ def run_cmd(tokens, trim=True):
         "PATH": os.environ["PATH"],
         "LD_LIBRARY_PATH": os.environ.get("LD_LIBRARY_PATH", ""),
         }
-    out = subprocess.Popen(tokens, stdout = subprocess.PIPE, env=environ).communicate()[0]
+    out = subprocess.Popen(tokens, stdout=subprocess.PIPE, env=environ).communicate()[0]
     if trim:
         out = out.rstrip()
     return out
@@ -78,7 +72,7 @@ def run_cmdline(line, trim=True):
     """
     try:
         return run_cmd(tokens=line.split(), trim=trim)
-    except StandardError as e:
+    except (OSError, subprocess.SubprocessError) as e:
         print('failed to run command line {}: {}'.format(line, e))
         return None
 

@@ -7,15 +7,12 @@ Run experiments and analyses from the command line
 """
 
 import os
-import sys
 import argparse
 import copy
 
 from vivarium.core.experiment import timestamp
 from vivarium.core.composition import (
-    compose_experiment,
     simulate_compartment_in_experiment,
-    simulate_experiment,
     ToyCompartment,
     BASE_OUT_DIR,
 )
@@ -25,11 +22,10 @@ from vivarium.plots.simulation_output import plot_simulation_output
 
 
 def make_dir(out_dir):
-    if not os.path.exists(out_dir):
-        os.makedirs(out_dir)
+    os.makedirs(out_dir, exist_ok=True)
 
 
-class Control():
+class Control(object):
 
     def __init__(
             self,
@@ -87,9 +83,28 @@ class Control():
     def run_experiment(self, experiment_id):
         experiment = self.experiments_library[experiment_id]
         if isinstance(experiment, dict):
-            return experiment['experiment']()
+            kwargs = experiment.get('kwargs', {})
+            return experiment['experiment'](**kwargs)
         elif callable(experiment):
             return experiment()
+
+    def run_one_plot(self, plot_id, data, out_dir=None):
+        data_copy = copy.deepcopy(data)
+        plot_spec = self.plots_library[plot_id]
+        if isinstance(plot_spec, dict):
+            # retrieve plot and config from dictionary
+            config = plot_spec.get('config', {})
+            plot = plot_spec['plot']
+            plot(
+                data=data_copy,
+                config=config,
+                out_dir=out_dir)
+
+        elif callable(plot_spec):
+            # call plot directly
+            plot_spec(
+                data=data_copy,
+                out_dir=out_dir)
 
     def run_plots(self, plot_ids, data, out_dir=None):
         if out_dir is None:
@@ -98,16 +113,9 @@ class Control():
 
         if isinstance(plot_ids, list):
             for plot_id in plot_ids:
-                plot_function = self.plots_library[plot_id]
-                data_copy = copy.deepcopy(data)
-                plot_function(
-                    data=data_copy,
-                    out_dir=out_dir)
+                self.run_one_plot(plot_id, data, out_dir=out_dir)
         else:
-            plot_function = self.plots_library[plot_ids]
-            plot_function(
-                data=data,
-                out_dir=out_dir)
+            self.run_one_plot(plot_ids, data, out_dir=out_dir)
 
     def run_workflow(self, workflow_id):
         workflow = self.workflows_library[workflow_id]
@@ -145,19 +153,31 @@ def toy_experiment():
     return simulate_compartment_in_experiment(toy_compartment, settings)
 
 
-def toy_plot(data, out_dir='out'):
+def toy_plot(data, config=None, out_dir='out'):
     plot_simulation_output(data, out_dir=out_dir)
 
 
 def toy_control():
+    """ a toy example of control
+
+    To run:
+    > python vivarium/core/control.py -w 1
+    """
     experiment_library = {
+        # put in dictionary with name
         '1': {
             'name': 'exp_1',
-            'experiment': toy_experiment
-        }
+            'experiment': toy_experiment},
+        # map to function to run as is
+        '2': toy_experiment,
     }
     plot_library = {
-        '1': toy_plot
+        # put in dictionary with config
+        '1': {
+            'plot': toy_plot,
+            'config': {}},
+        # map to function to run as is
+        '2': toy_plot
     }
     compartment_library = {
         'agent': ToyCompartment,
@@ -166,12 +186,11 @@ def toy_control():
         '1': {
             'name': 'test_workflow',
             'experiment': '1',
-            'plots': ['1'],
-        }
+            'plots': ['1']}
     }
 
     control = Control(
-        out_dir='control_test',
+        out_dir=os.path.join('out', 'control_test'),
         experiments=experiment_library,
         compartments=compartment_library,
         plots=plot_library,

@@ -4,11 +4,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from vivarium.core.emitter import path_timeseries_from_embedded_timeseries
-from vivarium.library.dict_utils import get_path_list_from_dict
 
 
 def set_axes(ax, show_xaxis=False):
-    ax.ticklabel_format(style='sci', axis='y', scilimits=(-5,5))
+    ax.ticklabel_format(style='sci', axis='y', scilimits=(-5, 5))
     ax.spines['right'].set_visible(False)
     ax.spines['top'].set_visible(False)
     ax.tick_params(right=False, top=False)
@@ -21,7 +20,12 @@ def set_axes(ax, show_xaxis=False):
         ax.tick_params(bottom=False, labelbottom=False)
 
 
-def plot_simulation_output(timeseries_raw, settings={}, out_dir='out', filename='simulation'):
+def plot_simulation_output(
+        timeseries_raw,
+        settings={},
+        out_dir=None,
+        filename=None,
+):
     '''
     Plot simulation output, with rows organized into separate columns.
 
@@ -29,6 +33,8 @@ def plot_simulation_output(timeseries_raw, settings={}, out_dir='out', filename=
         timeseries (dict): This can be obtained from simulation output with convert_to_timeseries()
         settings (dict): Accepts the following keys:
 
+            * **column_width** (:py:class:`int`): the width (inches) of
+              each column in the figure
             * **max_rows** (:py:class:`int`): ports with more states
               than this number of states get wrapped into a new column
             * **remove_zeros** (:py:class:`bool`): if True, timeseries
@@ -43,15 +49,13 @@ def plot_simulation_output(timeseries_raw, settings={}, out_dir='out', filename=
               ``[('port_id', 'state_id')]`` for all states that will be
               highlighted, even if they are otherwise to be removed
     '''
-    os.makedirs(out_dir, exist_ok=True)
 
     plot_fontsize = 8
     plt.rc('font', size=plot_fontsize)
     plt.rc('axes', titlesize=plot_fontsize)
 
-    skip_keys = ['time']
-
     # get settings
+    column_width = settings.get('column_width', 3)
     max_rows = settings.get('max_rows', 25)
     remove_zeros = settings.get('remove_zeros', True)
     remove_flat = settings.get('remove_flat', False)
@@ -103,13 +107,23 @@ def plot_simulation_output(timeseries_raw, settings={}, out_dir='out', filename=
     # make figure and plot
     n_cols = len(columns)
     n_rows = max(columns)
-    fig = plt.figure(figsize=(n_cols * 3, n_rows * 1))
+    fig = plt.figure(figsize=(n_cols * column_width, n_rows * column_width/3))
     grid = plt.GridSpec(n_rows, n_cols)
     row_idx = 0
     col_idx = 0
     for port in port_lengths.keys():
-        # get this port's states
-        port_timeseries = {path[1:]: ts for path, ts in timeseries.items() if path[0] is port}
+
+        # get this port's timeseries
+        port_timeseries = {}
+        for path, ts in timeseries.items():
+            if path[0] is port:
+                next_path = path[1:]
+                if any(isinstance(item, tuple) for item in next_path):
+                    next_path = tuple([
+                        item[0] if isinstance(item, tuple) else item
+                        for item in next_path])
+                port_timeseries[next_path] = ts
+
         for state_id, series in sorted(port_timeseries.items()):
             if remove_first_timestep:
                 series = series[1:]
@@ -146,7 +160,13 @@ def plot_simulation_output(timeseries_raw, settings={}, out_dir='out', filename=
                 row_idx += 1
             ax.set_xlim([time_vec[0], time_vec[-1]])
 
-    # save figure
-    fig_path = os.path.join(out_dir, filename)
-    plt.subplots_adjust(wspace=0.8, hspace=1.0)
-    plt.savefig(fig_path, bbox_inches='tight')
+    if out_dir:
+        os.makedirs(out_dir, exist_ok=True)
+        if filename is None:
+            filename = 'simulation'
+        # save figure
+        fig_path = os.path.join(out_dir, filename)
+        plt.subplots_adjust(wspace=column_width/3, hspace=column_width/3)
+        plt.savefig(fig_path, bbox_inches='tight')
+    else:
+        return fig

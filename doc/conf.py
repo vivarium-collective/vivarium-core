@@ -78,7 +78,7 @@ intersphinx_mapping = {
 autodoc_inherit_docstrings = False
 # The Python dependencies aren't really required for building the docs
 autodoc_mock_imports = [
-    'arpeggio', 'cobra', 'confluent_kafka', 'matplotlib',
+    'arpeggio', 'cobra', 'matplotlib',
     'mpl_toolkits', 'networkx', 'parsimonious', 'pygame', 'pymongo',
     'arrow',
 ]

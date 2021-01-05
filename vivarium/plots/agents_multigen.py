@@ -24,7 +24,12 @@ def order_list_of_paths(path_list):
         return path_list
 
 
-def plot_agents_multigen(data, settings={}, out_dir='out', filename='agents'):
+def plot_agents_multigen(
+        data,
+        settings={},
+        out_dir=None,
+        filename=None,
+):
     '''Plot values over time for multiple agents and generations
 
     Plot multi-agent simulation output, with all agents data combined for every
@@ -50,12 +55,15 @@ def plot_agents_multigen(data, settings={}, out_dir='out', filename='agents'):
             * **ylabels_map** (:py:class:`dict`): Map from path tuples to
               strings to use as the y-axis labels for each path's plot.
               If not specified, no y-axis label is used.
+        out_dir (str): TODO
+        filename (str): TODO
 
     TODO -- add legend with agent color
     '''
 
     agents_key = settings.get('agents_key', 'agents')
     max_rows = settings.get('max_rows', 25)
+    column_width = settings.get('column_width', 4)
     remove_zeros = settings.get('remove_zeros', False)
     remove_flat = settings.get('remove_flat', False)
     skip_paths = settings.get('skip_paths', [])
@@ -140,7 +148,7 @@ def plot_agents_multigen(data, settings={}, out_dir='out', filename='agents'):
     # initialize figure
     n_rows = highest_row + 1
     n_cols = col_idx + 1
-    fig = plt.figure(figsize=(4 * n_cols, 2 * n_rows))
+    fig = plt.figure(figsize=(column_width * n_cols, column_width/2 * n_rows))
     grid = plt.GridSpec(ncols=n_cols, nrows=n_rows, wspace=0.4, hspace=1.5)
 
     # make the subplot axes
@@ -186,25 +194,33 @@ def plot_agents_multigen(data, settings={}, out_dir='out', filename='agents'):
     # plot the agents
     plotted_agents = []
     for time_idx, (time, time_data) in enumerate(data.items()):
-        agents = time_data[agents_key]
-        for agent_id, agent_data in agents.items():
-            if agent_id not in plotted_agents:
-                plotted_agents.append(agent_id)
-                for port_schema_path in port_schema_paths:
-                    agent_port_schema_path = (agents_key, agent_id) + port_schema_path
-                    if agent_port_schema_path not in timeseries:
-                        continue
+        if agents_key not in time_data:
+            print('{} key missing at time {}'.format(agents_key, time))
+        else:
+            agents = time_data[agents_key]
+            for agent_id, agent_data in agents.items():
+                if agent_id not in plotted_agents:
+                    plotted_agents.append(agent_id)
+                    for port_schema_path in port_schema_paths:
+                        agent_port_schema_path = (agents_key, agent_id) + port_schema_path
+                        if agent_port_schema_path not in timeseries:
+                            continue
 
-                    series = timeseries[agent_port_schema_path]
-                    if not isinstance(series[0], (float, int)):
-                        continue
-                    n_times = len(series)
-                    plot_times = time_vec[time_idx:time_idx+n_times]
+                        series = timeseries[agent_port_schema_path]
+                        if not isinstance(series[0], (float, int)):
+                            continue
+                        n_times = len(series)
+                        plot_times = time_vec[time_idx:time_idx+n_times]
 
-                    ax = port_axes[port_schema_path]
-                    ax.plot(plot_times, series)
+                        ax = port_axes[port_schema_path]
+                        ax.plot(plot_times, series)
 
-    # save figure
-    fig_path = os.path.join(out_dir, filename)
-    plt.subplots_adjust(wspace=0.2, hspace=0.2)
-    plt.savefig(fig_path, bbox_inches='tight')
+    if out_dir:
+        os.makedirs(out_dir, exist_ok=True)
+        if filename is None:
+            filename = 'agents'
+        fig_path = os.path.join(out_dir, filename)
+        plt.subplots_adjust(wspace=0.2, hspace=0.2)
+        plt.savefig(fig_path, bbox_inches='tight')
+    else:
+        return fig

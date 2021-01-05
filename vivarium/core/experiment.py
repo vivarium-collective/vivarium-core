@@ -4,31 +4,27 @@ Experiment and Store Classes
 ==========================================
 '''
 
-
-from __future__ import absolute_import, division, print_function
-
 import os
 import copy
 import math
-import random
 import datetime
+import time as clock
+import uuid
 
 import numpy as np
 import logging as log
 
 import pprint
-pretty=pprint.PrettyPrinter(indent=2)
-
-def pp(x):
-    pretty.pprint(x)
-
-def pf(x):
-    return pretty.pformat(x)
 
 from multiprocessing import Pool
+from typing import Any, Dict
 
-from vivarium.library.units import Quantity
-from vivarium.library.dict_utils import merge_dicts, deep_merge, deep_merge_check
+from vivarium.library.units import units, Quantity
+from vivarium.library.dict_utils import (
+    deep_merge,
+    deep_merge_multi_update,
+    MULTI_UPDATE_KEY,
+)
 from vivarium.core.emitter import get_emitter
 from vivarium.core.process import (
     Generator,
@@ -36,15 +32,26 @@ from vivarium.core.process import (
     ParallelProcess,
     serialize_dictionary,
 )
+from vivarium.library.topology import (
+    get_in, delete_in, assoc_path,
+    without, update_in, inverse_topology,
+    paths_to_dict, dict_to_paths
+)
 from vivarium.core.registry import (
     divider_registry,
     updater_registry,
     serializer_registry,
 )
 
+pretty = pprint.PrettyPrinter(indent=2)
 
-INFINITY = float('inf')
-VERBOSE = False
+def pp(x):
+    pretty.pprint(x)
+
+def pf(x):
+    return pretty.pformat(x)
+
+
 EMPTY_UPDATES = None, None, None
 
 log.basicConfig(level=os.environ.get("LOGLEVEL", log.WARNING))
@@ -64,58 +71,6 @@ def key_for_value(d, looking):
             break
     return found
 
-
-def get_in(d, path, default=None):
-    if path:
-        head = path[0]
-        if head in d:
-            return get_in(d[head], path[1:])
-        return default
-    return d
-
-
-def assoc_path(d, path, value):
-    if path:
-        head = path[0]
-        if len(path) == 1:
-            d[head] = value
-        else:
-            if head not in d:
-                d[head] = {}
-            assoc_path(d[head], path[1:], value)
-    elif isinstance(value, dict):
-        deep_merge(d, value)
-
-
-def update_in(d, path, f):
-    if path:
-        head = path[0]
-        d.setdefault(head, {})
-        updated = copy.deepcopy(d)
-        updated[head] = update_in(d[head], path[1:], f)
-        return updated
-    return f(d)
-
-
-def dissoc(d, removing):
-    return {
-        key: value
-        for key, value in d.items()
-        if key not in removing}
-
-
-def delete_in(d, path):
-    if len(path) > 0:
-        head = path[0]
-        if len(path) == 1:
-            # at the node to be deleted
-            if head in d:
-                del d[head]
-        elif head in d:
-            down = d[head]
-            delete_in(d[head], path[1:])
-
-
 def depth(tree, path=()):
     '''
     Create a mapping of every path in the tree to the node living at
@@ -134,12 +89,6 @@ def depth(tree, path=()):
     return base
 
 
-def without(d, removing):
-    return {
-        key: value
-        for key, value in d.items()
-        if key != removing}
-
 def schema_for(port, keys, initial_state, default=0.0, updater='accumulate'):
     return {
         key: {
@@ -149,7 +98,11 @@ def schema_for(port, keys, initial_state, default=0.0, updater='accumulate'):
         for key in keys}
 
 
-def always_true(x):
+def topology_path(topology, path):
+    pass
+
+
+def always_true(_):
     return True
 
 
@@ -182,14 +135,14 @@ class Store(object):
     * **_emit** (:py:class:`bool`): Whether to emit the variable to the
       :term:`emitter`. This is ``False`` by default.
     """
-    schema_keys = set([
+    schema_keys = {
         '_default',
         '_updater',
         '_value',
         '_properties',
         '_emit',
         '_serializer',
-    ])
+    }
 
     def __init__(self, config, outer=None, source=None):
         self.outer = outer
@@ -297,6 +250,10 @@ class Store(object):
             self.merge_subtopology(config['_subtopology'])
             config = without(config, '_subtopology')
 
+        if '_topology' in config:
+            self.topology = config['_topology']
+            config = without(config, '_topology')
+
         if '_divider' in config:
             self.divider = config['_divider']
             if isinstance(self.divider, str):
@@ -309,7 +266,11 @@ class Store(object):
             if self.inner:
                 raise Exception('trying to assign leaf values to a branch at: {}'.format(self.path_for()))
             self.leaf = True
-            # self.units = config.get('_units', self.units)
+
+            if '_units' in config:
+                self.units = config['_units']
+                self.serializer = serializer_registry.access('units')
+
             if '_serializer' in config:
                 self.serializer = config['_serializer']
                 if isinstance(self.serializer, str):
@@ -318,8 +279,12 @@ class Store(object):
             if '_default' in config:
                 self.default = self.check_default(config.get('_default'))
                 if isinstance(self.default, Quantity):
-                    self.units = self.default.units
-                if isinstance(self.default, np.ndarray):
+                    self.units = self.units or self.default.units
+                    self.serializer = self.serializer or serializer_registry.access('units')
+                elif isinstance(self.default, list) and (len(self.default) > 0) and isinstance(self.default[0], Quantity):
+                    self.units = self.units or self.default[0].units
+                    self.serializer = self.serializer or serializer_registry.access('units')
+                elif isinstance(self.default, np.ndarray):
                     self.serializer = self.serializer or serializer_registry.access('numpy')
 
             if '_value' in config:
@@ -512,7 +477,12 @@ class Store(object):
         else:
             if self.emit:
                 if self.serializer:
-                    return self.serializer.serialize(self.value)
+                    if isinstance(self.value, list) and self.units:
+                        return self.serializer.serialize([v.to(self.units) for v in self.value])
+                    elif self.units:
+                        return self.serializer.serialize(self.value.to(self.units))
+                    else:
+                        return self.serializer.serialize(self.value)
                 elif isinstance(self.value, Process):
                     return self.value.pull_data()
                 else:
@@ -573,11 +543,6 @@ class Store(object):
             value = reducer(value, path, node)
         return value
 
-    def reduce_to(self, path, reducer, initial=None):
-        value = self.reduce(reducer, initial)
-        assoc_path({}, path, value)
-        self.apply_update(update)
-
     def set_value(self, value):
         '''
         Set the value for the given tree elements directly instead of using
@@ -612,21 +577,33 @@ class Store(object):
             if self.value is None:
                 self.value = self.default
 
-    def apply_update(self, update, process_topology=None, state=None):
+    def apply_update(self, update, process_topology=None, state=None, experiment_topology=None):
         '''
         Given an arbitrary update, map all the values in that update
         to their positions in the tree where they apply, and update
         these values using each node's `_updater`.
 
-        There are five special update keys:
+        Arguments:
+            update: The update being applied.
+            process_topology: The topology of the process from which this update was passed.
+            state: The state at the start of the time step.
+            experiment_topology: The topology of the full experiment, with all processes and
+                their port mappings.
 
-        * `_updater` - Override the default updater with any updater you want.
-        * `_delete` - The value here is a list of paths (tuples) to delete from
-          the tree.
-        * `_add` - Adds a state into the subtree:
+        There are five topology update methods, which use the following special update keys:
+
+        * `_add` - Adds states into the subtree, given a list of dicts containing:
 
             * path - Path to the added state key.
             * state - The value of the added state.
+
+        * `_move` - Moves a node from a source to a target location in the tree.
+            This uses an update to an :term:`outer` port, which contains both the
+            source and target node locations. Can move multiple nodes according to
+            a list of dicts containing:
+
+            * source - the source path from an outer process port
+            * target - the location where the node will be placed.
 
         * `_generate` - The value has four keys, which are essentially
           the arguments to the `generate()` function:
@@ -642,6 +619,14 @@ class Store(object):
             * mother - The id of the mother (for removal)
             * daughters - List of two new daughter generate directives, of the
                 same form as the `_generate` value above.
+
+        * `_delete` - The value here is a list of paths (tuples) to delete from
+          the tree.
+
+
+        Additional special update keys are used for different update operations:
+
+        * `_updater` - Override the default updater with any updater you want.
 
         * `_reduce` - This allows a reduction over the entire subtree from some
           point downward. Its three keys are:
@@ -660,35 +645,76 @@ class Store(object):
               in the tree.
         '''
 
-        if self.inner or self.subschema:
-            process_updates, topology_updates, deletions = {}, {}, []
+        if isinstance(update, dict) and MULTI_UPDATE_KEY in update:
+            # apply multiple updates to same node
+            multi_update = update[MULTI_UPDATE_KEY]
+            assert isinstance(multi_update, list)
+            for update_value in multi_update:
+                self.apply_update(update_value, process_topology, state, experiment_topology)
+            return EMPTY_UPDATES
 
-            if '_delete' in update:
-                # delete a list of paths
-                here = self.path_for()
-                for path in update['_delete']:
-                    self.delete_path(path)
-                    deletions.append(tuple(here + path))
+        elif self.inner or self.subschema:
+            # Branch update: this node has an inner
 
-                update = dissoc(update, ['_delete'])
+            process_updates, topology_updates, deletions = [], [], []
+            update = dict(update)  # avoid mutating the caller's dict
 
-            if '_add' in update:
+            add_entries = update.pop('_add', None)
+            if add_entries is not None:
                 # add a list of sub-states
-                for added in update['_add']:
-                    path = added['path']
-                    state = added['state']
+                for added in add_entries:
+                    path = (added['key'],)
+                    added_state = added['state']
 
                     target = self.establish_path(path, {})
                     self.apply_subschema_path(path)
                     target.apply_defaults()
-                    target.set_value(state)
+                    target.set_value(added_state)
 
-                update = dissoc(update, ['_add'])
+            move_entries = update.pop('_move', None)
+            if move_entries is not None:
+                # move nodes from source to target path
+                for move in move_entries:
+                    # get the source node
+                    source_key = move['source']
+                    source_path = (source_key,)
+                    source_node = self.get_path(source_path)
 
-            if '_generate' in update:
+                    # move source node to target path
+                    target_port = move['target']
+                    target_topology = state.topology[target_port]
+                    target_node = state.outer.get_path(target_topology)
+                    target = target_node.add_node(source_path, source_node)
+                    target_path = target.path_for() + source_path
+
+                    # find the process updates
+                    source_process_paths = source_node.depth(
+                        filter=lambda x: isinstance(x.value, Process))
+                    source_processes = [
+                        (target_path + source_path, source_process.value)
+                        for source_path, source_process in source_process_paths]
+                    process_updates.extend(source_processes)
+
+                    # find the topology updates
+                    here = self.path_for()
+                    source_absolute = tuple(here + source_path)
+                    source_topology = get_in(experiment_topology, source_absolute)
+                    if source_topology:
+                        topology_updates.append((
+                            target_path,
+                            source_topology))
+
+                    self.delete_path(source_path)
+                    deletions.append(source_absolute)
+
+            generate_entries = update.pop('_generate', None)
+            if generate_entries is not None:
                 # generate a list of new processes
-                for generate in update['_generate']:
-                    path = generate.get('path', tuple())
+                for generate in generate_entries:
+                    key = generate.get('key')
+                    path = (key,) if key else tuple()
+
+                    here = self.path_for()
 
                     self.generate(
                         path,
@@ -696,93 +722,95 @@ class Store(object):
                         generate['topology'],
                         generate['initial_state'])
 
-                    assoc_path(
-                        process_updates,
-                        path,
-                        generate['processes'])
+                    root = here + path
+                    process_paths = dict_to_paths(root, generate['processes'])
+                    process_updates.extend(process_paths)
 
-                    assoc_path(
-                        topology_updates,
-                        path,
-                        generate['topology'])
+                    topology_paths = [
+                        (root + (key,), topology)
+                        for key, topology in generate['topology'].items()]
+                    topology_updates.extend(topology_paths)
 
                     self.apply_subschema_path(path)
                     self.get_path(path).apply_defaults()
 
-                update = dissoc(update, '_generate')
-
-            if '_divide' in update:
+            divide = update.pop('_divide', None)
+            if divide is not None:
                 # use dividers to find initial states for daughters
-                divide = update['_divide']
                 mother = divide['mother']
                 daughters = divide['daughters']
                 initial_state = self.inner[mother].get_value(
                     condition=lambda child: not (isinstance(child.value, Process)),
                     f=lambda child: copy.deepcopy(child))
-                states = self.inner[mother].divide_value()
+                daughter_states = self.inner[mother].divide_value()
 
-                for daughter, state in zip(daughters, states):
-                    daughter_id = daughter['daughter']
+                here = self.path_for()
+
+                for daughter, daughter_state in zip(daughters, daughter_states):
 
                     # use initial state as default, merge in divided values
                     initial_state = deep_merge(
                         initial_state,
-                        state)
+                        daughter_state)
 
-                    path = daughter['path']
+                    daughter_key = daughter['key']
+                    daughter_path = (daughter_key,)
 
                     self.generate(
-                        path,
+                        daughter_path,
                         daughter['processes'],
                         daughter['topology'],
                         daughter['initial_state'])
 
-                    assoc_path(
-                        process_updates,
-                        path,
-                        daughter['processes'])
+                    root = here + daughter_path
+                    process_paths = dict_to_paths(root, daughter['processes'])
+                    process_updates.extend(process_paths)
 
-                    assoc_path(
-                        topology_updates,
-                        path,
-                        daughter['topology'])
+                    topology_paths = [
+                        (root + (key,), topology)
+                        for key, topology in daughter['topology'].items()]
+                    topology_updates.extend(topology_paths)
 
-                    self.apply_subschema_path(path)
-                    target = self.get_path(path)
+                    self.apply_subschema_path(daughter_path)
+                    target = self.get_path(daughter_path)
                     target.apply_defaults()
                     target.set_value(initial_state)
 
-                here = self.path_for()
                 mother_path = (mother,)
                 self.delete_path(mother_path)
                 deletions.append(tuple(here + mother_path))
 
-                update = dissoc(update, '_divide')
+            delete_keys = update.pop('_delete', None)
 
             for key, value in update.items():
                 if key in self.inner:
                     inner = self.inner[key]
                     inner_topology, inner_processes, inner_deletions = inner.apply_update(
-                        value, process_topology, state)
+                        value, process_topology, state, experiment_topology)
 
                     if inner_topology:
-                        topology_updates = deep_merge(
-                            topology_updates,
-                            {key: inner_topology})
-
+                        topology_updates.extend(inner_topology)
                     if inner_processes:
-                        process_updates = deep_merge(
-                            process_updates,
-                            {key: inner_processes})
-
+                        process_updates.extend(inner_processes)
                     if inner_deletions:
-                        deletions += inner_deletions
+                        deletions.extend(inner_deletions)
+
+            if delete_keys is not None:
+                # delete a list of paths
+                here = self.path_for()
+                for key in delete_keys:
+                    path = (key,)
+                    self.delete_path(path)
+                    deletions.append(tuple(here + path))
 
             return topology_updates, process_updates, deletions
 
         else:
+            # Leaf update: this node has no inner
+
             updater, port_mapping = self.get_updater(update)
             state_dict = None
+
             if isinstance(update, dict) and '_reduce' in update:
                 assert port_mapping is None
                 reduction = update['_reduce']
@@ -795,7 +823,6 @@ class Store(object):
                 if '_updater' in update:
                     update = update.get('_value', self.default)
 
-            value = self.value
             if port_mapping is not None:
                 updater_topology = {
                     updater_port: process_topology[proc_port]
@@ -898,23 +925,21 @@ class Store(object):
                 key: state.inner_value(key)
                 for key in keys}
 
-    def depth(self, path=()):
+    def depth(self, path=(), filter=None):
         '''
         Create a mapping of every path in the tree to the node living at
-        that path in the tree.
+        that path in the tree. An optional `filter` argument is a function
+        that can declares the instances that will be returned, for example:
+        * filter=lambda x: isinstance(x.value, Process)
         '''
+        base = []
+        if filter is None or filter(self):
+            base += [(path, self)]
 
-        base = [(path, self)]
         for key, child in self.inner.items():
             down = tuple(path + (key,))
-            base += child.depth(down)
+            base += child.depth(down, filter)
         return base
-
-    def processes(self, path=()):
-        return {
-            path: state
-            for path, state in self.depth()
-            if state.value and isinstance(state.value, Process)}
 
     def apply_subschema_path(self, path):
         if path:
@@ -1004,6 +1029,17 @@ class Store(object):
             self.apply_config(config, source=source)
             return self
 
+    def add_node(self, path, node):
+        ''' Add a node instance at the provided path '''
+        target = self.establish_path(path[:-1], {})
+        if target.get_value() and path[-1] in target.get_value():
+            # this path already exists, update it
+            self.apply_update({path[-1]: node.get_value()})
+        else:
+            node.outer = target
+            target.inner.update({path[-1]: node})
+        return target
+
     def outer_path(self, path, source=None):
         '''
         Address a topology with the `_path` keyword if present,
@@ -1038,11 +1074,13 @@ class Store(object):
                 set(schema.keys()) - set(topology.keys()))
             if mismatch_topology:
                 raise Exception(
-                    'topology at path {} and source {} has keys that are not in the schema: {}'.format(
-                        self.path_for(), source, mismatch_topology))
+                    'topology for the process {} \n at path {} uses undeclared ports: {}'.format(
+                        source, self.path_for(), str(mismatch_topology)))
             if mismatch_schema:
-                log.debug('{} schema has keys not in topology: {}'.format(
-                    source, mismatch_schema))
+                log.info(
+                    'process {} has ports that are not included in the topology: {}'.format(
+                        source, mismatch_schema))
+
             for port, subschema in schema.items():
                 path = topology.get(port, (port,))
 
@@ -1084,6 +1122,7 @@ class Store(object):
                 process_state = Store({
                     '_value': subprocess,
                     '_updater': 'set',
+                    '_topology': subtopology,
                     '_serializer': 'process'}, outer=self)
                 self.inner[key] = process_state
 
@@ -1114,85 +1153,6 @@ class Store(object):
         target.apply_defaults()
 
 
-def inverse_topology(outer, update, topology):
-    '''
-    Transform an update from the form its process produced into
-    one aligned to the given topology.
-
-    The inverse of this function (using a topology to construct a view for
-    the perspective of a Process ports_schema()) lives in `Store`, called
-    `topology_state`. This one stands alone as it does not require a store
-    to calculate.
-    '''
-
-    inverse = {}
-    for key, path in topology.items():
-        if key == '*':
-
-            if isinstance(path, dict):
-                node = inverse
-                if '_path' in path:
-                    inner = normalize_path(outer + path['_path'])
-                    node = get_in(inverse, inner)
-                    if node is None:
-                        node = {}
-                        assoc_path(inverse, inner, node)
-                    path = without(path, '_path')
-
-                for child, child_update in update.items():
-                    node[child] = inverse_topology(
-                        tuple(),
-                        update[child],
-                        path)
-
-            else:
-                for child, child_update in update.items():
-                    inner = normalize_path(outer + path + (child,))
-                    if isinstance(child_update, dict):
-                        inverse = update_in(
-                            inverse,
-                            inner,
-                            lambda current: deep_merge(
-                                current, child_update))
-                    else:
-                        assoc_path(inverse, inner, child_update)
-
-        elif key in update:
-            value = update[key]
-            if isinstance(path, dict):
-                node = inverse
-                if '_path' in path:
-                    inner = normalize_path(outer + path['_path'])
-                    node = get_in(inverse, inner)
-                    if node is None:
-                        node = {}
-                        assoc_path(inverse, inner, node)
-                    path = without(path, '_path')
-
-                    for update_key in update[key].keys():
-                        if update_key not in path:
-                            path[update_key] = (update_key,)
-
-                deep_merge(
-                    node,
-                    inverse_topology(
-                        tuple(),
-                        value,
-                        path))
-
-            else:
-                inner = normalize_path(outer + path)
-                if isinstance(value, dict):
-                    inverse = update_in(
-                        inverse,
-                        inner,
-                        lambda current: deep_merge(current, value))
-                else:
-                    assoc_path(inverse, inner, value)
-
-    return inverse
-
-
 def invert_topology(update, args):
     path, topology = args
     return inverse_topology(path[:-1], update, topology)
@@ -1206,16 +1166,6 @@ def generate_state(processes, topology, initial_state):
     state.apply_defaults()
 
     return state
-
-
-def normalize_path(path):
-    progress = []
-    for step in path:
-        if step == '..' and len(progress) > 0:
-            progress = progress[:-1]
-        else:
-            progress.append(step)
-    return progress
 
 
 def timestamp(dt=None):
@@ -1268,6 +1218,7 @@ class MultiInvoke(object):
 
 class Experiment(object):
     def __init__(self, config):
+        # type: (Dict[str, Any]) -> None
         """Defines simulations
 
         Arguments:
@@ -1307,7 +1258,7 @@ class Experiment(object):
         """
         self.config = config
         self.experiment_id = config.get(
-            'experiment_id', timestamp(datetime.datetime.utcnow()))
+            'experiment_id', str(uuid.uuid1()))
         self.processes = config['processes']
         self.topology = config['topology']
         self.initial_state = config.get('initial_state', {})
@@ -1317,7 +1268,7 @@ class Experiment(object):
         self.experiment_name = config.get('experiment_name', self.experiment_id)
         self.description = config.get('description', '')
         self.display_info = config.get('display_info', True)
-        self.progress_bar = config.get('progress_bar', True)
+        self.progress_bar = config.get('progress_bar', False)
         self.time_created = timestamp()
         if self.display_info:
             self.print_display()
@@ -1362,19 +1313,22 @@ class Experiment(object):
         log.info('\nTOPOLOGY:')
         log.info(pf(self.topology))
 
-        log.info('\nSTATE:')
-        log.info(pf(self.state.get_value()))
+        # log.info('\nSTATE:')
+        # log.info(pf(self.state.get_value()))
+        #
+        # log.info('\nCONFIG:')
+        # log.info(pf(self.state.get_config(True)))
 
-        log.info('\nCONFIG:')
-        log.info(pf(self.state.get_config(True)))
+    def add_process_path(self, process, path):
+        if process.is_deriver():
+            self.deriver_paths[path] = process
+        else:
+            self.process_paths[path] = process
 
     def find_process_paths(self, processes):
         tree = depth(processes)
         for path, process in tree.items():
-            if process.is_deriver():
-                self.deriver_paths[path] = process
-            else:
-                self.process_paths[path] = process
+            self.add_process_path(process, path)
 
     def emit_configuration(self):
         data = {
@@ -1383,19 +1337,24 @@ class Experiment(object):
             'name': self.experiment_name,
             'description': self.description,
             'topology': self.topology,
-            # TODO -- handle large parameter sets in self.processes to meet mongoDB limit
-            # 'processes': serialize_dictionary(self.processes),
-            # 'state': self.state.get_config()
+            'processes': serialize_dictionary(self.processes),
+            'state': self.state.get_config()
         }
         emit_config = {
             'table': 'configuration',
             'data': data}
-        self.emitter.emit(emit_config)
+        try:
+            self.emitter.emit(emit_config)
+        except:
+            # TODO -- handle large parameter sets in self.processes to meet mongoDB limit
+            del emit_config['data']['processes']
+            del emit_config['data']['state']
+            self.emitter.emit(emit_config)
 
     def invoke_process(self, process, path, interval, states):
         if process.parallel:
             # add parallel process if it doesn't exist
-            if not path in self.parallel:
+            if path not in self.parallel:
                 self.parallel[path] = ParallelProcess(process)
             # trigger the computation of the parallel process
             self.parallel[path].update(interval, states)
@@ -1425,14 +1384,16 @@ class Experiment(object):
 
     def apply_update(self, update, process_topology, state):
         topology_updates, process_updates, deletions = self.state.apply_update(
-            update, process_topology, state)
+            update, process_topology, state, self.topology)
 
         if topology_updates:
-            self.topology = deep_merge(self.topology, topology_updates)
+            for path, update in topology_updates:
+                assoc_path(self.topology, path, update)
 
         if process_updates:
-            self.processes = deep_merge(self.processes, process_updates)
-            self.find_process_paths(process_updates)
+            for path, process in process_updates:
+                assoc_path(self.processes, path, process)
+                self.add_process_path(process, path)
 
         if deletions:
             for deletion in deletions:
@@ -1451,7 +1412,6 @@ class Experiment(object):
                 del self.deriver_paths[path]
 
     def run_derivers(self):
-        updates = []
         paths = list(self.deriver_paths.keys())
         for path in paths:
             # deriver could have been deleted by another deriver
@@ -1483,6 +1443,7 @@ class Experiment(object):
 
         time = 0
         emit_time = self.emit_step
+        clock_start = clock.time()
 
         def empty_front(t):
             return {
@@ -1493,11 +1454,7 @@ class Experiment(object):
         front = {}
 
         while time < interval:
-            full_step = INFINITY
-
-            if VERBOSE:
-                for state_id in self.states:
-                    print('{}: {}'.format(time, self.states[state_id].to_dict()))
+            full_step = math.inf
 
             # find any parallel processes that were removed and terminate them
             for terminated in self.parallel.keys() - self.process_paths.keys():
@@ -1513,7 +1470,7 @@ class Experiment(object):
             # go through each process and find those that are able to update
             # based on their current time being less than the global time.
             for path, process in self.process_paths.items():
-                if not path in front:
+                if path not in front:
                     front[path] = empty_front(time)
                 process_time = front[path]['time']
 
@@ -1530,7 +1487,7 @@ class Experiment(object):
                     front[path]['time'] = future
                     front[path]['update'] = update
 
-            if full_step == INFINITY:
+            if full_step == math.inf:
                 # no processes ran, jump to next process
                 next_event = interval
                 for path in front.keys():
@@ -1565,9 +1522,15 @@ class Experiment(object):
                         self.emit_data()
                         emit_time += self.emit_step
 
+        # post-simulation
         for process_name, advance in front.items():
             assert advance['time'] == time == interval
             assert len(advance['update']) == 0
+
+        clock_finish = clock.time() - clock_start
+
+        if self.display_info:
+            self.print_summary(clock_finish)
 
     def end(self):
         for parallel in self.parallel.values():
@@ -1584,6 +1547,11 @@ class Experiment(object):
         if self.description:
             print('Description: {}'.format(self.description))
 
+    def print_summary(self, clock_finish):
+        if clock_finish < 1:
+            print('Completed in {:.6f} seconds'.format(clock_finish))
+        else:
+            print('Completed in {:.2f} seconds'.format(clock_finish))
 
 def print_progress_bar(
         iteration,
@@ -1599,16 +1567,190 @@ def print_progress_bar(
         decimals:  (Optional) positive number of decimals in percent complete
         length:    (Optional) character length of bar
     """
-    # progress = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
     progress = ("{0:." + str(decimals) + "f}").format(total - iteration)
     filled_length = int(length * iteration // total)
     bar = '█' * filled_length + '-' * (length - filled_length)
-    print(f'\r Progress:|{bar}| {progress} seconds remaining    ', end='\r')
+    print(f'\rProgress:|{bar}| {progress}/{float(total)} simulated seconds remaining    ', end='\r')
     # Print New Line on Complete
     if iteration == total:
         print()
 
 # Tests
+quark_colors = ['green', 'red', 'blue']
+quark_spins = ['up', 'down']
+electron_spins = ['-1/2', '1/2']
+electron_orbitals = [
+    str(orbit) + 's'
+    for orbit in range(1, 8)]
+
+
+class Proton(Process):
+    name = 'proton'
+    defaults = {
+        'time_step': 1.0,
+        'radius': 0.0}
+
+    def __init__(self, parameters=None):
+        super(Proton, self).__init__(parameters)
+
+    def ports_schema(self):
+        return {
+            'radius': {
+                '_updater': 'set',
+                '_default': self.parameters['radius']},
+            'quarks': {
+                '_divider': 'split_dict',
+                '*': {
+                    'color': {
+                        '_updater': 'set',
+                        '_default': quark_colors[0]},
+                    'spin': {
+                        '_updater': 'set',
+                        '_default': quark_spins[0]}}},
+            'electrons': {
+                '*': {
+                    'orbital': {
+                        '_updater': 'set',
+                        '_default': electron_orbitals[0]},
+                    'spin': {
+                        '_default': electron_spins[0]}}}}
+
+    def next_update(self, timestep, states):
+        update = {}
+
+        collapse = np.random.random()
+        if collapse < states['radius'] * timestep:
+            update['radius'] = collapse
+            update['quarks'] = {}
+
+            for name, quark in states['quarks'].items():
+                update['quarks'][name] = {
+                    'color': np.random.choice(quark_colors),
+                    'spin': np.random.choice(quark_spins)}
+
+            update['electrons'] = {}
+            orbitals = electron_orbitals.copy()
+            for name, electron in states['electrons'].items():
+                np.random.shuffle(orbitals)
+                update['electrons'][name] = {
+                    'orbital': orbitals.pop()}
+
+        return update
+
+
+class Electron(Process):
+    name = 'electron'
+    defaults = {
+        'time_step': 1.0,
+        'spin': electron_spins[0]}
+
+    def __init__(self, parameters=None):
+        super(Electron, self).__init__(parameters)
+
+    def ports_schema(self):
+        return {
+            'spin': {
+                '_updater': 'set',
+                '_default': self.parameters['spin']},
+            'proton': {
+                'radius': {
+                    '_default': 0.0}}}
+
+    def next_update(self, timestep, states):
+        update = {}
+
+        if np.random.random() < states['proton']['radius']:
+            update['spin'] = np.random.choice(electron_spins)
+
+        return update
+
+
+class Sine(Process):
+    name = 'sine'
+    defaults = {
+        'initial_phase': 0.0}
+
+    def __init__(self, parameters=None):
+        super(Sine, self).__init__(parameters)
+
+    def ports_schema(self):
+        return {
+            'frequency': {
+                '_default': 440.0},
+            'amplitude': {
+                '_default': 1.0},
+            'phase': {
+                '_default': self.parameters['initial_phase']},
+            'signal': {
+                '_default': 0.0,
+                '_updater': 'set'}}
+
+    def next_update(self, timestep, states):
+        phase_shift = timestep * states['frequency'] % 1.0
+        signal = states['amplitude'] * math.sin(
+            2 * math.pi * (states['phase'] + phase_shift))
+
+        return {
+            'phase': phase_shift,
+            'signal': signal}
+
+
+def make_proton(parallel=False):
+    processes = {
+        'proton': Proton({'_parallel': parallel}),
+        'electrons': {
+            'a': {
+                'electron': Electron({'_parallel': parallel})},
+            'b': {
+                'electron': Electron()}}}
+
+    spin_path = ('internal', 'spin')
+    radius_path = ('structure', 'radius')
+
+    topology = {
+        'proton': {
+            'radius': radius_path,
+            'quarks': ('internal', 'quarks'),
+            'electrons': {
+                '_path': ('electrons',),
+                '*': {
+                    'orbital': ('shell', 'orbital'),
+                    'spin': spin_path}}},
+        'electrons': {
+            'a': {
+                'electron': {
+                    'spin': spin_path,
+                    'proton': {
+                        '_path': ('..', '..'),
+                        'radius': radius_path}}},
+            'b': {
+                'electron': {
+                    'spin': spin_path,
+                    'proton': {
+                        '_path': ('..', '..'),
+                        'radius': radius_path}}}}}
+
+    initial_state = {
+        'structure': {
+            'radius': 0.7},
+        'internal': {
+            'quarks': {
+                'x': {
+                    'color': 'green',
+                    'spin': 'up'},
+                'y': {
+                    'color': 'red',
+                    'spin': 'up'},
+                'z': {
+                    'color': 'blue',
+                    'spin': 'down'}}}}
+
+    return {
+        'processes': processes,
+        'topology': topology,
+        'initial_state': initial_state}
+
+
 def test_recursive_store():
     environment_config = {
         'environment': {
@@ -1687,190 +1829,6 @@ def test_recursive_store():
     state.state_for(['environment'], ['temperature'])
 
 
-def test_in():
-    blank = {}
-    path = ['where', 'are', 'we']
-    assoc_path(blank, path, 5)
-    print(blank)
-    print(get_in(blank, path))
-    blank = update_in(blank, path, lambda x: x + 6)
-    print(blank)
-
-
-quark_colors = ['green', 'red', 'blue']
-quark_spins = ['up', 'down']
-electron_spins = ['-1/2', '1/2']
-electron_orbitals = [
-    str(orbit) + 's'
-    for orbit in range(1, 8)]
-
-
-class Proton(Process):
-    name = 'proton'
-    defaults = {
-        'time_step': 1.0,
-        'radius': 0.0}
-
-    def __init__(self, parameters=None):
-        super(Proton, self).__init__(parameters)
-
-    def ports_schema(self):
-        return {
-            'radius': {
-                '_updater': 'set',
-                '_default': self.parameters['radius']},
-            'quarks': {
-                '_divider': 'split_dict',
-                '*': {
-                    'color': {
-                        '_updater': 'set',
-                        '_default': quark_colors[0]},
-                    'spin': {
-                        '_updater': 'set',
-                        '_default': quark_spins[0]}}},
-            'electrons': {
-                '*': {
-                    'orbital': {
-                        '_updater': 'set',
-                        '_default': electron_orbitals[0]},
-                    'spin': {
-                        '_default': electron_spins[0]}}}}
-
-    def next_update(self, timestep, states):
-        update = {}
-
-        collapse = np.random.random()
-        if collapse < states['radius'] * timestep:
-            update['radius'] = collapse
-            update['quarks'] = {}
-
-            for name, quark in states['quarks'].items():
-                update['quarks'][name] = {
-                    'color': np.random.choice(quark_colors),
-                    'spin': np.random.choice(quark_spins)}
-
-            update['electrons'] = {}
-            orbitals = electron_orbitals.copy()
-            for name, electron in states['electrons'].items():
-                np.random.shuffle(orbitals)
-                update['electrons'][name] = {
-                    'orbital': orbitals.pop()}
-
-        return update
-
-class Electron(Process):
-    name = 'electron'
-    defaults = {
-        'time_step': 1.0,
-        'spin': electron_spins[0]}
-
-    def __init__(self, parameters=None):
-        super(Electron, self).__init__(parameters)
-
-    def ports_schema(self):
-        return {
-            'spin': {
-                '_updater': 'set',
-                '_default': self.parameters['spin']},
-            'proton': {
-                'radius': {
-                    '_default': 0.0}}}
-
-    def next_update(self, timestep, states):
-        update = {}
-
-        if np.random.random() < states['proton']['radius']:
-            update['spin'] = np.random.choice(electron_spins)
-
-        return update
-
-
-def make_proton(parallel=False):
-    processes = {
-        'proton': Proton({'_parallel': parallel}),
-        'electrons': {
-            'a': {
-                'electron': Electron({'_parallel': parallel})},
-            'b': {
-                'electron': Electron()}}}
-
-    spin_path = ('internal', 'spin')
-    radius_path = ('structure', 'radius')
-
-    topology = {
-        'proton': {
-            'radius': radius_path,
-            'quarks': ('internal', 'quarks'),
-            'electrons': {
-                '_path': ('electrons',),
-                '*': {
-                    'orbital': ('shell', 'orbital'),
-                    'spin': spin_path}}},
-        'electrons': {
-            'a': {
-                'electron': {
-                    'spin': spin_path,
-                    'proton': {
-                        '_path': ('..', '..'),
-                        'radius': radius_path}}},
-            'b': {
-                'electron': {
-                    'spin': spin_path,
-                    'proton': {
-                        '_path': ('..', '..'),
-                        'radius': radius_path}}}}}
-
-    initial_state = {
-        'structure': {
-            'radius': 0.7},
-        'internal': {
-            'quarks': {
-                'x': {
-                    'color': 'green',
-                    'spin': 'up'},
-                'y': {
-                    'color': 'red',
-                    'spin': 'up'},
-                'z': {
-                    'color': 'blue',
-                    'spin': 'down'}}}}
-
-    return {
-        'processes': processes,
-        'topology': topology,
-        'initial_state': initial_state}
-
-
-class Sine(Process):
-    name = 'sine'
-    defaults = {
-        'initial_phase': 0.0}
-
-    def __init__(self, parameters=None):
-        super(Sine, self).__init__(parameters)
-
-    def ports_schema(self):
-        return {
-            'frequency': {
-                '_default': 440.0},
-            'amplitude': {
-                '_default': 1.0},
-            'phase': {
-                '_default': self.parameters['initial_phase']},
-            'signal': {
-                '_default': 0.0,
-                '_updater': 'set'}}
-
-    def next_update(self, timestep, states):
-        phase_shift = timestep * states['frequency'] % 1.0
-        signal = states['amplitude'] * math.sin(
-            2 * math.pi * (states['phase'] + phase_shift))
-
-        return {
-            'phase': phase_shift,
-            'signal': signal}
-
-
 def test_topology_ports():
     proton = make_proton()
 
@@ -1888,6 +1846,7 @@ def test_timescales():
     class Slow(Process):
         name = 'slow'
         defaults = {'timestep': 3.0}
+
         def __init__(self, config=None):
             super(Slow, self).__init__(config)
 
@@ -1910,6 +1869,7 @@ def test_timescales():
     class Fast(Process):
         name = 'fast'
         defaults = {'timestep': 0.3}
+
         def __init__(self, config=None):
             super(Fast, self).__init__(config)
 
@@ -1954,36 +1914,110 @@ def test_timescales():
     experiment.update(10.0)
 
 
-def test_inverse_topology():
-    update = {
-        'port1': {
-            'a': 5},
-        'port2': {
-            'b': 10},
-        'port3': {
-            'b': 10},
-        'global': {
-            'c': 20}}
+def test_2_store_1_port():
+    """
+    Split one port of a processes into two stores
+    """
+    class OnePort(Process):
+        name = 'one_port'
+        def ports_schema(self):
+            return {
+                'A': {
+                    'a': {
+                        '_default': 0,
+                        '_emit': True},
+                    'b': {
+                        '_default': 0,
+                        '_emit': True}
+                }
+            }
+        def next_update(self, timestep, states):
+            return {
+                'A': {
+                    'a': 1,
+                    'b': 2}}
 
-    topology = {
-        'port1': ('boundary', 'x'),
-        'global': ('boundary',),
-        'port2': ('boundary', 'y'),
-        'port3': ('boundary', 'x')}
+    class SplitPort(Generator):
+        """splits OnePort's ports into two stores"""
+        name = 'split_port_generator'
+        def generate_processes(self, config):
+            return {
+                'one_port': OnePort({})}
+        def generate_topology(self, config):
+            return {
+                'one_port': {
+                    'A': {
+                        'a': ('internal', 'a',),
+                        'b': ('external', 'a',)
+                    }
+                }}
 
-    path = ('agent',)
-    inverse = inverse_topology(path, update, topology)
-    expected_inverse = {
-        'agent': {
-            'boundary': {
-                'x': {
-                    'a': 5,
-                    'b': 10},
-                'y': {
-                    'b': 10},
-                'c': 20}}}
+    # run experiment
+    split_port = SplitPort({})
+    network = split_port.generate()
+    exp = Experiment({
+        'processes': network['processes'],
+        'topology': network['topology']})
 
-    assert inverse == expected_inverse
+    exp.update(2)
+    output = exp.emitter.get_timeseries()
+    expected_output = {
+        'external': {'a': [0, 2, 4]},
+        'internal': {'a': [0, 1, 2]},
+        'time': [0.0, 1.0, 2.0]}
+    assert output == expected_output
+
+
+def test_multi_port_merge():
+    class MultiPort(Process):
+        name = 'multi_port'
+        def ports_schema(self):
+            return {
+                'A': {
+                    'a': {
+                        '_default': 0,
+                        '_emit': True}},
+                'B': {
+                    'a': {
+                        '_default': 0,
+                        '_emit': True}},
+                'C': {
+                    'a': {
+                        '_default': 0,
+                        '_emit': True}}}
+        def next_update(self, timestep, states):
+            return {
+                'A': {'a': 1},
+                'B': {'a': 1},
+                'C': {'a': 1}}
+
+    class MergePort(Generator):
+        """combines both of MultiPort's ports into one store"""
+        name = 'multi_port_generator'
+        def generate_processes(self, config):
+            return {
+                'multi_port': MultiPort({})}
+        def generate_topology(self, config):
+            return {
+                'multi_port': {
+                    'A': ('aaa',),
+                    'B': ('aaa',),
+                    'C': ('aaa',)}}
+
+    # run experiment
+    merge_port = MergePort({})
+    network = merge_port.generate()
+    exp = Experiment({
+        'processes': network['processes'],
+        'topology': network['topology']})
+
+    exp.update(2)
+    output = exp.emitter.get_timeseries()
+    expected_output = {
+        'aaa': {'a': [0, 3, 6]},
+        'time': [0.0, 1.0, 2.0]}
+
+    assert output == expected_output
 
 
 def test_complex_topology():
@@ -2095,9 +2129,7 @@ def test_multi():
     with Pool(processes=4) as pool:
         multi = MultiInvoke(pool)
         proton = make_proton()
-        experiment = Experiment(dict(
-            proton,
-            invoke=multi.invoke))
+        experiment = Experiment({**proton, 'invoke': multi.invoke})
 
         log.debug(pf(experiment.state.get_config(True)))
 
@@ -2121,124 +2153,6 @@ def test_parallel():
     experiment.end()
 
 
-class TestUpdateIn:
-    d = {
-        'foo': {
-            1: {
-                'a': 'b',
-            },
-        },
-        'bar': {
-            'c': 'd',
-        },
-    }
-
-    def test_simple(self):
-        updated = copy.deepcopy(self.d)
-        updated = update_in(
-            updated, ('foo', 1, 'a'), lambda current: 'updated')
-        expected = {
-            'foo': {
-                1: {
-                    'a': 'updated',
-                },
-            },
-            'bar': {
-                'c': 'd',
-            },
-        }
-        assert updated == expected
-
-    def test_add_leaf(self):
-        updated = copy.deepcopy(self.d)
-        updated = update_in(
-            updated, ('foo', 1, 'new'), lambda current: 'updated')
-        expected = {
-            'foo': {
-                1: {
-                    'a': 'b',
-                    'new': 'updated',
-                },
-            },
-            'bar': {
-                'c': 'd',
-            },
-        }
-        assert updated == expected
-
-    def test_add_dict(self):
-        updated = copy.deepcopy(self.d)
-        updated = update_in(
-            updated, ('foo', 2), lambda current: {'a': 'updated'})
-        expected = {
-            'foo': {
-                1: {
-                    'a': 'b',
-                },
-                2: {
-                    'a': 'updated',
-                },
-            },
-            'bar': {
-                'c': 'd',
-            },
-        }
-        assert updated == expected
-
-    def test_complex_merge(self):
-        updated = copy.deepcopy(self.d)
-        updated = update_in(
-            updated, ('foo',),
-            lambda current: deep_merge(
-                current,
-                {'foo': {'a': 'updated'}, 'b': 2}),
-            )
-        expected = {
-            'foo': {
-                'foo': {
-                    'a': 'updated',
-                },
-                'b': 2,
-                1: {
-                    'a': 'b',
-                },
-            },
-            'bar': {
-                'c': 'd',
-            },
-        }
-        assert updated == expected
-
-    def test_add_to_root(self):
-        updated = copy.deepcopy(self.d)
-        updated = update_in(
-            updated,
-            tuple(),
-            lambda current: deep_merge(current, ({'a': 'updated'})),
-        )
-        expected = {
-            'foo': {
-                1: {
-                    'a': 'b',
-                },
-            },
-            'bar': {
-                'c': 'd',
-            },
-            'a': 'updated'
-        }
-        assert updated == expected
-
-    def test_set_root(self):
-        updated = copy.deepcopy(self.d)
-        updated = update_in(
-            updated, tuple(), lambda current: {'a': 'updated'})
-        expected = {
-            'a': 'updated',
-        }
-        assert updated == expected
-
-
 def test_depth():
     nested = {
         'A': {
@@ -2253,19 +2167,6 @@ def test_depth():
     assert dissected[('A', 'AB', 'ABC')] == 11
 
 
-def test_deletion():
-    nested = {
-        'A': {
-            'AA': 5,
-            'AB': {
-                'ABC': 11}},
-        'B': {
-            'BA': 6}}
-
-    delete_in(nested, ('A', 'AA'))
-    assert 'AA' not in nested['A']
-
-
 def test_sine():
     sine = Sine()
     print(sine.next_update(0.25 / 440.0, {
@@ -2274,14 +2175,80 @@ def test_sine():
         'phase': 1.5}))
 
 
+def test_units():
+    class UnitsMicrometer(Process):
+        name = 'units_micrometer'
+        def ports_schema(self):
+            return {
+                'A': {
+                    'a': {
+                        '_default': 0 * units.um,
+                        '_emit': True},
+                    'b': {
+                        '_default': 'string b',
+                        '_emit': True,
+                    }
+                }
+            }
+        def next_update(self, timestep, states):
+            return {
+                'A': {'a': 1 * units.um}}
+    class UnitsMillimeter(Process):
+        name = 'units_millimeter'
+        def ports_schema(self):
+            return {
+                'A': {
+                    'a': {
+                        # '_default': 0 * units.mm,
+                        '_emit': True}}}
+        def next_update(self, timestep, states):
+            return {
+                'A': {'a': 1 * units.mm}}
+    class MultiUnits(Generator):
+        name = 'multi_units_generator'
+        def generate_processes(self, config):
+            return {
+                'units_micrometer': UnitsMicrometer({}),
+                'units_millimeter': UnitsMillimeter({})}
+        def generate_topology(self, config):
+            return {
+                'units_micrometer': {'A': ('aaa',)},
+                'units_millimeter': {'A': ('aaa',)}}
+
+    # run experiment
+    multi_unit = MultiUnits({})
+    network = multi_unit.generate()
+    exp = Experiment({
+        'processes': network['processes'],
+        'topology': network['topology']})
+
+    exp.update(5)
+    timeseries = exp.emitter.get_timeseries()
+    print('TIMESERIES')
+    pp(timeseries)
+
+    data = exp.emitter.get_data()
+    print('DATA')
+    pp(data)
+
+    data_deserialized = exp.emitter.get_data_deserialized()
+    print('DESERIALIZED')
+    pp(data_deserialized)
+
+    data_unitless = exp.emitter.get_data_unitless()
+    print('UNITLESS')
+    pp(data_unitless)
+
+
 if __name__ == '__main__':
     # test_recursive_store()
-    # test_in()
     # test_timescales()
     # test_topology_ports()
     # test_multi()
     # test_sine()
     # test_parallel()
+    # test_complex_topology()
+    # test_multi_port_merge()
+    # test_2_store_1_port()
 
-    test_complex_topology()
-
+    test_units()

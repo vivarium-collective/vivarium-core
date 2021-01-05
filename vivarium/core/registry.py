@@ -59,9 +59,7 @@ the variables in each of the daughter cells.
     randomly decide which daughter cell receives the remainder.
 """
 
-
-from __future__ import absolute_import, division, print_function
-
+import math
 import random
 
 import numpy as np
@@ -77,7 +75,8 @@ class Registry(object):
     def register(self, key, item):
         if key in self.registry:
             if item != self.registry[key]:
-                raise Exception('registry already contains an entry for {}: {} --> {}'.format(key, self.registry[key], item))
+                raise Exception('registry already contains an entry for {}: {} --> {}'.format(
+                    key, self.registry[key], item))
         else:
             self.registry[key] = item
 
@@ -85,7 +84,7 @@ class Registry(object):
         return self.registry.get(key)
 
 
-## Intialize registries
+## Initialize registries
 # These are imported into module __init__.py files,
 # where the functions and classes are registered upon import
 
@@ -197,6 +196,13 @@ def divide_split(state):
     else:
         raise Exception('can not divide state {} of type {}'.format(state, type(state)))
 
+def divide_binomial(state):
+    """Binomial Divider
+    """
+    counts_1 = np.random.binomial(state, 0.5)
+    counts_2 = state - counts_1
+    return [counts_1, counts_2]
+
 def divide_zero(state):
     """Zero Divider
 
@@ -273,16 +279,35 @@ class NumpyScalarSerializer(Serializer):
         )
 
 class UnitsSerializer(Serializer):
-    def serialize(self, data):
-        return data.magnitude
+    def serialize(self, data, unit=None):
+        if isinstance(data, list):
+            if unit is not None:
+                data = [d.to(unit) for d in data]
+            return [str(d) for d in data]
+        else:
+            if unit is not None:
+                data.to(unit)
+            return str(data)
+
+    def deserialize(self, data, unit=None):
+        if isinstance(data, list):
+            unit_data = [units(d) for d in data]
+            if unit is not None:
+                unit_data = [d.to(unit) for d in data]
+        else:
+            unit_data = units(data)
+            if unit is not None:
+                unit_data.to(unit)
+        return unit_data
+
 
 class ProcessSerializer(Serializer):
     def serialize(self, data):
-        return dict(data.parameters, _name = data.name)
+        return dict(data.parameters, _name=data.name)
 
 class GeneratorSerializer(Serializer):
     def serialize(self, data):
-        return dict(data.config, _name = str(type(data)))
+        return dict(data.config, _name=str(type(data)))
 
 class FunctionSerializer(Serializer):
     def serialize(self, data):

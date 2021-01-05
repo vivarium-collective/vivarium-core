@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.1.1
+
+* get_networkx_graph() and graph_figure() in vivarium/plot/topology.py
+
+
+## v0.0.39
+
+* improved units handling, with a units serializer for emit_data, and convert data to timeseries stripping the units.
+
+## v0.0.36
+
+* multi_update for experiment allos multiple updates to a variable from the same process
+* fix some inspection errors & warnings
+* merge for generator class
 
 ## v0.0.34
 

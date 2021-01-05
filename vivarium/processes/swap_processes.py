@@ -5,12 +5,9 @@ Swap Processes Process
 """
 
 import os
-import uuid
-import logging as log
 
 from vivarium.core.process import (
     Deriver,
-    Process,
     Generator,
 )
 from vivarium.core.composition import (
@@ -64,7 +61,8 @@ class SwapProcesses(Deriver):
             'trigger': {
                 '_default': False,
                 '_emit': True},
-            'self': {}}
+            'self': {
+                '*': {}}}
 
     def next_update(self, timestep, states):
         if states['trigger']:
@@ -106,8 +104,8 @@ class ToyLivingCompartment(Generator):
         'exchange': {'uptake_rate': 0.1},
         'death': {
             'removed_processes': [
-                ('exchange',),
-                ('death',)],
+                'exchange',
+                'death'],
             'new_compartment': ToyDeadCompartment({})
         }}
 

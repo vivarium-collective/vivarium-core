@@ -1,12 +1,10 @@
 """
 ====================
-Disintegrate Process
+Remove Process
 ====================
 """
 
 import os
-import uuid
-import logging as log
 
 from vivarium.core.experiment import pp
 from vivarium.core.process import (
@@ -17,15 +15,14 @@ from vivarium.core.composition import (
     simulate_compartment_in_experiment,
     PROCESS_OUT_DIR,
 )
-from vivarium.plots.simulation_output import plot_simulation_output
 from vivarium.processes.exchange_a import ExchangeA
 
 
-NAME = 'disintegrate'
+NAME = 'remove'
 
 
-class Disintegrate(Deriver):
-    """ Disintegrate Process
+class Remove(Deriver):
+    """ Remove Process
 
     remove a compartment when the state under the 'trigger' port is set to True.
     """
@@ -33,7 +30,7 @@ class Disintegrate(Deriver):
     defaults = {}
 
     def __init__(self, parameters=None):
-        super(Disintegrate, self).__init__(parameters)
+        super(Remove, self).__init__(parameters)
         self.agent_id = self.parameters['agent_id']
 
     def ports_schema(self):
@@ -41,13 +38,13 @@ class Disintegrate(Deriver):
             'trigger': {
                 '_default': False,
                 '_emit': True},
-            'agents': {}}
+            'agents': {'*': {}}}
 
     def next_update(self, timestep, states):
         if states['trigger']:
             return {
                 'agents': {
-                    '_delete': [(self.agent_id,)]}}
+                    '_delete': [self.agent_id]}}
         else:
             return {}
 
@@ -64,7 +61,7 @@ class ToyLivingCompartment(Generator):
         death_config['agent_id'] = config['agent_id']
         return {
             'exchange': ExchangeA(config['exchange']),
-            'death': Disintegrate(death_config)}
+            'death': Remove(death_config)}
 
     def generate_topology(self, config):
         agents_path = ('..', '..', 'agents')
@@ -78,7 +75,7 @@ class ToyLivingCompartment(Generator):
                 'agents': agents_path}}
 
 
-def test_disintegrate():
+def test_remove():
     agent_id = '1'
 
     # make the compartment
@@ -115,13 +112,13 @@ def test_disintegrate():
 
     return output
 
-def run_disintegrate():
+def run_remove():
     out_dir = os.path.join(PROCESS_OUT_DIR, NAME)
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
-    output = test_disintegrate()
+    output = test_remove()
     pp(output)
 
 
 if __name__ == '__main__':
-    run_disintegrate()
+    run_remove()
