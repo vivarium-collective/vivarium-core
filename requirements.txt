@@ -1,14 +1,28 @@
-## How to set up a Python runtime environment for Vivarium.
-#
-## Create the "vivarium" python virtual environment and select it for your project
-## directory:
-#   cd ~/code/vivarium-core
-#   pyenv local 3.8.3
-#   pyenv virtualenv vivarium
-#   pyenv local vivarium
-#
-## Install requirements
-#   pip install -r requirements.txt
-#
-
--e .
+astroid==2.4.2
+attrs==20.3.0
+certifi==2020.6.20
+confluent-kafka==1.5.0
+cycler==0.10.0
+decorator==4.4.2
+iniconfig==1.1.1
+isort==5.7.0
+kiwisolver==1.3.1
+lazy-object-proxy==1.4.3
+matplotlib==3.3.2
+mccabe==0.6.1
+networkx==2.5
+numpy==1.19.4
+packaging==20.4
+Pillow==8.0.1
+Pint==0.16.1
+pluggy==0.13.1
+py==1.9.0
+pylint==2.6.0
+pymongo==3.11.0
+pyparsing==2.4.7
+pytest==6.1.2
+python-dateutil==2.8.1
+scipy==1.5.4
+six==1.15.0
+toml==0.10.2
+wrapt==1.12.1
