@@ -1,5 +1,3 @@
-from __future__ import absolute_import, division, print_function
-
 import logging as log
 
 from vivarium.library.dict_utils import deep_merge_combine_lists
