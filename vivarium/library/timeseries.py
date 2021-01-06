@@ -2,6 +2,7 @@ from __future__ import print_function, division, absolute_import
 
 import csv
 import os
+from typing import Dict, List
 
 
 def process_path_timeseries_for_csv(path_ts):
@@ -59,7 +60,7 @@ def save_flat_timeseries(timeseries, out_dir, filename):
     timeseries data, one row per timepoint, in increasing order of time.
     '''
     n_rows = max([len(val) for val in timeseries.values()])
-    rows = [{} for _ in range(n_rows)]
+    rows: List[Dict] = [{} for _ in range(n_rows)]
     for key, val in timeseries.items():
         for i, elem in enumerate(val):
             rows[i][key] = elem

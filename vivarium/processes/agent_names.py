@@ -1,12 +1,14 @@
 from __future__ import absolute_import, division, print_function
 
+from typing import Any, Dict
+
 from vivarium.core.process import Deriver
 
 
 class AgentNames(Deriver):
 
     name = 'agent_names'
-    defaults = {}
+    defaults: Dict[str, Any] = {}
 
     def __init__(self, initial_parameters=None):
         if initial_parameters is None:
