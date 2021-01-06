@@ -5,21 +5,17 @@ Burst Process
 """
 
 import os
-import uuid
-import logging as log
 
 from vivarium.core.experiment import pp
 from vivarium.core.process import (
     Deriver,
     Generator,
 )
-from vivarium.library.units import units
 from vivarium.core.composition import (
     compose_experiment,
     GENERATORS_KEY,
     PROCESS_OUT_DIR,
 )
-from vivarium.plots.simulation_output import plot_simulation_output
 from vivarium.processes.exchange_a import ExchangeA
 from vivarium.processes.timeline import TimelineProcess
 
@@ -204,13 +200,13 @@ def test_burst():
 
     return output
 
+
 def run_burst():
     out_dir = os.path.join(PROCESS_OUT_DIR, NAME)
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
     output = test_burst()
     pp(output)
-
 
 
 if __name__ == '__main__':

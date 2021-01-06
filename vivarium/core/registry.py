@@ -59,7 +59,6 @@ the variables in each of the daughter cells.
     randomly decide which daughter cell receives the remainder.
 """
 
-import math
 import random
 
 import numpy as np
@@ -84,7 +83,7 @@ class Registry(object):
         return self.registry.get(key)
 
 
-## Initialize registries
+# Initialize registries
 # These are imported into module __init__.py files,
 # where the functions and classes are registered upon import
 
@@ -101,7 +100,7 @@ divider_registry = Registry()
 serializer_registry = Registry()
 
 
-## Updaters, Dividers, and Serializers
+# Updaters, Dividers, and Serializers
 # These can be defined here, but are registered in the base module's __init__.py file
 
 # Updater functions
@@ -121,6 +120,7 @@ def update_merge(current_value, new_value, states):
             update[k] = new
     return update
 
+
 def update_set(current_value, new_value, states):
     """Set Updater
 
@@ -129,6 +129,7 @@ def update_set(current_value, new_value, states):
     """
     return new_value
 
+
 def update_accumulate(current_value, new_value, states):
     """Accumulate Updater
 
@@ -136,6 +137,7 @@ def update_accumulate(current_value, new_value, states):
         The sum of ``current_value`` and ``new_value``.
     """
     return current_value + new_value
+
 
 def update_nonnegative_accumulate(current_value, new_value, states):
     """Non-negative Accumulate Updater
@@ -153,7 +155,6 @@ def update_nonnegative_accumulate(current_value, new_value, states):
         return 0 * updated_value
 
 
-
 # Divider functions
 def divide_set(state):
     """Set Divider
@@ -162,6 +163,7 @@ def divide_set(state):
         A list ``[state, state]``. No copying is performed.
     """
     return [state, state]
+
 
 def divide_split(state):
     """Split Divider
@@ -196,12 +198,14 @@ def divide_split(state):
     else:
         raise Exception('can not divide state {} of type {}'.format(state, type(state)))
 
+
 def divide_binomial(state):
     """Binomial Divider
     """
     counts_1 = np.random.binomial(state, 0.5)
     counts_2 = state - counts_1
     return [counts_1, counts_2]
+
 
 def divide_zero(state):
     """Zero Divider
@@ -210,6 +214,7 @@ def divide_zero(state):
         ``[0, 0]`` regardless of input
     """
     return [0, 0]
+
 
 def divide_split_dict(state):
     """Split-Dictionary Divider
@@ -229,6 +234,7 @@ def divide_split_dict(state):
     d2 = dict(list(state.items())[:len(state) // 2])
     return [d1, d2]
 
+
 def assert_no_divide(state):
     '''Assert that the variable is never divided
 
@@ -236,8 +242,6 @@ def assert_no_divide(state):
         AssertionError: If the variable is divided
     '''
     raise AssertionError('Variable cannot be divided')
-
-
 
 
 # Serializers
@@ -248,12 +252,14 @@ class Serializer(object):
     def deserialize(self, data):
         return data
 
+
 class NumpySerializer(Serializer):
     def serialize(self, data):
         return data.tolist()
 
     def deserialize(self, data):
         return np.array(data)
+
 
 class NumpyScalarSerializer(Serializer):
     def serialize(self, data):
@@ -277,6 +283,7 @@ class NumpyScalarSerializer(Serializer):
                 data, type(data)
             )
         )
+
 
 class UnitsSerializer(Serializer):
     def serialize(self, data, unit=None):
@@ -305,9 +312,11 @@ class ProcessSerializer(Serializer):
     def serialize(self, data):
         return dict(data.parameters, _name=data.name)
 
+
 class GeneratorSerializer(Serializer):
     def serialize(self, data):
         return dict(data.config, _name=str(type(data)))
+
 
 class FunctionSerializer(Serializer):
     def serialize(self, data):

@@ -172,6 +172,7 @@ def test_death():
 
     return output
 
+
 def run_death():
     out_dir = os.path.join(PROCESS_OUT_DIR, NAME)
     if not os.path.exists(out_dir):

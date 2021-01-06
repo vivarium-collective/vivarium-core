@@ -5,6 +5,7 @@ Process and Compartment Classes
 """
 
 import copy
+import logging as log
 import numpy as np
 from typing import Any, Dict
 
@@ -12,7 +13,7 @@ from bson.objectid import ObjectId
 from multiprocessing import Pipe
 from multiprocessing import Process as Multiprocess
 
-from vivarium.library.topology import get_in, assoc_path, without, update_in, inverse_topology
+from vivarium.library.topology import inverse_topology
 from vivarium.library.units import Quantity
 from vivarium.core.registry import process_registry, serializer_registry
 from vivarium.library.dict_utils import deep_merge, deep_merge_check
@@ -45,6 +46,7 @@ def serialize_value(value):
     else:
         return value
 
+
 def deserialize_value(value):
     if isinstance(value, dict):
         return deserialize_dictionary(value)
@@ -53,7 +55,8 @@ def deserialize_value(value):
     elif isinstance(value, str):
         try:
             return serializer_registry.access('units').deserialize(value)
-        except:
+        except Exception:  # TODO(jerry): Narrow this too broad exception
+            log.exception("serializer_registry", exc_info=True, stack_info=True)
             return value
     else:
         return value
@@ -452,15 +455,19 @@ def test_generator_initial_state():
     """
     class AA(Process):
         name = 'AA'
+
         def initial_state(self, config=None):
             return {'a_port': {'a': 1}}
+
         def ports_schema(self):
             return {'a_port': {'a': {'_emit': True}}}
+
         def next_update(self, timestep, states):
             return {'a_port': {'a': 1}}
 
     class BB(Generator):
         name = 'BB'
+
         def generate_processes(self, config):
             return {
                 'a1': AA({}),
@@ -468,6 +475,7 @@ def test_generator_initial_state():
                 'a3': {
                     'a3_store': AA({})}
             }
+
         def generate_topology(self, config):
             return {
                 'a1': {

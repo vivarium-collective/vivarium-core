@@ -180,8 +180,7 @@ def plot_agents_multigen(
 
             # if last state in this port, add time ticks
             if (row_idx >= highest_row
-                or path_idx >= len(ordered_paths[port_id]) - 1
-            ):
+                    or path_idx >= len(ordered_paths[port_id]) - 1):
                 set_axes(ax, True)
                 ax.set_xlabel('time (s)', fontsize=title_size)
 

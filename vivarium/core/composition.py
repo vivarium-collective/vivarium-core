@@ -72,6 +72,7 @@ def add_generator_to_tree(
 
     return processes, topology
 
+
 def initialize_hierarchy(hierarchy):
     processes = {}
     topology = {}
@@ -156,10 +157,10 @@ def compose_experiment(
     return Experiment(experiment_config)
 
 
-
 ##################################################
 # agent_environment_experiment loading functions #
 ##################################################
+
 
 def make_agents(
         agent_ids,
@@ -331,7 +332,6 @@ def agent_environment_experiment(
     return Experiment(experiment_config)
 
 
-
 ###########################
 # basic loading functions #
 ###########################
@@ -471,7 +471,6 @@ def compartment_in_experiment(
     return Experiment(experiment_config)
 
 
-
 ########################
 # simulation functions #
 ########################
@@ -480,13 +479,16 @@ def simulate_process(process, settings={}):
     experiment = process_in_experiment(process, settings)
     return simulate_experiment(experiment, settings)
 
+
 def simulate_process_in_experiment(process, settings={}):
     experiment = process_in_experiment(process, settings)
     return simulate_experiment(experiment, settings)
 
+
 def simulate_compartment_in_experiment(compartment, settings={}):
     experiment = compartment_in_experiment(compartment, settings)
     return simulate_experiment(experiment, settings)
+
 
 def simulate_experiment(experiment, settings={}):
     '''
@@ -516,11 +518,9 @@ def simulate_experiment(experiment, settings={}):
         return experiment.emitter.get_timeseries()
 
 
-
 ########################
 # timeseries functions #
 ########################
-
 def agent_timeseries_from_data(data, agents_key='cells'):
     timeseries = {}
     for time, all_states in data.items():
@@ -537,9 +537,11 @@ def agent_timeseries_from_data(data, agents_key='cells'):
                     timeseries[agent_id][port_id][state_id].append(state)
     return timeseries
 
+
 def save_timeseries(timeseries, out_dir='out'):
     flattened = flatten_timeseries(timeseries)
     save_flat_timeseries(flattened, out_dir)
+
 
 def save_flat_timeseries(timeseries, out_dir='out'):
     '''Save a timeseries as a CSV in out_dir'''
@@ -548,6 +550,7 @@ def save_flat_timeseries(timeseries, out_dir='out'):
         writer = csv.writer(f)
         writer.writerow(timeseries.keys())
         writer.writerows(rows)
+
 
 def load_timeseries(path_to_csv):
     '''Load a timeseries saved as a CSV using save_timeseries.
@@ -566,6 +569,7 @@ def load_timeseries(path_to_csv):
                 timeseries.setdefault(header, []).append(elem)
     return timeseries
 
+
 def timeseries_to_ndarrays(timeseries, keys=None):
     '''After filtering by keys, convert timeseries to dict of ndarrays
 
@@ -577,6 +581,7 @@ def timeseries_to_ndarrays(timeseries, keys=None):
         keys = timeseries.keys()
     return {
         key: np.array(timeseries[key], dtype=np.float) for key in keys}
+
 
 def _prepare_timeseries_for_comparison(
     timeseries1, timeseries2, keys=None,
@@ -644,6 +649,7 @@ def _prepare_timeseries_for_comparison(
         keys,
     )
 
+
 def assert_timeseries_correlated(
     timeseries1, timeseries2, keys=None,
     default_threshold=(1 - 1e-10), thresholds={},
@@ -707,6 +713,7 @@ def assert_timeseries_correlated(
                     key, corrcoef, threshold)
             )
 
+
 def assert_timeseries_close(
     timeseries1, timeseries2, keys=None,
     default_tolerance=(1 - 1e-10), tolerances={},
@@ -745,8 +752,8 @@ def assert_timeseries_close(
         timeseries1, timeseries2, keys, required_frac_checked)
     for key in keys:
         tolerance = tolerances.get(key, default_tolerance)
-        close_mask = np.isclose(arrays1[key], arrays2[key],
-            atol=tolerance, equal_nan=True)
+        close_mask = np.isclose(
+            arrays1[key], arrays2[key], atol=tolerance, equal_nan=True)
         if not np.all(close_mask):
             print('Timeseries 1:', arrays1[key][~close_mask])
             print('Timeseries 2:', arrays2[key][~close_mask])
@@ -754,7 +761,6 @@ def assert_timeseries_close(
                 'The data for {} differed by more than {}'.format(
                     key, tolerance)
             )
-
 
 
 #########
@@ -851,6 +857,7 @@ class ToyMetabolism(Process):
 
         return update
 
+
 class ToyTransport(Process):
     name = 'toy_transport'
 
@@ -881,11 +888,13 @@ class ToyTransport(Process):
 
         return update
 
+
 class ToyDeriveVolume(Deriver):
     name = 'toy_derive_volume'
 
     def __init__(self, initial_parameters={}):
-        parameters = {}  # TODO(jerry): Ignore initial_parameters?
+        _ = initial_parameters  # ignore initial_parameters
+        parameters = {}
         super(ToyDeriveVolume, self).__init__(parameters)
 
     def ports_schema(self):
@@ -906,6 +915,7 @@ class ToyDeriveVolume(Deriver):
             'compartment': {'VOLUME': volume}}
 
         return update
+
 
 class ToyDeath(Process):
     name = 'toy_death'

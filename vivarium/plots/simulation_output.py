@@ -83,7 +83,7 @@ def plot_simulation_output(
     for path in removed_states:
         del timeseries[path]
 
-    ## get figure columns
+    # get figure columns
     # get length of each top-level port
     port_lengths = {}
     for path in timeseries.keys():

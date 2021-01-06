@@ -5,21 +5,17 @@ Engulf Process
 """
 
 import os
-import uuid
-import logging as log
 
 from vivarium.core.experiment import pp
 from vivarium.core.process import (
     Deriver,
     Generator,
 )
-from vivarium.library.units import units
 from vivarium.core.composition import (
     compose_experiment,
     GENERATORS_KEY,
     PROCESS_OUT_DIR,
 )
-from vivarium.plots.simulation_output import plot_simulation_output
 from vivarium.processes.exchange_a import ExchangeA
 from vivarium.processes.timeline import TimelineProcess
 
@@ -120,8 +116,6 @@ def test_engulf():
             for agent_id in agent_ids}}
 
     # timeline triggers engulf for agent_1
-    time_engulf = 3
-    time_expel = 8
     time_total = 10
     timeline = [
         (0, {('agents', agent_ids[0], 'trigger'): []}),
@@ -178,6 +172,7 @@ def test_engulf():
     assert [*output[10.0]['agents']['1']['agents'].keys()] == ['3', '2']
 
     return output
+
 
 def run_engulf():
     out_dir = os.path.join(PROCESS_OUT_DIR, NAME)

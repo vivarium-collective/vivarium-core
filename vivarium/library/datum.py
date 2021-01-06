@@ -1,12 +1,15 @@
-from typing import Any, Callable, Dict
+from typing import Any, Callable, Dict, List
 
-def first(l):
-    if l:
-        return l[0]
 
-def first_value(d):
+def first(a_list: List):
+    if a_list:
+        return a_list[0]
+
+
+def first_value(d: Dict):
     if d:
         return d[list(d.keys())[0]]  # TODO(jerry): iter(d.values()).__next__() would be faster
+
 
 class Datum(dict):
     '''

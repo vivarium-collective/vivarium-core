@@ -9,7 +9,6 @@ import copy
 import math
 import datetime
 import time as clock
-from typing import Dict, Tuple, Union
 import uuid
 
 import numpy as np
@@ -18,12 +17,11 @@ import logging as log
 import pprint
 
 from multiprocessing import Pool
-from typing import Any, Dict
+from typing import Any, Dict, Tuple, Union
 
 from vivarium.library.units import units, Quantity
 from vivarium.library.dict_utils import (
     deep_merge,
-    deep_merge_multi_update,
     MULTI_UPDATE_KEY,
 )
 from vivarium.core.emitter import get_emitter
@@ -36,8 +34,8 @@ from vivarium.core.process import (
 )
 from vivarium.library.topology import (
     get_in, delete_in, assoc_path,
-    without, update_in, inverse_topology,
-    paths_to_dict, dict_to_paths
+    without, inverse_topology,
+    dict_to_paths
 )
 from vivarium.core.registry import (
     divider_registry,
@@ -47,8 +45,10 @@ from vivarium.core.registry import (
 
 pretty = pprint.PrettyPrinter(indent=2)
 
+
 def pp(x):
     pretty.pprint(x)
+
 
 def pf(x):
     return pretty.pformat(x)
@@ -61,10 +61,11 @@ Path = Union[Tuple[str, ...], Tuple[()]]
 log.basicConfig(level=os.environ.get("LOGLEVEL", log.WARNING))
 
 
-def starts_with(l, sub):
-    return len(sub) <= len(l) and all(
-        l[i] == el
+def starts_with(a_list, sub):
+    return len(sub) <= len(a_list) and all(
+        a_list[i] == el
         for i, el in enumerate(sub))
+
 
 # Store
 def key_for_value(d, looking):
@@ -74,6 +75,7 @@ def key_for_value(d, looking):
             found = key
             break
     return found
+
 
 def depth(tree, path=()):
     '''
@@ -163,6 +165,7 @@ class Store(object):
         self.sources = {}
         self.leaf = False
         self.serializer = None
+        self.topology = {}
 
         self.apply_config(config, source)
 
@@ -239,7 +242,6 @@ class Store(object):
           map the process perspective to the actual tree structure.
         '''
 
-
         if '*' in config:
             self.apply_subschema_config(config['*'])
             config = without(config, '*')
@@ -285,7 +287,7 @@ class Store(object):
                 if isinstance(self.default, Quantity):
                     self.units = self.units or self.default.units
                     self.serializer = self.serializer or serializer_registry.access('units')
-                elif isinstance(self.default, list) and (len(self.default) > 0) and isinstance(self.default[0], Quantity):
+                elif isinstance(self.default, list) and len(self.default) > 0 and isinstance(self.default[0], Quantity):
                     self.units = self.units or self.default[0].units
                     self.serializer = self.serializer or serializer_registry.access('units')
                 elif isinstance(self.default, np.ndarray):
@@ -693,7 +695,7 @@ class Store(object):
 
                     # find the process updates
                     source_process_paths = source_node.depth(
-                        filter=lambda x: isinstance(x.value, Process))
+                        filter_function=lambda x: isinstance(x.value, Process))
                     source_processes = [
                         (target_path + source_path, source_process.value)
                         for source_path, source_process in source_process_paths]
@@ -929,7 +931,7 @@ class Store(object):
                 key: state.inner_value(key)
                 for key in keys}
 
-    def depth(self, path=(), filter=None):
+    def depth(self, path=(), filter_function=None):
         '''
         Create a mapping of every path in the tree to the node living at
         that path in the tree. An optional `filter` argument is a function
@@ -937,12 +939,12 @@ class Store(object):
         * filter=lambda x: isinstance(x.value, Process)
         '''
         base = []
-        if filter is None or filter(self):
+        if filter_function is None or filter_function(self):
             base += [(path, self)]
 
         for key, child in self.inner.items():
             down = tuple(path + (key,))
-            base += child.depth(down, filter)
+            base += child.depth(down, filter_function)
         return base
 
     def apply_subschema_path(self, path):
@@ -1349,7 +1351,8 @@ class Experiment(object):
             'data': data}
         try:
             self.emitter.emit(emit_config)
-        except:
+        except Exception:  # TODO(jerry): Narrow this too broad exception
+            log.exception("emitter.emit", exc_info=True, stack_info=True)
             # TODO -- handle large parameter sets in self.processes to meet mongoDB limit
             del emit_config['data']['processes']
             del emit_config['data']['state']
@@ -1423,7 +1426,7 @@ class Experiment(object):
             if deriver:
                 # timestep shouldn't influence derivers
                 update, process_topology, state = self.process_update(
-                    path, deriver, 0)
+                    path, deriver, 0)  # TODO(jerry): Type Deriver doesn't have expected attribute 'schema'
                 self.apply_update(update.get(), process_topology, state)
 
     def emit_data(self):
@@ -1483,7 +1486,7 @@ class Experiment(object):
                     timestep = future - process_time
 
                     # calculate the update for this process
-                    update = self.process_update(path, process, timestep)
+                    update = self.process_update(path, process, timestep)  # TODO(jerry): Type Process doesn't have expected attribute 'schema'
 
                     # store the update to apply at its projected time
                     if timestep < full_step:
@@ -1557,6 +1560,7 @@ class Experiment(object):
         else:
             print('Completed in {:.2f} seconds'.format(clock_finish))
 
+
 def print_progress_bar(
         iteration,
         total,
@@ -1578,6 +1582,7 @@ def print_progress_bar(
     # Print New Line on Complete
     if iteration == total:
         print()
+
 
 # Tests
 quark_colors = ['green', 'red', 'blue']
@@ -1924,6 +1929,7 @@ def test_2_store_1_port():
     """
     class OnePort(Process):
         name = 'one_port'
+
         def ports_schema(self):
             return {
                 'A': {
@@ -1935,6 +1941,7 @@ def test_2_store_1_port():
                         '_emit': True}
                 }
             }
+
         def next_update(self, timestep, states):
             return {
                 'A': {
@@ -1944,9 +1951,11 @@ def test_2_store_1_port():
     class SplitPort(Generator):
         """splits OnePort's ports into two stores"""
         name = 'split_port_generator'
+
         def generate_processes(self, config):
             return {
                 'one_port': OnePort({})}
+
         def generate_topology(self, config):
             return {
                 'one_port': {
@@ -1975,6 +1984,7 @@ def test_2_store_1_port():
 def test_multi_port_merge():
     class MultiPort(Process):
         name = 'multi_port'
+
         def ports_schema(self):
             return {
                 'A': {
@@ -1989,6 +1999,7 @@ def test_multi_port_merge():
                     'a': {
                         '_default': 0,
                         '_emit': True}}}
+
         def next_update(self, timestep, states):
             return {
                 'A': {'a': 1},
@@ -1998,9 +2009,11 @@ def test_multi_port_merge():
     class MergePort(Generator):
         """combines both of MultiPort's ports into one store"""
         name = 'multi_port_generator'
+
         def generate_processes(self, config):
             return {
                 'multi_port': MultiPort({})}
+
         def generate_topology(self, config):
             return {
                 'multi_port': {
@@ -2071,7 +2084,6 @@ def test_complex_topology():
                     'u': 3,
                     'v': states['E']['u']}}
 
-
     class PoQo(Generator):
         def generate_processes(self, config=None):
             P = Po(config)
@@ -2096,7 +2108,6 @@ def test_complex_topology():
                     'E': {
                         'u': ('aaa', 'u'),
                         'v': ('bbb', 'e')}}}
-
 
     initial_state = {
         'aaa': {
@@ -2182,6 +2193,7 @@ def test_sine():
 def test_units():
     class UnitsMicrometer(Process):
         name = 'units_micrometer'
+
         def ports_schema(self):
             return {
                 'A': {
@@ -2194,26 +2206,33 @@ def test_units():
                     }
                 }
             }
+
         def next_update(self, timestep, states):
             return {
                 'A': {'a': 1 * units.um}}
+
     class UnitsMillimeter(Process):
         name = 'units_millimeter'
+
         def ports_schema(self):
             return {
                 'A': {
                     'a': {
                         # '_default': 0 * units.mm,
                         '_emit': True}}}
+
         def next_update(self, timestep, states):
             return {
                 'A': {'a': 1 * units.mm}}
+
     class MultiUnits(Generator):
         name = 'multi_units_generator'
+
         def generate_processes(self, config):
             return {
                 'units_micrometer': UnitsMicrometer({}),
                 'units_millimeter': UnitsMillimeter({})}
+
         def generate_topology(self, config):
             return {
                 'units_micrometer': {'A': ('aaa',)},
