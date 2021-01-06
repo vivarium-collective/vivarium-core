@@ -5,6 +5,7 @@ Swap Processes Process
 """
 
 import os
+from typing import Any, Dict
 
 from vivarium.core.process import (
     Deriver,
@@ -44,7 +45,7 @@ class SwapProcesses(Deriver):
       to upon trigger.
     """
     name = NAME
-    defaults = {
+    defaults: Dict[str, Any] = {
         'removed_processes': [],
         'new_compartment': None,
         'initial_state': {},

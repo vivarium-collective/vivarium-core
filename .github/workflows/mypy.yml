@@ -1,6 +1,6 @@
 # Modified from GitHub Actions template
 
-name: Pytest
+name: Type Checks
 
 on:
   push:
@@ -24,9 +24,8 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install pytest
         pip install numpy
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-    - name: Test with pytest
+    - name: Check Types with Mypy
       run: |
-        pytest --cov=vivarium
+        mypy vivarium
