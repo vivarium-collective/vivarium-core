@@ -170,7 +170,6 @@ class Factory(metaclass=abc.ABCMeta):
 
         self.config = copy.deepcopy(self.defaults)
         self.config = deep_merge(self.config, config)
-        self.schema_override = self.config.pop('_schema', {})
 
     @abc.abstractmethod
     def generate_processes(self, config):
@@ -238,8 +237,6 @@ class Factory(metaclass=abc.ABCMeta):
         processes = deep_merge(derivers['processes'], processes)
         topology = deep_merge(derivers['topology'], topology)
 
-        override_schemas(self.schema_override, processes)
-
         return {
             'processes': assoc_in({}, path, processes),
             'topology': assoc_in({}, path, topology)}
@@ -255,8 +252,9 @@ class Composite(Factory):
     def __init__(self, config=None):
         super().__init__(config)
 
-        self.merge_processes = self.config.pop('processes', {})
-        self.merge_topology = self.config.pop('topology', {})
+        self.merge_processes = self.config.pop('_processes', {})
+        self.merge_topology = self.config.pop('_topology', {})
+        self.schema_override = self.config.pop('_schema', {})
 
     def initial_state(self, config=None):
         """ Merge all processes' initial states
