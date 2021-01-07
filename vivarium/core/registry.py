@@ -305,7 +305,7 @@ class ProcessSerializer(Serializer):
     def serialize(self, data):
         return dict(data.parameters, _name=data.name)
 
-class GeneratorSerializer(Serializer):
+class FactorySerializer(Serializer):
     def serialize(self, data):
         return dict(data.config, _name=str(type(data)))
 

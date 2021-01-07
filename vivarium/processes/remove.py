@@ -10,7 +10,7 @@ from typing import Any, Dict
 from vivarium.core.experiment import pp
 from vivarium.core.process import (
     Deriver,
-    Generator,
+    Factory,
 )
 from vivarium.core.composition import (
     simulate_compartment_in_experiment,
@@ -51,7 +51,7 @@ class Remove(Deriver):
 
 
 # test
-class ToyLivingCompartment(Generator):
+class ToyLivingCompartment(Factory):
     defaults = {
         'exchange': {'uptake_rate': 0.1},
         'death': {}

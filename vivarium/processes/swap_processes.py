@@ -9,7 +9,7 @@ from typing import Any, Dict
 
 from vivarium.core.process import (
     Deriver,
-    Generator,
+    Factory,
 )
 from vivarium.core.composition import (
     simulate_compartment_in_experiment,
@@ -84,7 +84,7 @@ class SwapProcesses(Deriver):
 
 
 # test
-class ToyDeadCompartment(Generator):
+class ToyDeadCompartment(Factory):
     defaults = {
         'secrete': {
             'secrete_rate': 0.1}}
@@ -100,7 +100,7 @@ class ToyDeadCompartment(Generator):
                 'external': ('external',)}}
 
 
-class ToyLivingCompartment(Generator):
+class ToyLivingCompartment(Factory):
     defaults = {
         'exchange': {'uptake_rate': 0.1},
         'death': {

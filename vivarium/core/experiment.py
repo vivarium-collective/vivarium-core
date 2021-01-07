@@ -28,8 +28,9 @@ from vivarium.library.dict_utils import (
 )
 from vivarium.core.emitter import get_emitter
 from vivarium.core.process import (
+    Composite,
     Deriver,
-    Generator,
+    Factory,
     Process,
     ParallelProcess,
     serialize_dictionary,
@@ -1233,7 +1234,7 @@ class Experiment(object):
                     maps :term:`process` names to process objects. You
                     will usually get this from the ``processes``
                     attribute of the dictionary from
-                    :py:meth:`vivarium.core.process.Generator.generate`.
+                    :py:meth:`vivarium.core.process.Factory.generate`.
                 * **topology** (:py:class:`dict`): A dictionary that
                     maps process names to sub-dictionaries. These
                     sub-dictionaries map the process's port names to
@@ -1941,7 +1942,7 @@ def test_2_store_1_port():
                     'a': 1,
                     'b': 2}}
 
-    class SplitPort(Generator):
+    class SplitPort(Composite):
         """splits OnePort's ports into two stores"""
         name = 'split_port_generator'
         def generate_processes(self, config):
@@ -1995,7 +1996,7 @@ def test_multi_port_merge():
                 'B': {'a': 1},
                 'C': {'a': 1}}
 
-    class MergePort(Generator):
+    class MergePort(Composite):
         """combines both of MultiPort's ports into one store"""
         name = 'multi_port_generator'
         def generate_processes(self, config):
@@ -2072,7 +2073,7 @@ def test_complex_topology():
                     'v': states['E']['u']}}
 
 
-    class PoQo(Generator):
+    class PoQo(Composite):
         def generate_processes(self, config=None):
             P = Po(config)
             Q = Qo(config)
@@ -2208,7 +2209,7 @@ def test_units():
         def next_update(self, timestep, states):
             return {
                 'A': {'a': 1 * units.mm}}
-    class MultiUnits(Generator):
+    class MultiUnits(Composite):
         name = 'multi_units_generator'
         def generate_processes(self, config):
             return {
