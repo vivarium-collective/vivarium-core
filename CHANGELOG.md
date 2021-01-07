@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.1.2
+
+* rework the class structure of Processes and Composites. Replace Generator with Factory.
+
+
 ## v0.1.1
 
 * get_networkx_graph() and graph_figure() in vivarium/plot/topology.py

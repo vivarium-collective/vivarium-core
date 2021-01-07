@@ -9,7 +9,7 @@ import os
 from vivarium.core.experiment import pp
 from vivarium.core.process import (
     Deriver,
-    Generator,
+    Factory,
 )
 from vivarium.core.composition import (
     compose_experiment,
@@ -72,7 +72,7 @@ class Engulf(Deriver):
 
 
 # test
-class ToyAgent(Generator):
+class ToyAgent(Factory):
     defaults = {
         'exchange': {'uptake_rate': 0.1},
         'engulf': {

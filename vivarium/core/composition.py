@@ -11,7 +11,7 @@ from vivarium.core.experiment import Experiment
 from vivarium.core.process import (
     Process,
     Deriver,
-    Generator,
+    Factory,
     generate_derivers,
 )
 from vivarium.library.dict_utils import (
@@ -32,7 +32,8 @@ COMPARTMENT_OUT_DIR = os.path.join(BASE_OUT_DIR, 'compartments')
 COMPOSITE_OUT_DIR = os.path.join(BASE_OUT_DIR, 'composites')
 EXPERIMENT_OUT_DIR = os.path.join(BASE_OUT_DIR, 'experiments')
 
-GENERATORS_KEY = '_generators'
+FACTORY_KEY = '_factory'
+GENERATORS_KEY = FACTORY_KEY  # TODO -- remove all uses of GENERATORS_KEY from dependent libraries
 
 
 ######################################################
@@ -80,7 +81,7 @@ def initialize_hierarchy(hierarchy):
     processes = {}
     topology = {}
     for key, level in hierarchy.items():
-        if key == GENERATORS_KEY:
+        if key == FACTORY_KEY:
             if isinstance(level, list):
                 for generator_def in level:
                     add_generator_to_tree(
@@ -130,7 +131,7 @@ def compose_experiment(
 
     Arguments:
         hierarchy: an embedded dictionary mapping the desired topology of
-            nodes, with generators declared under a global GENERATOR_KEY that maps
+            nodes, with generators declared under a global FACTORY_KEY that maps
             to a dictionary with 'type', 'config' , and 'topology' for the
             processes in the generator. Generators include lone processes.
         settings: experiment configuration settings.
@@ -969,7 +970,7 @@ class ToyDeath(Process):
         return update
 
 
-class ToyCompartment(Generator):
+class ToyCompartment(Factory):
     '''
     a toy compartment for testing
 
