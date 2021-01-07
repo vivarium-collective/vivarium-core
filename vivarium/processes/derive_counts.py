@@ -1,5 +1,3 @@
-from __future__ import absolute_import, division, print_function
-
 from vivarium.core.process import Deriver
 from vivarium.library.units import units
 from vivarium.processes.tree_mass import AVOGADRO

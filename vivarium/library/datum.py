@@ -1,3 +1,5 @@
+from typing import Any, Callable, Dict
+
 def first(l):
     if l:
         return l[0]
@@ -21,8 +23,8 @@ class Datum(dict):
     rendered back into a dict using the `to_dict()` method.
     '''
 
-    schema = {}
-    defaults = {}
+    schema: Dict[str, Callable] = {}
+    defaults: Dict[str, Any] = {}
 
     def __init__(self, config):
         super().__init__(self.defaults)
@@ -49,5 +51,3 @@ class Datum(dict):
     def __repr__(self):
         return str(type(self)) + ': ' + str({
             key: value for key, value in self.items()})
-
-

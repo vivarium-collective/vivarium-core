@@ -9,6 +9,7 @@ import copy
 import math
 import datetime
 import time as clock
+from typing import Dict, Tuple, Union
 import uuid
 
 import numpy as np
@@ -28,6 +29,8 @@ from vivarium.library.dict_utils import (
 from vivarium.core.emitter import get_emitter
 from vivarium.core.process import (
     Composite,
+    Deriver,
+    Factory,
     Process,
     ParallelProcess,
     serialize_dictionary,
@@ -53,6 +56,8 @@ def pf(x):
 
 
 EMPTY_UPDATES = None, None, None
+
+Path = Union[Tuple[str, ...], Tuple[()]]
 
 log.basicConfig(level=os.environ.get("LOGLEVEL", log.WARNING))
 
@@ -1275,11 +1280,11 @@ class Experiment(object):
 
         # parallel settings
         self.invoke = config.get('invoke', InvokeProcess)
-        self.parallel = {}
+        self.parallel: Dict[Path, ParallelProcess] = {}
 
         # get a mapping of all paths to processes
-        self.process_paths = {}
-        self.deriver_paths = {}
+        self.process_paths: Dict[Path, Process] = {}
+        self.deriver_paths: Dict[Path, Deriver] = {}
         self.find_process_paths(self.processes)
 
         # initialize the state

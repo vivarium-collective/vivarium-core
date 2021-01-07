@@ -1,10 +1,12 @@
+from typing import Any, Dict
+
 from vivarium.core.process import Deriver
 
 
 class DivideCondition(Deriver):
     """ Divide Condition Process """
     name = 'divide_condition'
-    defaults = {}
+    defaults: Dict[str, Any] = {}
 
     def __init__(self, parameters=None):
         super(DivideCondition, self).__init__(parameters)

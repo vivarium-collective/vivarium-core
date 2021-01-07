@@ -7,6 +7,7 @@ Factory, Process, and Composite Classes
 import copy
 import numpy as np
 import abc
+from typing import Any, Dict
 
 from bson.objectid import ObjectId
 from multiprocessing import Pipe
@@ -157,7 +158,7 @@ class Factory(metaclass=abc.ABCMeta):
 
     All :term:`factory` classes must inherit from this class.
     """
-    defaults = {}
+    defaults: Dict[str, Any] = {}
 
     def __init__(self, config=None):
         if config is None:
@@ -321,7 +322,7 @@ class Process(Composite, metaclass=abc.ABCMeta):
 
     All :term:`process` classes must inherit from this class.
     """
-    defaults = {}
+    defaults: Dict[str, Any] = {}
 
     def __init__(self, parameters=None):
         super().__init__(parameters)

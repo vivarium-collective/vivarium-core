@@ -5,6 +5,7 @@ Remove Process
 """
 
 import os
+from typing import Any, Dict
 
 from vivarium.core.experiment import pp
 from vivarium.core.process import (
@@ -27,7 +28,7 @@ class Remove(Deriver):
     remove a compartment when the state under the 'trigger' port is set to True.
     """
     name = NAME
-    defaults = {}
+    defaults: Dict[str, Any] = {}
 
     def __init__(self, parameters=None):
         super(Remove, self).__init__(parameters)
