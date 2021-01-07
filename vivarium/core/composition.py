@@ -2,7 +2,7 @@ import copy
 import csv
 import os
 import io
-from typing import Any
+from typing import Any, Dict, Optional
 import uuid
 
 import numpy as np
@@ -44,9 +44,12 @@ def add_generator_to_tree(
         processes,
         topology,
         generator_type,
-        generator_config={},
-        generator_topology={}
+        generator_config: Optional[Dict[str, Any]] = None,
+        generator_topology: Optional[Dict[str, Any]] = None
 ):
+    generator_config = generator_config or {}
+    generator_topology = generator_topology or {}
+
     # generate
     composite = generator_type(generator_config)
     network = composite.generate()
@@ -475,22 +478,31 @@ def compartment_in_experiment(
 # simulation functions #
 ########################
 
-def simulate_process(process, settings={}):
+def simulate_process(process, settings: Optional[Dict[str, Any]] = None):
+    settings = settings or {}
     experiment = process_in_experiment(process, settings)
     return simulate_experiment(experiment, settings)
 
 
-def simulate_process_in_experiment(process, settings={}):
+def simulate_process_in_experiment(
+        process,
+        settings: Optional[Dict[str, Any]] = None):
+    settings = settings or {}
     experiment = process_in_experiment(process, settings)
     return simulate_experiment(experiment, settings)
 
 
-def simulate_compartment_in_experiment(compartment, settings={}):
+def simulate_compartment_in_experiment(
+        compartment,
+        settings: Optional[Dict[str, Any]] = None):
+    settings = settings or {}
     experiment = compartment_in_experiment(compartment, settings)
     return simulate_experiment(experiment, settings)
 
 
-def simulate_experiment(experiment, settings={}):
+def simulate_experiment(
+        experiment,
+        settings: Optional[Dict[str, Any]] = None):
     '''
     run an experiment simulation
         Requires:
@@ -500,6 +512,7 @@ def simulate_experiment(experiment, settings={}):
         - a timeseries of variables from all ports.
         - if 'return_raw_data' is True, it returns the raw data instead
     '''
+    settings = settings or {}
     total_time = settings.get('total_time', 10)
     return_raw_data = settings.get('return_raw_data', False)
 
@@ -652,7 +665,7 @@ def _prepare_timeseries_for_comparison(
 
 def assert_timeseries_correlated(
     timeseries1, timeseries2, keys=None,
-    default_threshold=(1 - 1e-10), thresholds={},
+    default_threshold=(1 - 1e-10), thresholds: Optional[Dict[str, Any]] = None,
     required_frac_checked=0.9,
 ):
     '''Check that two timeseries are correlated.
@@ -687,6 +700,7 @@ def assert_timeseries_correlated(
             threshold or if too few timepoints are common to both
             timeseries.
     '''
+    thresholds = thresholds or {}
     arrays1, arrays2, keys = _prepare_timeseries_for_comparison(
         timeseries1, timeseries2, keys, required_frac_checked)
     for key in keys:
@@ -716,7 +730,7 @@ def assert_timeseries_correlated(
 
 def assert_timeseries_close(
     timeseries1, timeseries2, keys=None,
-    default_tolerance=(1 - 1e-10), tolerances={},
+    default_tolerance=(1 - 1e-10), tolerances: Optional[Dict[str, Any]] = None,
     required_frac_checked=0.9,
 ):
     '''Check that two timeseries are similar.
@@ -748,6 +762,7 @@ def assert_timeseries_close(
             strictly above the tolerance threshold or if too few
             timepoints are common to both timeseries.
     '''
+    tolerances = tolerances or {}
     arrays1, arrays2, keys = _prepare_timeseries_for_comparison(
         timeseries1, timeseries2, keys, required_frac_checked)
     for key in keys:
@@ -774,7 +789,8 @@ class ToyLinearGrowthDeathProcess(Process):
     GROWTH_RATE = 1.0
     THRESHOLD = 6.0
 
-    def __init__(self, initial_parameters={}):
+    def __init__(self, initial_parameters: Optional[Dict[str, Any]] = None):
+        initial_parameters = initial_parameters or {}
         self.targets = initial_parameters.get('targets')
         super(ToyLinearGrowthDeathProcess, self).__init__(initial_parameters)
 
@@ -830,7 +846,8 @@ class TestSimulateProcess:
 class ToyMetabolism(Process):
     name = 'toy_metabolism'
 
-    def __init__(self, initial_parameters={}):
+    def __init__(self, initial_parameters: Optional[Dict[str, Any]] = None):
+        initial_parameters = initial_parameters or {}
         parameters = {'mass_conversion_rate': 1}
         parameters.update(initial_parameters)
         super(ToyMetabolism, self).__init__(parameters)
@@ -861,7 +878,8 @@ class ToyMetabolism(Process):
 class ToyTransport(Process):
     name = 'toy_transport'
 
-    def __init__(self, initial_parameters={}):
+    def __init__(self, initial_parameters: Optional[Dict[str, Any]] = None):
+        initial_parameters = initial_parameters or {}
         parameters = {'intake_rate': 2}
         parameters.update(initial_parameters)
         super(ToyTransport, self).__init__(parameters)
@@ -892,9 +910,9 @@ class ToyTransport(Process):
 class ToyDeriveVolume(Deriver):
     name = 'toy_derive_volume'
 
-    def __init__(self, initial_parameters={}):
+    def __init__(self, initial_parameters: Optional[Dict[str, Any]] = None):
         _ = initial_parameters  # ignore initial_parameters
-        parameters = {}
+        parameters: Dict[str, Any] = {}
         super(ToyDeriveVolume, self).__init__(parameters)
 
     def ports_schema(self):
@@ -920,7 +938,8 @@ class ToyDeriveVolume(Deriver):
 class ToyDeath(Process):
     name = 'toy_death'
 
-    def __init__(self, initial_parameters={}):
+    def __init__(self, initial_parameters: Optional[Dict[str, Any]] = None):
+        initial_parameters = initial_parameters or {}
         self.targets = initial_parameters.get('targets', [])
         super(ToyDeath, self).__init__({})
 

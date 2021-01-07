@@ -7,7 +7,7 @@ Process and Compartment Classes
 import copy
 import logging as log
 import numpy as np
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from bson.objectid import ObjectId
 from multiprocessing import Pipe
@@ -284,7 +284,15 @@ class Generator(object):
             process_id: process.parameters
             for process_id, process in processes.items()}
 
-    def merge(self, processes={}, topology={}, schema_override={}):
+    def merge(
+            self,
+            processes: Optional[Dict[str, Any]] = None,
+            topology: Optional[Dict[str, Any]] = None,
+            schema_override: Optional[Dict[str, Any]] = None):
+        processes = processes or {}
+        topology = topology or {}
+        schema_override = schema_override or {}
+
         for name, process in processes.items():
             assert isinstance(process, Process)
 

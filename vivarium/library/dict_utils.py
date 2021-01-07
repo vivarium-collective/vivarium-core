@@ -215,11 +215,14 @@ def keys_list(d):
     return list(d.keys())
 
 
-def value_in_embedded_dict(data, timeseries={}, time_index=None):
+def value_in_embedded_dict(
+        data, timeseries: dict = None, time_index=None):
     """
     converts data from a single time step into an embedded dictionary with lists of values.
     If the value has a unit, saves under a key with (key, unit_string).
     """
+    timeseries = timeseries or {}
+
     for key, value in data.items():
         if isinstance(value, dict):
             if key not in timeseries:

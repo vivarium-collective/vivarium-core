@@ -4,8 +4,9 @@ Make formatted files for Gephi Network Visualization
 @organization: Covert Lab, Department of Bioengineering, Stanford University
 """
 
-import os
 import csv
+import os
+from typing import Any, Dict, Optional
 
 
 def get_loose_nodes(stoichiometry):
@@ -39,7 +40,7 @@ def get_reactions(stoichiometry, molecules):
     return reactions
 
 
-def make_network(stoichiometry, info={}):
+def make_network(stoichiometry, info: Optional[Dict[str, Any]] = None):
     '''
     Makes a gephi network
     info can contain node_sizes, node_types
@@ -52,6 +53,7 @@ def make_network(stoichiometry, info={}):
         }
     '''
 
+    info = info or {}
     node_types = info.get('node_types', {})
     node_sizes = info.get('node_sizes', {})
     reaction_fluxes = info.get('reaction_fluxes', {})

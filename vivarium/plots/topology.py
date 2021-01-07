@@ -1,4 +1,5 @@
 import os
+from typing import Any, Dict, Optional
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -140,12 +141,13 @@ def save_network(out_dir='out', filename='network'):
 
 def plot_compartment_topology(
         compartment,
-        settings={},
+        settings: Optional[Dict[str, Any]] = None,
         out_dir=None,
         filename=None,
 ):
     """ 
     an old function, reproduced by plot_topology """
+    settings = settings or {}
     return plot_topology(
         compartment,
         settings,
@@ -155,12 +157,13 @@ def plot_compartment_topology(
 
 def plot_topology(
         composite,
-        settings={},
+        settings: Optional[Dict[str, Any]] = None,
         out_dir=None,
         filename=None,
 ):
     """ Plot a composite's topology """
 
+    settings = settings or {}
     network = composite.generate()
 
     # make networkx graph
@@ -238,11 +241,12 @@ class MergePort(Generator):
 
 def test_graph(
         save_fig=False,
-        topology={
+        topology: Optional[Dict[str, Any]] = None
+):
+    if topology is None:
+        topology = {
             'multiport1': {},
             'multiport2': {}}
-):
-
     composite = MergePort({'topology': topology})
     network = composite.generate()
 
