@@ -1,6 +1,11 @@
 # Changelog
 
 
+
+## v0.1.4
+
+* add options to agents_multigen plot, for improved look on Jupyter notebooks
+
 ## v0.1.3
 
 * fix Composite generate() to get correct path
