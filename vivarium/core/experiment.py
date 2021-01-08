@@ -19,6 +19,8 @@ import pprint
 from multiprocessing import Pool
 from typing import Any, Dict, Tuple, Union
 
+from pymongo.errors import PyMongoError
+
 from vivarium.library.units import units, Quantity
 from vivarium.library.dict_utils import (
     deep_merge,
@@ -28,7 +30,6 @@ from vivarium.core.emitter import get_emitter
 from vivarium.core.process import (
     Composite,
     Deriver,
-    Factory,
     Process,
     ParallelProcess,
     serialize_dictionary,
@@ -1352,7 +1353,7 @@ class Experiment(object):
             'data': data}
         try:
             self.emitter.emit(emit_config)
-        except Exception:  # TODO(jerry): Narrow this too broad exception
+        except PyMongoError:
             log.exception("emitter.emit", exc_info=True, stack_info=True)
             # TODO -- handle large parameter sets in self.processes to meet mongoDB limit
             del emit_config['data']['processes']
@@ -1426,8 +1427,12 @@ class Experiment(object):
             deriver = self.deriver_paths.get(path)
             if deriver:
                 # timestep shouldn't influence derivers
+                # TODO(jerry): Do something cleaner than having
+                #  generate_paths() add a schema attribute to the Deriver.
+                #  PyCharm's type check reports:
+                #    Type Process doesn't have expected attribute 'schema'
                 update, process_topology, state = self.process_update(
-                    path, deriver, 0)  # TODO(jerry): Type Deriver doesn't have expected attribute 'schema'
+                    path, deriver, 0)
                 self.apply_update(update.get(), process_topology, state)
 
     def emit_data(self):
@@ -1487,7 +1492,13 @@ class Experiment(object):
                     timestep = future - process_time
 
                     # calculate the update for this process
-                    update = self.process_update(path, process, timestep)  # TODO(jerry): Type Process doesn't have expected attribute 'schema'
+                    # TODO(jerry): Do something cleaner than having
+                    #  generate_paths() add a schema attribute to the Process.
+                    #  PyCharm's type check reports:
+                    #    Type Process doesn't have expected attribute 'schema'
+                    # TODO(chris): Is there any reason to generate a process's
+                    #  schema dynamically like this?
+                    update = self.process_update(path, process, timestep)
 
                     # store the update to apply at its projected time
                     if timestep < full_step:
@@ -2085,7 +2096,6 @@ def test_complex_topology():
                     'u': 3,
                     'v': states['E']['u']}}
 
-
     class PoQo(Composite):
         def generate_processes(self, config=None):
             P = Po(config)
@@ -2226,7 +2236,6 @@ def test_units():
         def next_update(self, timestep, states):
             return {
                 'A': {'a': 1 * units.mm}}
-
 
     class MultiUnits(Composite):
         name = 'multi_units_generator'
