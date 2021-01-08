@@ -158,7 +158,10 @@ def plot_agents_multigen(
     n_rows = highest_row + 1
     n_cols = col_idx + 1
     fig = plt.figure(figsize=(column_width * n_cols, row_height * n_rows))
-    grid = plt.GridSpec(ncols=n_cols, nrows=n_rows, wspace=0.4, hspace=1.5)
+    if title_on_y_axis:
+        grid = plt.GridSpec(ncols=n_cols, nrows=n_rows, wspace=0.4, hspace=0.4)
+    else:
+        grid = plt.GridSpec(ncols=n_cols, nrows=n_rows, wspace=0.4, hspace=1.5)
 
     # make the subplot axes
     port_axes = {}
@@ -183,8 +186,8 @@ def plot_agents_multigen(
                 ax.title.set_text(state_title)
                 ax.title.set_fontsize(title_size)
             else:
-                ax.set_ylabel(state_title, rotation=0)
-                ax.yaxis.set_label_coords(-0.15, 0.4)
+                ax.set_ylabel(state_title, rotation=0, fontsize=title_size)
+                ax.yaxis.set_label_coords(-0.2, 0.4)
 
             if path in ylabels_map:
                 ax.set_ylabel(ylabels_map[path], fontsize=title_size)
@@ -228,12 +231,12 @@ def plot_agents_multigen(
                         ax = port_axes[port_schema_path]
                         ax.plot(plot_times, series)
 
+    plt.subplots_adjust(wspace=0.2, hspace=0.2)
     if out_dir:
         os.makedirs(out_dir, exist_ok=True)
         if filename is None:
             filename = 'agents'
         fig_path = os.path.join(out_dir, filename)
-        plt.subplots_adjust(wspace=0.2, hspace=0.2)
         plt.savefig(fig_path, bbox_inches='tight')
     else:
         return fig
