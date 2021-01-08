@@ -29,9 +29,9 @@ class ExchangeA(Process):
                     '_emit': True}}}
 
     def next_update(self, timestep, states):
-        A_in = states['internal']['A']
-        A_out = states['external']['A']
-        delta_A_in = A_out * self.uptake_rate - A_in * self.secrete_rate
+        a_in = states['internal']['A']
+        a_out = states['external']['A']
+        delta_a_in = a_out * self.uptake_rate - a_in * self.secrete_rate
         return {
-            'internal': {'A': delta_A_in},
-            'external': {'A': -delta_A_in}}
+            'internal': {'A': delta_a_in},
+            'external': {'A': -delta_a_in}}

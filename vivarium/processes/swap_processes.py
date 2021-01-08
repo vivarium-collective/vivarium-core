@@ -161,14 +161,14 @@ def test_death():
 
     # external starts at 1, goes down until death, and then back up
     # internal does the inverse
-    external_A = output['agents']['1']['external']['A']
-    internal_A = output['agents']['1']['internal']['A']
-    assert external_A[0] == 1
-    assert external_A[time_dead] < external_A[0]
-    assert external_A[time_total] > external_A[time_dead]
-    assert internal_A[0] == 0
-    assert internal_A[time_dead] > internal_A[0]
-    assert internal_A[time_total] < internal_A[time_dead]
+    external_a = output['agents']['1']['external']['A']
+    internal_a = output['agents']['1']['internal']['A']
+    assert external_a[0] == 1
+    assert external_a[time_dead] < external_a[0]
+    assert external_a[time_total] > external_a[time_dead]
+    assert internal_a[0] == 0
+    assert internal_a[time_dead] > internal_a[0]
+    assert internal_a[time_total] < internal_a[time_dead]
 
     return output
 

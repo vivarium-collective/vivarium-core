@@ -46,15 +46,15 @@ def get_networkx_graph(topology):
     process_nodes, store_nodes, edges = get_bipartite_graph(topology)
 
     # make networkX graph
-    G = nx.Graph()
+    g = nx.Graph()
     for node_id in process_nodes:
-        G.add_node(node_id, type='Process')
+        g.add_node(node_id, type='Process')
     for node_id in store_nodes:
-        G.add_node(node_id, type='Store')
+        g.add_node(node_id, type='Store')
     for (process_id, store_id), port in edges.items():
-        G.add_edge(process_id, store_id, port=port)
+        g.add_edge(process_id, store_id, port=port)
 
-    return G
+    return g
 
 
 def graph_figure(
@@ -167,10 +167,10 @@ def plot_topology(
     network = composite.generate()
 
     # make networkx graph
-    G = get_networkx_graph(network)
+    g = get_networkx_graph(network)
 
     # make graph figure
-    fig = graph_figure(G, **settings)
+    fig = graph_figure(g, **settings)
 
     if out_dir is not None:
         # save fig
@@ -251,10 +251,10 @@ def test_graph(
     network = composite.generate()
 
     # make networkx graph
-    G = get_networkx_graph(network)
+    g = get_networkx_graph(network)
 
     # make graph figure
-    fig = graph_figure(G)
+    fig = graph_figure(g)
 
     if save_fig:
         save_network(out_dir='out/topology', filename=str(topology))

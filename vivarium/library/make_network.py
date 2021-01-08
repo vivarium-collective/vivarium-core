@@ -128,6 +128,8 @@ def collapse_network(nodes, edges, remove_nodes_list):
     return new_nodes, new_edges2
 
 
+# TODO(jerry): Can we rename plotOutDir per PEP8 and update callers?
+# noinspection PyPep8Naming
 def save_network(nodes, edges, plotOutDir='out/network'):
     '''
     Save nodes and edges

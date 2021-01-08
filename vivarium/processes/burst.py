@@ -114,10 +114,10 @@ def test_burst():
     agent_2_id = '2'
 
     # initial state
-    initial_A = 10
+    initial_a = 10
     initial_state = {
         'concentrations': {
-            'A': initial_A
+            'A': initial_a
         },
         'agents': {
             agent_1_id: {
@@ -195,8 +195,8 @@ def test_burst():
     experiment.end()  # end required for parallel processes
 
     # asserts total A is the same at the beginning and the end
-    assert output[0.0]['concentrations']['A'] == initial_A
-    assert output[5.0]['concentrations']['A'] + output[5.0]['agents'][agent_1_id]['concentrations']['A'] == initial_A
+    assert output[0.0]['concentrations']['A'] == initial_a
+    assert output[5.0]['concentrations']['A'] + output[5.0]['agents'][agent_1_id]['concentrations']['A'] == initial_a
 
     return output
 

@@ -2098,12 +2098,12 @@ def test_complex_topology():
 
     class PoQo(Composite):
         def generate_processes(self, config=None):
-            P = Po(config)
-            Q = Qo(config)
+            p = Po(config)
+            q = Qo(config)
 
             return {
-                'po': P,
-                'qo': Q}
+                'po': p,
+                'qo': q}
 
         def generate_topology(self, config=None):
             return {
@@ -2133,8 +2133,8 @@ def test_complex_topology():
         'ddd': {
             'z': 333}}
 
-    PQ = PoQo({})
-    pq_config = PQ.generate()
+    pq = PoQo({})
+    pq_config = pq.generate()
     pq_config['initial_state'] = initial_state
 
     experiment = Experiment(pq_config)
