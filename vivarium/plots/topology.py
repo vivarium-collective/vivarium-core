@@ -1,12 +1,11 @@
 import os
+from typing import Any, Dict, Optional
 
 import numpy as np
 import matplotlib.pyplot as plt
 import networkx as nx
 
 from vivarium.core.process import Process, Factory
-from vivarium.core.experiment import Experiment
-
 
 
 def get_bipartite_graph(topology):
@@ -47,20 +46,20 @@ def get_networkx_graph(topology):
     process_nodes, store_nodes, edges = get_bipartite_graph(topology)
 
     # make networkX graph
-    G = nx.Graph()
+    g = nx.Graph()
     for node_id in process_nodes:
-        G.add_node(node_id, type='Process')
+        g.add_node(node_id, type='Process')
     for node_id in store_nodes:
-        G.add_node(node_id, type='Store')
+        g.add_node(node_id, type='Store')
     for (process_id, store_id), port in edges.items():
-        G.add_edge(process_id, store_id, port=port)
+        g.add_edge(process_id, store_id, port=port)
 
-    return G
+    return g
 
 
 def graph_figure(
         graph,
-        format='bipartite',
+        graph_format='bipartite',
         show_ports=True,
         store_rgb='tab:blue',
         process_rgb='tab:orange',
@@ -87,7 +86,7 @@ def graph_figure(
 
     # get positions
     pos = {}
-    if format == 'bipartite':
+    if graph_format == 'bipartite':
         for idx, node_id in enumerate(process_nodes, 1):
             pos[node_id] = np.array([-1, -idx])
         for idx, node_id in enumerate(store_nodes, 1):
@@ -142,12 +141,13 @@ def save_network(out_dir='out', filename='network'):
 
 def plot_compartment_topology(
         compartment,
-        settings={},
+        settings: Optional[Dict[str, Any]] = None,
         out_dir=None,
         filename=None,
 ):
     """ 
     an old function, reproduced by plot_topology """
+    settings = settings or {}
     return plot_topology(
         compartment,
         settings,
@@ -157,19 +157,20 @@ def plot_compartment_topology(
 
 def plot_topology(
         composite,
-        settings={},
+        settings: Optional[Dict[str, Any]] = None,
         out_dir=None,
         filename=None,
 ):
     """ Plot a composite's topology """
 
+    settings = settings or {}
     network = composite.generate()
 
     # make networkx graph
-    G = get_networkx_graph(network)
+    g = get_networkx_graph(network)
 
     # make graph figure
-    fig = graph_figure(G, **settings)
+    fig = graph_figure(g, **settings)
 
     if out_dir is not None:
         # save fig
@@ -183,6 +184,7 @@ def plot_topology(
 # tests
 class MultiPort(Process):
     name = 'multi_port'
+
     def ports_schema(self):
         return {
             'a': {
@@ -222,6 +224,7 @@ class MergePort(Factory):
             },
         }
     }
+
     def __init__(self, config=None):
         super().__init__(config)
         self.topology = self.config['topology']
@@ -235,25 +238,26 @@ class MergePort(Factory):
     def generate_topology(self, config):
         return self.topology
 
+
 def test_graph(
         save_fig=False,
-        topology={
+        topology: Optional[Dict[str, Any]] = None
+):
+    if topology is None:
+        topology = {
             'multiport1': {},
             'multiport2': {}}
-    ):
-
     composite = MergePort({'topology': topology})
     network = composite.generate()
 
     # make networkx graph
-    G = get_networkx_graph(network)
+    g = get_networkx_graph(network)
 
     # make graph figure
-    fig = graph_figure(G)
+    fig = graph_figure(g)
 
     if save_fig:
         save_network(out_dir='out/topology', filename=str(topology))
-
 
 
 if __name__ == '__main__':
@@ -272,7 +276,6 @@ if __name__ == '__main__':
                 'c': ('A', 'CC',),
             },
             'multiport2': {}}
-
 
     test_graph(
         save_fig=True,

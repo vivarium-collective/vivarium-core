@@ -113,6 +113,7 @@ def test_remove():
 
     return output
 
+
 def run_remove():
     out_dir = os.path.join(PROCESS_OUT_DIR, NAME)
     if not os.path.exists(out_dir):

@@ -7,13 +7,14 @@ Factory, Process, and Composite Classes
 import copy
 import numpy as np
 import abc
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from bson.objectid import ObjectId
 from multiprocessing import Pipe
 from multiprocessing import Process as Multiprocess
+from pint.errors import UndefinedUnitError
 
-from vivarium.library.topology import get_in, assoc_path, without, update_in, inverse_topology
+from vivarium.library.topology import inverse_topology
 from vivarium.library.units import Quantity
 from vivarium.core.registry import process_registry, serializer_registry
 from vivarium.library.dict_utils import deep_merge, deep_merge_check
@@ -46,6 +47,7 @@ def serialize_value(value):
     else:
         return value
 
+
 def deserialize_value(value):
     if isinstance(value, dict):
         return deserialize_dictionary(value)
@@ -54,7 +56,7 @@ def deserialize_value(value):
     elif isinstance(value, str):
         try:
             return serializer_registry.access('units').deserialize(value)
-        except:
+        except UndefinedUnitError:
             return value
     else:
         return value
@@ -242,7 +244,6 @@ class Factory(metaclass=abc.ABCMeta):
             'topology': assoc_in({}, path, topology)}
 
 
-
 class Composite(Factory):
     """Composite parent class
 
@@ -306,7 +307,15 @@ class Composite(Factory):
             process_id: process.parameters
             for process_id, process in processes.items()}
 
-    def merge(self, processes={}, topology={}, schema_override={}):
+    def merge(
+            self,
+            processes: Optional[Dict[str, Any]] = None,
+            topology: Optional[Dict[str, Any]] = None,
+            schema_override: Optional[Dict[str, Any]] = None):
+        processes = processes or {}
+        topology = topology or {}
+        schema_override = schema_override or {}
+
         for name, process in processes.items():
             assert isinstance(process, Process)
 
@@ -434,7 +443,7 @@ class Process(Composite, metaclass=abc.ABCMeta):
         return {}
 
 
-class Deriver(Process):
+class Deriver(Process, metaclass=abc.ABCMeta):
     def is_deriver(self):
         return True
 
@@ -482,15 +491,19 @@ def test_composite_initial_state():
     """
     class AA(Process):
         name = 'AA'
+
         def initial_state(self, config=None):
             return {'a_port': {'a': 1}}
+
         def ports_schema(self):
             return {'a_port': {'a': {'_emit': True}}}
+
         def next_update(self, timestep, states):
             return {'a_port': {'a': 1}}
 
     class BB(Composite):
         name = 'BB'
+
         def generate_processes(self, config):
             return {
                 'a1': AA({}),
@@ -526,6 +539,7 @@ def test_composite_initial_state():
             'b': 1}}
     assert initial_state == expected_initial_state
 
+
 class ToyProcess(Process):
     name = 'toy'
 
@@ -546,6 +560,7 @@ class ToyProcess(Process):
             'B': {
                 'a': states['A']['b'],
                 'b': states['B']['a']}}
+
 
 class ToyComposite(Composite):
     defaults = {

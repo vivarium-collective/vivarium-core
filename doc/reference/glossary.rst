@@ -2,7 +2,7 @@
 Glossary
 ========
 
-.. note:: All fully-capitalized words and phrases have the meanings
+.. note:: Some fully-capitalized words and phrases have the meanings
     specified in :rfc:`2119`.
 
 .. glossary::

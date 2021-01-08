@@ -1,18 +1,22 @@
 import numpy as np
 
+
 def array_from(d):
     return np.array(list(d.values()))
+
 
 def array_to(keys, array):
     return {
         key: array[index]
         for index, key in enumerate(keys)}
 
+
 def array_to_nonzero(keys, array):
     return {
         key: array[index]
         for index, key in enumerate(keys)
         if array[index] != 0}
+
 
 def type_of(array):
     if len(array) == 0:
@@ -23,6 +27,7 @@ def type_of(array):
         return type_of(head)
     else:
         return type(head)
+
 
 def arrays_from(ds, keys):
     if not ds:
@@ -41,6 +46,7 @@ def arrays_from(ds, keys):
         np.array(array, dtype=type_of(array))
         for array in arrays.values()])
 
+
 def arrays_to(n, attrs):
     ds = []
     for index in np.arange(n):
@@ -51,6 +57,7 @@ def arrays_to(n, attrs):
 
     return ds
 
+
 def bulk_schema(elements):
     return {
         element: {
@@ -58,12 +65,14 @@ def bulk_schema(elements):
             '_emit': True}
         for element in elements}
 
+
 def mw_schema(mass_dict):
     return {
         element: {
             '_properties': {
                 'mw': mw}}
         for element, mw in mass_dict.items()}
+
 
 def listener_schema(elements):
     return {
@@ -73,9 +82,10 @@ def listener_schema(elements):
             '_emit': True}
         for element, default in elements.items()}
 
-def add_elements(elements, id):
+
+def add_elements(elements, element_id):
     return {
         '_add': [{
-            'key': element[id],
+            'key': element[element_id],
             'state': element}
             for element in elements]}

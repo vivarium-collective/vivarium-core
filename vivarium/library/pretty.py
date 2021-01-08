@@ -25,6 +25,7 @@ def _json_serialize(elem):
         return repr(elem)
     return repr(elem)
 
+
 def format_dict(d, sort_keys=True):
     '''Format a dict as a pretty string
 
