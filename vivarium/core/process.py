@@ -284,7 +284,7 @@ class Composite(Factory):
         return {}
 
     def generate(self, config=None, path=tuple()):
-        network = super().generate(config=config, path=path)
+        network = super().generate(config=config)
         processes = network['processes']
         topology = network['topology']
 
