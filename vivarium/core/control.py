@@ -20,7 +20,6 @@ from vivarium.core.composition import (
 from vivarium.plots.simulation_output import plot_simulation_output
 
 
-
 def make_dir(out_dir):
     os.makedirs(out_dir, exist_ok=True)
 
@@ -134,7 +133,6 @@ class Control(object):
         self.run_plots(plot_ids, self.output_data, out_dir=out_dir)
 
         print('plots saved to directory: {}'.format(out_dir))
-
 
 
 # testing

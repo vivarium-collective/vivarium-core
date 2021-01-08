@@ -32,6 +32,7 @@ def create_indexes(table, columns):
     for column in columns:
         table.create_index(column)
 
+
 def get_emitter(config):
     '''Get an emitter based on the provided config.
 
@@ -66,21 +67,25 @@ def get_emitter(config):
 
     return emitter
 
+
 def configure_emitter(config, processes, topology):
     emitter_config = config.get('emitter', {})
     emitter_config['experiment_id'] = config.get('experiment_id')
     emitter_config['simulation_id'] = config.get('simulation_id')
     return get_emitter(emitter_config)
 
+
 def path_timeseries_from_data(data):
     embedded_timeseries = timeseries_from_data(data)
     return path_timeseries_from_embedded_timeseries(embedded_timeseries)
+
 
 def path_timeseries_from_embedded_timeseries(embedded_timeseries):
     times_vector = embedded_timeseries['time']
     path_timeseries = make_path_dict({key: value for key, value in embedded_timeseries.items() if key != 'time'})
     path_timeseries['time'] = times_vector
     return path_timeseries
+
 
 def time_indexed_timeseries_from_data(data):
     times_vector = list(data.keys())
@@ -93,6 +98,7 @@ def time_indexed_timeseries_from_data(data):
     embedded_timeseries['time'] = times_vector
     return embedded_timeseries
 
+
 def timeseries_from_data(data):
     times_vector = list(data.keys())
     embedded_timeseries = {}
@@ -104,6 +110,7 @@ def timeseries_from_data(data):
 
     embedded_timeseries['time'] = times_vector
     return embedded_timeseries
+
 
 class Emitter(object):
     '''

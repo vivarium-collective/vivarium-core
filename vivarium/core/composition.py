@@ -2,7 +2,7 @@ import copy
 import csv
 import os
 import io
-from typing import Any
+from typing import Any, Dict, Optional
 import uuid
 
 import numpy as np
@@ -45,9 +45,12 @@ def add_generator_to_tree(
         processes,
         topology,
         generator_type,
-        generator_config={},
-        generator_topology={}
+        generator_config: Optional[Dict[str, Any]] = None,
+        generator_topology: Optional[Dict[str, Any]] = None
 ):
+    generator_config = generator_config or {}
+    generator_topology = generator_topology or {}
+
     # generate
     composite = generator_type(generator_config)
     network = composite.generate()
@@ -72,6 +75,7 @@ def add_generator_to_tree(
     deep_merge_check(processes, new_processes)
 
     return processes, topology
+
 
 def initialize_hierarchy(hierarchy):
     processes = {}
@@ -157,10 +161,10 @@ def compose_experiment(
     return Experiment(experiment_config)
 
 
-
 ##################################################
 # agent_environment_experiment loading functions #
 ##################################################
+
 
 def make_agents(
         agent_ids,
@@ -332,7 +336,6 @@ def agent_environment_experiment(
     return Experiment(experiment_config)
 
 
-
 ###########################
 # basic loading functions #
 ###########################
@@ -472,24 +475,35 @@ def compartment_in_experiment(
     return Experiment(experiment_config)
 
 
-
 ########################
 # simulation functions #
 ########################
 
-def simulate_process(process, settings={}):
+def simulate_process(process, settings: Optional[Dict[str, Any]] = None):
+    settings = settings or {}
     experiment = process_in_experiment(process, settings)
     return simulate_experiment(experiment, settings)
 
-def simulate_process_in_experiment(process, settings={}):
+
+def simulate_process_in_experiment(
+        process,
+        settings: Optional[Dict[str, Any]] = None):
+    settings = settings or {}
     experiment = process_in_experiment(process, settings)
     return simulate_experiment(experiment, settings)
 
-def simulate_compartment_in_experiment(compartment, settings={}):
+
+def simulate_compartment_in_experiment(
+        compartment,
+        settings: Optional[Dict[str, Any]] = None):
+    settings = settings or {}
     experiment = compartment_in_experiment(compartment, settings)
     return simulate_experiment(experiment, settings)
 
-def simulate_experiment(experiment, settings={}):
+
+def simulate_experiment(
+        experiment,
+        settings: Optional[Dict[str, Any]] = None):
     '''
     run an experiment simulation
         Requires:
@@ -499,6 +513,7 @@ def simulate_experiment(experiment, settings={}):
         - a timeseries of variables from all ports.
         - if 'return_raw_data' is True, it returns the raw data instead
     '''
+    settings = settings or {}
     total_time = settings.get('total_time', 10)
     return_raw_data = settings.get('return_raw_data', False)
 
@@ -517,11 +532,9 @@ def simulate_experiment(experiment, settings={}):
         return experiment.emitter.get_timeseries()
 
 
-
 ########################
 # timeseries functions #
 ########################
-
 def agent_timeseries_from_data(data, agents_key='cells'):
     timeseries = {}
     for time, all_states in data.items():
@@ -538,9 +551,11 @@ def agent_timeseries_from_data(data, agents_key='cells'):
                     timeseries[agent_id][port_id][state_id].append(state)
     return timeseries
 
+
 def save_timeseries(timeseries, out_dir='out'):
     flattened = flatten_timeseries(timeseries)
     save_flat_timeseries(flattened, out_dir)
+
 
 def save_flat_timeseries(timeseries, out_dir='out'):
     '''Save a timeseries as a CSV in out_dir'''
@@ -549,6 +564,7 @@ def save_flat_timeseries(timeseries, out_dir='out'):
         writer = csv.writer(f)
         writer.writerow(timeseries.keys())
         writer.writerows(rows)
+
 
 def load_timeseries(path_to_csv):
     '''Load a timeseries saved as a CSV using save_timeseries.
@@ -567,6 +583,7 @@ def load_timeseries(path_to_csv):
                 timeseries.setdefault(header, []).append(elem)
     return timeseries
 
+
 def timeseries_to_ndarrays(timeseries, keys=None):
     '''After filtering by keys, convert timeseries to dict of ndarrays
 
@@ -578,6 +595,7 @@ def timeseries_to_ndarrays(timeseries, keys=None):
         keys = timeseries.keys()
     return {
         key: np.array(timeseries[key], dtype=np.float) for key in keys}
+
 
 def _prepare_timeseries_for_comparison(
     timeseries1, timeseries2, keys=None,
@@ -645,9 +663,10 @@ def _prepare_timeseries_for_comparison(
         keys,
     )
 
+
 def assert_timeseries_correlated(
     timeseries1, timeseries2, keys=None,
-    default_threshold=(1 - 1e-10), thresholds={},
+    default_threshold=(1 - 1e-10), thresholds: Optional[Dict[str, Any]] = None,
     required_frac_checked=0.9,
 ):
     '''Check that two timeseries are correlated.
@@ -682,6 +701,7 @@ def assert_timeseries_correlated(
             threshold or if too few timepoints are common to both
             timeseries.
     '''
+    thresholds = thresholds or {}
     arrays1, arrays2, keys = _prepare_timeseries_for_comparison(
         timeseries1, timeseries2, keys, required_frac_checked)
     for key in keys:
@@ -708,9 +728,10 @@ def assert_timeseries_correlated(
                     key, corrcoef, threshold)
             )
 
+
 def assert_timeseries_close(
     timeseries1, timeseries2, keys=None,
-    default_tolerance=(1 - 1e-10), tolerances={},
+    default_tolerance=(1 - 1e-10), tolerances: Optional[Dict[str, Any]] = None,
     required_frac_checked=0.9,
 ):
     '''Check that two timeseries are similar.
@@ -742,12 +763,13 @@ def assert_timeseries_close(
             strictly above the tolerance threshold or if too few
             timepoints are common to both timeseries.
     '''
+    tolerances = tolerances or {}
     arrays1, arrays2, keys = _prepare_timeseries_for_comparison(
         timeseries1, timeseries2, keys, required_frac_checked)
     for key in keys:
         tolerance = tolerances.get(key, default_tolerance)
-        close_mask = np.isclose(arrays1[key], arrays2[key],
-            atol=tolerance, equal_nan=True)
+        close_mask = np.isclose(
+            arrays1[key], arrays2[key], atol=tolerance, equal_nan=True)
         if not np.all(close_mask):
             print('Timeseries 1:', arrays1[key][~close_mask])
             print('Timeseries 2:', arrays2[key][~close_mask])
@@ -755,7 +777,6 @@ def assert_timeseries_close(
                 'The data for {} differed by more than {}'.format(
                     key, tolerance)
             )
-
 
 
 #########
@@ -769,7 +790,8 @@ class ToyLinearGrowthDeathProcess(Process):
     GROWTH_RATE = 1.0
     THRESHOLD = 6.0
 
-    def __init__(self, initial_parameters={}):
+    def __init__(self, initial_parameters: Optional[Dict[str, Any]] = None):
+        initial_parameters = initial_parameters or {}
         self.targets = initial_parameters.get('targets')
         super(ToyLinearGrowthDeathProcess, self).__init__(initial_parameters)
 
@@ -825,7 +847,8 @@ class TestSimulateProcess:
 class ToyMetabolism(Process):
     name = 'toy_metabolism'
 
-    def __init__(self, initial_parameters={}):
+    def __init__(self, initial_parameters: Optional[Dict[str, Any]] = None):
+        initial_parameters = initial_parameters or {}
         parameters = {'mass_conversion_rate': 1}
         parameters.update(initial_parameters)
         super(ToyMetabolism, self).__init__(parameters)
@@ -852,10 +875,12 @@ class ToyMetabolism(Process):
 
         return update
 
+
 class ToyTransport(Process):
     name = 'toy_transport'
 
-    def __init__(self, initial_parameters={}):
+    def __init__(self, initial_parameters: Optional[Dict[str, Any]] = None):
+        initial_parameters = initial_parameters or {}
         parameters = {'intake_rate': 2}
         parameters.update(initial_parameters)
         super(ToyTransport, self).__init__(parameters)
@@ -882,11 +907,13 @@ class ToyTransport(Process):
 
         return update
 
+
 class ToyDeriveVolume(Deriver):
     name = 'toy_derive_volume'
 
-    def __init__(self, initial_parameters={}):
-        parameters = {}  # TODO(jerry): Ignore initial_parameters?
+    def __init__(self, initial_parameters: Optional[Dict[str, Any]] = None):
+        _ = initial_parameters  # ignore initial_parameters
+        parameters: Dict[str, Any] = {}
         super(ToyDeriveVolume, self).__init__(parameters)
 
     def ports_schema(self):
@@ -908,10 +935,12 @@ class ToyDeriveVolume(Deriver):
 
         return update
 
+
 class ToyDeath(Process):
     name = 'toy_death'
 
-    def __init__(self, initial_parameters={}):
+    def __init__(self, initial_parameters: Optional[Dict[str, Any]] = None):
+        initial_parameters = initial_parameters or {}
         self.targets = initial_parameters.get('targets', [])
         super(ToyDeath, self).__init__({})
 

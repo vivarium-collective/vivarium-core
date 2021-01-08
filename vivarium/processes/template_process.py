@@ -76,11 +76,11 @@ class Template(Process):
     def next_update(self, timestep, states):
 
         # get the states
-        internal_A = states['internal']['A']
-        external_A = states['external']['A']
+        internal_a = states['internal']['A']
+        external_a = states['external']['A']
 
         # calculate timestep-dependent updates
-        internal_update = self.parameters['uptake_rate'] * external_A * timestep
+        internal_update = self.parameters['uptake_rate'] * external_a * timestep
         external_update = -1 * internal_update
 
         # return an update that mirrors the ports structure

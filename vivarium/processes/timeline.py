@@ -4,7 +4,6 @@ from vivarium.library.dict_utils import deep_merge_combine_lists
 from vivarium.core.process import Process
 
 
-
 def nested_set(dic, keys, value):
     ''' Make nested dictionary
 

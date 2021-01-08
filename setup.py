@@ -38,7 +38,5 @@ setup(
         'numpy',
         'Pint',
         'pymongo',
-        'pytest',
         'scipy',
-        'pylint',
     ])

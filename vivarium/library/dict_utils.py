@@ -1,21 +1,23 @@
-import collections
+import collections.abc
 import copy
 from functools import reduce
 import operator
 import traceback
 
-from vivarium.library.units import units, Quantity
+from vivarium.library.units import Quantity
 
 
 MULTI_UPDATE_KEY = '_multi_update'
 
 tuple_separator = '___'
 
+
 def merge_dicts(dicts):
     merge = {}
     for d in dicts:
         merge.update(d)
     return merge
+
 
 def deep_merge_check(dct, merge_dct):
     """Recursive dict merge with checks
@@ -38,6 +40,7 @@ def deep_merge_check(dct, merge_dct):
             dct[k] = merge_dct[k]
     return dct
 
+
 def deep_merge_combine_lists(dct, merge_dct):
     """ Recursive dict merge with lists
 
@@ -56,6 +59,7 @@ def deep_merge_combine_lists(dct, merge_dct):
         else:
             dct[k] = merge_dct[k]
     return dct
+
 
 def deep_merge_multi_update(dct, merge_dct):
     """ Recursive dict merge combines multiple values
@@ -82,6 +86,7 @@ def deep_merge_multi_update(dct, merge_dct):
             dct[k] = merge_dct[k]
     return dct
 
+
 def deep_merge(dct, merge_dct):
     """ Recursive dict merge
 
@@ -100,6 +105,7 @@ def deep_merge(dct, merge_dct):
             dct[k] = merge_dct[k]
     return dct
 
+
 def flatten_port_dicts(dicts):
     """
     Input:
@@ -113,6 +119,7 @@ def flatten_port_dicts(dicts):
         for state, value in states_dict.items():
             merge.update({state + '_' + port: value})
     return merge
+
 
 def tuplify_port_dicts(dicts):
     """
@@ -129,6 +136,7 @@ def tuplify_port_dicts(dicts):
                 merge.update({(port, state): value})
     return merge
 
+
 def flatten_timeseries(timeseries):
     """Flatten a timeseries in the style of flatten_port_dicts"""
     flat = {}
@@ -141,6 +149,7 @@ def flatten_timeseries(timeseries):
             flat[key] = values
     return flat
 
+
 def tuple_to_str_keys(dictionary):
     """
     take a dict with tuple keys, and convert them to strings with tuple_separator as a delimiter
@@ -148,6 +157,7 @@ def tuple_to_str_keys(dictionary):
     new_dict = copy.deepcopy(dictionary)
     make_str_dict(new_dict)
     return new_dict
+
 
 def make_str_dict(dictionary):
     # get down to the leaves first
@@ -171,6 +181,7 @@ def make_str_dict(dictionary):
         del dictionary[tuple_k]
 
     return dictionary
+
 
 def str_to_tuple_keys(dictionary):
     """
@@ -204,11 +215,14 @@ def keys_list(d):
     return list(d.keys())
 
 
-def value_in_embedded_dict(data, timeseries={}, time_index=None):
+def value_in_embedded_dict(
+        data, timeseries: dict = None, time_index=None):
     """
     converts data from a single time step into an embedded dictionary with lists of values.
     If the value has a unit, saves under a key with (key, unit_string).
     """
+    timeseries = timeseries or {}
+
     for key, value in data.items():
         if isinstance(value, dict):
             if key not in timeseries:
