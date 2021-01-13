@@ -99,7 +99,7 @@ def graph_figure(
         node_distance: float = 2.5,
         buffer: float = 1.0,
         border_width: float = 3,
-        label_pos: float = 0.75,
+        label_pos: float = 0.65,
 ) -> plt.Figure:
     """ Make a figure from a networkx graph.
 
