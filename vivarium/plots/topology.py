@@ -1,11 +1,43 @@
+"""Plot topologies using networkx and matplotlib."""
+
 import os
-from typing import Any, Dict, Optional
+from typing import Any, cast, Dict, Optional
 
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.path import Path
 import networkx as nx
 
 from vivarium.core.process import Process, Factory
+
+
+def construct_storage_path() -> Path:
+    """Construct a Path to draw the standard "storage" flowchart shape."""
+    # NOTE: After a MOVETO, we need to put the pen down for CLOSEPOLY to
+    # complete a filled shape.
+    _path_data = [
+        (Path.MOVETO, [-1.000, -0.800]),
+        (Path.CURVE4, [-0.900, -1.000]),  # bottom curve
+        (Path.CURVE4, [+0.900, -1.000]),
+        (Path.CURVE4, [+1.000, -0.800]),
+        (Path.LINETO, [+1.000, +0.800]),  # right side
+        (Path.CURVE4, [+0.900, +1.000]),  # top back curve
+        (Path.CURVE4, [-0.900, +1.000]),
+        (Path.CURVE4, [-1.000, +0.800]),
+        (Path.CURVE4, [-0.900, +0.600]),  # top front main curve
+        (Path.CURVE4, [+0.900, +0.600]),
+        (Path.CURVE4, [+1.000, +0.800]),
+        (Path.LINETO, [+1.000, +0.700]),  # upper left edge
+        (Path.CURVE4, [+0.900, +0.500]),  # top front second curve
+        (Path.CURVE4, [-0.900, +0.500]),
+        (Path.CURVE4, [-1.000, +0.700]),
+        (Path.LINETO, [-1.000, +0.800]),  # left edge
+        (Path.CLOSEPOLY, [0.00, 0.00])]   # close a filled poly-line shape
+    _path_codes, _path_vertices = zip(*_path_data)
+    return Path(_path_vertices, _path_codes)
+
+
+STORAGE_PATH = construct_storage_path()
 
 
 def get_bipartite_graph(topology):
@@ -17,15 +49,12 @@ def get_bipartite_graph(topology):
     store_nodes = []
     edges = {}
     for process_id, connections in topology.items():
-        process_id = str(process_id)
-        process_id = process_id.replace("'", "").replace("_", "_\n")
+        process_id = process_id.replace("_", "_\n")  # line breaks at underscores
         process_nodes.append(process_id)
 
         for port, store_id in connections.items():
-            store_id = str(store_id)
-            store_id = store_id.replace("'", "").replace(" ", "").replace("(", "").replace(")", "").replace(",", "\n")
-            if store_id[-1:] == '\n':
-                store_id = store_id[:-1]
+            store_id = '\n'.join(store_id)  # TODO: a fancier graph for a dict
+            store_id = store_id.replace('..\n', '⬆︎')
 
             if store_id not in store_nodes:
                 store_nodes.append(store_id)
@@ -58,18 +87,37 @@ def get_networkx_graph(topology):
 
 
 def graph_figure(
-        graph,
-        graph_format='bipartite',
-        show_ports=True,
-        store_rgb='tab:blue',
-        process_rgb='tab:orange',
-        node_size=8000,
-        font_size=10,
-        node_distance=2.5,
-        buffer=1.0,
-        label_pos=0.75,
-):
-    """ Make a figure from a networkx graph """
+        graph: nx.Graph,
+        *,
+        graph_format: str = 'bipartite',
+        show_ports: bool = True,
+        store_color: Any = 'tab:blue',
+        process_color: Any = 'tab:orange',
+        fill_color: Any = 'w',
+        node_size: float = 8000,
+        font_size: int = 14,
+        node_distance: float = 2.5,
+        buffer: float = 1.0,
+        border_width: float = 3,
+        label_pos: float = 0.75,
+) -> plt.Figure:
+    """ Make a figure from a networkx graph.
+
+    :param graph: the networkx.Graph to plot
+    :param graph_format: 'bipartite' or not
+    :param show_ports: whether to show the Port labels
+    :param store_color: color for the Store nodes; any matplotlib color value
+    :param process_color: color for the Process nodes; any matplotlib color value
+    :param fill_color: fill color for the Store and Process nodes; any
+        matplotlib color value
+    :param node_size: size to draw the Store and Process nodes
+    :param font_size: size for the Store, Process, and Port labels
+    :param node_distance: distance to spread out the nodes
+    :param buffer: buffer space around the graph
+    :param border_width: width of the border line around Store and Process nodes
+    :param label_pos: position of the Port labels along their connection lines,
+        (0=head, 0.5=center, 1=tail)
+    """
 
     node_attributes = dict(graph.nodes.data())
     process_nodes = [
@@ -99,15 +147,19 @@ def graph_figure(
     # nx.draw(graph, pos=pos, node_size=node_size)
     nx.draw_networkx_nodes(graph, pos,
                            nodelist=process_nodes,
-                           node_color=process_rgb,
+                           node_color=fill_color,
+                           edgecolors=process_color,
                            node_size=node_size,
+                           linewidths=border_width,
                            node_shape='s'
                            )
     nx.draw_networkx_nodes(graph, pos,
                            nodelist=store_nodes,
-                           node_color=store_rgb,
+                           node_color=fill_color,
+                           edgecolors=store_color,
                            node_size=node_size,
-                           node_shape='o'
+                           linewidths=border_width,
+                           node_shape=cast(str, STORAGE_PATH)
                            )
     # edges
     colors = list(range(1, len(edges) + 1))
@@ -135,6 +187,7 @@ def graph_figure(
 def save_network(out_dir='out', filename='network'):
     os.makedirs(out_dir, exist_ok=True)
     fig_path = os.path.join(out_dir, filename)
+    print(f"Writing {fig_path}")
     plt.savefig(fig_path, bbox_inches='tight')
     plt.close()
 
@@ -257,7 +310,7 @@ def test_graph(
     fig = graph_figure(g)
 
     if save_fig:
-        save_network(out_dir='out/topology', filename=str(topology))
+        save_network(out_dir='out/topology', filename='topology')
 
 
 if __name__ == '__main__':
