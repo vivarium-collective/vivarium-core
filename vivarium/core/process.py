@@ -126,7 +126,9 @@ def generate_derivers(processes, topology):
                     deriver_processes[deriver_key] = deriver
 
                     # generate deriver topology
-                    deriver_topology[deriver_key] = {}
+                    deriver_ports = deriver.ports()
+                    deriver_topology[deriver_key] = {
+                        port: (port,) for port in deriver_ports.keys()}
                     for target, source in config.get('port_mapping', {}).items():
                         path = subtopology[source]
                         deriver_topology[deriver_key][target] = path
