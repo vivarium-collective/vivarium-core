@@ -51,6 +51,13 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', 'venv']
 # will help avoid broken links.
 nitpicky = True
 
+# Ignore warnings like:
+# "docstring of ... reference target not found: matplotlib.pyplot.Figure".
+# Is there a way to make those references work?
+nitpick_ignore = [
+    ('py:class', 'networkx.Graph'),
+    ('py:class', 'matplotlib.pyplot.Figure')]
+
 
 # -- Options for HTML output -------------------------------------------------
 
