@@ -1,5 +1,7 @@
 [MASTER]
 
+# Rules reference:
+# https://pylint.pycqa.org/en/latest/technical_reference/features.html
 disable=print-statement,
         parameter-unpacking,
         unpacking-in-except,
@@ -50,6 +52,9 @@ disable=print-statement,
         cmp-method,
         input-builtin,
         round-builtin,
+        missing-class-docstring,
+        missing-function-docstring,
+        missing-module-docstring,
 ignore=injected_glc_phosphorylation.py,
        injector.py,
        topology.py,
