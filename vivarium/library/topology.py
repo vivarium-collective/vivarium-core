@@ -1,4 +1,5 @@
 import copy
+import re
 
 from vivarium.library.dict_utils import deep_merge, deep_merge_multi_update
 
@@ -158,6 +159,14 @@ def normalize_path(path):
         else:
             progress.append(step)
     return progress
+
+
+def convert_path_style(path):
+    if isinstance(path, str):
+        path = re.sub(r'<', '..<', path)
+        path = tuple(re.split('<|>', path))
+
+    return path
 
 
 class TestUpdateIn:
@@ -331,3 +340,17 @@ def test_in():
     print(get_in(blank, path))
     blank = update_in(blank, path, lambda x: x + 6)
     print(blank)
+
+def test_path_declare():
+
+    path_down = 'path>to>store'
+    new_path_down = convert_path_style(path_down)
+    assert new_path_down == ('path', 'to', 'store')
+
+    path_up = '<<store'
+    new_path_up = convert_path_style(path_up)
+    assert new_path_up == ('..', '..', 'store')
+
+
+if __name__ == '__main__':
+    test_path_declare()
