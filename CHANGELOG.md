@@ -2,6 +2,10 @@
 
 
 
+## v0.1.5
+
+* topology grapher uses flowchart symbols
+
 ## v0.1.4
 
 * add options to agents_multigen plot, for improved look on Jupyter notebooks
