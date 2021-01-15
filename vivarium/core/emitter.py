@@ -1,9 +1,10 @@
 """Emitters
 """
 
-from pymongo import MongoClient
 import json
 from urllib.parse import quote_plus
+
+from pymongo import MongoClient
 
 from vivarium.library.units import remove_units
 from vivarium.library.dict_utils import (
@@ -11,7 +12,6 @@ from vivarium.library.dict_utils import (
     make_path_dict,
 )
 from vivarium.core.process import deserialize_value
-
 
 HISTORY_INDEXES = [
     'time',
@@ -45,7 +45,7 @@ def get_emitter(config):
     Arguments:
         config (dict): Requires three keys:
             * type: Type of emitter ('database' for a database emitter).
-            * emitter: Any configuration the emitter type requires to initialize.
+            * emitter: Any configuration the emitter type needs to initialize.
             * keys: A list of state keys to emit for each state label.
 
     Returns:
@@ -68,11 +68,13 @@ def get_emitter(config):
     return emitter
 
 
-def configure_emitter(config, processes, topology):
-    emitter_config = config.get('emitter', {})
-    emitter_config['experiment_id'] = config.get('experiment_id')
-    emitter_config['simulation_id'] = config.get('simulation_id')
-    return get_emitter(emitter_config)
+# def configure_emitter(config, processes, topology):
+#     del processes  # unused
+#     del topology  # unused
+#     emitter_config = config.get('emitter', {})
+#     emitter_config['experiment_id'] = config.get('experiment_id')
+#     emitter_config['simulation_id'] = config.get('simulation_id')
+#     return get_emitter(emitter_config)
 
 
 def path_timeseries_from_data(data):
@@ -82,7 +84,8 @@ def path_timeseries_from_data(data):
 
 def path_timeseries_from_embedded_timeseries(embedded_timeseries):
     times_vector = embedded_timeseries['time']
-    path_timeseries = make_path_dict({key: value for key, value in embedded_timeseries.items() if key != 'time'})
+    path_timeseries = make_path_dict(
+        {key: val for key, val in embedded_timeseries.items() if key != 'time'})
     path_timeseries['time'] = times_vector
     return path_timeseries
 
@@ -90,11 +93,10 @@ def path_timeseries_from_embedded_timeseries(embedded_timeseries):
 def time_indexed_timeseries_from_data(data):
     times_vector = list(data.keys())
     embedded_timeseries = {}
-    for time_index, (time, value) in enumerate(data.items()):
+    for time_index, value in enumerate(data.values()):
         if isinstance(value, dict):
-            embedded_timeseries = value_in_embedded_dict(value, embedded_timeseries, time_index)
-        else:
-            pass
+            embedded_timeseries = value_in_embedded_dict(
+                value, embedded_timeseries, time_index)
     embedded_timeseries['time'] = times_vector
     return embedded_timeseries
 
@@ -102,25 +104,24 @@ def time_indexed_timeseries_from_data(data):
 def timeseries_from_data(data):
     times_vector = list(data.keys())
     embedded_timeseries = {}
-    for time, value in data.items():
+    for value in data.values():
         if isinstance(value, dict):
-            embedded_timeseries = value_in_embedded_dict(value, embedded_timeseries)
-        else:
-            pass
+            embedded_timeseries = value_in_embedded_dict(
+                value, embedded_timeseries)
 
     embedded_timeseries['time'] = times_vector
     return embedded_timeseries
 
 
-class Emitter(object):
+class Emitter:
     '''
     Emit data to terminal
     '''
     def __init__(self, config):
         self.config = config
 
-    def emit(self, data):
-        print(data)
+    def emit(self, data_config):
+        print(data_config)
 
     def get_data(self):
         return {}
@@ -142,7 +143,7 @@ class NullEmitter(Emitter):
     '''
     Don't emit anything
     '''
-    def emit(self, data):
+    def emit(self, data_config):
         pass
 
 
@@ -152,10 +153,10 @@ class TimeSeriesEmitter(Emitter):
         super().__init__(config)
         self.saved_data = {}
 
-    def emit(self, data):
+    def emit(self, data_config):
         # save history data
-        if data['table'] == 'history':
-            emit_data = data['data']
+        if data_config['table'] == 'history':
+            emit_data = data_config['data']
             time = emit_data.pop('time')
             self.saved_data[time] = emit_data
 
@@ -185,7 +186,8 @@ class DatabaseEmitter(Emitter):
 
         # create singleton instance of mongo client
         if DatabaseEmitter.client is None:
-            DatabaseEmitter.client = MongoClient(config.get('host', self.default_host))
+            DatabaseEmitter.client = MongoClient(
+                config.get('host', self.default_host))
 
         self.db = getattr(self.client, config.get('database', 'simulations'))
         self.history = getattr(self.db, 'history')

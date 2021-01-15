@@ -82,7 +82,6 @@ ignore=injected_glc_phosphorylation.py,
        exponential.py,
        burst.py,
        dict_utils.py,
-       emitter.py,
        tree_mass.py,
        filepath.py,
        exchange_a.py,
@@ -106,6 +105,8 @@ ignore=injected_glc_phosphorylation.py,
 [BASIC]
 
 no-docstring-rgx=(^_)|(^[Tt]est)
-max-line-length=79
+max-line-length=80
+attr-rgx=^[a-z_][a-z0-9]*((_[a-z0-9]+)*)?$
 variable-rgx=^[a-z][a-z0-9]*((_[a-z0-9]+)*)?$
 argument-rgx=^[a-z][a-z0-9]*((_[a-z0-9]+)*)?$
+include-naming-hint=yes
