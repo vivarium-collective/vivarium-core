@@ -432,15 +432,9 @@ class Process(Composite, metaclass=abc.ABCMeta):
         ports_schema returns a dictionary that declares which states are
         expected by the processes, and how each state will behave.
 
-        state keys can be assigned properties through schema_keys
-        declared in Store:
-            '_default'
-            '_updater'
-            '_divider'
-            '_value'
-            '_properties'
-            '_emit'
-            '_serializer'
+        state keys can be assigned properties through schema_keys declared
+        in Store: '_default', '_updater', _divider', '_value', '_properties',
+        '_emit', '_serializer'
         '''
         return {}
 
