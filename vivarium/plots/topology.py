@@ -6,6 +6,7 @@ from typing import Any, cast, Dict, Optional
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.path import Path
+from matplotlib.figure import Figure
 import networkx as nx
 
 from vivarium.core.process import Process, Factory
@@ -100,7 +101,7 @@ def graph_figure(
         buffer: float = 1.0,
         border_width: float = 3,
         label_pos: float = 0.65,
-) -> plt.Figure:
+) -> Figure:
     """ Make a figure from a networkx graph.
 
     :param graph: the networkx.Graph to plot

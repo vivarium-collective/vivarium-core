@@ -51,13 +51,6 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', 'venv']
 # will help avoid broken links.
 nitpicky = True
 
-# Ignore warnings like:
-# "docstring of ... reference target not found: matplotlib.pyplot.Figure".
-# Is there a way to make those references work?
-nitpick_ignore = [
-    ('py:class', 'networkx.Graph'),
-    ('py:class', 'matplotlib.pyplot.Figure')]
-
 
 # -- Options for HTML output -------------------------------------------------
 
@@ -76,8 +69,9 @@ html_static_path = ['_static']
 
 # -- sphinx.ext.intersphinx options --
 intersphinx_mapping = {
+    'matplotlib': ('https://matplotlib.org/3.3.1/', None),
+    'networkx': ('http://networkx.org/documentation/latest/', None),
     'python': ('https://docs.python.org/3', None),
-    'matplotlib': ('https://matplotlib.org/3.2.2/', None),
     'shapely': ('https://shapely.readthedocs.io/en/latest/', None),
 }
 
