@@ -136,8 +136,7 @@ def main():
     '''Simulate the process and plot results.'''
     # make an output directory to save plots
     out_dir = os.path.join(PROCESS_OUT_DIR, NAME)
-    if not os.path.exists(out_dir):
-        os.makedirs(out_dir)
+    os.makedirs(out_dir, exist_ok=True)
 
     output = run_template_process()
 

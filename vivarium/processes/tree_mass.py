@@ -166,8 +166,7 @@ def test_tree_mass():
 
 def run_tree_mass():
     out_dir = os.path.join(PROCESS_OUT_DIR, NAME)
-    if not os.path.exists(out_dir):
-        os.makedirs(out_dir)
+    os.makedirs(out_dir, exist_ok=True)
     output = test_tree_mass()
     pp(output)
 

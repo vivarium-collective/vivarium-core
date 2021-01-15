@@ -140,8 +140,7 @@ def save_network(nodes, edges, plotOutDir='out/network'):
     '''
 
     out_dir = os.path.join(plotOutDir)
-    if not os.path.exists(out_dir):
-        os.makedirs(out_dir)
+    os.makedirs(out_dir, exist_ok=True)
     nodes_out = os.path.join(out_dir, 'nodes.csv')
     edges_out = os.path.join(out_dir, 'edges.csv')
 
