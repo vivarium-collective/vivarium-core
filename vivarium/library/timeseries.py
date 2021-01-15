@@ -286,9 +286,9 @@ def load_timeseries(path_to_csv):
     return timeseries
 
 
-def save_timeseries(timeseries, out_dir='out'):
+def save_timeseries(timeseries, out_dir='out', filename='timeseries.csv'):
     flattened = flatten_timeseries(timeseries)
-    save_flat_timeseries(flattened, out_dir)
+    save_flat_timeseries(flattened, out_dir, filename)
 
 
 def agent_timeseries_from_data(data, agents_key='cells'):

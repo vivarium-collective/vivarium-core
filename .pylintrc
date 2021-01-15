@@ -55,6 +55,11 @@ disable=print-statement,
         missing-class-docstring,
         missing-function-docstring,
         missing-module-docstring,
+        too-many-arguments,
+        too-many-locals,
+        too-many-branches,
+        no-self-use,
+        too-few-public-methods,
 ignore=injected_glc_phosphorylation.py,
        injector.py,
        topology.py,
@@ -94,6 +99,6 @@ ignore=injected_glc_phosphorylation.py,
 [BASIC]
 
 no-docstring-rgx=(^_)|(^[Tt]est)
-max-line-length=72
+max-line-length=79
 variable-rgx=^[a-z][a-z0-9]*((_[a-z0-9]+)*)?$
 argument-rgx=^[a-z][a-z0-9]*((_[a-z0-9]+)*)?$

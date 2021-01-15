@@ -16,8 +16,7 @@ from vivarium.library.dict_utils import (
 )
 
 from vivarium.processes.timeline import TimelineProcess
-from vivarium.processes.nonspatial_environment import \
-    NonSpatialEnvironment
+from vivarium.processes.nonspatial_environment import NonSpatialEnvironment
 from vivarium.processes.agent_names import AgentNames
 
 REFERENCE_DATA_DIR = os.path.join('vivarium', 'reference_data')
@@ -55,7 +54,7 @@ def add_generator_to_tree(
 
     # replace process names that already exist
     replace_name = []
-    for name, p in new_processes.items():
+    for name in new_processes.keys():
         if name in processes:
             replace_name.append(name)
     for name in replace_name:
@@ -297,8 +296,8 @@ def agent_environment_experiment(
                     agent_id: initial_agent_state
                     for agent_id in agent_ids})
 
-    if 'agents' in initial_state and \
-            'diffusion' in environment_config['config']:
+    if ('agents' in initial_state
+            and 'diffusion' in environment_config['config']):
 
         environment_config[
             'config']['diffusion']['agents'] = initial_state['agents']
@@ -547,15 +546,12 @@ def simulate_experiment(
     # return data from emitter
     if return_raw_data:
         return experiment.emitter.get_data()
-    else:
-        return experiment.emitter.get_timeseries()
-
+    return experiment.emitter.get_timeseries()
 
 
 #########
 # Tests #
 #########
-
 class ToyLinearGrowthDeathProcess(Process):
 
     name = 'toy_linear_growth_death'
@@ -645,8 +641,7 @@ class ToyMetabolism(Process):
 
     def next_update(self, timestep, states):
         update = {}
-        glucose_required = timestep / \
-                           self.parameters['mass_conversion_rate']
+        glucose_required = timestep / self.parameters['mass_conversion_rate']
         if states['pool']['GLC'] >= glucose_required:
             update = {
                 'pool': {
@@ -716,8 +711,8 @@ class ToyDeriveVolume(Deriver):
             for port_id, keys in ports.items()}
 
     def next_update(self, timestep, states):
-        volume = states['compartment']['MASS'] /\
-                 states['compartment']['DENSITY']
+        volume = (states['compartment']['MASS'] /
+                  states['compartment']['DENSITY'])
         update = {
             'compartment': {'VOLUME': volume}}
 
@@ -815,5 +810,5 @@ def test_compartment():
 
 if __name__ == '__main__':
     TestSimulateProcess().test_process_deletion()
-    timeseries = test_compartment()
-    print(timeseries)
+    _timeseries = test_compartment()
+    print(_timeseries)

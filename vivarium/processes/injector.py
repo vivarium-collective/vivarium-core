@@ -104,7 +104,7 @@ def main():
     timeseries = run_injector()
     plot_settings = {}
     plot_simulation_output(timeseries, plot_settings, out_dir)
-    save_timeseries(timeseries, out_dir)
+    save_timeseries(timeseries, out_dir, NAME + '.csv')
 
 
 if __name__ == '__main__':
