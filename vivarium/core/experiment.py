@@ -188,16 +188,20 @@ class Store(object):
                 and new_default == 0
                 and self.default != 0
             ):
-                log.debug('_default schema conflict: {} and {}. selecting {}'.format(
+                log.debug(
+                    '_default schema conflict: {} and {}. selecting {}'.format(
                     self.default, new_default, self.default))
                 return self.default
-            log.debug('_default schema conflict: {} and {}. selecting {}'.format(
+            log.debug(
+                '_default schema conflict: {} and {}. selecting {}'.format(
                 self.default, new_default, new_default))
         return new_default
 
     def check_value(self, new_value):
         if self.value is not None and new_value != self.value:
-            raise Exception('_value schema conflict: {} and {}'.format(new_value, self.value))
+            raise Exception(
+                '_value schema conflict: {} and {}'.format(
+                    new_value, self.value))
         return new_value
 
     def merge_subtopology(self, subtopology):
@@ -222,7 +226,8 @@ class Store(object):
           adds the new value to the existing value, but 'set' is common
           as well. You can also provide your own function here instead
           of a string key into the updater library.
-        * _emit - whether or not to emit the values under this point in the tree.
+        * _emit - whether or not to emit the values under this point in
+           the tree.
         * _divider - What to do with this node when division happens.
           Default behavior is to leave it alone, but you can also pass
           'split' here, or a function of your choosing. If you need
@@ -266,13 +271,17 @@ class Store(object):
             self.divider = config['_divider']
             if isinstance(self.divider, str):
                 self.divider = divider_registry.access(self.divider)
-            if isinstance(self.divider, dict) and isinstance(self.divider['divider'], str):
-                self.divider['divider'] = divider_registry.access(self.divider['divider'])
+            if isinstance(self.divider, dict) and isinstance(
+                    self.divider['divider'], str):
+                self.divider['divider'] = divider_registry.access(
+                    self.divider['divider'])
             config = without(config, '_divider')
 
         if self.schema_keys & set(config.keys()):
             if self.inner:
-                raise Exception('trying to assign leaf values to a branch at: {}'.format(self.path_for()))
+                raise Exception(
+                    'trying to assign leaf values to a branch at: {}'.format(
+                        self.path_for()))
             self.leaf = True
 
             if '_units' in config:
@@ -282,18 +291,24 @@ class Store(object):
             if '_serializer' in config:
                 self.serializer = config['_serializer']
                 if isinstance(self.serializer, str):
-                    self.serializer = serializer_registry.access(self.serializer)
+                    self.serializer = serializer_registry.access(
+                        self.serializer)
 
             if '_default' in config:
                 self.default = self.check_default(config.get('_default'))
                 if isinstance(self.default, Quantity):
                     self.units = self.units or self.default.units
-                    self.serializer = self.serializer or serializer_registry.access('units')
-                elif isinstance(self.default, list) and len(self.default) > 0 and isinstance(self.default[0], Quantity):
+                    self.serializer = self.serializer or \
+                                      serializer_registry.access('units')
+                elif isinstance(self.default, list) and \
+                        len(self.default) > 0 and \
+                        isinstance(self.default[0], Quantity):
                     self.units = self.units or self.default[0].units
-                    self.serializer = self.serializer or serializer_registry.access('units')
+                    self.serializer = self.serializer or \
+                                      serializer_registry.access('units')
                 elif isinstance(self.default, np.ndarray):
-                    self.serializer = self.serializer or serializer_registry.access('numpy')
+                    self.serializer = self.serializer or \
+                                      serializer_registry.access('numpy')
 
             if '_value' in config:
                 self.value = self.check_value(config.get('_value'))
@@ -316,7 +331,9 @@ class Store(object):
 
         else:
             if self.leaf and config:
-                raise Exception('trying to assign create inner for leaf node: {}'.format(self.path_for()))
+                raise Exception(
+                    'trying to assign create inner for leaf node: {}'.format(
+                        self.path_for()))
 
             # self.value = None
 
@@ -486,9 +503,11 @@ class Store(object):
             if self.emit:
                 if self.serializer:
                     if isinstance(self.value, list) and self.units:
-                        return self.serializer.serialize([v.to(self.units) for v in self.value])
+                        return self.serializer.serialize(
+                            [v.to(self.units) for v in self.value])
                     elif self.units:
-                        return self.serializer.serialize(self.value.to(self.units))
+                        return self.serializer.serialize(
+                            self.value.to(self.units))
                     else:
                         return self.serializer.serialize(self.value)
                 elif isinstance(self.value, Process):
@@ -564,10 +583,7 @@ class Store(object):
                         self.inner[child] = Store(self.subschema, self)
                     else:
                         pass
-
                         # TODO: continue to ignore extra keys?
-                        # print("setting value that doesn't exist in tree {} {}".format(
-                        #     child, inner_value))
 
                 if child in self.inner:
                     self.inner[child].set_value(inner_value)
@@ -585,7 +601,13 @@ class Store(object):
             if self.value is None:
                 self.value = self.default
 
-    def apply_update(self, update, process_topology=None, state=None, experiment_topology=None):
+    def apply_update(
+            self,
+            update,
+            process_topology=None,
+            state=None,
+            experiment_topology=None
+    ):
         '''
         Given an arbitrary update, map all the values in that update
         to their positions in the tree where they apply, and update
@@ -593,22 +615,25 @@ class Store(object):
 
         Arguments:
             update: The update being applied.
-            process_topology: The topology of the process from which this update was passed.
+            process_topology: The topology of the process from which
+                this update was passed.
             state: The state at the start of the time step.
-            experiment_topology: The topology of the full experiment, with all processes and
-                their port mappings.
+            experiment_topology: The topology of the full experiment,
+                with all processes and their port mappings.
 
-        There are five topology update methods, which use the following special update keys:
+        There are five topology update methods, which use the following
+        special update keys:
 
-        * `_add` - Adds states into the subtree, given a list of dicts containing:
+        * `_add` - Adds states into the subtree, given a list of dicts
+            containing:
 
             * path - Path to the added state key.
             * state - The value of the added state.
 
-        * `_move` - Moves a node from a source to a target location in the tree.
-            This uses an update to an :term:`outer` port, which contains both the
-            source and target node locations. Can move multiple nodes according to
-            a list of dicts containing:
+        * `_move` - Moves a node from a source to a target location in the
+          tree. This uses an update to an :term:`outer` port, which
+          contains both the source and target node locations. Can move
+          multiple nodes according to a list of dicts containing:
 
             * source - the source path from an outer process port
             * target - the location where the node will be placed.
@@ -632,7 +657,7 @@ class Store(object):
           the tree.
 
 
-        Additional special update keys are used for different update operations:
+        Additional special update keys for different update operations:
 
         * `_updater` - Override the default updater with any updater you want.
 
@@ -658,7 +683,11 @@ class Store(object):
             multi_update = update[MULTI_UPDATE_KEY]
             assert isinstance(multi_update, list)
             for update_value in multi_update:
-                self.apply_update(update_value, process_topology, state, experiment_topology)
+                self.apply_update(
+                    update_value,
+                    process_topology,
+                    state,
+                    experiment_topology)
             return EMPTY_UPDATES
 
         elif self.inner or self.subschema:
@@ -700,13 +729,15 @@ class Store(object):
                         filter_function=lambda x: isinstance(x.value, Process))
                     source_processes = [
                         (target_path + source_path, source_process.value)
-                        for source_path, source_process in source_process_paths]
+                        for source_path, source_process
+                        in source_process_paths]
                     process_updates.extend(source_processes)
 
                     # find the topology updates
                     here = self.path_for()
                     source_absolute = tuple(here + source_path)
-                    source_topology = get_in(experiment_topology, source_absolute)
+                    source_topology = get_in(
+                        experiment_topology, source_absolute)
                     if source_topology:
                         topology_updates.append((
                             target_path,
@@ -748,13 +779,15 @@ class Store(object):
                 mother = divide['mother']
                 daughters = divide['daughters']
                 initial_state = self.inner[mother].get_value(
-                    condition=lambda child: not (isinstance(child.value, Process)),
+                    condition=lambda child: not
+                    (isinstance(child.value, Process)),
                     f=lambda child: copy.deepcopy(child))
                 daughter_states = self.inner[mother].divide_value()
 
                 here = self.path_for()
 
-                for daughter, daughter_state in zip(daughters, daughter_states):
+                for daughter, daughter_state in \
+                        zip(daughters, daughter_states):
 
                     # use initial state as default, merge in divided values
                     initial_state = deep_merge(
@@ -793,8 +826,12 @@ class Store(object):
             for key, value in update.items():
                 if key in self.inner:
                     inner = self.inner[key]
-                    inner_topology, inner_processes, inner_deletions = inner.apply_update(
-                        value, process_topology, state, experiment_topology)
+                    inner_topology, inner_processes, inner_deletions = \
+                        inner.apply_update(
+                            value,
+                            process_topology,
+                            state,
+                            experiment_topology)
 
                     if inner_topology:
                         topology_updates.extend(inner_topology)
@@ -827,7 +864,8 @@ class Store(object):
                     reduction['reducer'],
                     initial=reduction['initial'])
 
-            if isinstance(update, dict) and self.schema_keys & set(update.keys()):
+            if isinstance(update, dict) and \
+                    self.schema_keys and set(update.keys()):
                 if '_updater' in update:
                     update = update.get('_value', self.default)
 
@@ -881,8 +919,8 @@ class Store(object):
 
     def schema_topology(self, schema, topology):
         '''
-        Fill in the structure of the given schema with the values located according
-        to the given topology.
+        Fill in the structure of the given schema with the values
+        located according to the given topology.
         '''
 
         state = {}
@@ -896,11 +934,13 @@ class Store(object):
                     if isinstance(path, dict):
                         node, path = self.outer_path(path)
                         for child, child_node in node.inner.items():
-                            state[child] = child_node.schema_topology(subschema, path)
+                            state[child] = child_node.schema_topology(
+                                subschema, path)
                     else:
                         node = self.get_path(path)
                         for child, child_node in node.inner.items():
-                            state[child] = child_node.schema_topology(subschema, {})
+                            state[child] = child_node.schema_topology(
+                                subschema, {})
                 elif key == '_divider':
                     pass
                 elif isinstance(path, dict):
@@ -1019,7 +1059,8 @@ class Store(object):
 
             if path_step == '..':
                 if not self.outer:
-                    raise Exception('outer does not exist for path: {}'.format(path))
+                    raise Exception(
+                        'outer does not exist for path: {}'.format(path))
 
                 return self.outer.establish_path(
                     remaining,
@@ -1027,7 +1068,8 @@ class Store(object):
                     source=source)
             else:
                 if path_step not in self.inner:
-                    self.inner[path_step] = Store({}, outer=self, source=source)
+                    self.inner[path_step] = Store(
+                        {}, outer=self, source=source)
 
                 return self.inner[path_step].establish_path(
                     remaining,
@@ -1082,12 +1124,13 @@ class Store(object):
                 set(schema.keys()) - set(topology.keys()))
             if mismatch_topology:
                 raise Exception(
-                    'topology for the process {} \n at path {} uses undeclared ports: {}'.format(
+                    'topology for the process {} \n at path {} uses '
+                    'undeclared ports: {}'.format(
                         source, self.path_for(), str(mismatch_topology)))
             if mismatch_schema:
                 log.info(
-                    'process {} has ports that are not included in the topology: {}'.format(
-                        source, mismatch_schema))
+                    'process {} has ports that are not included in '
+                    'the topology: {}'.format(source, mismatch_schema))
 
             for port, subschema in schema.items():
                 path = topology.get(port, (port,))
@@ -1273,7 +1316,8 @@ class Experiment(object):
         self.emit_step = config.get('emit_step')
 
         # display settings
-        self.experiment_name = config.get('experiment_name', self.experiment_id)
+        self.experiment_name = config.get(
+            'experiment_name', self.experiment_id)
         self.description = config.get('description', '')
         self.display_info = config.get('display_info', True)
         self.progress_bar = config.get('progress_bar', False)
@@ -1355,7 +1399,7 @@ class Experiment(object):
             self.emitter.emit(emit_config)
         except PyMongoError:
             log.exception("emitter.emit", exc_info=True, stack_info=True)
-            # TODO -- handle large parameter sets in self.processes to meet mongoDB limit
+            # TODO -- handle large parameter sets to meet mongoDB limit
             del emit_config['data']['processes']
             del emit_config['data']['state']
             self.emitter.emit(emit_config)
@@ -1452,7 +1496,8 @@ class Experiment(object):
         self.run_derivers()
 
     def update(self, interval):
-        """ Run each process for the given interval and update the related states. """
+        """ Run each process for the given interval and update the states.
+        """
 
         time = 0
         emit_time = self.emit_step
@@ -1488,7 +1533,9 @@ class Experiment(object):
                 process_time = front[path]['time']
 
                 if process_time <= time:
-                    future = min(process_time + process.local_timestep(), interval)
+                    future = min(
+                        process_time + process.local_timestep(),
+                        interval)
                     timestep = future - process_time
 
                     # calculate the update for this process
@@ -1590,7 +1637,9 @@ def print_progress_bar(
     progress = ("{0:." + str(decimals) + "f}").format(total - iteration)
     filled_length = int(length * iteration // total)
     bar = '█' * filled_length + '-' * (length - filled_length)
-    print(f'\rProgress:|{bar}| {progress}/{float(total)} simulated seconds remaining    ', end='\r')
+    print(
+        f'\rProgress:|{bar}| {progress}/{float(total)} '
+        f'simulated seconds remaining    ', end='\r')
     # Print New Line on Complete
     if iteration == total:
         print()
@@ -2143,13 +2192,20 @@ def test_complex_topology():
     experiment.update(1)
 
     state = experiment.state.get_value()
-    assert state['aaa']['a'] == initial_state['aaa']['a'] + initial_state['aaa']['o'] - 1
-    assert state['aaa']['o'] == initial_state['aaa']['o'] + initial_state['aaa']['c'] + 12
-    assert state['aaa']['c'] == initial_state['aaa']['c'] + initial_state['bbb']['d'] + initial_state['bbb']['e']
-    assert state['aaa']['u'] == initial_state['aaa']['u'] + 3
-    assert state['bbb']['d'] == initial_state['bbb']['d'] + initial_state['aaa']['a']
-    assert state['bbb']['e'] == initial_state['bbb']['e'] + initial_state['bbb']['e'] + initial_state['aaa']['u']
-    assert state['ddd']['z'] == initial_state['ddd']['z'] + initial_state['aaa']['a'] + initial_state['aaa']['o']
+    assert state['aaa']['a'] == initial_state['aaa']['a'] + \
+           initial_state['aaa']['o'] - 1
+    assert state['aaa']['o'] == initial_state['aaa']['o'] + \
+           initial_state['aaa']['c'] + 12
+    assert state['aaa']['c'] == initial_state['aaa']['c'] + \
+           initial_state['bbb']['d'] + initial_state['bbb']['e']
+    assert state['aaa']['u'] == initial_state['aaa']['u'] + \
+           3
+    assert state['bbb']['d'] == initial_state['bbb']['d'] + \
+           initial_state['aaa']['a']
+    assert state['bbb']['e'] == initial_state['bbb']['e'] + \
+           initial_state['bbb']['e'] + initial_state['aaa']['u']
+    assert state['ddd']['z'] == initial_state['ddd']['z'] + \
+           initial_state['aaa']['a'] + initial_state['aaa']['o']
 
 
 def test_multi():
@@ -2242,13 +2298,17 @@ def test_units():
 
         def generate_processes(self, config):
             return {
-                'units_micrometer': UnitsMicrometer({}),
-                'units_millimeter': UnitsMillimeter({})}
+                'units_micrometer':
+                    UnitsMicrometer({}),
+                'units_millimeter':
+                    UnitsMillimeter({})}
 
         def generate_topology(self, config):
             return {
-                'units_micrometer': {'A': ('aaa',)},
-                'units_millimeter': {'A': ('aaa',)}}
+                'units_micrometer': {
+                    'A': ('aaa',)},
+                'units_millimeter': {
+                    'A': ('aaa',)}}
 
     # run experiment
     multi_unit = MultiUnits({})

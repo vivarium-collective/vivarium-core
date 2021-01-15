@@ -136,7 +136,7 @@ class Control():
 
 # testing
 
-def toy_plot(data, out_dir='out'):
+def toy_plot(data, config=None, out_dir='out'):
     plot_simulation_output(data, out_dir=out_dir)
 
 
