@@ -1,6 +1,17 @@
+import math
 from typing import Optional, Dict, Any
 
+import numpy as np
+
 from vivarium.core.process import Process, Deriver, Factory
+
+
+quark_colors = ['green', 'red', 'blue']
+quark_spins = ['up', 'down']
+electron_spins = ['-1/2', '1/2']
+electron_orbitals = [
+    str(orbit) + 's'
+    for orbit in range(1, 8)]
 
 
 class ToyTransport(Process):
@@ -218,3 +229,105 @@ class ToyLinearGrowthDeathProcess(Process):
                 '_delete': [(target,) for target in self.targets]}
 
         return update
+
+
+class Proton(Process):
+    name = 'proton'
+    defaults = {
+        'time_step': 1.0,
+        'radius': 0.0}
+
+    def ports_schema(self):
+        return {
+            'radius': {
+                '_updater': 'set',
+                '_default': self.parameters['radius']},
+            'quarks': {
+                '_divider': 'split_dict',
+                '*': {
+                    'color': {
+                        '_updater': 'set',
+                        '_default': quark_colors[0]},
+                    'spin': {
+                        '_updater': 'set',
+                        '_default': quark_spins[0]}}},
+            'electrons': {
+                '*': {
+                    'orbital': {
+                        '_updater': 'set',
+                        '_default': electron_orbitals[0]},
+                    'spin': {
+                        '_default': electron_spins[0]}}}}
+
+    def next_update(self, timestep, states):
+        update = {}
+
+        collapse = np.random.uniform()
+        if collapse < states['radius'] * timestep:
+            update['radius'] = collapse
+            update['quarks'] = {}
+
+            for name in states['quarks'].keys():
+                update['quarks'][name] = {
+                    'color': np.random.choice(quark_colors),
+                    'spin': np.random.choice(quark_spins)}
+
+            update['electrons'] = {}
+            orbitals = electron_orbitals.copy()
+            for name in states['electrons'].keys():
+                np.random.shuffle(orbitals)
+                update['electrons'][name] = {
+                    'orbital': orbitals.pop()}
+
+        return update
+
+
+class Electron(Process):
+    name = 'electron'
+    defaults = {
+        'time_step': 1.0,
+        'spin': electron_spins[0]}
+
+    def ports_schema(self):
+        return {
+            'spin': {
+                '_updater': 'set',
+                '_default': self.parameters['spin']},
+            'proton': {
+                'radius': {
+                    '_default': 0.0}}}
+
+    def next_update(self, timestep, states):
+        update = {}
+
+        if np.random.uniform() < states['proton']['radius']:
+            update['spin'] = np.random.choice(electron_spins)
+
+        return update
+
+
+class Sine(Process):
+    name = 'sine'
+    defaults = {
+        'initial_phase': 0.0}
+
+    def ports_schema(self):
+        return {
+            'frequency': {
+                '_default': 440.0},
+            'amplitude': {
+                '_default': 1.0},
+            'phase': {
+                '_default': self.parameters['initial_phase']},
+            'signal': {
+                '_default': 0.0,
+                '_updater': 'set'}}
+
+    def next_update(self, timestep, states):
+        phase_shift = timestep * states['frequency'] % 1.0
+        signal = states['amplitude'] * math.sin(
+            2 * math.pi * (states['phase'] + phase_shift))
+
+        return {
+            'phase': phase_shift,
+            'signal': signal}
