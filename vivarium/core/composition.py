@@ -349,14 +349,12 @@ def simulate_experiment(
 
     # return data from emitter
     if return_raw_data:
-        data = experiment.emitter.get_data()
-    else:
-        data = experiment.emitter.get_timeseries()
-    return data
+        return experiment.emitter.get_data()
+    return experiment.emitter.get_timeseries()
+
 
 
 # Tests
-
 
 class TestSimulateProcess:
 

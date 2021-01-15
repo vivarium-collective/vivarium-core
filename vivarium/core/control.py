@@ -12,7 +12,7 @@ import copy
 
 from vivarium.core.experiment import timestamp
 from vivarium.core.composition import (
-    simulate_compartment_in_experiment,
+    test_compartment,
     BASE_OUT_DIR,
 )
 from vivarium.composites.toys import ToyCompartment
@@ -24,7 +24,7 @@ def make_dir(out_dir):
     os.makedirs(out_dir, exist_ok=True)
 
 
-class Control(object):
+class Control():
 
     def __init__(
             self,
@@ -85,8 +85,7 @@ class Control(object):
         if isinstance(experiment, dict):
             kwargs = experiment.get('kwargs', {})
             return experiment['experiment'](**kwargs)
-        elif callable(experiment):
-            return experiment()
+        return experiment()
 
     def run_one_plot(self, plot_id, data, out_dir=None):
         data_copy = copy.deepcopy(data)
@@ -136,23 +135,8 @@ class Control(object):
 
 
 # testing
-def toy_experiment():
-    toy_compartment = ToyCompartment({})
-    settings = {
-        'total_time': 10,
-        'initial_state': {
-            'periplasm': {
-                'GLC': 20,
-                'MASS': 100,
-                'DENSITY': 10},
-            'cytoplasm': {
-                'GLC': 0,
-                'MASS': 3,
-                'DENSITY': 10}}}
-    return simulate_compartment_in_experiment(toy_compartment, settings)
 
-
-def toy_plot(data, config=None, out_dir='out'):
+def toy_plot(data, out_dir='out'):
     plot_simulation_output(data, out_dir=out_dir)
 
 
@@ -166,9 +150,9 @@ def toy_control(args=None):
         # put in dictionary with name
         '1': {
             'name': 'exp_1',
-            'experiment': toy_experiment},
+            'experiment': test_compartment},
         # map to function to run as is
-        '2': toy_experiment,
+        '2': test_compartment,
     }
     plot_library = {
         # put in dictionary with config
