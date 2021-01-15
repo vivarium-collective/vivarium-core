@@ -16,8 +16,8 @@ import os
 from vivarium.core.composition import (
     simulate_process,
     TEST_OUT_DIR,
-    save_timeseries,
 )
+from vivarium.library.timeseries import save_timeseries
 from vivarium.plots.simulation_output import plot_simulation_output
 from vivarium.core.process import Process
 
