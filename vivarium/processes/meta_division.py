@@ -8,7 +8,7 @@ from vivarium.core.process import (
 )
 from vivarium.core.composition import (
     compose_experiment,
-    GENERATORS_KEY,
+    FACTORY_KEY,
     PROCESS_OUT_DIR,
 )
 from vivarium.core.experiment import (
@@ -159,7 +159,7 @@ def test_division():
 
     # declare the hierarchy
     hierarchy = {
-        GENERATORS_KEY: [
+        FACTORY_KEY: [
             {
                 'type': TimelineProcess,
                 'config': {'timeline': timeline},
@@ -171,7 +171,7 @@ def test_division():
         ],
         'agents': {
             agent_id: {
-                GENERATORS_KEY: {
+                FACTORY_KEY: {
                     'type': ToyAgent,
                     'config': {'agent_id': agent_id}
                 },

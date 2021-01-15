@@ -13,7 +13,7 @@ from vivarium.core.process import (
 )
 from vivarium.core.composition import (
     compose_experiment,
-    GENERATORS_KEY,
+    FACTORY_KEY,
     PROCESS_OUT_DIR,
 )
 from vivarium.processes.exchange_a import ExchangeA
@@ -147,7 +147,7 @@ def test_burst():
 
     # declare the hierarchy
     hierarchy = {
-        GENERATORS_KEY: [
+        FACTORY_KEY: [
             {
                 'type': TimelineProcess,
                 'config': {'timeline': timeline},
@@ -159,7 +159,7 @@ def test_burst():
         ],
         'agents': {
             agent_1_id: {
-                GENERATORS_KEY: {
+                FACTORY_KEY: {
                     'type': ToyAgent,
                     'config': {
                         'agent_id': agent_1_id,
@@ -167,7 +167,7 @@ def test_burst():
                 },
                 'agents': {
                     agent_2_id: {
-                        GENERATORS_KEY: {
+                        FACTORY_KEY: {
                             'type': ToyAgent,
                             'config': {
                                 'agent_id': agent_2_id

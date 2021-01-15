@@ -13,7 +13,7 @@ from vivarium.core.process import (
 )
 from vivarium.core.composition import (
     compose_experiment,
-    GENERATORS_KEY,
+    FACTORY_KEY,
     PROCESS_OUT_DIR,
 )
 from vivarium.processes.exchange_a import ExchangeA
@@ -126,7 +126,7 @@ def test_engulf():
 
     # declare the hierarchy
     hierarchy = {
-        GENERATORS_KEY: [
+        FACTORY_KEY: [
             {
                 'type': TimelineProcess,
                 'config': {'timeline': timeline},
@@ -138,7 +138,7 @@ def test_engulf():
         ],
         'agents': {
             agent_id: {
-                GENERATORS_KEY: {
+                FACTORY_KEY: {
                     'type': ToyAgent,
                     'config': {
                         'exchange': {
