@@ -652,8 +652,8 @@ def test_composite_merge():
     assert merged_network['topology'] == expected_merged_topology
 
     for key in ('A', 'B', 'C'):
-        assert key in initial_network['processes']
-        assert isinstance(initial_network['processes'][key], ToyProcess)
+        assert key in merged_network['processes']
+        assert isinstance(merged_network['processes'][key], ToyProcess)
 
 
 def test_get_composite():
