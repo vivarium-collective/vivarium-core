@@ -16,7 +16,8 @@ from vivarium.library.dict_utils import (
 )
 
 from vivarium.processes.timeline import TimelineProcess
-from vivarium.processes.nonspatial_environment import NonSpatialEnvironment
+from vivarium.processes.nonspatial_environment import \
+    NonSpatialEnvironment
 from vivarium.processes.agent_names import AgentNames
 
 REFERENCE_DATA_DIR = os.path.join('vivarium', 'reference_data')
@@ -28,7 +29,7 @@ COMPOSITE_OUT_DIR = os.path.join(BASE_OUT_DIR, 'composites')
 EXPERIMENT_OUT_DIR = os.path.join(BASE_OUT_DIR, 'experiments')
 
 FACTORY_KEY = '_factory'
-GENERATORS_KEY = FACTORY_KEY  # TODO -- remove all uses of GENERATORS_KEY from dependent libraries
+GENERATORS_KEY = FACTORY_KEY
 
 
 ######################################################
@@ -83,8 +84,10 @@ def initialize_hierarchy(hierarchy):
                         processes=processes,
                         topology=topology,
                         generator_type=generator_def['type'],
-                        generator_config=generator_def.get('config', {}),
-                        generator_topology=generator_def.get('topology', {}))
+                        generator_config=generator_def.get(
+                            'config', {}),
+                        generator_topology=generator_def.get(
+                            'topology', {}))
 
             elif isinstance(level, dict):
                 add_generator_to_tree(
@@ -125,10 +128,11 @@ def compose_experiment(
     """Make an experiment with arbitrarily embedded compartments.
 
     Arguments:
-        hierarchy: an embedded dictionary mapping the desired topology of
-            nodes, with generators declared under a global FACTORY_KEY that maps
-            to a dictionary with 'type', 'config' , and 'topology' for the
-            processes in the generator. Generators include lone processes.
+        hierarchy: an embedded dictionary mapping the desired topology
+          of nodes, with factories declared under a global FACTORY_KEY
+          that maps to a dictionary with 'type', 'config', and
+          'topology' for the processes in the Factory. Factories
+          include lone processes.
         settings: experiment configuration settings.
         initial_state: is the initial_state.
 
@@ -205,7 +209,9 @@ def make_agent_ids(agents_config):
         if 'name' in config:
             name = config['name']
             if number > 1:
-                new_agent_ids = [name + '_' + str(num) for num in range(number)]
+                new_agent_ids = [
+                    name + '_' + str(num)
+                    for num in range(number)]
             else:
                 new_agent_ids = [name]
         else:
@@ -227,14 +233,15 @@ def agent_environment_experiment(
         settings=None,
         invoke=None,
 ):
-    """Make an experiment with agents placed in an environment under an `agents` store.
+    """Make an experiment with agents under an `agents` store.
 
     Arguments:
         agents_config: the configuration for the agents
         environment_config: the configuration for the environment
         initial_state: the initial state for the hierarchy, with
             environment at the top level.
-        initial_agent_state: the initial_state for agents, set under each agent_id.
+        initial_agent_state: the initial_state for agents, set under
+            each agent_id.
         settings: settings include **emitter** and **agent_names**. May
             also include **timeline**.
         invoke: is the invoke object for calling updates.
@@ -256,7 +263,10 @@ def agent_environment_experiment(
         agent_type = agents_config['type']
         agent_ids = agents_config['ids']
         agent_compartment = agent_type(agents_config['config'])
-        agents = make_agents(agent_ids, agent_compartment, agents_config['config'])
+        agents = make_agents(
+            agent_ids,
+            agent_compartment,
+            agents_config['config'])
 
         if initial_agent_state:
             initial_state['agents'] = {
@@ -269,9 +279,16 @@ def agent_environment_experiment(
             agent_type = config['type']
             agent_ids = config['ids']
             agent_compartment = agent_type(config['config'])
-            new_agents = make_agents(agent_ids, agent_compartment, config['config'])
-            deep_merge(agents['processes'], new_agents['processes'])
-            deep_merge(agents['topology'], new_agents['topology'])
+            new_agents = make_agents(
+                agent_ids,
+                agent_compartment,
+                config['config'])
+            deep_merge(
+                agents['processes'],
+                new_agents['processes'])
+            deep_merge(
+                agents['topology'],
+                new_agents['topology'])
 
             if initial_agent_state:
                 if 'agents' not in initial_state:
@@ -280,13 +297,16 @@ def agent_environment_experiment(
                     agent_id: initial_agent_state
                     for agent_id in agent_ids})
 
-    if 'agents' in initial_state and 'diffusion' in environment_config['config']:
+    if 'agents' in initial_state and \
+            'diffusion' in environment_config['config']:
+
         environment_config[
             'config']['diffusion']['agents'] = initial_state['agents']
 
     # initialize the environment
     environment_type = environment_config['type']
-    environment_compartment = environment_type(environment_config['config'])
+    environment_compartment = environment_type(
+        environment_config['config'])
 
     # combine processes and topologies
     network = environment_compartment.generate()
@@ -296,7 +316,7 @@ def agent_environment_experiment(
     topology['agents'] = agents['topology']
 
     if settings.get('agent_names') is True:
-        # add an AgentNames processes, which saves the current agent names
+        # add an AgentNames processes, to saves agent names
         # to as store at the top level of the hierarchy
         processes['agent_names'] = AgentNames({})
         topology['agent_names'] = {
@@ -352,7 +372,8 @@ def process_in_experiment(
     processes = {'process': process}
     topology = {
         'process': {
-            port: paths.get(port, (port,)) for port in process.ports_schema().keys()}}
+            port: paths.get(port, (port,))
+            for port in process.ports_schema().keys()}}
 
     if timeline:
         # Adding a timeline to a process requires the timeline argument
@@ -425,9 +446,9 @@ def compartment_in_experiment(
     topology = network['topology']
 
     if timeline is not None:
-        # Adding a timeline to a compartment requires the timeline argument
-        # in settings to have a 'timeline' key. An optional 'paths' key
-        # overrides the topology mapping from {port: path}.
+        # Add a timeline  requires the timeline argument in
+        # settings to have a 'timeline' key. An optional 'paths'
+        # key overrides the topology mapping from {port: path}.
         timeline_process = TimelineProcess(timeline)
         timeline_paths = timeline.get('paths', {})
         processes.update({'timeline_process': timeline_process})
@@ -474,7 +495,10 @@ def compartment_in_experiment(
 # simulation functions #
 ########################
 
-def simulate_process(process, settings: Optional[Dict[str, Any]] = None):
+def simulate_process(
+        process,
+        settings: Optional[Dict[str, Any]] = None
+):
     settings = settings or {}
     experiment = process_in_experiment(process, settings)
     return simulate_experiment(experiment, settings)
@@ -539,10 +563,13 @@ class ToyLinearGrowthDeathProcess(Process):
     GROWTH_RATE = 1.0
     THRESHOLD = 6.0
 
-    def __init__(self, initial_parameters: Optional[Dict[str, Any]] = None):
+    def __init__(
+            self,
+            initial_parameters: Optional[Dict[str, Any]] = None
+    ):
         initial_parameters = initial_parameters or {}
         self.targets = initial_parameters.get('targets')
-        super(ToyLinearGrowthDeathProcess, self).__init__(initial_parameters)
+        super().__init__(initial_parameters)
 
     def ports_schema(self):
         return {
@@ -596,11 +623,14 @@ class TestSimulateProcess:
 class ToyMetabolism(Process):
     name = 'toy_metabolism'
 
-    def __init__(self, initial_parameters: Optional[Dict[str, Any]] = None):
+    def __init__(
+            self,
+            initial_parameters: Optional[Dict[str, Any]] = None
+    ):
         initial_parameters = initial_parameters or {}
         parameters = {'mass_conversion_rate': 1}
         parameters.update(initial_parameters)
-        super(ToyMetabolism, self).__init__(parameters)
+        super().__init__(parameters)
 
     def ports_schema(self):
         ports = {
@@ -615,7 +645,8 @@ class ToyMetabolism(Process):
 
     def next_update(self, timestep, states):
         update = {}
-        glucose_required = timestep / self.parameters['mass_conversion_rate']
+        glucose_required = timestep / \
+                           self.parameters['mass_conversion_rate']
         if states['pool']['GLC'] >= glucose_required:
             update = {
                 'pool': {
@@ -628,11 +659,14 @@ class ToyMetabolism(Process):
 class ToyTransport(Process):
     name = 'toy_transport'
 
-    def __init__(self, initial_parameters: Optional[Dict[str, Any]] = None):
+    def __init__(
+            self,
+            initial_parameters: Optional[Dict[str, Any]] = None
+    ):
         initial_parameters = initial_parameters or {}
         parameters = {'intake_rate': 2}
         parameters.update(initial_parameters)
-        super(ToyTransport, self).__init__(parameters)
+        super().__init__(parameters)
 
     def ports_schema(self):
         ports = {
@@ -660,10 +694,13 @@ class ToyTransport(Process):
 class ToyDeriveVolume(Deriver):
     name = 'toy_derive_volume'
 
-    def __init__(self, initial_parameters: Optional[Dict[str, Any]] = None):
+    def __init__(
+            self,
+            initial_parameters: Optional[Dict[str, Any]] = None
+    ):
         _ = initial_parameters  # ignore initial_parameters
         parameters: Dict[str, Any] = {}
-        super(ToyDeriveVolume, self).__init__(parameters)
+        super().__init__(parameters)
 
     def ports_schema(self):
         ports = {
@@ -671,14 +708,16 @@ class ToyDeriveVolume(Deriver):
         return {
             port_id: {
                 key: {
-                    '_updater': 'set' if key == 'VOLUME' else 'accumulate',
+                    '_updater': 'set' if key == 'VOLUME' else
+                    'accumulate',
                     '_default': 0.0,
                     '_emit': True}
                 for key in keys}
             for port_id, keys in ports.items()}
 
     def next_update(self, timestep, states):
-        volume = states['compartment']['MASS'] / states['compartment']['DENSITY']
+        volume = states['compartment']['MASS'] /\
+                 states['compartment']['DENSITY']
         update = {
             'compartment': {'VOLUME': volume}}
 
@@ -688,10 +727,13 @@ class ToyDeriveVolume(Deriver):
 class ToyDeath(Process):
     name = 'toy_death'
 
-    def __init__(self, initial_parameters: Optional[Dict[str, Any]] = None):
+    def __init__(
+            self,
+            initial_parameters: Optional[Dict[str, Any]] = None
+    ):
         initial_parameters = initial_parameters or {}
         self.targets = initial_parameters.get('targets', [])
-        super(ToyDeath, self).__init__({})
+        super().__init__({})
 
     def ports_schema(self):
         return {
@@ -725,12 +767,12 @@ class ToyCompartment(Factory):
 
     '''
     def __init__(self, config):
-        super(ToyCompartment, self).__init__(config)
+        super().__init__(config)
 
     def generate_processes(self, config):
         return {
             'metabolism': ToyMetabolism(
-                {'mass_conversion_rate': 0.5}),  # example of overriding default parameters
+                {'mass_conversion_rate': 0.5}),
             'transport': ToyTransport(),
             'death': ToyDeath({'targets': [
                 'metabolism',
