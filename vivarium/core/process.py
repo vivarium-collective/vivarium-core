@@ -4,14 +4,14 @@ Factory, Process, and Composite Classes
 ==========================================
 """
 
-import copy
-import numpy as np
 import abc
+import copy
+from multiprocessing import Pipe
+from multiprocessing import Process as Multiprocess
 from typing import Any, Dict, Optional
 
 from bson.objectid import ObjectId
-from multiprocessing import Pipe
-from multiprocessing import Process as Multiprocess
+import numpy as np
 from pint.errors import UndefinedUnitError
 
 from vivarium.library.topology import inverse_topology
@@ -25,41 +25,42 @@ DEFAULT_TIME_STEP = 1.0
 def serialize_value(value):
     if isinstance(value, dict):
         return serialize_dictionary(value)
-    elif isinstance(value, list):
+    if isinstance(value, list):
         return serialize_list(value)
-    elif isinstance(value, tuple):
+    if isinstance(value, tuple):
         return serialize_list(list(value))
-    elif isinstance(value, np.ndarray):
+    if isinstance(value, np.ndarray):
         return serializer_registry.access('numpy').serialize(value)
-    elif isinstance(value, Quantity):
+    if isinstance(value, Quantity):
         return serializer_registry.access('units').serialize(value)
-    elif callable(value):
+    if callable(value):
         return serializer_registry.access('function').serialize(value)
-    elif isinstance(value, Process):
-        return serialize_dictionary(serializer_registry.access('process').serialize(value))
-    elif isinstance(value, Factory):
+    if isinstance(value, Process):
+        return serialize_dictionary(
+            serializer_registry.access('process').serialize(value))
+    if isinstance(value, Factory):
         return serialize_dictionary(
             serializer_registry.access('factory').serialize(value))
-    elif isinstance(value, (np.integer, np.floating)):
-        return serializer_registry.access('numpy_scalar').serialize(value)
-    elif isinstance(value, ObjectId):
+    if isinstance(value, (np.integer, np.floating)):
+        return serializer_registry.access(
+            'numpy_scalar').serialize(value)
+    if isinstance(value, ObjectId):
         return str(value)
-    else:
-        return value
+    return value
 
 
 def deserialize_value(value):
     if isinstance(value, dict):
         return deserialize_dictionary(value)
-    elif isinstance(value, list):
+    if isinstance(value, list):
         return deserialize_list(value)
-    elif isinstance(value, str):
+    if isinstance(value, str):
         try:
-            return serializer_registry.access('units').deserialize(value)
+            return serializer_registry.access(
+                'units').deserialize(value)
         except UndefinedUnitError:
             return value
-    else:
-        return value
+    return value
 
 
 def serialize_list(lst):
@@ -94,9 +95,13 @@ def deserialize_dictionary(d):
 
 def assoc_in(d, path, value):
     if path:
-        return dict(d, **{path[0]: assoc_in(d.get(path[0], {}), path[1:], value)})
-    else:
-        return value
+        return dict(
+            d,
+            **{
+                path[0]: assoc_in(d.get(path[0], {}), path[1:], value)
+            }
+        )
+    return value
 
 
 def override_schemas(overrides, processes):
@@ -129,7 +134,8 @@ def generate_derivers(processes, topology):
                     deriver_ports = deriver.ports()
                     deriver_topology[deriver_key] = {
                         port: (port,) for port in deriver_ports.keys()}
-                    for target, source in config.get('port_mapping', {}).items():
+                    for target, source in config.get(
+                            'port_mapping', {}).items():
                         path = subtopology[source]
                         deriver_topology[deriver_key][target] = path
         else:
@@ -146,12 +152,14 @@ def get_composite_initial_state(processes, topology):
     for path, node in processes.items():
         if isinstance(node, dict):
             for key in node.keys():
-                initial_state[key] = get_composite_initial_state(node, topology[path])
+                initial_state[key] = get_composite_initial_state(
+                    node, topology[path])
         elif isinstance(node, Process):
             process_topology = topology[path]
             process_state = node.initial_state()
             process_path = tuple()
-            state = inverse_topology(process_path, process_state, process_topology)
+            state = inverse_topology(
+                process_path, process_state, process_topology)
             initial_state = deep_merge(initial_state, state)
 
     return initial_state
@@ -205,8 +213,8 @@ class Factory(metaclass=abc.ABCMeta):
                 some may ignore it.
 
         Returns:
-            dict: Subclass implementations must return a :term:`topology`
-            dictionary.
+            dict: Subclass implementations must return a
+            :term:`topology` dictionary.
         """
         return {}
 
@@ -291,7 +299,7 @@ class Composite(Factory):
         topology = network['topology']
 
         # add merged processes
-        # TODO - this assumes all merge_processes are already initialized.
+        # TODO - this assumes all merge_processes are initialized.
         # TODO - make option to initialize new processes here
         processes = deep_merge(processes, self.merge_processes)
         topology = deep_merge(topology, self.merge_topology)
@@ -318,12 +326,14 @@ class Composite(Factory):
         topology = topology or {}
         schema_override = schema_override or {}
 
-        for name, process in processes.items():
+        for process in processes.values():
             assert isinstance(process, Process)
 
-        self.merge_processes = deep_merge_check(self.merge_processes, processes)
+        self.merge_processes = deep_merge_check(
+            self.merge_processes, processes)
         self.merge_topology = deep_merge(self.merge_topology, topology)
-        self.schema_override = deep_merge(self.schema_override, schema_override)
+        self.schema_override = deep_merge(
+            self.schema_override, schema_override)
 
 
 class Process(Composite, metaclass=abc.ABCMeta):
@@ -355,7 +365,9 @@ class Process(Composite, metaclass=abc.ABCMeta):
             dict: Subclass implementations must return a dictionary
             mapping state paths to initial values.
         """
-        raise Exception('{} does not include an "initial_state" function'.format(self.name))
+        raise Exception(
+            '{} does not include an "initial_state" function'.format(
+                self.name))
 
     def register(self, name=None):
         process_registry.register(name or self.name, self)
@@ -386,8 +398,8 @@ class Process(Composite, metaclass=abc.ABCMeta):
 
     def local_timestep(self):
         '''
-        Returns the favored timestep for this process.
-        Meant to be overridden in subclasses, unless 1.0 is a happy value.
+        Returns the favored timestep for this process. Meant to be
+        overridden in subclasses, unless 1.0 is a happy value.
         '''
         return self.parameters.get('time_step', DEFAULT_TIME_STEP)
 
@@ -402,22 +414,26 @@ class Process(Composite, metaclass=abc.ABCMeta):
                     state[port][key] = value['_default']
         return state
 
-    def is_deriver(self):
+    # The three following methods don't use `self`, but since subclasses
+    # might, they neex to take `self` as a parameter.
+
+    def is_deriver(self):  # pylint: disable=no-self-use
         return False
 
-    def derivers(self):
+    def derivers(self):  # pylint: disable=no-self-use
         return {}
 
-    def pull_data(self):
+    def pull_data(self):  # pylint: disable=no-self-use
         return {}
 
     @abc.abstractmethod
     def ports_schema(self):
         '''
-        ports_schema returns a dictionary that declares which states are expected by the processes,
-        and how each state will behave.
+        ports_schema returns a dictionary that declares which states are
+        expected by the processes, and how each state will behave.
 
-        state keys can be assigned properties through schema_keys declared in Store:
+        state keys can be assigned properties through schema_keys
+        declared in Store:
             '_default'
             '_updater'
             '_divider'
@@ -439,8 +455,8 @@ class Process(Composite, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def next_update(self, timestep, states):
         '''
-        Find the next update given the current states this process cares about.
-        This is the main function a new process would override.
+        Find the next update given the current states this process cares
+        about. This is the main function a new process would override.
         '''
         return {}
 
@@ -467,7 +483,7 @@ def run_update(connection, process):
     connection.close()
 
 
-class ParallelProcess(object):
+class ParallelProcess:
     def __init__(self, process):
         self.process = process
         self.parent, self.child = Pipe()
@@ -489,7 +505,8 @@ class ParallelProcess(object):
 
 def test_composite_initial_state():
     """
-    test that initial state in composite merges individual processes' initial states
+    test that initial state in composite merges individual processes'
+    initial states
     """
     class AA(Process):
         name = 'AA'
@@ -585,9 +602,24 @@ class ToyComposite(Composite):
 
 
 def test_composite_merge():
-
     generator = ToyComposite()
     initial_network = generator.generate()
+
+    expected_initial_topology = {
+        'A': {
+            'A': ('aaa',),
+            'B': ('bbb',),
+        },
+        'B': {
+            'A': ('bbb',),
+            'B': ('ccc',),
+        },
+    }
+    assert initial_network['topology'] == expected_initial_topology
+
+    for key in ('A', 'B'):
+        assert key in initial_network['processes']
+        assert isinstance(initial_network['processes'][key], ToyProcess)
 
     # merge
     merge_processes = {
@@ -602,6 +634,26 @@ def test_composite_merge():
 
     config = {'A': {'name': 'D'}, 'B': {'name': 'E'}}
     merged_network = generator.generate(config)
+
+    expected_merged_topology = {
+        'A': {
+            'A': ('aaa',),
+            'B': ('bbb',),
+        },
+        'B': {
+            'A': ('bbb',),
+            'B': ('ccc',),
+        },
+        'C': {
+            'A': ('aaa',),
+            'B': ('bbb',),
+        },
+    }
+    assert merged_network['topology'] == expected_merged_topology
+
+    for key in ('A', 'B', 'C'):
+        assert key in initial_network['processes']
+        assert isinstance(initial_network['processes'][key], ToyProcess)
 
 
 def test_get_composite():
@@ -628,7 +680,9 @@ def test_get_composite():
 
 
 if __name__ == '__main__':
-    # test_composite_initial_state()
-    # test_composite_merge()
-
+    print('Running test_composite_initial_state')
+    test_composite_initial_state()
+    print('Running test_composite_merge()')
+    test_composite_merge()
+    print('Running test_get_composite()')
     test_get_composite()
