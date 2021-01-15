@@ -106,10 +106,6 @@ def schema_for(port, keys, initial_state, default=0.0, updater='accumulate'):
         for key in keys}
 
 
-def topology_path(topology, path):
-    pass
-
-
 def always_true(_):
     return True
 
@@ -405,8 +401,7 @@ class Store(object):
 
         if self.outer:
             return self.outer.top()
-        else:
-            return self
+        return self
 
     def path_for(self):
         '''
@@ -417,8 +412,7 @@ class Store(object):
             key = key_for_value(self.outer.inner, self)
             above = self.outer.path_for()
             return above + (key,)
-        else:
-            return tuple()
+        return tuple()
 
     def get_value(self, condition=None, f=None):
         '''
@@ -436,11 +430,9 @@ class Store(object):
                 key: f(child.get_value(condition, f))
                 for key, child in self.inner.items()
                 if condition(child)}
-        else:
-            if self.subschema:
-                return {}
-            else:
-                return self.value
+        if self.subschema:
+            return {}
+        return self.value
 
     def get_path(self, path):
         '''
@@ -456,12 +448,10 @@ class Store(object):
 
             if child:
                 return child.get_path(path[1:])
-            else:
-                # TODO: more handling for bad paths?
-                # TODO: check deleted?
-                return None
-        else:
-            return self
+            # TODO: more handling for bad paths?
+            # TODO: check deleted?
+            return None
+        return self
 
     def get_paths(self, paths):
         return {
@@ -499,24 +489,20 @@ class Store(object):
                 if child_data is not None or child_data == 0:
                     data[key] = child_data
             return data
-        else:
-            if self.emit:
-                if self.serializer:
-                    if isinstance(self.value, list) and self.units:
-                        return self.serializer.serialize(
-                            [v.to(self.units) for v in self.value])
-                    elif self.units:
-                        return self.serializer.serialize(
-                            self.value.to(self.units))
-                    else:
-                        return self.serializer.serialize(self.value)
-                elif isinstance(self.value, Process):
-                    return self.value.pull_data()
-                else:
-                    if self.units:
-                        return self.value.to(self.units).magnitude
-                    else:
-                        return self.value
+        if self.emit:
+            if self.serializer:
+                if isinstance(self.value, list) and self.units:
+                    return self.serializer.serialize(
+                        [v.to(self.units) for v in self.value])
+                if self.units:
+                    return self.serializer.serialize(
+                        self.value.to(self.units))
+                return self.serializer.serialize(self.value)
+            if isinstance(self.value, Process):
+                return self.value.pull_data()
+            if self.units:
+                return self.value.to(self.units).magnitude
+            return self.value
 
     def delete_path(self, path):
         '''
@@ -527,13 +513,12 @@ class Store(object):
             self.inner = {}
             self.value = None
             return self
-        else:
-            target = self.get_path(path[:-1])
-            remove = path[-1]
-            if remove in target.inner:
-                lost = target.inner[remove]
-                del target.inner[remove]
-                return lost
+        target = self.get_path(path[:-1])
+        remove = path[-1]
+        if remove in target.inner:
+            lost = target.inner[remove]
+            del target.inner[remove]
+            return lost
 
     def divide_value(self):
         '''
@@ -548,9 +533,8 @@ class Store(object):
                 topology = self.divider['topology']
                 state = self.outer.get_values(topology)
                 return divider(self.get_value(), state)
-            else:
-                return self.divider(self.get_value())
-        elif self.inner:
+            return self.divider(self.get_value())
+        if self.inner:
             daughters = [{}, {}]
             for key, child in self.inner.items():
                 division = child.divide_value()
@@ -690,7 +674,7 @@ class Store(object):
                     experiment_topology)
             return EMPTY_UPDATES
 
-        elif self.inner or self.subschema:
+        if self.inner or self.subschema:
             # Branch update: this node has an inner
 
             process_updates, topology_updates, deletions = [], [], []
@@ -966,12 +950,11 @@ class Store(object):
         state = self.get_path(path)
         if state is None:
             return {}
-        elif keys and keys[0] == '*':
+        if keys and keys[0] == '*':
             return state.get_value()
-        else:
-            return {
-                key: state.inner_value(key)
-                for key in keys}
+        return {
+            key: state.inner_value(key)
+            for key in keys}
 
     def depth(self, path=(), filter_function=None):
         '''
@@ -1000,7 +983,7 @@ class Store(object):
                     source=self.path_for() + ('*',))
             inner.apply_subschema_path(path[1:])
 
-    def apply_subschema(self, subschema=None, subtopology=None, source=None):
+    def apply_subschema(self, subschema=None, subtopology=None):
         '''
         Apply a subschema to all inner nodes (either provided or from this
         node's personal subschema) as governed by the given/personal
@@ -1066,18 +1049,16 @@ class Store(object):
                     remaining,
                     config,
                     source=source)
-            else:
-                if path_step not in self.inner:
-                    self.inner[path_step] = Store(
-                        {}, outer=self, source=source)
+            if path_step not in self.inner:
+                self.inner[path_step] = Store(
+                    {}, outer=self, source=source)
 
-                return self.inner[path_step].establish_path(
-                    remaining,
-                    config,
-                    source=source)
-        else:
-            self.apply_config(config, source=source)
-            return self
+            return self.inner[path_step].establish_path(
+                remaining,
+                config,
+                source=source)
+        self.apply_config(config, source=source)
+        return self
 
     def add_node(self, path, node):
         ''' Add a node instance at the provided path '''
@@ -1413,9 +1394,8 @@ class Experiment(object):
             self.parallel[path].update(interval, states)
 
             return self.parallel[path]
-        else:
-            # if not parallel, perform a normal invocation
-            return self.invoke(process, interval, states)
+        # if not parallel, perform a normal invocation
+        return self.invoke(process, interval, states)
 
     def process_update(self, path, process, interval):
         state = self.state.get_path(path)
@@ -1589,7 +1569,7 @@ class Experiment(object):
                         emit_time += self.emit_step
 
         # post-simulation
-        for process_name, advance in front.items():
+        for advance in front.values():
             assert advance['time'] == time == interval
             assert len(advance['update']) == 0
 
@@ -1660,9 +1640,6 @@ class Proton(Process):
         'time_step': 1.0,
         'radius': 0.0}
 
-    def __init__(self, parameters=None):
-        super(Proton, self).__init__(parameters)
-
     def ports_schema(self):
         return {
             'radius': {
@@ -1693,14 +1670,14 @@ class Proton(Process):
             update['radius'] = collapse
             update['quarks'] = {}
 
-            for name, quark in states['quarks'].items():
+            for name in states['quarks'].keys():
                 update['quarks'][name] = {
                     'color': np.random.choice(quark_colors),
                     'spin': np.random.choice(quark_spins)}
 
             update['electrons'] = {}
             orbitals = electron_orbitals.copy()
-            for name, electron in states['electrons'].items():
+            for name in states['electrons'].keys():
                 np.random.shuffle(orbitals)
                 update['electrons'][name] = {
                     'orbital': orbitals.pop()}
@@ -1713,9 +1690,6 @@ class Electron(Process):
     defaults = {
         'time_step': 1.0,
         'spin': electron_spins[0]}
-
-    def __init__(self, parameters=None):
-        super(Electron, self).__init__(parameters)
 
     def ports_schema(self):
         return {
@@ -1739,9 +1713,6 @@ class Sine(Process):
     name = 'sine'
     defaults = {
         'initial_phase': 0.0}
-
-    def __init__(self, parameters=None):
-        super(Sine, self).__init__(parameters)
 
     def ports_schema(self):
         return {
@@ -1918,7 +1889,7 @@ def test_timescales():
         defaults = {'timestep': 3.0}
 
         def __init__(self, config=None):
-            super(Slow, self).__init__(config)
+            super().__init__(config)
 
         def ports_schema(self):
             return {
@@ -1941,7 +1912,7 @@ def test_timescales():
         defaults = {'timestep': 0.3}
 
         def __init__(self, config=None):
-            super(Fast, self).__init__(config)
+            super().__init__(config)
 
         def ports_schema(self):
             return {
