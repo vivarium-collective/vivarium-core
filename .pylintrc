@@ -2,6 +2,7 @@
 
 # Rules reference:
 # https://pylint.pycqa.org/en/latest/technical_reference/features.html
+# Begins with the statements ignored by default
 disable=print-statement,
         parameter-unpacking,
         unpacking-in-except,
@@ -52,9 +53,17 @@ disable=print-statement,
         cmp-method,
         input-builtin,
         round-builtin,
+# TODO: Ignore docstrings temporarily
         missing-class-docstring,
         missing-function-docstring,
         missing-module-docstring,
+# Rules we ignore that are not ignored by default
+        too-many-return-statements,
+        too-many-arguments,
+        too-many-locals,
+        too-many-branches,
+        too-few-public-methods,
+        fixme,
 ignore=injected_glc_phosphorylation.py,
        injector.py,
        topology.py,
@@ -72,7 +81,6 @@ ignore=injected_glc_phosphorylation.py,
        emitter.py,
        tree_mass.py,
        filepath.py,
-       process.py,
        exchange_a.py,
        registry.py,
        units.py,
