@@ -13,9 +13,9 @@ import copy
 from vivarium.core.experiment import timestamp
 from vivarium.core.composition import (
     simulate_compartment_in_experiment,
-    ToyCompartment,
     BASE_OUT_DIR,
 )
+from vivarium.composites.toys import ToyCompartment
 
 from vivarium.plots.simulation_output import plot_simulation_output
 
