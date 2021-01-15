@@ -13,7 +13,7 @@ from vivarium.core.process import (
     Factory,
 )
 from vivarium.core.composition import (
-    simulate_compartment_in_experiment,
+    simulate_composite,
     PROCESS_OUT_DIR,
 )
 from vivarium.processes.exchange_a import ExchangeA
@@ -104,7 +104,7 @@ def test_remove():
         'timeline': {
             'timeline': timeline},
         'initial_state': initial_state}
-    output = simulate_compartment_in_experiment(
+    output = simulate_composite(
         compartment,
         settings)
 

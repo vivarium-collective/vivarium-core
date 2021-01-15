@@ -24,7 +24,7 @@ def make_dir(out_dir):
     os.makedirs(out_dir, exist_ok=True)
 
 
-class Control():
+class Control:
 
     def __init__(
             self,

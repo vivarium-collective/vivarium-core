@@ -12,7 +12,7 @@ from vivarium.core.process import (
     Factory,
 )
 from vivarium.core.composition import (
-    simulate_compartment_in_experiment,
+    simulate_composite,
     PROCESS_OUT_DIR,
 )
 from vivarium.plots.simulation_output import plot_simulation_output
@@ -155,7 +155,7 @@ def test_death():
         'timeline': {
             'timeline': timeline},
         'initial_state': initial_state}
-    output = simulate_compartment_in_experiment(
+    output = simulate_composite(
         compartment,
         settings)
 

@@ -6,7 +6,7 @@ from vivarium.core.process import Process
 from vivarium.library.units import units
 
 from vivarium.core.composition import (
-    simulate_process_in_experiment,
+    simulate_process,
 )
 
 
@@ -78,7 +78,7 @@ if __name__ == '__main__':
     growth_process = ExponentialGrowth({})
 
     # run a simulation with helper function called
-    # simulate_process_in_experiment
+    # simulate_process
     settings = {
         'total_time': 5000,
         'initial_state': {
@@ -88,5 +88,5 @@ if __name__ == '__main__':
         },
         #     'progress_bar': False,
     }
-    grow_output = simulate_process_in_experiment(
+    grow_output = simulate_process(
         growth_process, settings)

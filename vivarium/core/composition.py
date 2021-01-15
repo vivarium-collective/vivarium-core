@@ -157,13 +157,28 @@ def compose_experiment(
     return Experiment(experiment_config)
 
 
-# basic loading functions
+
+# experiment loading functions
 
 def process_in_experiment(
         process,
         settings=None,
         initial_state=None,
 ):
+    """ put a Process in an Experiment
+
+    Arguments:
+        settings (dict): a dictionary of optional configuration options,
+            keywords include timeline, environment, and topology that
+            add to or modify the Process.
+        initial_state (dict): initial state to overrides the defaults.
+
+    Returns:
+        an **Experiment**
+
+    TODO: derivers can be added here, instead of with the
+        Process.deriver() method
+    """
     if settings is None:
         settings = {}
     if initial_state is None:
@@ -230,22 +245,35 @@ def process_in_experiment(
     return Experiment(experiment_config)
 
 
-def compartment_in_experiment(
-        compartment,
+def composite_in_experiment(
+        composite,
         settings=None,
         initial_state=None,
 ):
+    """ put a Composite in an Experiment
+
+    Arguments:
+        composite: the composite Factory object.
+        settings (dict): a dictionary of options, including composite_config
+            for configuring the composite. Additional  keywords include
+            timeline, environment, and outer_path.
+        initial_state (dict): initial state to overrides the defaults.
+
+    Returns:
+        an **Experiment**
+    """
+
     if settings is None:
         settings = {}
     if initial_state is None:
         initial_state = {}
 
-    compartment_config = settings.get('compartment', {})
+    composite_config = settings.get('composite_config', {})
     timeline = settings.get('timeline')
     environment = settings.get('environment')
     outer_path = settings.get('outer_path', tuple())
 
-    network = compartment.generate(compartment_config, outer_path)
+    network = composite.generate(composite_config, outer_path)
     processes = network['processes']
     topology = network['topology']
 
@@ -296,7 +324,7 @@ def compartment_in_experiment(
 
 
 
-# simulation functions
+# simulate helper functions
 
 def simulate_process(
         process,
@@ -307,25 +335,19 @@ def simulate_process(
     return simulate_experiment(experiment, settings)
 
 
-def simulate_process_in_experiment(
-        process,
-        settings: Optional[Dict[str, Any]] = None):
+def simulate_composite(
+        composite,
+        settings: Optional[Dict[str, Any]] = None
+):
     settings = settings or {}
-    experiment = process_in_experiment(process, settings)
-    return simulate_experiment(experiment, settings)
-
-
-def simulate_compartment_in_experiment(
-        compartment,
-        settings: Optional[Dict[str, Any]] = None):
-    settings = settings or {}
-    experiment = compartment_in_experiment(compartment, settings)
+    experiment = composite_in_experiment(composite, settings)
     return simulate_experiment(experiment, settings)
 
 
 def simulate_experiment(
         experiment,
-        settings: Optional[Dict[str, Any]] = None):
+        settings: Optional[Dict[str, Any]] = None
+):
     '''
     run an experiment simulation
         Requires:
@@ -356,27 +378,22 @@ def simulate_experiment(
 
 # Tests
 
-class TestSimulateProcess:
+def test_process_deletion():
+    '''Check that processes are successfully deleted'''
+    process = ToyLinearGrowthDeathProcess({'targets': ['process']})
+    settings = {
+        'emit_step': 1,
+        'topology': {
+            'global': ('global',),
+            'targets': tuple()}}
 
-    def test_process_deletion(self):
-        '''Check that processes are successfully deleted'''
-        process = ToyLinearGrowthDeathProcess({'targets': ['process']})
-        settings = {
-            'emit_step': 1,
-            'topology': {
-                'global': ('global',),
-                'targets': tuple()}}
-
-        output = simulate_process(process, settings)
-        expected_masses = [
-            # Mass stops increasing the iteration after mass > 5 because
-            # cell dies
-            1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 7.0, 7.0, 7.0, 7.0]
-        masses = output['global']['mass']
-        assert masses == expected_masses
-
-
-# Toy processes
+    output = simulate_process(process, settings)
+    expected_masses = [
+        # Mass stops increasing the iteration after mass > 5 because
+        # cell dies
+        1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 7.0, 7.0, 7.0, 7.0]
+    masses = output['global']['mass']
+    assert masses == expected_masses
 
 
 def test_compartment():
@@ -392,10 +409,10 @@ def test_compartment():
                 'GLC': 0,
                 'MASS': 3,
                 'DENSITY': 10}}}
-    return simulate_compartment_in_experiment(toy_compartment, settings)
+    return simulate_composite(toy_compartment, settings)
 
 
 if __name__ == '__main__':
-    TestSimulateProcess().test_process_deletion()
-    timeseries = test_compartment()
-    print(timeseries)
+    # test_process_deletion()
+
+    test_compartment()
