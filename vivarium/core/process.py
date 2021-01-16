@@ -123,7 +123,7 @@ def assoc_in(d: dict, path: Path, value: Any) -> dict:
 
 def override_schemas(
         overrides: Dict[str, Schema],
-        processes: Dict[str, Process]) -> None:
+        processes: Dict[str, 'Process']) -> None:
     for key, override in overrides.items():
         process = processes[key]
         if isinstance(process, Process):
@@ -133,7 +133,7 @@ def override_schemas(
 
 
 def generate_derivers(
-        processes: Dict[str, Process],
+        processes: Dict[str, 'Process'],
         topology: Topology) -> CompositeDict:
     deriver_processes = {}
     deriver_topology = Topology({})
@@ -169,7 +169,7 @@ def generate_derivers(
 
 
 def get_composite_initial_state(
-        processes: Dict[str, Process],
+        processes: Dict[str, 'Process'],
         topology: Topology) -> State:
     initial_state = {}
     for path, node in processes.items():
@@ -353,7 +353,7 @@ class Composite(Factory):
 
     def merge(
             self,
-            processes: Optional[Dict[str, Process]] = None,
+            processes: Optional[Dict[str, 'Process']] = None,
             topology: Optional[Topology] = None,
             schema_override: Optional[Schema] = None) -> None:
         processes = processes or {}
