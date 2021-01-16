@@ -21,7 +21,7 @@ from vivarium.library.units import Quantity
 from vivarium.core.registry import process_registry, serializer_registry
 from vivarium.library.dict_utils import deep_merge, deep_merge_check
 from vivarium.core.types import (
-    Path, Topology, Schema, State, Update, CompositeDict)
+    HierarchyPath, Topology, Schema, State, Update, CompositeDict)
 
 DEFAULT_TIME_STEP = 1.0
 
@@ -110,7 +110,7 @@ def deserialize_dictionary(d: dict) -> dict:
     return deserialized
 
 
-def assoc_in(d: dict, path: Path, value: Any) -> dict:
+def assoc_in(d: dict, path: HierarchyPath, value: Any) -> dict:
     if path:
         return dict(
             d,
@@ -180,7 +180,7 @@ def get_composite_initial_state(
         elif isinstance(node, Process):
             process_topology = topology[path]
             process_state = node.initial_state()
-            process_path: Path = tuple()
+            process_path: HierarchyPath = tuple()
             state = inverse_topology(
                 process_path, process_state, process_topology)
             initial_state = deep_merge(initial_state, state)
@@ -246,7 +246,7 @@ class Factory(metaclass=abc.ABCMeta):
     def generate(
             self,
             config: Optional[dict] = None,
-            path: Path = tuple()) -> CompositeDict:
+            path: HierarchyPath = tuple()) -> CompositeDict:
         '''Generate processes and topology dictionaries
 
         Arguments:
@@ -326,7 +326,7 @@ class Composite(Factory):
     def generate(
             self,
             config: Optional[dict] = None,
-            path: Path = tuple()) -> CompositeDict:
+            path: HierarchyPath = tuple()) -> CompositeDict:
         network = super().generate(config=config)
         processes = network['processes']
         topology = network['topology']

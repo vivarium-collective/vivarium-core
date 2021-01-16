@@ -86,7 +86,8 @@ intersphinx_mapping = {
 reftarget_aliases = {
     type_name: ('vivarium.core.types.{}'.format(type_name), type_name)
     for type_name in (
-        'Path', 'Topology', 'Schema', 'State', 'Update', 'CompositeDict')
+        'HierarchyPath', 'Topology', 'Schema', 'State', 'Update',
+        'CompositeDict')
 }
 reftarget_aliases.update({
     type_name: ('typing.{}'.format(type_name), type_name)

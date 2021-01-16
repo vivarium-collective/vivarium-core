@@ -24,7 +24,7 @@ from vivarium.library.dict_utils import (
 )
 from vivarium.core.emitter import get_emitter
 from vivarium.core.process import (
-    Path,
+    HierarchyPath,
     Deriver,
     Process,
     ParallelProcess,
@@ -1301,11 +1301,11 @@ class Experiment:
 
         # parallel settings
         self.invoke = config.get('invoke', InvokeProcess)
-        self.parallel: Dict[Path, ParallelProcess] = {}
+        self.parallel: Dict[HierarchyPath, ParallelProcess] = {}
 
         # get a mapping of all paths to processes
-        self.process_paths: Dict[Path, Process] = {}
-        self.deriver_paths: Dict[Path, Deriver] = {}
+        self.process_paths: Dict[HierarchyPath, Process] = {}
+        self.deriver_paths: Dict[HierarchyPath, Deriver] = {}
         self.find_process_paths(self.processes)
 
         # initialize the state

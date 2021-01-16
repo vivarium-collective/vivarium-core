@@ -4,12 +4,12 @@ Types
 =====
 '''
 
-from typing import Union, Tuple, NewType, Dict, Any
+from typing import Tuple, NewType, Dict, Any
 
 
 #: Relative path between nodes in the :term:`hierarchy`. Like Unix file
 #: paths, ".." refers to the parent directory.
-Path = Union[Tuple[str, ...], Tuple[()]]
+HierarchyPath = Tuple[str, ...]
 
 #: Mapping from :term:`ports` to paths that specify which node in the
 #: :term:`hierarchy` should be wired to each port.
