@@ -14,6 +14,7 @@ Submodules
    vivarium.core.process
    vivarium.core.registry
    vivarium.core.test_experiment
+   vivarium.core.types
 
 Module contents
 ---------------

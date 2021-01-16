@@ -16,7 +16,7 @@ from vivarium.core.experiment import (
 )
 
 # processes
-from vivarium.processes.exchange_a import ExchangeA
+from vivarium.composites.toys import ExchangeA
 from vivarium.processes.timeline import TimelineProcess
 
 NAME = 'meta_division'

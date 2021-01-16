@@ -16,7 +16,7 @@ from vivarium.core.composition import (
     FACTORY_KEY,
     PROCESS_OUT_DIR,
 )
-from vivarium.processes.exchange_a import ExchangeA
+from vivarium.composites.toys import ExchangeA
 from vivarium.processes.timeline import TimelineProcess
 
 
