@@ -28,6 +28,7 @@ from vivarium.library.dict_utils import (
 )
 from vivarium.core.emitter import get_emitter
 from vivarium.core.process import (
+    Path,
     Composite,
     Deriver,
     Process,
@@ -57,8 +58,6 @@ def pf(x):
 
 
 EMPTY_UPDATES = None, None, None
-
-Path = Union[Tuple[str, ...], Tuple[()]]
 
 log.basicConfig(level=os.environ.get("LOGLEVEL", log.WARNING))
 

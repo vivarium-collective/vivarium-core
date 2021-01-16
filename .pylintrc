@@ -64,6 +64,9 @@ disable=print-statement,
         too-many-branches,
         too-few-public-methods,
         fixme,
+        unsupported-assignment-operation,  # Buggy with NewType objects
+        unsubscriptable-object,  # Buggy with NewType objects
+        no-member,  # Buggy with NewType objects
 ignore=injected_glc_phosphorylation.py,
        injector.py,
        topology.py,
