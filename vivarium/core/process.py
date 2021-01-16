@@ -463,13 +463,13 @@ class Process(Composite, metaclass=abc.ABCMeta):
     # The three following methods don't use `self`, but since subclasses
     # might, they need to take `self` as a parameter.
 
-    def is_deriver(self) -> bool:  # pylint: disable=no-self-use
+    def is_deriver(self) -> bool:
         return False
 
-    def derivers(self) -> Dict[str, Any]:  # pylint: disable=no-self-use
+    def derivers(self) -> Dict[str, Any]:
         return {}
 
-    def pull_data(self) -> State:  # pylint: disable=no-self-use
+    def pull_data(self) -> State:
         return State({})
 
     @abc.abstractmethod
