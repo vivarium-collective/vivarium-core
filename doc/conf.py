@@ -11,11 +11,13 @@
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
 import os
+import shutil
 import sys
 sys.path.insert(0, os.path.abspath('..'))
 
 from docutils.nodes import Text
 from sphinx.addnodes import pending_xref
+from sphinx.ext import apidoc
 from sphinx.ext.intersphinx import missing_reference
 
 
@@ -68,8 +70,7 @@ html_theme = 'sphinx_rtd_theme'
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
 
-# -- Options for extensions
-# --------------------------------------------------
+# -- Options for extensions --------------------------------------------------
 
 # -- sphinx.ext.intersphinx options --
 intersphinx_mapping = {
@@ -92,6 +93,22 @@ reftarget_aliases.update({
     for type_name in (
         'Any', 'Dict', 'Tuple', 'Union', 'Optional', 'Callable', 'List')
 })
+
+
+# -- sphinx.ext.autodoc options --
+autodoc_inherit_docstrings = False
+# The Python dependencies aren't really required for building the docs
+autodoc_mock_imports = [
+    'arpeggio', 'cobra', 'matplotlib',
+    'mpl_toolkits', 'networkx', 'parsimonious', 'pygame', 'pymongo',
+    'arrow',
+]
+# Concatenate class and __init__ docstrings
+autoclass_content = 'both'
+
+
+# -- Custom Extensions -------------------------------------------------
+
 
 # This function is adapted from a StackOverflow answer by Oleg Höfling
 # at https://stackoverflow.com/a/62301461. Per StackOverflow's licensing
@@ -125,6 +142,16 @@ def resolve_intersphinx_aliases(app, env, node, contnode):
     return None
 
 
+def run_apidoc(_):
+    cur_dir = os.path.abspath(os.path.dirname(__file__))
+    module = os.path.join(cur_dir, '..', 'vivarium')
+    apidoc_dir = os.path.join(cur_dir, 'reference', 'api')
+    if os.path.exists(apidoc_dir):
+        shutil.rmtree(apidoc_dir)
+    os.mkdir(apidoc_dir)
+    apidoc.main(['-f', '-e', '-o', apidoc_dir, module])
+
+
 # This function is adapted from a StackOverflow answer by Oleg Höfling
 # at https://stackoverflow.com/a/62301461. Per StackOverflow's licensing
 # terms, it is available under a CC-BY-SA 4.0 license
@@ -132,15 +159,4 @@ def resolve_intersphinx_aliases(app, env, node, contnode):
 def setup(app):
     app.connect('doctree-read', resolve_internal_aliases)
     app.connect('missing-reference', resolve_intersphinx_aliases)
-
-
-# -- sphinx.ext.autodoc options --
-autodoc_inherit_docstrings = False
-# The Python dependencies aren't really required for building the docs
-autodoc_mock_imports = [
-    'arpeggio', 'cobra', 'matplotlib',
-    'mpl_toolkits', 'networkx', 'parsimonious', 'pygame', 'pymongo',
-    'arrow',
-]
-# Concatenate class and __init__ docstrings
-autoclass_content = 'both'
+    app.connect('builder-inited', run_apidoc)
