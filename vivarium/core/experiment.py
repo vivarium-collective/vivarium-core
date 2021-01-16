@@ -149,7 +149,7 @@ class Store:
         self.subtopology = {}
         self.properties = {}
         self.default = None
-        self.updater_definition = None
+        self.updater = None
         self.value = None
         self.units = None
         self.divider = None
@@ -305,9 +305,9 @@ class Store:
                 if isinstance(self.value, Quantity):
                     self.units = self.value.units
 
-            self.updater_definition = config.get(
+            self.updater = config.get(
                 '_updater',
-                self.updater_definition or 'accumulate',
+                self.updater or 'accumulate',
             )
 
             self.properties = deep_merge(
@@ -334,19 +334,13 @@ class Store:
                     self.inner[key].apply_config(child, source=source)
 
     def get_updater(self, update):
-        updater_definition = self.updater_definition
+        updater = self.updater
         if isinstance(update, dict) and '_updater' in update:
-            updater_definition = update['_updater']
-        port_mapping = None
-        if isinstance(updater_definition, dict):
-            updater = updater_definition['updater']
-            port_mapping = updater_definition['port_mapping']
-        else:
-            updater = updater_definition
+            updater = update['_updater']
 
         if isinstance(updater, str):
             updater = updater_registry.access(updater)
-        return updater, port_mapping
+        return updater
 
     def get_config(self, sources=False):
         '''
@@ -379,8 +373,8 @@ class Store:
             config.update({
                 '_default': self.default,
                 '_value': self.value})
-            if self.updater_definition:
-                config['_updater'] = self.updater_definition
+            if self.updater:
+                config['_updater'] = self.updater
             if self.units:
                 config['_units'] = self.units
             if self.emit:
@@ -579,13 +573,7 @@ class Store:
             if self.value is None:
                 self.value = self.default
 
-    def apply_update(
-            self,
-            update,
-            process_topology=None,
-            state=None,
-            experiment_topology=None
-    ):
+    def apply_update(self, update, state=None):
         '''
         Given an arbitrary update, map all the values in that update
         to their positions in the tree where they apply, and update
@@ -661,11 +649,7 @@ class Store:
             multi_update = update[MULTI_UPDATE_KEY]
             assert isinstance(multi_update, list)
             for update_value in multi_update:
-                self.apply_update(
-                    update_value,
-                    process_topology,
-                    state,
-                    experiment_topology)
+                self.apply_update(update_value, state)
             return EMPTY_UPDATES
 
         if self.inner or self.subschema:
@@ -702,26 +686,21 @@ class Store:
                     target = target_node.add_node(source_path, source_node)
                     target_path = target.path_for() + source_path
 
-                    # find the process updates
+                    # find the paths to all the processes
                     source_process_paths = source_node.depth(
                         filter_function=lambda x: isinstance(x.value, Process))
-                    source_processes = [
-                        (target_path + source_path, source_process.value)
-                        for source_path, source_process
-                        in source_process_paths]
-                    process_updates.extend(source_processes)
 
-                    # find the topology updates
-                    here = self.path_for()
-                    source_absolute = tuple(here + source_path)
-                    source_topology = get_in(
-                        experiment_topology, source_absolute)
-                    if source_topology:
+                    # find the process and topology updates
+                    for path, process in source_process_paths:
+                        process_updates.append((
+                            target_path + path, process.value))
                         topology_updates.append((
-                            target_path,
-                            source_topology))
+                            target_path + path, process.topology))
 
                     self.delete_path(source_path)
+
+                    here = self.path_for()
+                    source_absolute = tuple(here + source_path)
                     deletions.append(source_absolute)
 
             generate_entries = update.pop('_generate', None)
@@ -805,11 +784,7 @@ class Store:
                 if key in self.inner:
                     inner = self.inner[key]
                     inner_topology, inner_processes, inner_deletions = \
-                        inner.apply_update(
-                            value,
-                            process_topology,
-                            state,
-                            experiment_topology)
+                        inner.apply_update(value, state)
 
                     if inner_topology:
                         topology_updates.extend(inner_topology)
@@ -830,11 +805,9 @@ class Store:
 
         # Leaf update: this node has no inner
 
-        updater, port_mapping = self.get_updater(update)
-        state_dict = None
+        updater = self.get_updater(update)
 
         if isinstance(update, dict) and '_reduce' in update:
-            assert port_mapping is None
             reduction = update['_reduce']
             top = self.get_path(reduction.get('from'))
             update = top.reduce(
@@ -846,15 +819,7 @@ class Store:
             if '_updater' in update:
                 update = update.get('_value', self.default)
 
-        if port_mapping is not None:
-            updater_topology = {
-                updater_port: process_topology[proc_port]
-                for updater_port, proc_port in port_mapping.items()}
-
-            state_dict = state.outer.topology_state(
-                updater_topology)
-
-        self.value = updater(self.value, update, state_dict)
+        self.value = updater(self.value, update)
 
         return EMPTY_UPDATES
 
@@ -1406,11 +1371,11 @@ class Experiment:
 
         absolute = Defer(update, invert_topology, (path, process_topology))
 
-        return absolute, process_topology, state
+        return absolute, state
 
-    def apply_update(self, update, process_topology, state):
+    def apply_update(self, update, state):
         topology_updates, process_updates, deletions = self.state.apply_update(
-            update, process_topology, state, self.topology)
+            update, state)
 
         if topology_updates:
             for path, topology_update in topology_updates:
@@ -1448,9 +1413,9 @@ class Experiment:
                 #  generate_paths() add a schema attribute to the Deriver.
                 #  PyCharm's type check reports:
                 #    Type Process doesn't have expected attribute 'schema'
-                update, process_topology, state = self.process_update(
+                update, state = self.process_update(
                     path, deriver, 0)
-                self.apply_update(update.get(), process_topology, state)
+                self.apply_update(update.get(), state)
 
     def emit_data(self):
         data = self.state.emit_data()
@@ -1463,8 +1428,8 @@ class Experiment:
 
     def send_updates(self, update_tuples):
         for update_tuple in update_tuples:
-            update, process_topology, state = update_tuple
-            self.apply_update(update.get(), process_topology, state)
+            update, state = update_tuple
+            self.apply_update(update.get(), state)
 
         self.run_derivers()
 
