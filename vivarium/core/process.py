@@ -10,8 +10,7 @@ from multiprocessing import Pipe
 from multiprocessing import Process as Multiprocess
 from multiprocessing.connection import Connection
 from typing import (
-    Any, Callable, Dict, NewType, Optional, Tuple, TypedDict, Union,
-    List, cast)
+    Any, Callable, Dict, Optional, Tuple, Union, List, cast)
 
 from bson.objectid import ObjectId
 import numpy as np
@@ -21,20 +20,10 @@ from vivarium.library.topology import inverse_topology
 from vivarium.library.units import Quantity
 from vivarium.core.registry import process_registry, serializer_registry
 from vivarium.library.dict_utils import deep_merge, deep_merge_check
+from vivarium.core.types import (
+    Path, Topology, Schema, State, Update, CompositeDict)
 
 DEFAULT_TIME_STEP = 1.0
-
-
-Path = Union[Tuple[str, ...], Tuple[()]]
-Topology = NewType('Topology', dict)
-Schema = NewType('Schema', Dict[str, Any])
-State = NewType('State', Dict[str, Any])
-Update = NewType('Update', Dict[str, Any])
-
-
-class CompositeDict(TypedDict):
-    processes: Dict[str, 'Process']
-    topology: Topology
 
 
 def serialize_value(value: Any) -> Any:
@@ -174,9 +163,9 @@ def generate_derivers(
             subderivers = generate_derivers(node, subtopology)
             deriver_processes[process_key] = subderivers['processes']
             deriver_topology[process_key] = subderivers['topology']
-    return {
+    return CompositeDict({
         'processes': deriver_processes,
-        'topology': deriver_topology}
+        'topology': deriver_topology})
 
 
 def get_composite_initial_state(
@@ -288,10 +277,10 @@ class Factory(metaclass=abc.ABCMeta):
         processes = deep_merge(derivers['processes'], processes)
         topology = deep_merge(derivers['topology'], topology)
 
-        return {
+        return CompositeDict({
             'processes': assoc_in({}, path, processes),
             'topology': Topology(assoc_in({}, path, topology)),
-        }
+        })
 
 
 class Composite(Factory):
@@ -323,7 +312,7 @@ class Composite(Factory):
         """
         network = self.generate(config)
         processes = network['processes']
-        topology = network['topology']
+        topology = cast(Topology, network['topology'])
         initial_state = get_composite_initial_state(processes, topology)
         return initial_state
 
@@ -350,10 +339,10 @@ class Composite(Factory):
 
         override_schemas(self.schema_override, processes)
 
-        return {
+        return CompositeDict({
             'processes': assoc_in({}, path, processes),
             'topology': Topology(assoc_in({}, path, topology)),
-        }
+        })
 
     def get_parameters(self) -> dict:
         network = self.generate({})
