@@ -345,7 +345,7 @@ class ExchangeA(Process):
         'secrete_rate': 0.0}
 
     def __init__(self, parameters=None):
-        super(ExchangeA, self).__init__(parameters)
+        super().__init__(parameters)
         self.uptake_rate = self.parameters['uptake_rate']
         self.secrete_rate = self.parameters['secrete_rate']
 

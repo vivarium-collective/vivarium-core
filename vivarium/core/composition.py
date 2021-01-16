@@ -7,10 +7,7 @@ from vivarium.composites.toys import (
     ToyLinearGrowthDeathProcess,
 )
 from vivarium.core.experiment import Experiment
-from vivarium.core.process import (
-    Composite,
-    generate_derivers,
-)
+from vivarium.core.process import generate_derivers
 from vivarium.library.dict_utils import (
     deep_merge,
     deep_merge_check,
@@ -382,17 +379,23 @@ def simulate_experiment(
 
 # Tests
 def test_process_in_experiment():
-    experiment = process_in_experiment(ExchangeA())
+    process = ExchangeA()
+    experiment = process_in_experiment(process)
+    assert experiment.processes['process'] is process
 
 def test_process_in_experiment_timeline():
     timeline = [
         (0, {('internal', 'A'): 0}),
         (1, {('internal', 'A'): 1}),
     ]
+    process = ExchangeA()
     experiment = process_in_experiment(
-        ExchangeA(),
+        process,
         settings={
             'timeline': {'timeline': timeline}})
+    assert experiment.processes['process'] is process
+    assert isinstance(
+        experiment.processes['timeline_process'], TimelineProcess)
 
 
 def test_compose_experiment():
@@ -429,7 +432,8 @@ def test_replace_names():
     process_names = list(experiment.processes.keys())
 
     assert len(process_names) == 2
-    assert process_names[0] in process_names[1]  # process_names[1] has added string
+    # process_names[1] has added string
+    assert process_names[0] in process_names[1]
 
 def test_process_deletion():
     '''Check that processes are successfully deleted'''
