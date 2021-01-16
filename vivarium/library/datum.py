@@ -1,10 +1,15 @@
-def first(l):
-    if l:
-        return l[0]
+from typing import Any, Callable, Dict, List
 
-def first_value(d):
+
+def first(a_list: List):
+    if a_list:
+        return a_list[0]
+
+
+def first_value(d: Dict):
     if d:
         return d[list(d.keys())[0]]  # TODO(jerry): iter(d.values()).__next__() would be faster
+
 
 class Datum(dict):
     '''
@@ -21,8 +26,8 @@ class Datum(dict):
     rendered back into a dict using the `to_dict()` method.
     '''
 
-    schema = {}
-    defaults = {}
+    schema: Dict[str, Callable] = {}
+    defaults: Dict[str, Any] = {}
 
     def __init__(self, config):
         super().__init__(self.defaults)
@@ -49,5 +54,3 @@ class Datum(dict):
     def __repr__(self):
         return str(type(self)) + ': ' + str({
             key: value for key, value in self.items()})
-
-

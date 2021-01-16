@@ -1,4 +1,5 @@
 import os
+from typing import Any, Dict, Optional
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -26,7 +27,7 @@ def order_list_of_paths(path_list):
 
 def plot_agents_multigen(
         data,
-        settings={},
+        settings: Optional[Dict[str, Any]] = None,
         out_dir=None,
         filename=None,
 ):
@@ -39,8 +40,16 @@ def plot_agents_multigen(
         data (dict): This is raw_data obtained from simulation output
         settings (dict): Accepts the following keys:
 
+            * **agents_key** (:py:class:`str`): The key under which agent
+              states can be found
             * **max_rows** (:py:class:`int`): ports with more states
               than this number of states get wrapped into a new column
+            * **stack_column** (:py:class:`bool`): if True, the output
+              of different ports will stacked in the same column
+            * **column_width** (:py:class:`float`): The width of a column 
+              of subplots
+            * **row_height** (:py:class:`float`): The height of a row of 
+              subplots
             * **remove_zeros** (:py:class:`bool`): if True, timeseries
               with all zeros get removed
             * **remove_flat** (:py:class:`bool`): if True, timeseries
@@ -49,6 +58,10 @@ def plot_agents_multigen(
               that won't be plotted
             * **include_paths** (:py:class:`list`): list of full paths
               to include. Overridden by skip_paths.
+            * **title_on_y_axis** :py:class:`bool`): if True, the plot titles
+              will appear to the left of the y-axis
+            * **title_size** (:py:class:`int`): font size of the subplots
+            * **tick_label_size** (:py:class:`int`): font size for the ticks
             * **titles_map** (:py:class:`dict`): Map from path tuples to
               strings to use as the figure titles for each path's plot.
               If not provided, the path is shown as the title.
@@ -61,9 +74,13 @@ def plot_agents_multigen(
     TODO -- add legend with agent color
     '''
 
+    settings = settings or {}
     agents_key = settings.get('agents_key', 'agents')
     max_rows = settings.get('max_rows', 25)
     column_width = settings.get('column_width', 4)
+    row_height = settings.get('row_height', column_width/2)
+    title_on_y_axis = settings.get('title_on_y_axis', False)
+    stack_column = settings.get('stack_column', False)
     remove_zeros = settings.get('remove_zeros', False)
     remove_flat = settings.get('remove_flat', False)
     skip_paths = settings.get('skip_paths', [])
@@ -104,11 +121,11 @@ def plot_agents_multigen(
             if set(path) >= set(remove):
                 remove_paths.add(path)
     # remove the paths
-    port_schema_paths = [path for path in port_schema_paths if path not in remove_paths]
-    top_ports = set([path[0] for path in port_schema_paths])
+    port_schema_paths -= remove_paths
+    top_ports = {path[0] for path in port_schema_paths}
 
-    # get list of states for each port
-    port_rows = {port_id: [] for port_id in top_ports}
+    # get the states for each port
+    port_rows: Dict[Any, list] = {port_id: [] for port_id in top_ports}
     for path in port_schema_paths:
         top_port = path[0]
         port_rows[top_port].append(path)
@@ -124,7 +141,7 @@ def plot_agents_multigen(
     highest_row = 0
     row_idx = 0
     col_idx = 0
-    ordered_paths = {port_id: {} for port_id in top_ports}
+    ordered_paths: Dict[Any, dict] = {port_id: {} for port_id in top_ports}
     for port_id, path_list in port_rows.items():
         if not path_list:
             continue
@@ -141,15 +158,20 @@ def plot_agents_multigen(
                 row_idx += 1
             if row_idx > highest_row:
                 highest_row = row_idx
-        # new column for next port
-        row_idx = 0
-        col_idx += 1
+
+        if not stack_column:
+            # new column for next port
+            row_idx = 0
+            col_idx += 1
 
     # initialize figure
     n_rows = highest_row + 1
     n_cols = col_idx + 1
-    fig = plt.figure(figsize=(column_width * n_cols, column_width/2 * n_rows))
-    grid = plt.GridSpec(ncols=n_cols, nrows=n_rows, wspace=0.4, hspace=1.5)
+    fig = plt.figure(figsize=(column_width * n_cols, row_height * n_rows))
+    if title_on_y_axis:
+        grid = plt.GridSpec(ncols=n_cols, nrows=n_rows, wspace=0.4, hspace=0.4)
+    else:
+        grid = plt.GridSpec(ncols=n_cols, nrows=n_rows, wspace=0.4, hspace=1.5)
 
     # make the subplot axes
     port_axes = {}
@@ -170,21 +192,25 @@ def plot_agents_multigen(
             if isinstance(state_title, tuple):
                 # new line for each store
                 state_title = ' \n'.join(state_title)
-            ax.title.set_text(state_title)
-            ax.title.set_fontsize(title_size)
+            if not title_on_y_axis:
+                ax.title.set_text(state_title)
+                ax.title.set_fontsize(title_size)
+            else:
+                ax.set_ylabel(state_title, rotation=0, fontsize=title_size)
+                ax.yaxis.set_label_coords(-0.2, 0.4)
+
             if path in ylabels_map:
                 ax.set_ylabel(ylabels_map[path], fontsize=title_size)
             ax.set_xlim([time_vec[0], time_vec[-1]])
             ax.xaxis.get_offset_text().set_fontsize(tick_label_size)
             ax.yaxis.get_offset_text().set_fontsize(tick_label_size)
 
-            # if last state in this port, add time ticks
-            if (row_idx >= highest_row
-                or path_idx >= len(ordered_paths[port_id]) - 1
-            ):
-                set_axes(ax, True)
-                ax.set_xlabel('time (s)', fontsize=title_size)
-
+            # if last state in this column, add time ticks
+            if (stack_column and row_idx >= highest_row-1) or \
+               (not stack_column and (row_idx >= highest_row or
+                    path_idx >= len(ordered_paths[port_id]) - 1)):
+                        set_axes(ax, True)
+                        ax.set_xlabel('time (s)', fontsize=title_size)
             else:
                 set_axes(ax)
             ax.set_xlim([time_vec[0], time_vec[-1]])
@@ -215,12 +241,12 @@ def plot_agents_multigen(
                         ax = port_axes[port_schema_path]
                         ax.plot(plot_times, series)
 
+    plt.subplots_adjust(wspace=0.2, hspace=0.2)
     if out_dir:
         os.makedirs(out_dir, exist_ok=True)
         if filename is None:
             filename = 'agents'
         fig_path = os.path.join(out_dir, filename)
-        plt.subplots_adjust(wspace=0.2, hspace=0.2)
         plt.savefig(fig_path, bbox_inches='tight')
     else:
         return fig

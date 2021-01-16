@@ -1,14 +1,59 @@
-## How to set up a Python runtime environment for Vivarium.
-#
-## Create the "vivarium" python virtual environment and select it for your project
-## directory:
-#   cd ~/code/vivarium-core
-#   pyenv local 3.8.3
-#   pyenv virtualenv vivarium
-#   pyenv local vivarium
-#
-## Install requirements
-#   pip install -r requirements.txt
-#
+# library imports
+matplotlib==3.3.2
+networkx==2.5
+numpy==1.19.4
+Pint==0.16.1
+pymongo==3.11.0
+scipy==1.5.4
 
--e .
+# dev tools
+mypy==0.790
+mypy-extensions==0.4.3
+Sphinx==3.4.3
+sphinx-rtd-theme==0.5.1
+pytest==6.1.2
+pytest-cov==2.10.1
+pylint==2.6.0
+
+# indirect requirements
+alabaster==0.7.12
+astroid==2.4.2
+attrs==20.3.0
+Babel==2.9.0
+certifi==2020.6.20
+chardet==4.0.0
+coverage==5.3.1
+cycler==0.10.0
+decorator==4.4.2
+docutils==0.16
+idna==2.10
+imagesize==1.2.0
+iniconfig==1.1.1
+isort==5.7.0
+Jinja2==2.11.2
+kiwisolver==1.3.1
+lazy-object-proxy==1.4.3
+MarkupSafe==1.1.1
+mccabe==0.6.1
+packaging==20.4
+Pillow==8.0.1
+pluggy==0.13.1
+py==1.9.0
+Pygments==2.7.3
+pyparsing==2.4.7
+python-dateutil==2.8.1
+pytz==2020.5
+requests==2.25.1
+six==1.15.0
+snowballstemmer==2.0.0
+sphinxcontrib-applehelp==1.0.2
+sphinxcontrib-devhelp==1.0.2
+sphinxcontrib-htmlhelp==1.0.3
+sphinxcontrib-jsmath==1.0.1
+sphinxcontrib-qthelp==1.0.3
+sphinxcontrib-serializinghtml==1.1.4
+toml==0.10.2
+typed-ast==1.4.2
+typing-extensions==3.7.4.3
+urllib3==1.26.2
+wrapt==1.12.1

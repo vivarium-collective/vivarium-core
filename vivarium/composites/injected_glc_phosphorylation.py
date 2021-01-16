@@ -6,13 +6,13 @@ Toy Injected Glucose Phosphorylation Compartment
 This is a toy example referenced in the documentation.
 """
 
-from vivarium.core.process import Generator
+from vivarium.core.process import Composite
 
 from vivarium.processes.glucose_phosphorylation import GlucosePhosphorylation
 from vivarium.processes.injector import Injector
 
 
-class InjectedGlcPhosphorylation(Generator):
+class InjectedGlcPhosphorylation(Composite):
 
     defaults = {
         'glucose_phosphorylation': {
@@ -27,7 +27,7 @@ class InjectedGlcPhosphorylation(Generator):
     }
 
     def __init__(self, config):
-        super(InjectedGlcPhosphorylation, self).__init__(config)
+        super().__init__(config)
 
     def generate_processes(self, config):
         injector = Injector(self.config['injector'])

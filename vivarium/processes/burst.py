@@ -5,21 +5,17 @@ Burst Process
 """
 
 import os
-import uuid
-import logging as log
 
 from vivarium.core.experiment import pp
 from vivarium.core.process import (
     Deriver,
-    Generator,
+    Factory,
 )
-from vivarium.library.units import units
 from vivarium.core.composition import (
     compose_experiment,
     GENERATORS_KEY,
     PROCESS_OUT_DIR,
 )
-from vivarium.plots.simulation_output import plot_simulation_output
 from vivarium.processes.exchange_a import ExchangeA
 from vivarium.processes.timeline import TimelineProcess
 
@@ -85,7 +81,7 @@ class Burst(Deriver):
 
 
 # test
-class ToyAgent(Generator):
+class ToyAgent(Factory):
     defaults = {
         'exchange': {
             'uptake_rate': 0.1},
@@ -118,10 +114,10 @@ def test_burst():
     agent_2_id = '2'
 
     # initial state
-    initial_A = 10
+    initial_a = 10
     initial_state = {
         'concentrations': {
-            'A': initial_A
+            'A': initial_a
         },
         'agents': {
             agent_1_id: {
@@ -199,10 +195,11 @@ def test_burst():
     experiment.end()  # end required for parallel processes
 
     # asserts total A is the same at the beginning and the end
-    assert output[0.0]['concentrations']['A'] == initial_A
-    assert output[5.0]['concentrations']['A'] + output[5.0]['agents'][agent_1_id]['concentrations']['A'] == initial_A
+    assert output[0.0]['concentrations']['A'] == initial_a
+    assert output[5.0]['concentrations']['A'] + output[5.0]['agents'][agent_1_id]['concentrations']['A'] == initial_a
 
     return output
+
 
 def run_burst():
     out_dir = os.path.join(PROCESS_OUT_DIR, NAME)
@@ -210,7 +207,6 @@ def run_burst():
         os.makedirs(out_dir)
     output = test_burst()
     pp(output)
-
 
 
 if __name__ == '__main__':

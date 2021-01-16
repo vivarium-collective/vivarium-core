@@ -8,7 +8,7 @@ with open("README.md", 'r') as readme:
 
 setup(
     name='vivarium-core',
-    version='0.1.0',
+    version='0.1.5',
     packages=[
         'vivarium',
         'vivarium.core',
@@ -38,6 +38,5 @@ setup(
         'numpy',
         'Pint',
         'pymongo',
-        'pytest',
         'scipy',
     ])

@@ -1,4 +1,5 @@
 import os
+from typing import Any, Dict, Optional
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -22,7 +23,7 @@ def set_axes(ax, show_xaxis=False):
 
 def plot_simulation_output(
         timeseries_raw,
-        settings={},
+        settings: Optional[Dict[str, Any]] = None,
         out_dir=None,
         filename=None,
 ):
@@ -48,8 +49,10 @@ def plot_simulation_output(
             * **show_state** (:py:class:`list`): with
               ``[('port_id', 'state_id')]`` for all states that will be
               highlighted, even if they are otherwise to be removed
+              TODO: Obsolete?
     '''
 
+    settings = settings or {}
     plot_fontsize = 8
     plt.rc('font', size=plot_fontsize)
     plt.rc('axes', titlesize=plot_fontsize)
@@ -83,7 +86,7 @@ def plot_simulation_output(
     for path in removed_states:
         del timeseries[path]
 
-    ## get figure columns
+    # get figure columns
     # get length of each top-level port
     port_lengths = {}
     for path in timeseries.keys():

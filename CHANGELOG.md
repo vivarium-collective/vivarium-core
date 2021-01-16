@@ -1,5 +1,27 @@
 # Changelog
 
+
+
+## v0.1.5
+
+* topology grapher uses flowchart symbols
+
+## v0.1.4
+
+* add options to agents_multigen plot, for improved look on Jupyter notebooks
+
+## v0.1.3
+
+* fix Composite generate() to get correct path
+
+## v0.1.2
+
+* rework the class structure of Processes and Composites. Replace Generator with Factory.
+
+## v0.1.1
+
+* get_networkx_graph() and graph_figure() in vivarium/plot/topology.py
+
 ## v0.0.39
 
 * improved units handling, with a units serializer for emit_data, and convert data to timeseries stripping the units.

@@ -5,10 +5,11 @@ Swap Processes Process
 """
 
 import os
+from typing import Any, Dict
 
 from vivarium.core.process import (
     Deriver,
-    Generator,
+    Factory,
 )
 from vivarium.core.composition import (
     simulate_compartment_in_experiment,
@@ -44,7 +45,7 @@ class SwapProcesses(Deriver):
       to upon trigger.
     """
     name = NAME
-    defaults = {
+    defaults: Dict[str, Any] = {
         'removed_processes': [],
         'new_compartment': None,
         'initial_state': {},
@@ -83,7 +84,7 @@ class SwapProcesses(Deriver):
 
 
 # test
-class ToyDeadCompartment(Generator):
+class ToyDeadCompartment(Factory):
     defaults = {
         'secrete': {
             'secrete_rate': 0.1}}
@@ -99,7 +100,7 @@ class ToyDeadCompartment(Generator):
                 'external': ('external',)}}
 
 
-class ToyLivingCompartment(Generator):
+class ToyLivingCompartment(Factory):
     defaults = {
         'exchange': {'uptake_rate': 0.1},
         'death': {
@@ -160,16 +161,17 @@ def test_death():
 
     # external starts at 1, goes down until death, and then back up
     # internal does the inverse
-    external_A = output['agents']['1']['external']['A']
-    internal_A = output['agents']['1']['internal']['A']
-    assert external_A[0] == 1
-    assert external_A[time_dead] < external_A[0]
-    assert external_A[time_total] > external_A[time_dead]
-    assert internal_A[0] == 0
-    assert internal_A[time_dead] > internal_A[0]
-    assert internal_A[time_total] < internal_A[time_dead]
+    external_a = output['agents']['1']['external']['A']
+    internal_a = output['agents']['1']['internal']['A']
+    assert external_a[0] == 1
+    assert external_a[time_dead] < external_a[0]
+    assert external_a[time_total] > external_a[time_dead]
+    assert internal_a[0] == 0
+    assert internal_a[time_dead] > internal_a[0]
+    assert internal_a[time_total] < internal_a[time_dead]
 
     return output
+
 
 def run_death():
     out_dir = os.path.join(PROCESS_OUT_DIR, NAME)

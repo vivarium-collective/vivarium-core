@@ -2,7 +2,7 @@
 Glossary
 ========
 
-.. note:: All fully-capitalized words and phrases have the meanings
+.. note:: Some fully-capitalized words and phrases have the meanings
     specified in :rfc:`2119`.
 
 .. glossary::
@@ -112,6 +112,11 @@ Glossary
         and you can run them to simulate your model over time. See the
         documentation for the ``Experiment`` class and our :doc:`guide
         to experiments </guides/experiments>` for more details.
+
+    factory
+    Factory
+        An object with a generate method, which returns a dictionary of
+        :term:`Processes` and a dictionary of :term:`Topologies`.
 
     Inner
     inner

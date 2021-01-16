@@ -3,13 +3,12 @@ filepath.py
 File and filename path utilities.
 """
 
-from __future__ import absolute_import, division, print_function
-
 import datetime
 import json
 import io
 import os
 import subprocess
+
 
 def makedirs(path, *paths):
     """Join one or more path components, make that directory path (using the
@@ -24,6 +23,7 @@ def makedirs(path, *paths):
     os.makedirs(full_path, exist_ok=True)
     return full_path
 
+
 def timestamp(dt=None):
     """Construct a datetime-timestamp from `dt` [default = `now()`], such as
     we use to timestamp a simulation output directory.
@@ -34,6 +34,7 @@ def timestamp(dt=None):
     return "%04d%02d%02d.%02d%02d%02d" % (
         dt.year, dt.month, dt.day,
         dt.hour, dt.minute, dt.second)
+
 
 def run_cmd(tokens, trim=True):
     """Run a shell command-line (in token list form) and return its output.
@@ -57,6 +58,7 @@ def run_cmd(tokens, trim=True):
         out = out.rstrip()
     return out
 
+
 def run_cmdline(line, trim=True):
     """Run a shell command-line string and return its output. This does not
     expand filename patterns or environment variables or do other shell
@@ -76,17 +78,20 @@ def run_cmdline(line, trim=True):
         print('failed to run command line {}: {}'.format(line, e))
         return None
 
+
 def write_file(filename, content):
     """Write string `content` as a text file."""
     with open(filename, "w") as f:
         f.write(content)
 
+
 def write_json_file(filename, obj, indent=4):
     """Write `obj` to a file in a pretty JSON format. This supports Unicode."""
     # Indentation puts a newline after each ',' so suppress the space there.
     message = json.dumps(obj, ensure_ascii=False, indent=indent,
-        separators=(',', ': '), sort_keys=True) + '\n'
+                         separators=(',', ': '), sort_keys=True) + '\n'
     write_file(filename, message.encode('utf-8'))
+
 
 def read_json_file(filename):
     """Read and parse JSON file. This supports Unicode."""

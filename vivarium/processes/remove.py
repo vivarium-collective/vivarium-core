@@ -5,11 +5,12 @@ Remove Process
 """
 
 import os
+from typing import Any, Dict
 
 from vivarium.core.experiment import pp
 from vivarium.core.process import (
     Deriver,
-    Generator,
+    Factory,
 )
 from vivarium.core.composition import (
     simulate_compartment_in_experiment,
@@ -27,7 +28,7 @@ class Remove(Deriver):
     remove a compartment when the state under the 'trigger' port is set to True.
     """
     name = NAME
-    defaults = {}
+    defaults: Dict[str, Any] = {}
 
     def __init__(self, parameters=None):
         super(Remove, self).__init__(parameters)
@@ -50,7 +51,7 @@ class Remove(Deriver):
 
 
 # test
-class ToyLivingCompartment(Generator):
+class ToyLivingCompartment(Factory):
     defaults = {
         'exchange': {'uptake_rate': 0.1},
         'death': {}
@@ -111,6 +112,7 @@ def test_remove():
     assert len(output['time']) == time_total + 1
 
     return output
+
 
 def run_remove():
     out_dir = os.path.join(PROCESS_OUT_DIR, NAME)

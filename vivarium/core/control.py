@@ -20,7 +20,6 @@ from vivarium.core.composition import (
 from vivarium.plots.simulation_output import plot_simulation_output
 
 
-
 def make_dir(out_dir):
     os.makedirs(out_dir, exist_ok=True)
 
@@ -34,6 +33,7 @@ class Control(object):
             compartments=None,
             plots=None,
             workflows=None,
+            args=None,
     ):
         if workflows is None:
             workflows = {}
@@ -52,7 +52,7 @@ class Control(object):
             self.out_dir = out_dir
 
         # arguments
-        self.args = self.add_arguments()
+        self.args = self.parse_args(args)
 
         if self.args.experiment:
             experiment_id = str(self.args.experiment)
@@ -62,7 +62,7 @@ class Control(object):
             workflow_id = str(self.args.workflow)
             self.run_workflow(workflow_id)
 
-    def add_arguments(self):
+    def parse_args(self, args=None):
         parser = argparse.ArgumentParser(
             description='command line control of experiments'
         )
@@ -78,7 +78,7 @@ class Control(object):
             choices=list(self.experiments_library.keys()),
             help='experiment id to run'
         )
-        return parser.parse_args()
+        return parser.parse_args(args)
 
     def run_experiment(self, experiment_id):
         experiment = self.experiments_library[experiment_id]
@@ -135,7 +135,6 @@ class Control(object):
         print('plots saved to directory: {}'.format(out_dir))
 
 
-
 # testing
 def toy_experiment():
     toy_compartment = ToyCompartment({})
@@ -157,7 +156,7 @@ def toy_plot(data, config=None, out_dir='out'):
     plot_simulation_output(data, out_dir=out_dir)
 
 
-def toy_control():
+def toy_control(args=None):
     """ a toy example of control
 
     To run:
@@ -195,13 +194,14 @@ def toy_control():
         compartments=compartment_library,
         plots=plot_library,
         workflows=workflow_library,
-        )
+        args=args,
+    )
 
     return control
 
 
 def test_control():
-    control = toy_control()
+    control = toy_control(args=[])
     control.run_workflow('1')
 
 

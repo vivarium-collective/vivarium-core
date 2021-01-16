@@ -1,17 +1,20 @@
 """
 ==========================================
-Process and Compartment Classes
+Factory, Process, and Composite Classes
 ==========================================
 """
 
 import copy
 import numpy as np
+import abc
+from typing import Any, Dict, Optional
 
 from bson.objectid import ObjectId
 from multiprocessing import Pipe
 from multiprocessing import Process as Multiprocess
+from pint.errors import UndefinedUnitError
 
-from vivarium.library.topology import get_in, assoc_path, without, update_in, inverse_topology
+from vivarium.library.topology import inverse_topology
 from vivarium.library.units import Quantity
 from vivarium.core.registry import process_registry, serializer_registry
 from vivarium.library.dict_utils import deep_merge, deep_merge_check
@@ -34,15 +37,16 @@ def serialize_value(value):
         return serializer_registry.access('function').serialize(value)
     elif isinstance(value, Process):
         return serialize_dictionary(serializer_registry.access('process').serialize(value))
-    elif isinstance(value, Generator):
+    elif isinstance(value, Factory):
         return serialize_dictionary(
-            serializer_registry.access('compartment').serialize(value))
+            serializer_registry.access('factory').serialize(value))
     elif isinstance(value, (np.integer, np.floating)):
         return serializer_registry.access('numpy_scalar').serialize(value)
     elif isinstance(value, ObjectId):
         return str(value)
     else:
         return value
+
 
 def deserialize_value(value):
     if isinstance(value, dict):
@@ -52,7 +56,7 @@ def deserialize_value(value):
     elif isinstance(value, str):
         try:
             return serializer_registry.access('units').deserialize(value)
-        except:
+        except UndefinedUnitError:
             return value
     else:
         return value
@@ -122,7 +126,9 @@ def generate_derivers(processes, topology):
                     deriver_processes[deriver_key] = deriver
 
                     # generate deriver topology
-                    deriver_topology[deriver_key] = {}
+                    deriver_ports = deriver.ports()
+                    deriver_topology[deriver_key] = {
+                        port: (port,) for port in deriver_ports.keys()}
                     for target, source in config.get('port_mapping', {}).items():
                         path = subtopology[source]
                         deriver_topology[deriver_key][target] = path
@@ -151,12 +157,12 @@ def get_composite_initial_state(processes, topology):
     return initial_state
 
 
-class Generator(object):
-    """Generator parent class
+class Factory(metaclass=abc.ABCMeta):
+    """Factory parent class
 
-    All :term:`compartment` classes must inherit from this class.
+    All :term:`factory` classes must inherit from this class.
     """
-    defaults = {}
+    defaults: Dict[str, Any] = {}
 
     def __init__(self, config=None):
         if config is None:
@@ -168,10 +174,90 @@ class Generator(object):
 
         self.config = copy.deepcopy(self.defaults)
         self.config = deep_merge(self.config, config)
-        self.schema_override = self.config.pop('_schema', {})
 
-        self.merge_processes = {}
-        self.merge_topology = {}
+    @abc.abstractmethod
+    def generate_processes(self, config):
+        """Generate processes dictionary
+
+        Every subclass must override this method.
+
+        Arguments:
+            config (dict): A dictionary of configuration options. All
+                subclass implementation must accept this parameter, but
+                some may ignore it.
+
+        Returns:
+            dict: Subclass implementations must return a dictionary
+            mapping process names to instantiated and configured process
+            objects.
+        """
+        return {}
+
+    @abc.abstractmethod
+    def generate_topology(self, config):
+        """Generate topology dictionary
+
+        Every subclass must override this method.
+
+        Arguments:
+            config (dict): A dictionary of configuration options. All
+                subclass implementation must accept this parameter, but
+                some may ignore it.
+
+        Returns:
+            dict: Subclass implementations must return a :term:`topology`
+            dictionary.
+        """
+        return {}
+
+    def generate(self, config=None, path=tuple()):
+        '''Generate processes and topology dictionaries
+
+        Arguments:
+            config (dict): Updates values in the configuration declared
+                in the constructor
+            path (tuple): Tuple with ('path', 'to', 'level') associates
+                the processes and topology at this level
+
+        Returns:
+            dict: Dictionary with two keys: ``processes``, which has a
+            value of a processes dictionary, and ``topology``, which has
+            a value of a topology dictionary. Both are suitable to be
+            passed to the constructor for
+            :py:class:`vivarium.core.experiment.Experiment`.
+        '''
+
+        if config is None:
+            config = self.config
+        else:
+            default = copy.deepcopy(self.config)
+            config = deep_merge(default, config)
+
+        processes = self.generate_processes(config)
+        topology = self.generate_topology(config)
+
+        # add derivers
+        derivers = generate_derivers(processes, topology)
+        processes = deep_merge(derivers['processes'], processes)
+        topology = deep_merge(derivers['topology'], topology)
+
+        return {
+            'processes': assoc_in({}, path, processes),
+            'topology': assoc_in({}, path, topology)}
+
+
+class Composite(Factory):
+    """Composite parent class
+
+    All :term:`composite` classes must inherit from this class.
+    """
+
+    def __init__(self, config=None):
+        super().__init__(config)
+
+        self.merge_processes = self.config.pop('_processes', {})
+        self.merge_topology = self.config.pop('_topology', {})
+        self.schema_override = self.config.pop('_schema', {})
 
     def initial_state(self, config=None):
         """ Merge all processes' initial states
@@ -194,84 +280,27 @@ class Generator(object):
         return initial_state
 
     def generate_processes(self, config):
-        """Generate processes dictionary
-
-        Every subclass must override this method.
-
-        Arguments:
-            config (dict): A dictionary of configuration options. All
-                subclass implementation must accept this parameter, but
-                some may ignore it.
-
-        Returns:
-            dict: Subclass implementations must return a dictionary
-            mapping process names to instantiated and configured process
-            objects.
-        """
         return {}
 
     def generate_topology(self, config):
-        """Generate topology dictionary
-
-        Every subclass must override this method.
-
-        Arguments:
-            config (dict): A dictionary of configuration options. All
-                subclass implementation must accept this parameter, but
-                some may ignore it.
-
-        Returns:
-            dict: Subclass implementations must return a :term:`topology`
-            dictionary.
-        """
         return {}
 
     def generate(self, config=None, path=tuple()):
-        '''Generate processes and topology dictionaries for the compartment
-
-        Arguments:
-            config (dict): Updates values in the configuration declared
-                in the constructor
-            path (tuple): Tuple with ('path', 'to', 'level') associates
-                the processes and topology at this level
-
-        Returns:
-            dict: Dictionary with two keys: ``processes``, which has a
-            value of a processes dictionary, and ``topology``, which has
-            a value of a topology dictionary. Both are suitable to be
-            passed to the constructor for
-            :py:class:`vivarium.core.experiment.Experiment`.
-        '''
-
-        # merge config with self.config
-        if config is None:
-            config = self.config
-        else:
-            default = copy.deepcopy(self.config)
-            config = deep_merge(default, config)
-
-        processes = self.generate_processes(config)
-        topology = self.generate_topology(config)
+        network = super().generate(config=config)
+        processes = network['processes']
+        topology = network['topology']
 
         # add merged processes
-        # TODO -- if merge_processes are not initialized, config can be passed in.
-        # TODO -- here, it is assumed all merge_processes are initialized
+        # TODO - this assumes all merge_processes are already initialized.
+        # TODO - make option to initialize new processes here
         processes = deep_merge(processes, self.merge_processes)
         topology = deep_merge(topology, self.merge_topology)
-
-        # add derivers
-        derivers = generate_derivers(processes, topology)
-        processes = deep_merge(derivers['processes'], processes)
-        topology = deep_merge(derivers['topology'], topology)
 
         override_schemas(self.schema_override, processes)
 
         return {
             'processes': assoc_in({}, path, processes),
             'topology': assoc_in({}, path, topology)}
-
-    def or_default(self, parameters, key):
-        return parameters.get(key, self.defaults[key])
 
     def get_parameters(self):
         network = self.generate({})
@@ -280,7 +309,15 @@ class Generator(object):
             process_id: process.parameters
             for process_id, process in processes.items()}
 
-    def merge(self, processes={}, topology={}, schema_override={}):
+    def merge(
+            self,
+            processes: Optional[Dict[str, Any]] = None,
+            topology: Optional[Dict[str, Any]] = None,
+            schema_override: Optional[Dict[str, Any]] = None):
+        processes = processes or {}
+        topology = topology or {}
+        schema_override = schema_override or {}
+
         for name, process in processes.items():
             assert isinstance(process, Process)
 
@@ -289,18 +326,20 @@ class Generator(object):
         self.schema_override = deep_merge(self.schema_override, schema_override)
 
 
-class Process(Generator):
+class Process(Composite, metaclass=abc.ABCMeta):
     """Process parent class
 
     All :term:`process` classes must inherit from this class.
     """
-    defaults = {}
+    defaults: Dict[str, Any] = {}
 
     def __init__(self, parameters=None):
         super().__init__(parameters)
 
         self.parameters = self.config
         self.parallel = self.config.pop('_parallel', False)
+        if self.config.get('_register'):
+            self.register()
 
     def initial_state(self, config=None):
         """Get initial state in embedded path dictionary
@@ -317,6 +356,9 @@ class Process(Generator):
             mapping state paths to initial values.
         """
         raise Exception('{} does not include an "initial_state" function'.format(self.name))
+
+    def register(self, name=None):
+        process_registry.register(name or self.name, self)
 
     def generate_processes(self, config):
         return {self.name: self}
@@ -369,6 +411,7 @@ class Process(Generator):
     def pull_data(self):
         return {}
 
+    @abc.abstractmethod
     def ports_schema(self):
         '''
         ports_schema returns a dictionary that declares which states are expected by the processes,
@@ -393,17 +436,16 @@ class Process(Generator):
         self.parameters[derived_key] = f(source)
         return self.parameters[derived_key]
 
+    @abc.abstractmethod
     def next_update(self, timestep, states):
         '''
         Find the next update given the current states this process cares about.
-        This is the main function a new process would override.'''
-
-        return {
-            port: {}
-            for port, values in self.ports().items()}
+        This is the main function a new process would override.
+        '''
+        return {}
 
 
-class Deriver(Process):
+class Deriver(Process, metaclass=abc.ABCMeta):
     def is_deriver(self):
         return True
 
@@ -445,21 +487,25 @@ class ParallelProcess(object):
         self.multiprocess.join()
 
 
-def test_generator_initial_state():
+def test_composite_initial_state():
     """
-    test that initial state in generator merges individual processes' initial states
+    test that initial state in composite merges individual processes' initial states
     """
     class AA(Process):
         name = 'AA'
+
         def initial_state(self, config=None):
             return {'a_port': {'a': 1}}
+
         def ports_schema(self):
             return {'a_port': {'a': {'_emit': True}}}
+
         def next_update(self, timestep, states):
             return {'a_port': {'a': 1}}
 
-    class BB(Generator):
+    class BB(Composite):
         name = 'BB'
+
         def generate_processes(self, config):
             return {
                 'a1': AA({}),
@@ -467,6 +513,7 @@ def test_generator_initial_state():
                 'a3': {
                     'a3_store': AA({})}
             }
+
         def generate_topology(self, config):
             return {
                 'a1': {
@@ -488,57 +535,56 @@ def test_generator_initial_state():
     expected_initial_state = {
         'a3_store': {
             'a3_1_store': {
-                'a': 1
-            }
-        },
+                'a': 1}},
         'a1_store': {
             'a': 1,
-            'b': 1
-        }
-    }
+            'b': 1}}
     assert initial_state == expected_initial_state
 
 
-def test_generator_merge():
-    class ToyProcess(Process):
-        name = 'toy'
+class ToyProcess(Process):
+    name = 'toy'
 
-        def ports_schema(self):
-            return {
-                'A': {
-                    'a': {'_default': 0},
-                    'b': {'_default': 0}},
-                'B': {
-                    'a': {'_default': 0},
-                    'b': {'_default': 0}}}
+    def ports_schema(self):
+        return {
+            'A': {
+                'a': {'_default': 0},
+                'b': {'_default': 0}},
+            'B': {
+                'a': {'_default': 0},
+                'b': {'_default': 0}}}
 
-        def next_update(self, timestep, states):
-            return {
-                'A': {
-                    'a': 1,
-                    'b': states['A']['a']},
-                'B': {
-                    'a': states['A']['b'],
-                    'b': states['B']['a']}}
+    def next_update(self, timestep, states):
+        return {
+            'A': {
+                'a': 1,
+                'b': states['A']['a']},
+            'B': {
+                'a': states['A']['b'],
+                'b': states['B']['a']}}
 
-    class ToyComposite(Generator):
-        defaults = {
-            'A':  {'name': 'A'},
-            'B': {'name': 'B'}}
 
-        def generate_processes(self, config=None):
-            return {
-                'A': ToyProcess(config['A']),
-                'B': ToyProcess(config['B'])}
+class ToyComposite(Composite):
+    defaults = {
+        'A':  {'name': 'A'},
+        'B': {'name': 'B'}}
 
-        def generate_topology(self, config=None):
-            return {
-                'A': {
-                    'A': ('aaa',),
-                    'B': ('bbb',)},
-                'B': {
-                    'A': ('bbb',),
-                    'B': ('ccc',)}}
+    def generate_processes(self, config=None):
+        return {
+            'A': ToyProcess(config['A']),
+            'B': ToyProcess(config['B'])}
+
+    def generate_topology(self, config=None):
+        return {
+            'A': {
+                'A': ('aaa',),
+                'B': ('bbb',)},
+            'B': {
+                'A': ('bbb',),
+                'B': ('ccc',)}}
+
+
+def test_composite_merge():
 
     generator = ToyComposite()
     initial_network = generator.generate()
@@ -558,7 +604,31 @@ def test_generator_merge():
     merged_network = generator.generate(config)
 
 
-if __name__ == '__main__':
-    # test_generator_merge()
+def test_get_composite():
+    a = ToyProcess({'name': 'a'})
 
-    test_generator_initial_state()
+    a.merge(
+        processes={'b': ToyProcess()},
+        topology={'b': {
+            'A': ('A',),
+            'B': ('B',),
+        }})
+
+    network = a.generate()
+
+    expected_topology = {
+        'a': {
+            'A': ('A',),
+            'B': ('B',)},
+        'b': {
+            'A': ('A',),
+            'B': ('B',)}}
+
+    assert network['topology'] == expected_topology
+
+
+if __name__ == '__main__':
+    # test_composite_initial_state()
+    # test_composite_merge()
+
+    test_get_composite()

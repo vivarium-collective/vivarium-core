@@ -6,7 +6,7 @@ import re
 import pint
 
 from vivarium.library.units import units
-from vivarium.core.process import Process, Generator
+from vivarium.core.process import Process, Factory
 
 
 def _json_serialize(elem):
@@ -16,7 +16,7 @@ def _json_serialize(elem):
         return '<function {}>'.format(elem.__name__)
     if inspect.isclass(elem):
         return str(elem)
-    if isinstance(elem, (Generator, Process)):
+    if isinstance(elem, (Factory, Process)):
         to_strip_regex = ' at 0x[0-9a-f]+>$'
         return re.sub(to_strip_regex, '>', repr(elem))
     if isinstance(elem, pint.Quantity):
@@ -24,6 +24,7 @@ def _json_serialize(elem):
     if isinstance(elem, pint.Unit):
         return repr(elem)
     return repr(elem)
+
 
 def format_dict(d, sort_keys=True):
     '''Format a dict as a pretty string

@@ -4,10 +4,9 @@ Make formatted files for Gephi Network Visualization
 @organization: Covert Lab, Department of Bioengineering, Stanford University
 """
 
-from __future__ import absolute_import, division
-
-import os
 import csv
+import os
+from typing import Any, Dict, Optional
 
 
 def get_loose_nodes(stoichiometry):
@@ -26,6 +25,7 @@ def get_loose_nodes(stoichiometry):
 
     return loose_nodes
 
+
 def get_reactions(stoichiometry, molecules):
     '''
     for each entry in molecules (list), return all the reactions with the molecules coefficient
@@ -33,13 +33,14 @@ def get_reactions(stoichiometry, molecules):
     reactions = {}
     for reaction_id, stoich in stoichiometry.items():
         mol_coeffs = {mol_id: coeff
-                for mol_id, coeff in stoich.items()
-                if mol_id in molecules}
+                      for mol_id, coeff in stoich.items()
+                      if mol_id in molecules}
         reactions[reaction_id] = mol_coeffs
 
     return reactions
 
-def make_network(stoichiometry, info={}):
+
+def make_network(stoichiometry, info: Optional[Dict[str, Any]] = None):
     '''
     Makes a gephi network
     info can contain node_sizes, node_types
@@ -52,6 +53,7 @@ def make_network(stoichiometry, info={}):
         }
     '''
 
+    info = info or {}
     node_types = info.get('node_types', {})
     node_sizes = info.get('node_sizes', {})
     reaction_fluxes = info.get('reaction_fluxes', {})
@@ -77,7 +79,7 @@ def make_network(stoichiometry, info={}):
                 'type': n_type,
                 'size': n_size}
 
-            ## add edge between reaction and molecule
+            # add edge between reaction and molecule
             # a reactant
             if coeff < 0:
                 edge = [molecule_id, reaction_id, flux]
@@ -90,6 +92,7 @@ def make_network(stoichiometry, info={}):
             edges.append(edge)
 
     return nodes, edges
+
 
 def collapse_network(nodes, edges, remove_nodes_list):
     ''' remove_nodes (list) -- nodes to be removed '''
@@ -124,6 +127,9 @@ def collapse_network(nodes, edges, remove_nodes_list):
 
     return new_nodes, new_edges2
 
+
+# TODO(jerry): Can we rename plotOutDir per PEP8 and update callers?
+# noinspection PyPep8Naming
 def save_network(nodes, edges, plotOutDir='out/network'):
     '''
     Save nodes and edges
@@ -139,7 +145,7 @@ def save_network(nodes, edges, plotOutDir='out/network'):
     nodes_out = os.path.join(out_dir, 'nodes.csv')
     edges_out = os.path.join(out_dir, 'edges.csv')
 
-    ## Save network to csv
+    # Save network to csv
     # nodes list
     with open(nodes_out, 'w') as csvfile:
         writer = csv.writer(csvfile, delimiter=',')
