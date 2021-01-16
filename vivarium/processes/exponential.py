@@ -1,10 +1,12 @@
+import numpy as np
+from typing import Any, Dict, Optional
+
 # import the vivarium process class
 from vivarium.core.process import Process
 from vivarium.library.units import units
-import numpy as np
 
 from vivarium.core.composition import (
-    simulate_process_in_experiment,
+    simulate_process,
 )
 
 
@@ -17,9 +19,9 @@ class ExponentialGrowth(Process):
         'growth_noise': 1e-4,
     }
 
-    def __init__(self, parameters=None):
+    def __init__(self, parameters: Optional[Dict[str, Any]] = None):
         ''' Constructor accepts parameters, which modify defaults. '''
-        super(ExponentialGrowth, self).__init__(parameters)
+        super().__init__(parameters)
 
     def ports_schema(self):
         ''' Ports declare expected inputs/outputs and their schema.
@@ -76,7 +78,7 @@ if __name__ == '__main__':
     growth_process = ExponentialGrowth({})
 
     # run a simulation with helper function called
-    # simulate_process_in_experiment
+    # simulate_process
     settings = {
         'total_time': 5000,
         'initial_state': {
@@ -86,5 +88,5 @@ if __name__ == '__main__':
         },
         #     'progress_bar': False,
     }
-    grow_output = simulate_process_in_experiment(
+    grow_output = simulate_process(
         growth_process, settings)

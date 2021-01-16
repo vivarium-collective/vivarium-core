@@ -203,8 +203,7 @@ def test_burst():
 
 def run_burst():
     out_dir = os.path.join(PROCESS_OUT_DIR, NAME)
-    if not os.path.exists(out_dir):
-        os.makedirs(out_dir)
+    os.makedirs(out_dir, exist_ok=True)
     output = test_burst()
     pp(output)
 

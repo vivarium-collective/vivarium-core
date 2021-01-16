@@ -63,6 +63,7 @@ disable=print-statement,
         too-many-locals,
         too-many-branches,
         too-few-public-methods,
+        no-self-use,
         fixme,
         unsupported-assignment-operation,  # Buggy with NewType objects
         unsubscriptable-object,  # Buggy with NewType objects
@@ -77,11 +78,10 @@ ignore=injected_glc_phosphorylation.py,
        divide_condition.py,
        agents_multigen.py,
        experiment.py,
+       test_experiment.py,
        exponential.py,
        burst.py,
        dict_utils.py,
-       control.py,
-       emitter.py,
        tree_mass.py,
        filepath.py,
        exchange_a.py,
@@ -105,6 +105,8 @@ ignore=injected_glc_phosphorylation.py,
 [BASIC]
 
 no-docstring-rgx=(^_)|(^[Tt]est)
-max-line-length=72
+max-line-length=80
+attr-rgx=^[a-z_][a-z0-9]*((_[a-z0-9]+)*)?$
 variable-rgx=^[a-z][a-z0-9]*((_[a-z0-9]+)*)?$
 argument-rgx=^[a-z][a-z0-9]*((_[a-z0-9]+)*)?$
+include-naming-hint=yes

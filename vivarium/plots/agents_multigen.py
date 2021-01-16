@@ -206,11 +206,12 @@ def plot_agents_multigen(
             ax.yaxis.get_offset_text().set_fontsize(tick_label_size)
 
             # if last state in this column, add time ticks
-            if (stack_column and row_idx >= highest_row-1) or \
-               (not stack_column and (row_idx >= highest_row or
-                    path_idx >= len(ordered_paths[port_id]) - 1)):
-                        set_axes(ax, True)
-                        ax.set_xlabel('time (s)', fontsize=title_size)
+            if ((stack_column and row_idx >= highest_row - 1) or
+                    (not stack_column and
+                     (row_idx >= highest_row or
+                      path_idx >= len(ordered_paths[port_id]) - 1))):
+                set_axes(ax, True)
+                ax.set_xlabel('time (s)', fontsize=title_size)
             else:
                 set_axes(ax)
             ax.set_xlim([time_vec[0], time_vec[-1]])

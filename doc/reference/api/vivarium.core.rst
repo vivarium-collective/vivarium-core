@@ -13,6 +13,7 @@ Submodules
    vivarium.core.experiment
    vivarium.core.process
    vivarium.core.registry
+   vivarium.core.test_experiment
 
 Module contents
 ---------------

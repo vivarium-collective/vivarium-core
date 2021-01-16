@@ -99,12 +99,11 @@ def test_injector():
 
 def main():
     out_dir = os.path.join(TEST_OUT_DIR, NAME)
-    if not os.path.exists(out_dir):
-        os.makedirs(out_dir)
+    os.makedirs(out_dir, exist_ok=True)
     timeseries = run_injector()
     plot_settings = {}
     plot_simulation_output(timeseries, plot_settings, out_dir)
-    save_timeseries(timeseries, out_dir)
+    save_timeseries(timeseries, out_dir, NAME + '.csv')
 
 
 if __name__ == '__main__':
