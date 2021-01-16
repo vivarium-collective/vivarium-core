@@ -14,6 +14,10 @@ import os
 import sys
 sys.path.insert(0, os.path.abspath('..'))
 
+from docutils.nodes import Text
+from sphinx.addnodes import pending_xref
+from sphinx.ext.intersphinx import missing_reference
+
 
 # -- Project information -----------------------------------------------------
 
@@ -75,7 +79,62 @@ intersphinx_mapping = {
     'shapely': ('https://shapely.readthedocs.io/en/latest/', None),
 }
 
-# -- sphinx.ext.autodic options --
+# -- sphinx.ext.napoleon options --
+# Map from the alias to a tuple of the actual ref and the text to
+# display.
+reftarget_aliases = {
+    type_name: ('vivarium.core.types.{}'.format(type_name), type_name)
+    for type_name in (
+        'Path', 'Topology', 'Schema', 'State', 'Update', 'CompositeDict')
+}
+reftarget_aliases.update({
+    type_name: ('typing.{}'.format(type_name), type_name)
+    for type_name in (
+        'Any', 'Dict', 'Tuple', 'Union', 'Optional', 'Callable', 'List')
+})
+
+# This function is adapted from a StackOverflow answer by Oleg Höfling
+# at https://stackoverflow.com/a/62301461. Per StackOverflow's licensing
+# terms, it is available under a CC-BY-SA 4.0 license
+# (https://creativecommons.org/licenses/by-sa/4.0/).
+def resolve_internal_aliases(_, doctree):
+    pending_xrefs = doctree.traverse(condition=pending_xref)
+    for node in pending_xrefs:
+        alias = node.get('reftarget')
+        if alias is not None and alias in reftarget_aliases:
+            resolved_ref, text = reftarget_aliases[alias]
+            node['reftarget'] = resolved_ref
+            text_node = next(iter(
+                node.traverse(lambda n: n.tagname == '#text')))
+            text_node.parent.replace(text_node, Text(text, ''))
+
+
+# This function is adapted from a StackOverflow answer by Oleg Höfling
+# at https://stackoverflow.com/a/62301461. Per StackOverflow's licensing
+# terms, it is available under a CC-BY-SA 4.0 license
+# (https://creativecommons.org/licenses/by-sa/4.0/).
+def resolve_intersphinx_aliases(app, env, node, contnode):
+    alias = node.get('reftarget')
+    if alias is not None and alias in reftarget_aliases:
+        resolved_ref, text = reftarget_aliases[alias]
+        node['reftarget'] = resolved_ref
+        text_node = next(iter(
+            contnode.traverse(lambda n: n.tagname == '#text')))
+        text_node.parent.replace(text, Text(text, ''))
+        return missing_reference(app, env, node, contnode)
+    return None
+
+
+# This function is adapted from a StackOverflow answer by Oleg Höfling
+# at https://stackoverflow.com/a/62301461. Per StackOverflow's licensing
+# terms, it is available under a CC-BY-SA 4.0 license
+# (https://creativecommons.org/licenses/by-sa/4.0/).
+def setup(app):
+    app.connect('doctree-read', resolve_internal_aliases)
+    app.connect('missing-reference', resolve_intersphinx_aliases)
+
+
+# -- sphinx.ext.autodoc options --
 autodoc_inherit_docstrings = False
 # The Python dependencies aren't really required for building the docs
 autodoc_mock_imports = [
