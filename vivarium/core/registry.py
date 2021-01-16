@@ -104,7 +104,7 @@ serializer_registry = Registry()
 # These can be defined here, but are registered in the base module's __init__.py file
 
 # Updater functions
-def update_merge(current_value, new_value, states):
+def update_merge(current_value, new_value):
     """Merge Updater
 
     Returns:
@@ -120,8 +120,7 @@ def update_merge(current_value, new_value, states):
             update[k] = new
     return update
 
-
-def update_set(current_value, new_value, states):
+def update_set(current_value, new_value):
     """Set Updater
 
     Returns:
@@ -129,8 +128,7 @@ def update_set(current_value, new_value, states):
     """
     return new_value
 
-
-def update_accumulate(current_value, new_value, states):
+def update_accumulate(current_value, new_value):
     """Accumulate Updater
 
     Returns:
@@ -138,8 +136,7 @@ def update_accumulate(current_value, new_value, states):
     """
     return current_value + new_value
 
-
-def update_nonnegative_accumulate(current_value, new_value, states):
+def update_nonnegative_accumulate(current_value, new_value):
     """Non-negative Accumulate Updater
 
     Returns:
