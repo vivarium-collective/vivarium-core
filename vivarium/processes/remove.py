@@ -16,8 +16,7 @@ from vivarium.core.composition import (
     simulate_composite,
     PROCESS_OUT_DIR,
 )
-from vivarium.processes.exchange_a import ExchangeA
-
+from vivarium.composites.toys import ExchangeA
 
 NAME = 'remove'
 

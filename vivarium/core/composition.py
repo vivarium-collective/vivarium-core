@@ -8,6 +8,7 @@ from vivarium.composites.toys import (
 )
 from vivarium.core.experiment import Experiment
 from vivarium.core.process import (
+    Composite,
     generate_derivers,
 )
 from vivarium.library.dict_utils import (
@@ -18,6 +19,9 @@ from vivarium.library.dict_utils import (
 from vivarium.processes.timeline import TimelineProcess
 from vivarium.processes.nonspatial_environment import \
     NonSpatialEnvironment
+
+# toys for testing
+from vivarium.composites.toys import ExchangeA
 
 REFERENCE_DATA_DIR = os.path.join('vivarium', 'reference_data')
 BASE_OUT_DIR = 'out'
@@ -253,14 +257,14 @@ def composite_in_experiment(
     """ put a Composite in an Experiment
 
     Arguments:
-        composite: the composite Factory object.
+        composite: the :term:`Composite` object.
         settings (dict): a dictionary of options, including composite_config
             for configuring the composite. Additional  keywords include
             timeline, environment, and outer_path.
         initial_state (dict): initial state to overrides the defaults.
 
     Returns:
-        an **Experiment**
+        an :term:`Experiment`
     """
 
     if settings is None:
@@ -377,6 +381,55 @@ def simulate_experiment(
 
 
 # Tests
+def test_process_in_experiment():
+    experiment = process_in_experiment(ExchangeA())
+
+def test_process_in_experiment_timeline():
+    timeline = [
+        (0, {('internal', 'A'): 0}),
+        (1, {('internal', 'A'): 1}),
+    ]
+    experiment = process_in_experiment(
+        ExchangeA(),
+        settings={
+            'timeline': {'timeline': timeline}})
+
+
+def test_compose_experiment():
+    hierarchy = {
+        FACTORY_KEY:
+            {
+                'type': ExchangeA,
+                'config': {},
+            }}
+    experiment = compose_experiment(
+        hierarchy=hierarchy,
+        settings={'experiment_name': 'test'})
+    experiment.update(10)
+
+
+def test_replace_names():
+    """ if processes on the same level have the same name, add uuid string"""
+    # declare the hierarchy
+    hierarchy = {
+        FACTORY_KEY: [
+            {
+                'type': ExchangeA,
+                'config': {},
+            },
+            {
+                'type': ExchangeA,
+                'config': {},
+            }
+        ]}
+
+    # configure experiment
+    experiment = compose_experiment(
+        hierarchy=hierarchy)
+    process_names = list(experiment.processes.keys())
+
+    assert len(process_names) == 2
+    assert process_names[0] in process_names[1]  # process_names[1] has added string
 
 def test_process_deletion():
     '''Check that processes are successfully deleted'''
@@ -414,5 +467,6 @@ def test_compartment():
 
 if __name__ == '__main__':
     # test_process_deletion()
+    # test_compartment()
 
-    test_compartment()
+    test_replace_names()

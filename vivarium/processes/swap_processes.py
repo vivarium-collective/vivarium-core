@@ -16,8 +16,7 @@ from vivarium.core.composition import (
     PROCESS_OUT_DIR,
 )
 from vivarium.plots.simulation_output import plot_simulation_output
-from vivarium.processes.exchange_a import ExchangeA
-
+from vivarium.composites.toys import ExchangeA
 
 NAME = 'swap_compartment'
 
