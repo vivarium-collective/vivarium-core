@@ -253,14 +253,14 @@ def composite_in_experiment(
     """ put a Composite in an Experiment
 
     Arguments:
-        composite: the composite Factory object.
+        composite: the :term:`Composite` object.
         settings (dict): a dictionary of options, including composite_config
             for configuring the composite. Additional  keywords include
             timeline, environment, and outer_path.
         initial_state (dict): initial state to overrides the defaults.
 
     Returns:
-        an **Experiment**
+        an :term:`Experiment`
     """
 
     if settings is None:

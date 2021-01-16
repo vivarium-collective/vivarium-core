@@ -5,6 +5,9 @@ Experiment and Store Classes
 '''
 
 import os
+import logging as log
+import pprint
+from typing import Any, Dict
 import copy
 import math
 import datetime
@@ -12,16 +15,9 @@ import time as clock
 import uuid
 
 import numpy as np
-import logging as log
-
-import pprint
-
-from multiprocessing import Pool
-from typing import Any, Dict, Tuple, Union
-
 from pymongo.errors import PyMongoError
 
-from vivarium.library.units import units, Quantity
+from vivarium.library.units import Quantity
 from vivarium.library.dict_utils import (
     deep_merge,
     MULTI_UPDATE_KEY,
@@ -29,7 +25,6 @@ from vivarium.library.dict_utils import (
 from vivarium.core.emitter import get_emitter
 from vivarium.core.process import (
     Path,
-    Composite,
     Deriver,
     Process,
     ParallelProcess,
@@ -113,7 +108,7 @@ def identity(y):
     return y
 
 
-class Store(object):
+class Store:
     """Holds a subset of the overall model state
 
     The total state of the model can be broken down into :term:`stores`,
@@ -184,12 +179,12 @@ class Store(object):
                 and self.default != 0
             ):
                 log.debug(
-                    '_default schema conflict: {} and {}. selecting {}'.format(
-                    self.default, new_default, self.default))
+                    '_default schema conflict: %s and %s. selecting %s',
+                    str(self.default), str(new_default), str(self.default))
                 return self.default
             log.debug(
-                '_default schema conflict: {} and {}. selecting {}'.format(
-                self.default, new_default, new_default))
+                '_default schema conflict: %s and %s. selecting %s',
+                str(self.default), str(new_default), str(new_default))
         return new_default
 
     def check_value(self, new_value):
@@ -833,36 +828,35 @@ class Store(object):
 
             return topology_updates, process_updates, deletions
 
-        else:
-            # Leaf update: this node has no inner
+        # Leaf update: this node has no inner
 
-            updater, port_mapping = self.get_updater(update)
-            state_dict = None
+        updater, port_mapping = self.get_updater(update)
+        state_dict = None
 
-            if isinstance(update, dict) and '_reduce' in update:
-                assert port_mapping is None
-                reduction = update['_reduce']
-                top = self.get_path(reduction.get('from'))
-                update = top.reduce(
-                    reduction['reducer'],
-                    initial=reduction['initial'])
+        if isinstance(update, dict) and '_reduce' in update:
+            assert port_mapping is None
+            reduction = update['_reduce']
+            top = self.get_path(reduction.get('from'))
+            update = top.reduce(
+                reduction['reducer'],
+                initial=reduction['initial'])
 
-            if isinstance(update, dict) and \
-                    self.schema_keys and set(update.keys()):
-                if '_updater' in update:
-                    update = update.get('_value', self.default)
+        if isinstance(update, dict) and \
+                self.schema_keys and set(update.keys()):
+            if '_updater' in update:
+                update = update.get('_value', self.default)
 
-            if port_mapping is not None:
-                updater_topology = {
-                    updater_port: process_topology[proc_port]
-                    for updater_port, proc_port in port_mapping.items()}
+        if port_mapping is not None:
+            updater_topology = {
+                updater_port: process_topology[proc_port]
+                for updater_port, proc_port in port_mapping.items()}
 
-                state_dict = state.outer.topology_state(
-                    updater_topology)
+            state_dict = state.outer.topology_state(
+                updater_topology)
 
-            self.value = updater(self.value, update, state_dict)
+        self.value = updater(self.value, update, state_dict)
 
-            return EMPTY_UPDATES
+        return EMPTY_UPDATES
 
     def inner_value(self, key):
         '''
@@ -1109,8 +1103,8 @@ class Store(object):
                         source, self.path_for(), str(mismatch_topology)))
             if mismatch_schema:
                 log.info(
-                    'process {} has ports that are not included in '
-                    'the topology: {}'.format(source, mismatch_schema))
+                    'process %s has ports that are not included in '
+                    'the topology: %s', str(source), str(mismatch_schema))
 
             for port, subschema in schema.items():
                 path = topology.get(port, (port,))
@@ -1211,7 +1205,7 @@ def invoke_process(process, interval, states):
     return process.next_update(interval, states)
 
 
-class Defer(object):
+class Defer:
     def __init__(self, defer, f, args):
         self.defer = defer
         self.f = f
@@ -1223,7 +1217,7 @@ class Defer(object):
             self.args)
 
 
-class InvokeProcess(object):
+class InvokeProcess:
     def __init__(self, process, interval, states):
         self.process = process
         self.interval = interval
@@ -1237,7 +1231,7 @@ class InvokeProcess(object):
         return self.update
 
 
-class MultiInvoke(object):
+class MultiInvoke:
     def __init__(self, pool):
         self.pool = pool
 
@@ -1247,7 +1241,7 @@ class MultiInvoke(object):
         return result
 
 
-class Experiment(object):
+class Experiment:
     def __init__(self, config):
         # type: (Dict[str, Any]) -> None
         """Defines simulations
@@ -1337,7 +1331,7 @@ class Experiment(object):
         self.emit_data()
 
         # logging information
-        log.info('experiment {}'.format(self.experiment_id))
+        log.info('experiment %s', str(self.experiment_id))
 
         log.info('\nPROCESSES:')
         log.info(pf(self.processes))
@@ -1419,8 +1413,8 @@ class Experiment(object):
             update, process_topology, state, self.topology)
 
         if topology_updates:
-            for path, update in topology_updates:
-                assoc_path(self.topology, path, update)
+            for path, topology_update in topology_updates:
+                assoc_path(self.topology, path, topology_update)
 
         if process_updates:
             for path, process in process_updates:
@@ -1615,9 +1609,9 @@ def print_progress_bar(
     """
     progress = ("{0:." + str(decimals) + "f}").format(total - iteration)
     filled_length = int(length * iteration // total)
-    bar = '█' * filled_length + '-' * (length - filled_length)
+    filled_bar = '█' * filled_length + '-' * (length - filled_length)
     print(
-        f'\rProgress:|{bar}| {progress}/{float(total)} '
+        f'\rProgress:|{filled_bar}| {progress}/{float(total)} '
         f'simulated seconds remaining    ', end='\r')
     # Print New Line on Complete
     if iteration == total:
