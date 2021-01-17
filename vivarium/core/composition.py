@@ -7,7 +7,6 @@ from vivarium.composites.toys import (
     ToyLinearGrowthDeathProcess,
 )
 from vivarium.core.experiment import Experiment
-from vivarium.core.process import generate_derivers
 from vivarium.library.dict_utils import (
     deep_merge,
     deep_merge_check,
@@ -229,11 +228,6 @@ def process_in_experiment(
                 'global': ports['global'],
             },
         })
-
-    # add derivers
-    derivers = generate_derivers(processes, topology)
-    processes = deep_merge(processes, derivers['processes'])
-    topology = deep_merge(topology, derivers['topology'])
 
     # initialize the experiment
     experiment_config = {

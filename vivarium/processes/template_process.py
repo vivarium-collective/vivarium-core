@@ -67,12 +67,6 @@ class Template(Process):
             },
         }
 
-    def derivers(self):
-        '''
-        declare which derivers are needed for this process
-        '''
-        return {}
-
     def next_update(self, timestep, states):
 
         # get the states
