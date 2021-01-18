@@ -431,6 +431,7 @@ class Store:
             if self.units:
                 return self.value.to(self.units).magnitude
             return self.value
+        return None
 
     def delete_path(self, path):
         '''
@@ -447,6 +448,7 @@ class Store:
             lost = target.inner[remove]
             del target.inner[remove]
             return lost
+        return None
 
     def divide_value(self):
         '''
@@ -470,6 +472,7 @@ class Store:
                     for daughter, divide in zip(daughters, division):
                         daughter[key] = divide
             return daughters
+        return None
 
     def reduce(self, reducer, initial=None):
         '''
@@ -770,6 +773,7 @@ class Store:
 
         if key in self.inner:
             return self.inner[key].get_value()
+        return None
 
     def topology_state(self, topology):
         '''
@@ -893,9 +897,9 @@ class Store:
         if subtopology is None:
             subtopology = self.subtopology or {}
 
-        inner = list(self.inner.items())
+        inner = list(self.inner.values())
 
-        for child_key, child in inner:
+        for child in inner:
             child.topology_ports(
                 subschema,
                 subtopology,
