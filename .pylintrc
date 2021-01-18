@@ -109,6 +109,7 @@ good-names=pp,pf,_,
 
 no-docstring-rgx=(^_)|(^[Tt]est)
 max-line-length=80
+max-module-lines=1200
 attr-rgx=^[a-z_][a-z0-9]*((_[a-z0-9]+)*)?$
 variable-rgx=^[a-z][a-z0-9]*((_[a-z0-9]+)*)?$
 argument-rgx=^[a-z][a-z0-9]*((_[a-z0-9]+)*)?$
