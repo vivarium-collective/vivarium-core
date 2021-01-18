@@ -2,7 +2,8 @@ import logging as log
 from multiprocessing import Pool
 
 from vivarium.composites.toys import Proton, Electron, Sine
-from vivarium.core.experiment import Store, Experiment, pf, pp, MultiInvoke, depth
+from vivarium.core.experiment import Experiment, pf, pp, MultiInvoke
+from vivarium.core.tree import hierarchy_depth, Store
 from vivarium.core.process import Process, Composite
 from vivarium.library.units import units
 
@@ -487,7 +488,7 @@ def test_depth():
         'B': {
             'BA': 6}}
 
-    dissected = depth(nested)
+    dissected = hierarchy_depth(nested)
     assert len(dissected) == 3
     assert dissected[('A', 'AB', 'ABC')] == 11
 
