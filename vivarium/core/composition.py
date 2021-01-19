@@ -184,50 +184,45 @@ def process_in_experiment(
     if initial_state is None:
         initial_state = {}
 
-    timeline = settings.get('timeline', {})
-    environment = settings.get('environment', {})
     paths = settings.get('topology', {})
-
     processes = {'process': process}
     topology = {
         'process': {
             port: paths.get(port, (port,))
             for port in process.ports_schema().keys()}}
 
-    if timeline:
+    timeline = settings.pop('timeline', None)
+    if timeline is not None:
         # Adding a timeline to a process requires the timeline argument
         # in settings to have a 'timeline' key. An optional 'paths' key
         # overrides the topology mapping from {port: path}.
+        timeline_paths = timeline.pop('paths', {})
         timeline_process = TimelineProcess(timeline)
-        timeline_paths = timeline.get('paths', {})
-        processes.update({'timeline_process': timeline_process})
-        timeline_ports = {
+        processes.update({
+            TimelineProcess.name: timeline_process})
+
+        # add topology
+        timeline_topology = {
             port: timeline_paths.get(port, (port,))
             for port in timeline_process.ports()}
-        topology.update({'timeline_process': timeline_ports})
+        topology.update({TimelineProcess.name: timeline_topology})
 
-    if environment:
-        # Environment requires ports for external, fields, dimensions,
-        # and global (for location)
-        ports = environment.get(
-            'ports',
-            {
-                'external': ('external',),
-                'fields': ('fields',),
-                'dimensions': ('dimensions',),
-                'global': ('global',),
-            }
-        )
+    environment = settings.pop('environment', None)
+    if environment is not None:
+        # An optional 'paths' key overrides the topology mapping from {port: path}.
+        overide_topology = environment.pop('paths', {})
         environment_process = NonSpatialEnvironment(environment)
-        processes.update({'environment_process': environment_process})
+        processes.update({
+            environment_process.name: environment_process})
+
+        # add topology
+        environment_topology = environment_process.generate_topology({})[
+            environment_process.name]
+        environment_topology = deep_merge(
+            environment_topology,
+            overide_topology)
         topology.update({
-            'environment_process': {
-                'external': ports['external'],
-                'fields': ports['fields'],
-                'dimensions': ports['dimensions'],
-                'global': ports['global'],
-            },
-        })
+            environment_process.name: environment_topology})
 
     # initialize the experiment
     experiment_config = {
@@ -389,8 +384,19 @@ def test_process_in_experiment_timeline():
             'timeline': {'timeline': timeline}})
     assert experiment.processes['process'] is process
     assert isinstance(
-        experiment.processes['timeline_process'], TimelineProcess)
+        experiment.processes['timeline'],
+        TimelineProcess)
 
+def test_process_in_experiment_environment():
+    process = ExchangeA()
+    experiment = process_in_experiment(
+        process,
+        settings={'environment': {}})
+
+    assert experiment.processes['process'] is process
+    assert isinstance(
+        experiment.processes['nonspatial_environment'],
+        NonSpatialEnvironment)
 
 def test_compose_experiment():
     hierarchy = {
@@ -466,5 +472,6 @@ def test_compartment():
 if __name__ == '__main__':
     # test_process_deletion()
     # test_compartment()
+    # test_replace_names()
 
-    test_replace_names()
+    test_process_in_experiment_environment()
