@@ -16,7 +16,7 @@ import uuid
 
 from pymongo.errors import PyMongoError
 
-from vivarium.composites.toys import Proton, Electron, Sine
+from vivarium.composites.toys import Proton, Electron, Sine, PoQo
 from vivarium.core.tree import hierarchy_depth, Store
 from vivarium.core.emitter import get_emitter
 from vivarium.core.process import (
@@ -826,77 +826,6 @@ def test_multi_port_merge():
 
 
 def test_complex_topology():
-    class Po(Process):
-        name = 'po'
-
-        def ports_schema(self):
-            return {
-                'A': {
-                    'a': {'_default': 0},
-                    'b': {'_default': 0},
-                    'c': {'_default': 0}},
-                'B': {
-                    'd': {'_default': 0},
-                    'e': {'_default': 0}}}
-
-        def next_update(self, timestep, states):
-            return {
-                'A': {
-                    'a': states['A']['b'],
-                    'b': states['A']['c'],
-                    'c': states['B']['d'] + states['B']['e']},
-                'B': {
-                    'd': states['A']['a'],
-                    'e': states['B']['e']}}
-
-    class Qo(Process):
-        name = 'qo'
-
-        def ports_schema(self):
-            return {
-                'D': {
-                    'x': {'_default': 0},
-                    'y': {'_default': 0},
-                    'z': {'_default': 0}},
-                'E': {
-                    'u': {'_default': 0},
-                    'v': {'_default': 0}}}
-
-        def next_update(self, timestep, states):
-            return {
-                'D': {
-                    'x': -1,
-                    'y': 12,
-                    'z': states['D']['x'] + states['D']['y']},
-                'E': {
-                    'u': 3,
-                    'v': states['E']['u']}}
-
-    class PoQo(Composite):
-        def generate_processes(self, config=None):
-            p = Po(config)
-            q = Qo(config)
-
-            return {
-                'po': p,
-                'qo': q}
-
-        def generate_topology(self, config=None):
-            return {
-                'po': {
-                    'A': {
-                        '_path': ('aaa',),
-                        'b': ('o',)},
-                    'B': ('bbb',)},
-                'qo': {
-                    'D': {
-                        'x': ('aaa', 'a'),
-                        'y': ('aaa', 'o'),
-                        'z': ('ddd', 'z')},
-                    'E': {
-                        'u': ('aaa', 'u'),
-                        'v': ('bbb', 'e')}}}
-
     initial_state = {
         'aaa': {
             'a': 2,
