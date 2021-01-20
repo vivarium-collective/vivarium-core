@@ -136,9 +136,9 @@ def generate_derivers(
         processes: Dict[str, 'Process'],
         topology: Topology) -> CompositeDict:
     deriver_processes = {}
-    deriver_topology = Topology({})
+    deriver_topology: Dict[str, Topology] = {}
     for process_key, node in processes.items():
-        subtopology = topology[process_key]
+        subtopology: Topology = cast(Topology, topology[process_key])
         if isinstance(node, Process):
             for deriver_key, config in node.derivers().items():
                 if deriver_key not in deriver_processes:
@@ -157,15 +157,16 @@ def generate_derivers(
                         port: (port,) for port in deriver_ports.keys()}
                     for target, source in config.get(
                             'port_mapping', {}).items():
-                        path = subtopology[source]
+                        path: HierarchyPath = cast(
+                            HierarchyPath, subtopology[source])
                         deriver_topology[deriver_key][target] = path
         else:
             subderivers = generate_derivers(node, subtopology)
             deriver_processes[process_key] = subderivers['processes']
             deriver_topology[process_key] = subderivers['topology']
-    return CompositeDict({
+    return {
         'processes': deriver_processes,
-        'topology': deriver_topology})
+        'topology': deriver_topology}
 
 
 def get_composite_initial_state(
@@ -176,7 +177,7 @@ def get_composite_initial_state(
         if isinstance(node, dict):
             for key in node.keys():
                 initial_state[key] = get_composite_initial_state(
-                    node, topology[path])
+                    node, cast(Topology, topology[path]))
         elif isinstance(node, Process):
             process_topology = topology[path]
             process_state = node.initial_state()
@@ -185,7 +186,7 @@ def get_composite_initial_state(
                 process_path, process_state, process_topology)
             initial_state = deep_merge(initial_state, state)
 
-    return State(initial_state)
+    return initial_state
 
 
 class Factory(metaclass=abc.ABCMeta):
@@ -241,7 +242,7 @@ class Factory(metaclass=abc.ABCMeta):
             dict: Subclass implementations must return a
             :term:`topology` dictionary.
         """
-        return Topology({})
+        return {}
 
     def generate(
             self,
@@ -277,10 +278,10 @@ class Factory(metaclass=abc.ABCMeta):
         processes = deep_merge(derivers['processes'], processes)
         topology = deep_merge(derivers['topology'], topology)
 
-        return CompositeDict({
+        return {
             'processes': assoc_in({}, path, processes),
-            'topology': Topology(assoc_in({}, path, topology)),
-        })
+            'topology': assoc_in({}, path, topology),
+        }
 
 
 class Composite(Factory):
@@ -311,8 +312,8 @@ class Composite(Factory):
             mapping state paths to initial values.
         """
         network = self.generate(config)
-        processes = network['processes']
-        topology = cast(Topology, network['topology'])
+        processes = cast(Dict[str, Any], network['processes'])
+        topology = network['topology']
         initial_state = get_composite_initial_state(processes, topology)
         return initial_state
 
@@ -321,14 +322,14 @@ class Composite(Factory):
         return {}
 
     def generate_topology(self, config: Optional[dict]) -> Topology:
-        return Topology({})
+        return {}
 
     def generate(
             self,
             config: Optional[dict] = None,
             path: HierarchyPath = tuple()) -> CompositeDict:
         network = super().generate(config=config)
-        processes = network['processes']
+        processes = cast(Dict[str, Any], network['processes'])
         topology = network['topology']
 
         # add merged processes
@@ -339,14 +340,14 @@ class Composite(Factory):
 
         override_schemas(self.schema_override, processes)
 
-        return CompositeDict({
+        return {
             'processes': assoc_in({}, path, processes),
-            'topology': Topology(assoc_in({}, path, topology)),
-        })
+            'topology': assoc_in({}, path, topology),
+        }
 
     def get_parameters(self) -> dict:
         network = self.generate({})
-        processes = network['processes']
+        processes = cast(Dict[str, 'Process'], network['processes'])
         return {
             process_id: process.parameters
             for process_id, process in processes.items()}
@@ -357,8 +358,8 @@ class Composite(Factory):
             topology: Optional[Topology] = None,
             schema_override: Optional[Schema] = None) -> None:
         processes = processes or {}
-        topology = topology or Topology({})
-        schema_override = schema_override or Schema({})
+        topology = topology or {}
+        schema_override = schema_override or {}
 
         for process in processes.values():
             assert isinstance(process, Process)
@@ -412,9 +413,9 @@ class Process(Composite, metaclass=abc.ABCMeta):
 
     def generate_topology(self, config: Optional[dict]) -> Topology:
         ports = self.ports()
-        return Topology({
+        return {
             self.name: {
-                port: (port,) for port in ports.keys()}})
+                port: (port,) for port in ports.keys()}}
 
     def get_schema(self, override: Optional[Schema] = None) -> dict:
         ports = copy.deepcopy(self.ports_schema())
@@ -440,7 +441,7 @@ class Process(Composite, metaclass=abc.ABCMeta):
 
     def default_state(self) -> State:
         schema = self.ports_schema()
-        state = State({})
+        state: State = {}
         for port, states in schema.items():
             for key, value in states.items():
                 if '_default' in value:
@@ -459,7 +460,7 @@ class Process(Composite, metaclass=abc.ABCMeta):
         return {}
 
     def pull_data(self) -> State:
-        return State({})
+        return {}
 
     @abc.abstractmethod
     def ports_schema(self) -> Schema:
@@ -471,7 +472,7 @@ class Process(Composite, metaclass=abc.ABCMeta):
         in Store: '_default', '_updater', _divider', '_value', '_properties',
         '_emit', '_serializer'
         '''
-        return Schema({})
+        return {}
 
     def or_default(self, parameters: Dict[str, Any], key: str) -> Any:
         return parameters.get(key, self.defaults[key])
@@ -490,7 +491,7 @@ class Process(Composite, metaclass=abc.ABCMeta):
         Find the next update given the current states this process cares
         about. This is the main function a new process would override.
         '''
-        return Update({})
+        return {}
 
 
 class Deriver(Process, metaclass=abc.ABCMeta):
@@ -545,16 +546,16 @@ def test_composite_initial_state() -> None:
         name = 'AA'
 
         def initial_state(self, config: Optional[dict] = None) -> State:
-            return State({'a_port': {'a': 1}})
+            return {'a_port': {'a': 1}}
 
         def ports_schema(self) -> Schema:
-            return Schema({'a_port': {'a': {'_emit': True}}})
+            return {'a_port': {'a': {'_emit': True}}}
 
         def next_update(
                 self,
                 timestep: Union[float, int],
                 states: State) -> Update:
-            return Update({'a_port': {'a': 1}})
+            return {'a_port': {'a': 1}}
 
     class BB(Composite):
         name = 'BB'
@@ -569,7 +570,7 @@ def test_composite_initial_state() -> None:
             }
 
         def generate_topology(self, config: Optional[dict]) -> Topology:
-            return Topology({
+            return {
                 'a1': {
                     'a_port': ('a1_store',)
                 },
@@ -581,7 +582,7 @@ def test_composite_initial_state() -> None:
                     'a3_store': {
                         'a_port': ('a3_1_store',)},
                 }
-            })
+            }
 
     # run experiment
     bb_composite = BB({})
@@ -600,23 +601,23 @@ class ToyProcess(Process):
     name = 'toy'
 
     def ports_schema(self) -> Schema:
-        return Schema({
+        return {
             'A': {
                 'a': {'_default': 0},
                 'b': {'_default': 0}},
             'B': {
                 'a': {'_default': 0},
-                'b': {'_default': 0}}})
+                'b': {'_default': 0}}}
 
     def next_update(
             self, timestep: Union[float, int], states: State) -> Update:
-        return Update({
+        return {
             'A': {
                 'a': 1,
                 'b': states['A']['a']},
             'B': {
                 'a': states['A']['b'],
-                'b': states['B']['a']}})
+                'b': states['B']['a']}}
 
 
 class ToyComposite(Composite):
@@ -634,13 +635,13 @@ class ToyComposite(Composite):
 
     def generate_topology(
             self, config: Optional[dict] = None) -> Topology:
-        return Topology({
+        return {
             'A': {
                 'A': ('aaa',),
                 'B': ('bbb',)},
             'B': {
                 'A': ('bbb',),
-                'B': ('ccc',)}})
+                'B': ('ccc',)}}
 
 
 def test_composite_merge() -> None:
@@ -666,10 +667,10 @@ def test_composite_merge() -> None:
     # merge
     merge_processes: Dict[str, Process] = {
         'C': ToyProcess({'name': 'C'})}
-    merge_topology = Topology({
+    merge_topology: Topology = {
         'C': {
             'A': ('aaa',),
-            'B': ('bbb',)}})
+            'B': ('bbb',)}}
     generator.merge(
         merge_processes,
         merge_topology)
@@ -703,10 +704,10 @@ def test_get_composite() -> None:
 
     a.merge(
         processes={'b': ToyProcess()},
-        topology=Topology({'b': {
+        topology={'b': {
             'A': ('A',),
             'B': ('B',),
-        }}))
+        }})
 
     network = a.generate()
 
