@@ -58,6 +58,7 @@ disable=print-statement,
         missing-function-docstring,
         missing-module-docstring,
 # Rules we ignore that are not ignored by default
+        too-many-instance-attributes,
         too-many-return-statements,
         too-many-arguments,
         too-many-locals,
@@ -77,14 +78,13 @@ ignore=injected_glc_phosphorylation.py,
        path.py,
        divide_condition.py,
        agents_multigen.py,
-       experiment.py,
-       test_experiment.py,
        exponential.py,
        burst.py,
        dict_utils.py,
        tree_mass.py,
        filepath.py,
        exchange_a.py,
+       tree.py,
        registry.py,
        units.py,
        datum.py,
@@ -101,11 +101,14 @@ ignore=injected_glc_phosphorylation.py,
        agent_names.py,
        derive_concentrations.py,
        nonspatial_environment.py,
+# Good variable names which should be accepted
+good-names=pp,pf,_,
 
 [BASIC]
 
 no-docstring-rgx=(^_)|(^[Tt]est)
 max-line-length=80
+max-module-lines=1200
 attr-rgx=^[a-z_][a-z0-9]*((_[a-z0-9]+)*)?$
 variable-rgx=^[a-z][a-z0-9]*((_[a-z0-9]+)*)?$
 argument-rgx=^[a-z][a-z0-9]*((_[a-z0-9]+)*)?$

@@ -2,12 +2,7 @@ import os
 from typing import Any, Dict, Optional
 import uuid
 
-from vivarium.composites.toys import (
-    ToyCompartment,
-    ToyLinearGrowthDeathProcess,
-)
 from vivarium.core.experiment import Experiment
-from vivarium.core.process import generate_derivers
 from vivarium.library.dict_utils import (
     deep_merge,
     deep_merge_check,
@@ -18,7 +13,12 @@ from vivarium.processes.nonspatial_environment import \
     NonSpatialEnvironment
 
 # toys for testing
-from vivarium.composites.toys import ExchangeA
+from vivarium.composites.toys import (
+    PoQo,
+    ToyLinearGrowthDeathProcess,
+    ExchangeA,
+    ToyCompartment
+)
 
 REFERENCE_DATA_DIR = os.path.join('vivarium', 'reference_data')
 BASE_OUT_DIR = 'out'
@@ -160,6 +160,38 @@ def compose_experiment(
 
 
 # experiment loading functions
+def add_timeline(processes, topology, timeline):
+    # Adding a timeline to a process requires the timeline argument
+    # in settings to have a 'timeline' key. An optional 'paths' key
+    # overrides the topology mapping from {port: path}.
+    timeline_paths = timeline.pop('paths', {})
+    timeline_process = TimelineProcess(timeline)
+    processes.update({
+        TimelineProcess.name: timeline_process})
+
+    # add topology
+    timeline_topology = {
+        port: timeline_paths.get(port, (port,))
+        for port in timeline_process.ports()}
+    topology.update({TimelineProcess.name: timeline_topology})
+
+
+def add_environment(processes, topology, environment):
+    # An optional 'paths' key overrides the topology mapping from {port: path}.
+    overide_topology = environment.pop('paths', {})
+    environment_process = NonSpatialEnvironment(environment)
+    processes.update({
+        environment_process.name: environment_process})
+
+    # add topology
+    environment_topology = environment_process.generate_topology({})[
+        environment_process.name]
+    environment_topology = deep_merge(
+        environment_topology,
+        overide_topology)
+    topology.update({
+        environment_process.name: environment_topology})
+
 
 def process_in_experiment(
         process,
@@ -185,55 +217,20 @@ def process_in_experiment(
     if initial_state is None:
         initial_state = {}
 
-    timeline = settings.get('timeline', {})
-    environment = settings.get('environment', {})
     paths = settings.get('topology', {})
-
     processes = {'process': process}
     topology = {
         'process': {
             port: paths.get(port, (port,))
             for port in process.ports_schema().keys()}}
 
-    if timeline:
-        # Adding a timeline to a process requires the timeline argument
-        # in settings to have a 'timeline' key. An optional 'paths' key
-        # overrides the topology mapping from {port: path}.
-        timeline_process = TimelineProcess(timeline)
-        timeline_paths = timeline.get('paths', {})
-        processes.update({'timeline_process': timeline_process})
-        timeline_ports = {
-            port: timeline_paths.get(port, (port,))
-            for port in timeline_process.ports()}
-        topology.update({'timeline_process': timeline_ports})
+    timeline = settings.pop('timeline', None)
+    if timeline is not None:
+        add_timeline(processes, topology, timeline)
 
-    if environment:
-        # Environment requires ports for external, fields, dimensions,
-        # and global (for location)
-        ports = environment.get(
-            'ports',
-            {
-                'external': ('external',),
-                'fields': ('fields',),
-                'dimensions': ('dimensions',),
-                'global': ('global',),
-            }
-        )
-        environment_process = NonSpatialEnvironment(environment)
-        processes.update({'environment_process': environment_process})
-        topology.update({
-            'environment_process': {
-                'external': ports['external'],
-                'fields': ports['fields'],
-                'dimensions': ports['dimensions'],
-                'global': ports['global'],
-            },
-        })
-
-    # add derivers
-    derivers = generate_derivers(processes, topology)
-    processes = deep_merge(processes, derivers['processes'])
-    topology = deep_merge(topology, derivers['topology'])
+    environment = settings.pop('environment', None)
+    if environment is not None:
+        add_environment(processes, topology, environment)
 
     # initialize the experiment
     experiment_config = {
@@ -270,48 +267,19 @@ def composite_in_experiment(
         initial_state = {}
 
     composite_config = settings.get('composite_config', {})
-    timeline = settings.get('timeline')
-    environment = settings.get('environment')
     outer_path = settings.get('outer_path', tuple())
 
     network = composite.generate(composite_config, outer_path)
     processes = network['processes']
     topology = network['topology']
 
+    timeline = settings.pop('timeline', None)
     if timeline is not None:
-        # Add a timeline  requires the timeline argument in
-        # settings to have a 'timeline' key. An optional 'paths'
-        # key overrides the topology mapping from {port: path}.
-        timeline_process = TimelineProcess(timeline)
-        timeline_paths = timeline.get('paths', {})
-        processes.update({'timeline_process': timeline_process})
-        timeline_ports = {
-            port: timeline_paths.get(port, (port,))
-            for port in timeline_process.ports()}
-        topology.update({'timeline_process': timeline_ports})
+        add_timeline(processes, topology, timeline)
 
+    environment = settings.pop('environment', None)
     if environment is not None:
-        # Environment requires ports for external, fields, dimensions,
-        # and global (for location)
-        ports = environment.get(
-            'ports',
-            {
-                'external': ('external',),
-                'fields': ('fields',),
-                'dimensions': ('dimensions',),
-                'global': ('global',),
-            }
-        )
-        environment_process = NonSpatialEnvironment(environment)
-        processes.update({'environment_process': environment_process})
-        topology.update({
-            'environment_process': {
-                'external': ports['external'],
-                'fields': ports['fields'],
-                'dimensions': ports['dimensions'],
-                'global': ports['global'],
-            },
-        })
+        add_environment(processes, topology, environment)
 
     # initialize the experiment
     experiment_config = {
@@ -395,7 +363,42 @@ def test_process_in_experiment_timeline():
             'timeline': {'timeline': timeline}})
     assert experiment.processes['process'] is process
     assert isinstance(
-        experiment.processes['timeline_process'], TimelineProcess)
+        experiment.processes['timeline'],
+        TimelineProcess)
+
+def test_process_in_experiment_environment():
+    process = ExchangeA()
+    experiment = process_in_experiment(
+        process,
+        settings={'environment': {}})
+
+    assert experiment.processes['process'] is process
+    assert isinstance(
+        experiment.processes['nonspatial_environment'],
+        NonSpatialEnvironment)
+
+
+def test_composite_in_experiment():
+    composite = PoQo({
+        '_schema': {'po': {'A': {'a': {'_emit': True}}}}
+    })
+
+    timeline = [
+        (0, {('aaa', 'a'): 1}),
+        (5, {('aaa', 'a'): 10}),
+        (10, {})]
+    settings = {
+        'environment': {},
+        'timeline': {'timeline': timeline}}
+    experiment = composite_in_experiment(composite, settings)
+
+    assert isinstance(
+        experiment.processes['nonspatial_environment'],
+        NonSpatialEnvironment)
+
+    output = simulate_experiment(experiment, settings)
+    # check that timeline worked
+    assert output['aaa']['a'][6] == 10
 
 
 def test_compose_experiment():
@@ -472,5 +475,7 @@ def test_compartment():
 if __name__ == '__main__':
     # test_process_deletion()
     # test_compartment()
+    # test_replace_names()
+    # test_process_in_experiment_environment()
 
-    test_replace_names()
+    test_composite_in_experiment()

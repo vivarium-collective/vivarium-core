@@ -176,22 +176,11 @@ not accumulated.
 Derivers
 ========
 
-For each port, we can also specify a :term:`deriver`. Each process class
-MAY implement a `derivers` method that returns a dictionary whose keys
-are the ports to which we want to apply derivers. For each port, the
-value in the dictionary must be a dictionary with the following keys:
+:term:`Deriver` is subclass of :term:`Process`, which runs after the
+other Processes with a timestep of 0, and derives some states from
+others. For example, concentrations from counts. These are used to
+offload complexity from the dynamical Processes.
 
-* **deriver** (:py:class:`str`): The name of the deriver to apply.
-* **port_mapping** (:py:class:`dict`): Maps from ports of the deriver
-  process to ports of the process class we are writing. This is like a
-  :term:`topology`.
-* **config** (:py:class:`dict`): A configuration dictionary that
-  conforms to the requirements of the particular deriver being invoked.
-
-.. WARNING:: Derivers need to be registered for Vivarium Core to know
-   what deriver each name indicates. To register a deriver, just
-   create an instance of it. Many derivers do this automatically on
-   import.
 
 Next Updates
 ============

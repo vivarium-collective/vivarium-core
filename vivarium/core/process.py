@@ -132,43 +132,6 @@ def override_schemas(
             override_schemas(override, process)
 
 
-def generate_derivers(
-        processes: Dict[str, 'Process'],
-        topology: Topology) -> CompositeDict:
-    deriver_processes = {}
-    deriver_topology: Dict[str, Topology] = {}
-    for process_key, node in processes.items():
-        subtopology: Topology = cast(Topology, topology[process_key])
-        if isinstance(node, Process):
-            for deriver_key, config in node.derivers().items():
-                if deriver_key not in deriver_processes:
-                    # generate deriver process
-                    deriver_config = config.get('config', {})
-                    generate = config['deriver']
-                    if isinstance(generate, str):
-                        generate = process_registry.access(generate)
-
-                    deriver = generate(deriver_config)
-                    deriver_processes[deriver_key] = deriver
-
-                    # generate deriver topology
-                    deriver_ports = deriver.ports()
-                    deriver_topology[deriver_key] = {
-                        port: (port,) for port in deriver_ports.keys()}
-                    for target, source in config.get(
-                            'port_mapping', {}).items():
-                        path: HierarchyPath = cast(
-                            HierarchyPath, subtopology[source])
-                        deriver_topology[deriver_key][target] = path
-        else:
-            subderivers = generate_derivers(node, subtopology)
-            deriver_processes[process_key] = subderivers['processes']
-            deriver_topology[process_key] = subderivers['topology']
-    return {
-        'processes': deriver_processes,
-        'topology': deriver_topology}
-
-
 def get_composite_initial_state(
         processes: Dict[str, 'Process'],
         topology: Topology) -> State:
@@ -272,11 +235,6 @@ class Factory(metaclass=abc.ABCMeta):
 
         processes = self.generate_processes(config)
         topology = self.generate_topology(config)
-
-        # add derivers
-        derivers = generate_derivers(processes, topology)
-        processes = deep_merge(derivers['processes'], processes)
-        topology = deep_merge(derivers['topology'], topology)
 
         return {
             'processes': assoc_in({}, path, processes),
@@ -450,14 +408,11 @@ class Process(Composite, metaclass=abc.ABCMeta):
                     state[port][key] = value['_default']
         return state
 
-    # The three following methods don't use `self`, but since subclasses
+    # The two following methods don't use `self`, but since subclasses
     # might, they need to take `self` as a parameter.
 
     def is_deriver(self) -> bool:
         return False
-
-    def derivers(self) -> Dict[str, Any]:
-        return {}
 
     def pull_data(self) -> State:
         return {}
