@@ -4,7 +4,7 @@ Types
 =====
 '''
 
-from typing import Tuple, NewType, Dict, Any, Union
+from typing import Tuple, Dict, Any, Union
 
 
 #: Relative path between nodes in the :term:`hierarchy`. Like Unix file
