@@ -379,14 +379,26 @@ def test_process_in_experiment_environment():
 
 
 def test_composite_in_experiment():
-    composite = PoQo({})
+    composite = PoQo({
+        '_schema': {'po': {'A': {'a': {'_emit': True}}}}
+    })
 
-    settings = {'environment': {}}
+    timeline = [
+        (0, {('aaa', 'a'): 1}),
+        (5, {('aaa', 'a'): 10}),
+        (10, {})]
+    settings = {
+        'environment': {},
+        'timeline': {'timeline': timeline}}
     experiment = composite_in_experiment(composite, settings)
 
     assert isinstance(
         experiment.processes['nonspatial_environment'],
         NonSpatialEnvironment)
+
+    output = simulate_experiment(experiment, settings)
+    # check that timeline worked
+    assert output['aaa']['a'][6] == 10
 
 
 def test_compose_experiment():
