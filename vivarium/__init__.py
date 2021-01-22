@@ -32,7 +32,7 @@ from vivarium.core.registry import (
     update_nonnegative_accumulate, divide_set, divide_split,
     divide_split_dict, divide_zero, assert_no_divide, divide_binomial,
     NumpySerializer, NumpyScalarSerializer, UnitsSerializer,
-    ProcessSerializer, FactorySerializer, FunctionSerializer,
+    ProcessSerializer, ComposerSerializer, FunctionSerializer,
 )
 
 
@@ -69,5 +69,5 @@ serializer_registry.register('numpy', NumpySerializer())
 serializer_registry.register('numpy_scalar', NumpyScalarSerializer())
 serializer_registry.register('units', UnitsSerializer())
 serializer_registry.register('process', ProcessSerializer())
-serializer_registry.register('factory', FactorySerializer())
+serializer_registry.register('composer', ComposerSerializer())
 serializer_registry.register('function', FunctionSerializer())

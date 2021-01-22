@@ -1,6 +1,6 @@
 """
 =======================================
-Factory, Process, and Composite Classes
+Composer and Process Classes
 =======================================
 """
 
@@ -49,8 +49,8 @@ def serialize_value(value: Any) -> Any:
       :py:class:`vivarium.core.registry.FunctionSerializer`.
     * :py:class:`vivarium.core.process.Process` objects are handled by
       :py:class:`vivarium.core.registry.ProcessSerializer`.
-    * :py:class:`vivarium.core.process.Factory` objects are handled by
-      :py:class:`vivarium.core.registry.FactorySerializer`.
+    * :py:class:`vivarium.core.process.Composer` objects are handled by
+      :py:class:`vivarium.core.registry.ComposerSerializer`.
     * Numpy scalars are handled by
       :py:class:`vivarium.core.registry.NumpyScalarSerializer`.
     * ``ObjectId`` objects are serialized by calling its ``__str__``
@@ -88,10 +88,10 @@ def serialize_value(value: Any) -> Any:
         value = cast(Process, value)
         return _serialize_dictionary(
             serializer_registry.access('process').serialize(value))
-    if isinstance(value, Factory):
-        value = cast(Factory, value)
+    if isinstance(value, Composer):
+        value = cast(Composer, value)
         return _serialize_dictionary(
-            serializer_registry.access('factory').serialize(value))
+            serializer_registry.access('composer').serialize(value))
     if isinstance(value, (np.integer, np.floating)):
         value = cast(Union[np.integer, np.floating], value)
         return serializer_registry.access(
@@ -231,15 +231,15 @@ def _get_composite_initial_state(
     return initial_state
 
 
-class Factory(metaclass=abc.ABCMeta):
+class Composer(metaclass=abc.ABCMeta):
     defaults: Dict[str, Any] = {}
 
     def __init__(self, config: Optional[dict] = None) -> None:
-        """Base class for :term:`factory` classes.
+        """Base class for :term:`composer` classes.
 
-        Factories produce :term:`composites`.
+        Composers generate :term:`composites`.
 
-        All :term:`factory` classes must inherit from this class.
+        All :term:`composer` classes must inherit from this class.
 
         Args:
             config: Dictionary of configuration options that can
@@ -254,6 +254,30 @@ class Factory(metaclass=abc.ABCMeta):
 
         self.config = copy.deepcopy(self.defaults)
         self.config = deep_merge(self.config, config)
+
+        self.merge_processes = self.config.pop('_processes', {})
+        self.merge_topology = self.config.pop('_topology', {})
+        self.schema_override = self.config.pop('_schema', {})
+
+    def initial_state(self, config: Optional[dict] = None) -> State:
+        """ Merge all processes' initial states
+
+        Every subclass may override this method.
+
+        Arguments:
+            config (dict): A dictionary of configuration options. All
+                subclass implementation must accept this parameter, but
+                some may ignore it.
+
+        Returns:
+            dict: Subclass implementations must return a dictionary
+            mapping state paths to initial values.
+        """
+        network = self.generate(config)
+        processes = cast(Dict[str, Any], network['processes'])
+        topology = network['topology']
+        initial_state = _get_composite_initial_state(processes, topology)
+        return initial_state
 
     @abc.abstractmethod
     def generate_processes(
@@ -321,60 +345,6 @@ class Factory(metaclass=abc.ABCMeta):
         processes = self.generate_processes(config)
         topology = self.generate_topology(config)
 
-        return {
-            'processes': assoc_in({}, path, processes),
-            'topology': assoc_in({}, path, topology),
-        }
-
-
-class Composite(Factory):
-    """Composite parent class
-
-    All :term:`composite` classes must inherit from this class.
-    """
-
-    def __init__(self, config: Optional[dict] = None) -> None:
-        super().__init__(config)
-
-        self.merge_processes = self.config.pop('_processes', {})
-        self.merge_topology = self.config.pop('_topology', {})
-        self.schema_override = self.config.pop('_schema', {})
-
-    def initial_state(self, config: Optional[dict] = None) -> State:
-        """ Merge all processes' initial states
-
-        Every subclass may override this method.
-
-        Arguments:
-            config (dict): A dictionary of configuration options. All
-                subclass implementation must accept this parameter, but
-                some may ignore it.
-
-        Returns:
-            dict: Subclass implementations must return a dictionary
-            mapping state paths to initial values.
-        """
-        network = self.generate(config)
-        processes = cast(Dict[str, Any], network['processes'])
-        topology = network['topology']
-        initial_state = _get_composite_initial_state(processes, topology)
-        return initial_state
-
-    def generate_processes(
-            self, config: Optional[dict]) -> Dict[str, Any]:
-        return {}
-
-    def generate_topology(self, config: Optional[dict]) -> Topology:
-        return {}
-
-    def generate(
-            self,
-            config: Optional[dict] = None,
-            path: HierarchyPath = tuple()) -> CompositeDict:
-        network = super().generate(config=config)
-        processes = cast(Dict[str, Any], network['processes'])
-        topology = network['topology']
-
         # add merged processes
         # TODO - this assumes all merge_processes are initialized.
         # TODO - make option to initialize new processes here
@@ -420,7 +390,7 @@ class Composite(Factory):
             self.schema_override, schema_override)
 
 
-class Process(Composite, metaclass=abc.ABCMeta):
+class Process(Composer, metaclass=abc.ABCMeta):
     defaults: Dict[str, Any] = {}
 
     def __init__(self, parameters: Optional[dict] = None) -> None:
@@ -698,7 +668,7 @@ def test_composite_initial_state() -> None:
                 states: State) -> Update:
             return {'a_port': {'a': 1}}
 
-    class BB(Composite):
+    class BB(Composer):
         name = 'BB'
 
         def generate_processes(
@@ -761,7 +731,7 @@ class ToyProcess(Process):
                 'b': states['B']['a']}}
 
 
-class ToyComposite(Composite):
+class ToyComposite(Composer):
     defaults = {
         'A':  {'name': 'A'},
         'B': {'name': 'B'}}
@@ -786,8 +756,8 @@ class ToyComposite(Composite):
 
 
 def test_composite_merge() -> None:
-    generator = ToyComposite()
-    initial_network = generator.generate()
+    composer = ToyComposite()
+    initial_network = composer.generate()
 
     expected_initial_topology = {
         'A': {
@@ -812,12 +782,12 @@ def test_composite_merge() -> None:
         'C': {
             'A': ('aaa',),
             'B': ('bbb',)}}
-    generator.merge(
+    composer.merge(
         merge_processes,
         merge_topology)
 
     config = {'A': {'name': 'D'}, 'B': {'name': 'E'}}
-    merged_network = generator.generate(config)
+    merged_network = composer.generate(config)
 
     expected_merged_topology = {
         'A': {

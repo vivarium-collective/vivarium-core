@@ -3,7 +3,7 @@ from typing import Optional, Dict, Any
 
 import numpy as np
 
-from vivarium.core.process import Process, Deriver, Factory, Composite
+from vivarium.core.process import Process, Deriver, Composer
 
 quark_colors = ['green', 'red', 'blue']
 quark_spins = ['up', 'down']
@@ -118,7 +118,7 @@ class ToyDeath(Process):
         return update
 
 
-class ToyCompartment(Factory):
+class ToyCompartment(Composer):
     '''
     a toy compartment for testing
 
@@ -416,7 +416,7 @@ class Qo(Process):
                 'v': states['E']['u']}}
 
 
-class PoQo(Composite):
+class PoQo(Composer):
     def generate_processes(self, config=None):
         p = Po(config)
         q = Qo(config)

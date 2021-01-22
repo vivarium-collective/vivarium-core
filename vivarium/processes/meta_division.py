@@ -4,11 +4,11 @@ import logging as log
 
 from vivarium.core.process import (
     Deriver,
-    Factory
+    Composer
 )
 from vivarium.core.composition import (
     compose_experiment,
-    FACTORY_KEY,
+    COMPOSER_KEY,
     PROCESS_OUT_DIR,
 )
 from vivarium.core.experiment import (
@@ -53,7 +53,7 @@ class MetaDivision(Deriver):
 
         # must provide a compartment to generate new daughters
         self.agent_id = initial_parameters['agent_id']
-        self.generator = initial_parameters['generator']
+        self.composer = initial_parameters['composer']
         self.daughter_ids_function = self.or_default(
             initial_parameters, 'daughter_ids_function')
 
@@ -81,12 +81,12 @@ class MetaDivision(Deriver):
             daughter_updates = []
 
             for daughter_id in daughter_ids:
-                generator = self.generator.generate({
+                composer = self.composer.generate({
                     'agent_id': daughter_id})
                 daughter_updates.append({
                     'key': daughter_id,
-                    'processes': generator['processes'],
-                    'topology': generator['topology'],
+                    'processes': composer['processes'],
+                    'topology': composer['topology'],
                     'initial_state': {}})
 
             log.info(
@@ -104,7 +104,7 @@ class MetaDivision(Deriver):
 
 
 # test
-class ToyAgent(Factory):
+class ToyAgent(Composer):
     defaults = {
         'exchange': {'uptake_rate': 0.1},
         'agents_path': ('..', '..', 'agents')}
@@ -114,7 +114,7 @@ class ToyAgent(Factory):
         division_config = dict(
             {},
             agent_id=agent_id,
-            generator=self)
+            composer=self)
 
         return {
             'exchange': ExchangeA(config['exchange']),
@@ -159,7 +159,7 @@ def test_division():
 
     # declare the hierarchy
     hierarchy = {
-        FACTORY_KEY: [
+        COMPOSER_KEY: [
             {
                 'type': TimelineProcess,
                 'config': {'timeline': timeline},
@@ -171,7 +171,7 @@ def test_division():
         ],
         'agents': {
             agent_id: {
-                FACTORY_KEY: {
+                COMPOSER_KEY: {
                     'type': ToyAgent,
                     'config': {'agent_id': agent_id}
                 },

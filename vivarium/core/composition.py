@@ -28,7 +28,7 @@ COMPARTMENT_OUT_DIR = os.path.join(BASE_OUT_DIR, 'compartments')
 COMPOSITE_OUT_DIR = os.path.join(BASE_OUT_DIR, 'composites')
 EXPERIMENT_OUT_DIR = os.path.join(BASE_OUT_DIR, 'experiments')
 
-FACTORY_KEY = '_factory'
+COMPOSER_KEY = '_composer'
 
 
 # loading functions for compartment_hierarchy_experiment
@@ -36,16 +36,16 @@ FACTORY_KEY = '_factory'
 def add_processes_to_hierarchy(
         processes,
         topology,
-        factory_type,
-        factory_config: Optional[Dict[str, Any]] = None,
-        factory_topology: Optional[Dict[str, Any]] = None
+        composer_type,
+        composer_config: Optional[Dict[str, Any]] = None,
+        composer_topology: Optional[Dict[str, Any]] = None
 ):
-    """ Use a factory to add processes and topology """
-    factory_config = factory_config or {}
-    factory_topology = factory_topology or {}
+    """ Use a composer to add processes and topology """
+    composer_config = composer_config or {}
+    composer_topology = composer_topology or {}
 
     # generate
-    composite = factory_type(factory_config)
+    composite = composer_type(composer_config)
     network = composite.generate()
     new_processes = network['processes']
     new_topology = network['topology']
@@ -63,7 +63,7 @@ def add_processes_to_hierarchy(
         del new_topology[name]
 
     # extend processes and topology list
-    new_topology = deep_merge(new_topology, factory_topology)
+    new_topology = deep_merge(new_topology, composer_topology)
     deep_merge(topology, new_topology)
     deep_merge_check(processes, new_processes)
 
@@ -75,25 +75,25 @@ def initialize_hierarchy(hierarchy):
     processes = {}
     topology = {}
     for key, level in hierarchy.items():
-        if key == FACTORY_KEY:
+        if key == COMPOSER_KEY:
             if isinstance(level, list):
-                for generator_def in level:
+                for composer_def in level:
                     add_processes_to_hierarchy(
                         processes=processes,
                         topology=topology,
-                        factory_type=generator_def['type'],
-                        factory_config=generator_def.get(
+                        composer_type=composer_def['type'],
+                        composer_config=composer_def.get(
                             'config', {}),
-                        factory_topology=generator_def.get(
+                        composer_topology=composer_def.get(
                             'topology', {}))
 
             elif isinstance(level, dict):
                 add_processes_to_hierarchy(
                     processes=processes,
                     topology=topology,
-                    factory_type=level['type'],
-                    factory_config=level.get('config', {}),
-                    factory_topology=level.get('topology', {}))
+                    composer_type=level['type'],
+                    composer_config=level.get('config', {}),
+                    composer_topology=level.get('topology', {}))
         else:
             network = initialize_hierarchy(level)
             deep_merge_check(processes, {key: network['processes']})
@@ -127,9 +127,9 @@ def compose_experiment(
 
     Arguments:
         hierarchy: an embedded dictionary mapping the desired topology
-          of nodes, with factories declared under a global FACTORY_KEY
+          of nodes, with composers declared under a global COMPOSER_KEY
           that maps to a dictionary with 'type', 'config', and
-          'topology' for the processes in the Factory. Factories
+          'topology' for the processes in the Composer. Composers
           include lone processes.
         settings: experiment configuration settings.
         initial_state: is the initial_state.
@@ -403,7 +403,7 @@ def test_composite_in_experiment():
 
 def test_compose_experiment():
     hierarchy = {
-        FACTORY_KEY:
+        COMPOSER_KEY:
             {
                 'type': ExchangeA,
                 'config': {},
@@ -418,7 +418,7 @@ def test_replace_names():
     """ if processes on the same level have the same name, add uuid string"""
     # declare the hierarchy
     hierarchy = {
-        FACTORY_KEY: [
+        COMPOSER_KEY: [
             {
                 'type': ExchangeA,
                 'config': {},
