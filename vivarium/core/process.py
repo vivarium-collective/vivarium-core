@@ -1,8 +1,10 @@
 """
-==========================================
+=======================================
 Factory, Process, and Composite Classes
-==========================================
+=======================================
 """
+
+from __future__ import annotations
 
 import abc
 import copy
@@ -10,7 +12,7 @@ from multiprocessing import Pipe
 from multiprocessing import Process as Multiprocess
 from multiprocessing.connection import Connection
 from typing import (
-    Any, Callable, Dict, Optional, Tuple, Union, List, cast)
+    Any, Callable, Dict, Optional, Union, List, cast)
 
 from bson.objectid import ObjectId
 import numpy as np
@@ -27,15 +29,52 @@ DEFAULT_TIME_STEP = 1.0
 
 
 def serialize_value(value: Any) -> Any:
+    '''Attempt to serialize a value.
+
+    For this function, consider "serializable" to mean serializiable by
+    this function.  This function can serialize the following kinds of
+    values:
+
+    * :py:class:`dict` whose keys implement ``__str__`` and whose values
+      are serializable. Keys are serialized by calling ``__str__`` and
+      values are serialized by this function.
+    * :py:class:`list` and :py:class:`tuple`, whose values are
+      serializable. The value is serialized as a list of the serialized
+      values.
+    * Numpy ndarray objects are handled by
+      :py:class:`vivarium.core.registry.NumpySerializer`.
+    * :py:class:`pint.Quantity` objects are handled by
+      :py:class:`vivarium.core.registry.UnitsSerializer`.
+    * Functions are handled by
+      :py:class:`vivarium.core.registry.FunctionSerializer`.
+    * :py:class:`vivarium.core.process.Process` objects are handled by
+      :py:class:`vivarium.core.registry.ProcessSerializer`.
+    * :py:class:`vivarium.core.process.Factory` objects are handled by
+      :py:class:`vivarium.core.registry.FactorySerializer`.
+    * Numpy scalars are handled by
+      :py:class:`vivarium.core.registry.NumpyScalarSerializer`.
+    * ``ObjectId`` objects are serialized by calling its ``__str__``
+      function.
+
+    When provided with a serializable value, the returned serialized
+    value is suitable for inclusion in a JSON object.
+
+    Args:
+        value: The value to serialize.
+
+    Returns:
+        The serialized value if ``value`` is serializable. Otherwise,
+        ``value`` is returned unaltered.
+    '''
     if isinstance(value, dict):
         value = cast(dict, value)
-        return serialize_dictionary(value)
+        return _serialize_dictionary(value)
     if isinstance(value, list):
         value = cast(list, value)
-        return serialize_list(value)
+        return _serialize_list(value)
     if isinstance(value, tuple):
         value = cast(tuple, value)
-        return serialize_list(list(value))
+        return _serialize_list(list(value))
     if isinstance(value, np.ndarray):
         value = cast(np.ndarray, value)
         return serializer_registry.access('numpy').serialize(value)
@@ -47,11 +86,11 @@ def serialize_value(value: Any) -> Any:
         return serializer_registry.access('function').serialize(value)
     if isinstance(value, Process):
         value = cast(Process, value)
-        return serialize_dictionary(
+        return _serialize_dictionary(
             serializer_registry.access('process').serialize(value))
     if isinstance(value, Factory):
         value = cast(Factory, value)
-        return serialize_dictionary(
+        return _serialize_dictionary(
             serializer_registry.access('factory').serialize(value))
     if isinstance(value, (np.integer, np.floating)):
         value = cast(Union[np.integer, np.floating], value)
@@ -64,12 +103,31 @@ def serialize_value(value: Any) -> Any:
 
 
 def deserialize_value(value: Any) -> Any:
+    '''Attempt to deserialize a value.
+
+    Supports deserializing the following kinds ov values:
+
+    * :py:class:`dict` with serialized values and keys that need not be
+      deserialized. The values will be deserialized with this function.
+    * :py:class:`list` of serialized values. The values will be
+      deserialized with this function.
+    * :py:class:`str` which are serialized :py:class:`pint.Quantity`
+      values.  These will be deserialized with
+      :py:class:`vivarium.core.registry.UnitsSerializer`.
+
+    Args:
+        value: The value to deserialize.
+
+    Returns:
+        The deserialized value if ``value`` is of a supported type.
+        Otherwise, returns ``value`` unmodified.
+    '''
     if isinstance(value, dict):
         value = cast(dict, value)
-        return deserialize_dictionary(value)
+        return _deserialize_dictionary(value)
     if isinstance(value, list):
         value = cast(list, value)
-        return deserialize_list(value)
+        return _deserialize_list(value)
     if isinstance(value, str):
         value = cast(str, value)
         try:
@@ -80,14 +138,14 @@ def deserialize_value(value: Any) -> Any:
     return value
 
 
-def serialize_list(lst: list) -> list:
+def _serialize_list(lst: list) -> list:
     serialized = []
     for value in lst:
         serialized.append(serialize_value(value))
     return serialized
 
 
-def serialize_dictionary(d: dict) -> Dict[str, Any]:
+def _serialize_dictionary(d: dict) -> Dict[str, Any]:
     serialized = {}
     for key, value in d.items():
         if not isinstance(key, str):
@@ -96,14 +154,14 @@ def serialize_dictionary(d: dict) -> Dict[str, Any]:
     return serialized
 
 
-def deserialize_list(lst: list) -> list:
+def _deserialize_list(lst: list) -> list:
     deserialized = []
     for value in lst:
         deserialized.append(deserialize_value(value))
     return deserialized
 
 
-def deserialize_dictionary(d: dict) -> dict:
+def _deserialize_dictionary(d: dict) -> dict:
     deserialized = {}
     for key, value in d.items():
         deserialized[key] = deserialize_value(value)
@@ -111,6 +169,27 @@ def deserialize_dictionary(d: dict) -> dict:
 
 
 def assoc_in(d: dict, path: HierarchyPath, value: Any) -> dict:
+    '''Insert a value into a dictionary at an arbitrary depth.
+
+    Empty dictionaries will be created as needed to insert the value at
+    the specified depth.
+
+    >>> d = {'a': {'b': 1}}
+    >>> assoc_in(d, ('a', 'c', 'd'), 2)
+    {'a': {'b': 1, 'c': {'d': 2}}}
+
+    Args:
+        d: Dictionary to insert into.
+        path: Path in the dictionary where the value will be inserted.
+            Each element of the path is dictionary key, which will be
+            added if not already present. Any given element (except the
+            first) refers to a key in the dictionary that is the value
+            associated with the immediately preceding path element.
+        value: The value to insert.
+
+    Returns:
+        Dictionary with the value inserted.
+    '''
     if path:
         return dict(
             d,
@@ -121,25 +200,25 @@ def assoc_in(d: dict, path: HierarchyPath, value: Any) -> dict:
     return value
 
 
-def override_schemas(
+def _override_schemas(
         overrides: Dict[str, Schema],
-        processes: Dict[str, 'Process']) -> None:
+        processes: Dict[str, Process]) -> None:
     for key, override in overrides.items():
         process = processes[key]
         if isinstance(process, Process):
             process.merge_overrides(override)
         else:
-            override_schemas(override, process)
+            _override_schemas(override, process)
 
 
-def get_composite_initial_state(
-        processes: Dict[str, 'Process'],
+def _get_composite_initial_state(
+        processes: Dict[str, Process],
         topology: Topology) -> State:
     initial_state = {}
     for path, node in processes.items():
         if isinstance(node, dict):
             for key in node.keys():
-                initial_state[key] = get_composite_initial_state(
+                initial_state[key] = _get_composite_initial_state(
                     node, cast(Topology, topology[path]))
         elif isinstance(node, Process):
             process_topology = topology[path]
@@ -153,13 +232,19 @@ def get_composite_initial_state(
 
 
 class Factory(metaclass=abc.ABCMeta):
-    """Factory parent class
-
-    All :term:`factory` classes must inherit from this class.
-    """
     defaults: Dict[str, Any] = {}
 
     def __init__(self, config: Optional[dict] = None) -> None:
+        """Base class for :term:`factory` classes.
+
+        Factories produce :term:`composites`.
+
+        All :term:`factory` classes must inherit from this class.
+
+        Args:
+            config: Dictionary of configuration options that can
+                override the class defaults.
+        """
         if config is None:
             config = {}
         if 'name' in config:
@@ -174,17 +259,17 @@ class Factory(metaclass=abc.ABCMeta):
     def generate_processes(
             self,
             config: Optional[dict]) -> Dict[str, Any]:
-        """Generate processes dictionary
+        """Generate processes dictionary.
 
         Every subclass must override this method.
 
-        Arguments:
-            config (dict): A dictionary of configuration options. All
+        Args:
+            config: A dictionary of configuration options. All
                 subclass implementation must accept this parameter, but
                 some may ignore it.
 
         Returns:
-            dict: Subclass implementations must return a dictionary
+            Subclass implementations must return a dictionary
             mapping process names to instantiated and configured process
             objects.
         """
@@ -192,18 +277,18 @@ class Factory(metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def generate_topology(self, config: Optional[dict]) -> Topology:
-        """Generate topology dictionary
+        """Generate topology dictionary.
 
         Every subclass must override this method.
 
-        Arguments:
-            config (dict): A dictionary of configuration options. All
+        Args:
+            config: A dictionary of configuration options. All
                 subclass implementation must accept this parameter, but
                 some may ignore it.
 
         Returns:
-            dict: Subclass implementations must return a
-            :term:`topology` dictionary.
+            Subclass implementations must return a :term:`topology`
+            dictionary.
         """
         return {}
 
@@ -211,19 +296,19 @@ class Factory(metaclass=abc.ABCMeta):
             self,
             config: Optional[dict] = None,
             path: HierarchyPath = tuple()) -> CompositeDict:
-        '''Generate processes and topology dictionaries
+        '''Generate processes and topology dictionaries.
 
-        Arguments:
-            config (dict): Updates values in the configuration declared
-                in the constructor
-            path (tuple): Tuple with ('path', 'to', 'level') associates
-                the processes and topology at this level
+        Args:
+            config: Updates values in the configuration declared
+                in the constructor.
+            path: Tuple with ('path', 'to', 'level') associates
+                the processes and topology at this level.
 
         Returns:
-            dict: Dictionary with two keys: ``processes``, which has a
-            value of a processes dictionary, and ``topology``, which has
-            a value of a topology dictionary. Both are suitable to be
-            passed to the constructor for
+            Dictionary with keys ``processes``, which has a value of a
+            processes dictionary, and ``topology``, which has a value of
+            a topology dictionary. Both are suitable to be passed to the
+            constructor for
             :py:class:`vivarium.core.experiment.Experiment`.
         '''
 
@@ -272,7 +357,7 @@ class Composite(Factory):
         network = self.generate(config)
         processes = cast(Dict[str, Any], network['processes'])
         topology = network['topology']
-        initial_state = get_composite_initial_state(processes, topology)
+        initial_state = _get_composite_initial_state(processes, topology)
         return initial_state
 
     def generate_processes(
@@ -296,7 +381,7 @@ class Composite(Factory):
         processes = deep_merge(processes, self.merge_processes)
         topology = deep_merge(topology, self.merge_topology)
 
-        override_schemas(self.schema_override, processes)
+        _override_schemas(self.schema_override, processes)
 
         return {
             'processes': assoc_in({}, path, processes),
@@ -304,15 +389,21 @@ class Composite(Factory):
         }
 
     def get_parameters(self) -> dict:
+        '''Get the parameters for all :term:`processes`.
+
+        Returns:
+            A map from process names to dictionaries of those processes'
+            parameters.
+        '''
         network = self.generate({})
-        processes = cast(Dict[str, 'Process'], network['processes'])
+        processes = cast(Dict[str, Process], network['processes'])
         return {
             process_id: process.parameters
             for process_id, process in processes.items()}
 
     def merge(
             self,
-            processes: Optional[Dict[str, 'Process']] = None,
+            processes: Optional[Dict[str, Process]] = None,
             topology: Optional[Topology] = None,
             schema_override: Optional[Schema] = None) -> None:
         processes = processes or {}
@@ -330,22 +421,29 @@ class Composite(Factory):
 
 
 class Process(Composite, metaclass=abc.ABCMeta):
-    """Process parent class
-
-    All :term:`process` classes must inherit from this class.
-    """
     defaults: Dict[str, Any] = {}
 
     def __init__(self, parameters: Optional[dict] = None) -> None:
+        """Process parent class.
+
+        All :term:`process` classes must inherit from this class. Each
+        class can provide a ``defaults`` class variable to specify the
+        process defaults as a dictionary.
+
+        Args:
+            parameters: Override the class defaults. If this contains a
+                ``_register`` key, the process will register itself in
+                the process registry.
+        """
         super().__init__(parameters)
 
         self.parameters = self.config
         self.parallel = self.config.pop('_parallel', False)
         if self.config.get('_register'):
-            self.register()
+            self._register()
 
     def initial_state(self, config: Optional[dict] = None) -> State:
-        """Get initial state in embedded path dictionary
+        """Get initial state in embedded path dictionary.
 
         Every subclass may override this method.
 
@@ -362,7 +460,7 @@ class Process(Composite, metaclass=abc.ABCMeta):
             '{} does not include an "initial_state" function'.format(
                 self.name))
 
-    def register(self, name: Optional[str] = None) -> None:
+    def _register(self, name: Optional[str] = None) -> None:
         process_registry.register(name or self.name, self)
 
     def generate_processes(
@@ -376,28 +474,61 @@ class Process(Composite, metaclass=abc.ABCMeta):
                 port: (port,) for port in ports.keys()}}
 
     def get_schema(self, override: Optional[Schema] = None) -> dict:
+        '''Get the process's schema, optionally with a schema override.
+
+        Args:
+            override: Override schema
+
+        Returns:
+            The combined schema.
+        '''
         ports = copy.deepcopy(self.ports_schema())
         deep_merge(ports, self.schema_override)
         deep_merge(ports, override)
         return ports
 
     def merge_overrides(self, override: Schema) -> None:
+        '''Add a schema override to the process's schema overrides.
+
+        Args:
+            override: The schema override to add.
+        '''
         deep_merge(self.schema_override, override)
 
     def ports(self) -> Dict[str, List[str]]:
+        '''Get ports and each port's variables.
+
+        Returns:
+            A map from port names to lists of the variables that go into
+            that port.
+        '''
         ports_schema = self.ports_schema()
         return {
             port: list(states.keys())
             for port, states in ports_schema.items()}
 
     def local_timestep(self) -> Union[float, int]:
-        '''
-        Returns the favored timestep for this process. Meant to be
-        overridden in subclasses, unless 1.0 is a happy value.
+        '''Get a process's favored timestep.
+
+        The timestep may change over the course of the simulation.
+        Processes must not assume that their favored timestep will
+        actually be used. To customize their timestep, processes can
+        override this method.
+
+        Returns:
+            Favored timestep.
         '''
         return self.parameters.get('time_step', DEFAULT_TIME_STEP)
 
     def default_state(self) -> State:
+        '''Get the default values of the variables in each port.
+
+        The default values are computed based on the schema.
+
+        Returns:
+            A state dictionary that assigns each variable's default
+            value to that variable.
+        '''
         schema = self.ports_schema()
         state: State = {}
         for port, states in schema.items():
@@ -408,53 +539,89 @@ class Process(Composite, metaclass=abc.ABCMeta):
                     state[port][key] = value['_default']
         return state
 
-    # The two following methods don't use `self`, but since subclasses
-    # might, they need to take `self` as a parameter.
-
     def is_deriver(self) -> bool:
+        '''Check whether this process is a deriver.
+
+        Returns:
+            Whether this process is a deriver. This class always returns
+            ``False``, but subclasses may change this.
+        '''
         return False
 
-    def pull_data(self) -> State:
+    def get_private_state(self) -> State:
+        '''Get the process's private state.
+
+        Processes can store state in instance variables instead of in
+        the :term:`stores` that hold the simulation-wide state. These
+        instance variables hold a private state that is not shared with
+        other processes. You can override this function to let
+        :term:`experiments` emit the process's private state.
+
+        Returns:
+            An empty dictionary. You may override this behavior to
+            return your process's private state.
+        '''
         return {}
 
     @abc.abstractmethod
     def ports_schema(self) -> Schema:
-        '''
-        ports_schema returns a dictionary that declares which states are
-        expected by the processes, and how each state will behave.
+        '''Get the schemas for each port.
 
-        state keys can be assigned properties through schema_keys declared
-        in Store: '_default', '_updater', _divider', '_value', '_properties',
-        '_emit', '_serializer'
+        This must be overridden by any subclasses.
+
+        Returns:
+            A dictionary that declares which states are expected by the
+            processes, and how each state will behave. State keys can be
+            assigned properties through schema_keys declared in
+            :py:class:`vivarium.core.tree.Store`.
         '''
         return {}
 
     def or_default(self, parameters: Dict[str, Any], key: str) -> Any:
-        return parameters.get(key, self.defaults[key])
+        '''Get parameter from dictionary, falling back to defaults.
 
-    def derive_defaults(
-            self, original_key: str, derived_key: str,
-            f: Callable[[Any], Any]) -> Any:
-        source = self.parameters.get(original_key)
-        self.parameters[derived_key] = f(source)
-        return self.parameters[derived_key]
+        Args:
+            parameters: Dictionary to get parameter from.
+            key: Parameter key.
+
+        Returns:
+            The value of ``key`` from ``parameters``, or the value in
+            the class defaults if not in ``parameters``.
+
+        Raises:
+            KeyError: If ``key`` is in neither the provided dictionary
+                nor the process defaults.
+        '''
+        return parameters.get(key, self.defaults[key])
 
     @abc.abstractmethod
     def next_update(
             self, timestep: Union[float, int], states: State) -> Update:
-        '''
-        Find the next update given the current states this process cares
-        about. This is the main function a new process would override.
+        '''Compute the next update to the simulation state.
+
+        Args:
+            timestep: The duration for which the update should be
+                computed.
+            states: The pre-update simulation state. This will take the
+                same form as the process's schema, except with a value
+                for each variable.
+
+        Returns:
+            An empty dictionary for now. This should be overridden by
+            each subclass to return an update.
         '''
         return {}
 
 
 class Deriver(Process, metaclass=abc.ABCMeta):
+    '''Base class for :term:`derivers`.'''
+
     def is_deriver(self) -> bool:
+        '''Returns ``True`` to signal this process is a deriver.'''
         return True
 
 
-def run_update(connection: Connection, process: Process) -> None:
+def _run_update(connection: Connection, process: Process) -> None:
     running = True
 
     while running:
@@ -473,21 +640,45 @@ def run_update(connection: Connection, process: Process) -> None:
 
 class ParallelProcess:
     def __init__(self, process: Process) -> None:
+        '''Wraps a :py:class:`Process` for multiprocessing.
+
+        To run a simulation distributed across multiple processors, we
+        use Python's multiprocessing tools. This object runs in the main
+        process and manages communication between the main (parent)
+        process and the child process with the :py:class:`Process` that
+        this object manages.
+
+        Args:
+            process: The Process to manage.
+        '''
         self.process = process
         self.parent, self.child = Pipe()
         self.multiprocess = Multiprocess(
-            target=run_update,
+            target=_run_update,
             args=(self.child, self.process))
         self.multiprocess.start()
 
     def update(
             self, interval: Union[float, int], states: State) -> None:
+        '''Request an update from the process.
+
+        Args:
+            interval: The length of the timestep for which the update
+                should be computed.
+            states: The pre-update state of the simulation.
+        '''
         self.parent.send((interval, states))
 
-    def get(self) -> Tuple[Union[float, int], State]:
+    def get(self) -> Update:
+        '''Get an update from the process.
+
+        Returns:
+            The update from the process.
+        '''
         return self.parent.recv()
 
     def end(self) -> None:
+        '''End the child process.'''
         self.parent.send((-1, None))
         self.multiprocess.join()
 

@@ -24,7 +24,8 @@ from vivarium.core.process import (
     Deriver,
     Process,
     ParallelProcess,
-    serialize_dictionary, Composite,
+    serialize_value,
+    Composite,
 )
 from vivarium.library.topology import (
     get_in, delete_in, assoc_path,
@@ -237,7 +238,7 @@ class Experiment:
             'name': self.experiment_name,
             'description': self.description,
             'topology': self.topology,
-            'processes': serialize_dictionary(self.processes),
+            'processes': serialize_value(self.processes),
             'state': self.state.get_config()
         }
         emit_config = {
@@ -332,7 +333,7 @@ class Experiment:
             'time': self.local_time})
         emit_config = {
             'table': 'history',
-            'data': serialize_dictionary(data)}
+            'data': serialize_value(data)}
         self.emitter.emit(emit_config)
 
     def send_updates(self, update_tuples):
