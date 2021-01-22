@@ -439,8 +439,6 @@ class Process(Composite, metaclass=abc.ABCMeta):
 
         self.parameters = self.config
         self.parallel = self.config.pop('_parallel', False)
-        if self.config.get('_register'):
-            self._register()
 
     def initial_state(self, config: Optional[dict] = None) -> State:
         """Get initial state in embedded path dictionary.
@@ -459,9 +457,6 @@ class Process(Composite, metaclass=abc.ABCMeta):
         raise Exception(
             '{} does not include an "initial_state" function'.format(
                 self.name))
-
-    def _register(self, name: Optional[str] = None) -> None:
-        process_registry.register(name or self.name, self)
 
     def generate_processes(
             self, config: Optional[dict]) -> Dict[str, Any]:
