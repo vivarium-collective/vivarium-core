@@ -20,7 +20,7 @@ from pint.errors import UndefinedUnitError
 
 from vivarium.library.topology import inverse_topology
 from vivarium.library.units import Quantity
-from vivarium.core.registry import process_registry, serializer_registry
+from vivarium.core.registry import serializer_registry
 from vivarium.library.dict_utils import deep_merge, deep_merge_check
 from vivarium.core.types import (
     HierarchyPath, Topology, Schema, State, Update, CompositeDict)
