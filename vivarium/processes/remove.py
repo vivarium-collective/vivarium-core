@@ -10,7 +10,7 @@ from typing import Any, Dict
 from vivarium.core.experiment import pp
 from vivarium.core.process import (
     Deriver,
-    Factory,
+    Composer,
 )
 from vivarium.core.composition import (
     simulate_composite,
@@ -50,7 +50,7 @@ class Remove(Deriver):
 
 
 # test
-class ToyLivingCompartment(Factory):
+class ToyLivingCompartment(Composer):
     defaults = {
         'exchange': {'uptake_rate': 0.1},
         'death': {}

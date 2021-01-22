@@ -9,11 +9,11 @@ import os
 from vivarium.core.experiment import pp
 from vivarium.core.process import (
     Deriver,
-    Factory,
+    Composer,
 )
 from vivarium.core.composition import (
     compose_experiment,
-    FACTORY_KEY,
+    COMPOSER_KEY,
     PROCESS_OUT_DIR,
 )
 from vivarium.composites.toys import ExchangeA
@@ -72,7 +72,7 @@ class Engulf(Deriver):
 
 
 # test
-class ToyAgent(Factory):
+class ToyAgent(Composer):
     defaults = {
         'exchange': {'uptake_rate': 0.1},
         'engulf': {
@@ -126,7 +126,7 @@ def test_engulf():
 
     # declare the hierarchy
     hierarchy = {
-        FACTORY_KEY: [
+        COMPOSER_KEY: [
             {
                 'type': TimelineProcess,
                 'config': {'timeline': timeline},
@@ -138,7 +138,7 @@ def test_engulf():
         ],
         'agents': {
             agent_id: {
-                FACTORY_KEY: {
+                COMPOSER_KEY: {
                     'type': ToyAgent,
                     'config': {
                         'exchange': {

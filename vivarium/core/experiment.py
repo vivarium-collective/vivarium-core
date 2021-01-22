@@ -25,7 +25,7 @@ from vivarium.core.process import (
     Process,
     ParallelProcess,
     serialize_value,
-    Composite,
+    Composer,
 )
 from vivarium.library.topology import (
     get_in, delete_in, assoc_path,
@@ -129,7 +129,7 @@ class Experiment:
                     maps :term:`process` names to process objects. You
                     will usually get this from the ``processes``
                     attribute of the dictionary from
-                    :py:meth:`vivarium.core.process.Factory.generate`.
+                    :py:meth:`vivarium.core.process.Composer.generate`.
                 * **topology** (:py:class:`dict`): A dictionary that
                     maps process names to sub-dictionaries. These
                     sub-dictionaries map the process's port names to
@@ -737,9 +737,9 @@ def test_2_store_1_port():
                     'a': 1,
                     'b': 2}}
 
-    class SplitPort(Composite):
+    class SplitPort(Composer):
         """splits OnePort's ports into two stores"""
-        name = 'split_port_generator'
+        name = 'split_port_composer'
 
         def generate_processes(self, config):
             return {
@@ -795,9 +795,9 @@ def test_multi_port_merge():
                 'B': {'a': 1},
                 'C': {'a': 1}}
 
-    class MergePort(Composite):
+    class MergePort(Composer):
         """combines both of MultiPort's ports into one store"""
-        name = 'multi_port_generator'
+        name = 'multi_port_composer'
 
         def generate_processes(self, config):
             return {
@@ -950,8 +950,8 @@ def test_units():
             return {
                 'A': {'a': 1 * units.mm}}
 
-    class MultiUnits(Composite):
-        name = 'multi_units_generator'
+    class MultiUnits(Composer):
+        name = 'multi_units_composer'
 
         def generate_processes(self, config):
             return {

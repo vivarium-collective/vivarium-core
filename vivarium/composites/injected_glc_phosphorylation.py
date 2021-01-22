@@ -6,13 +6,13 @@ Toy Injected Glucose Phosphorylation Compartment
 This is a toy example referenced in the documentation.
 """
 
-from vivarium.core.process import Composite
+from vivarium.core.process import Composer
 
 from vivarium.processes.glucose_phosphorylation import GlucosePhosphorylation
 from vivarium.processes.injector import Injector
 
 
-class InjectedGlcPhosphorylation(Composite):
+class InjectedGlcPhosphorylation(Composer):
 
     defaults = {
         'glucose_phosphorylation': {
