@@ -81,11 +81,11 @@ instances of the same process class.
 Stores
 ------
 
-We represent stores with the :py:class:`vivarium.core.tree.Store`
+We represent stores with the :py:class:`vivarium.core.store.Store`
 class; see its documentation for further details.
 
 .. tip:: To see the data held by a store, you can use the
-   :py:func:`vivarium.core.tree.Store.get_config` function. This
+   :py:func:`vivarium.core.store.Store.get_config` function. This
    returns a dictionary representation of the store's data. To show this
    dictionary more readably, use
    :py:func:`vivarium.library.pretty.format_dict`.

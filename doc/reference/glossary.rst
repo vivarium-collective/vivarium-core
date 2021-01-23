@@ -237,9 +237,9 @@ Glossary
     schema key-value pairs
         Each :term:`variable` is defined by a set of schema key-value
         pairs. The available keys are defined in
-        :py:attr:`vivarium.core.tree.Store.schema_keys`. These
+        :py:attr:`vivarium.core.store.Store.schema_keys`. These
         keys are described in more detail in the documentation for
-        :py:class:`vivarium.core.tree.Store`.
+        :py:class:`vivarium.core.store.Store`.
 
     Serializer
     serializer

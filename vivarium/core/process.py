@@ -538,7 +538,7 @@ class Process(Composer, metaclass=abc.ABCMeta):
             A dictionary that declares which states are expected by the
             processes, and how each state will behave. State keys can be
             assigned properties through schema_keys declared in
-            :py:class:`vivarium.core.tree.Store`.
+            :py:class:`vivarium.core.store.Store`.
         '''
         return {}
 
