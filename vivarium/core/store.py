@@ -2,13 +2,12 @@ import copy
 import logging as log
 
 import numpy as np
-from pint.quantity import Quantity
+from pint import Quantity
 
 from vivarium import divider_registry, serializer_registry, updater_registry
 from vivarium.core.process import Process
 from vivarium.library.dict_utils import deep_merge, MULTI_UPDATE_KEY
 from vivarium.library.topology import without, dict_to_paths
-
 
 EMPTY_UPDATES = None, None, None
 

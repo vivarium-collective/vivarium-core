@@ -39,7 +39,7 @@ class ExponentialGrowth(Process):
         return {
             'globals': {
                 'mass': {
-                    '_default': 1000.0 * units.fg,
+                    '_default': 1000.0,
                     '_updater': 'set',
                     '_divider': 'split',
                     '_emit': True,
@@ -86,7 +86,6 @@ if __name__ == '__main__':
                 'mass': 1000 * units.fg,
             }
         },
-        #     'progress_bar': False,
     }
     grow_output = simulate_process(
         growth_process, settings)
