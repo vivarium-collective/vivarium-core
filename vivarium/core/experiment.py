@@ -193,6 +193,8 @@ class Experiment:
         emitter_config = config.get('emitter', 'timeseries')
         if isinstance(emitter_config, str):
             emitter_config = {'type': emitter_config}
+        else:
+            emitter_config = dict(emitter_config)
         emitter_config['experiment_id'] = self.experiment_id
         self.emitter = get_emitter(emitter_config)
 

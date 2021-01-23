@@ -1,7 +1,10 @@
-"""Emitters
+"""Emitters log time-series data somewhere.
 """
 
+from __future__ import annotations
+
 import json
+from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import quote_plus
 
 from pymongo import MongoClient
@@ -27,37 +30,30 @@ CONFIGURATION_INDEXES = [
 SECRETS_PATH = 'secrets.json'
 
 
-def create_indexes(table, columns):
-    '''Create all of the necessary indexes for the given table name.'''
-    for column in columns:
-        table.create_index(column)
+def get_emitter(config: Optional[Dict[str, str]]) -> Emitter:
+    '''Construct an Emitter using the provided config.
 
-
-def get_emitter(config):
-    '''Get an emitter based on the provided config.
-
-    The available emitter type names and their classes are:
+    The available Emitter type names and their classes are:
 
     * ``database``: :py:class:`DatabaseEmitter`
     * ``null``: :py:class:`NullEmitter`
+    * ``print``: :py:class:`Emitter`, prints to stdout
     * ``timeseries``: :py:class:`TimeSeriesEmitter`
 
     Arguments:
-        config (dict): Requires three keys:
-            * type: Type of emitter ('database' for a database emitter).
-            * emitter: Any configuration the emitter type needs to initialize.
-            * keys: A list of state keys to emit for each state label.
+        config (dict): Required keys:
+            * 'type': The emitter type name (e.g. 'database').
 
     Returns:
-        Emitter: An instantiated emitter.
+        Emitter: A new Emitter instance.
     '''
 
     if config is None:
-        config = {'type': 'print'}
+        config = {}
     emitter_type = config.get('type', 'print')
 
     if emitter_type == 'database':
-        emitter = DatabaseEmitter(config)
+        emitter: Emitter = DatabaseEmitter(config)
     elif emitter_type == 'null':
         emitter = NullEmitter(config)
     elif emitter_type == 'timeseries':
@@ -68,21 +64,14 @@ def get_emitter(config):
     return emitter
 
 
-# def configure_emitter(config, processes, topology):
-#     del processes  # unused
-#     del topology  # unused
-#     emitter_config = config.get('emitter', {})
-#     emitter_config['experiment_id'] = config.get('experiment_id')
-#     emitter_config['simulation_id'] = config.get('simulation_id')
-#     return get_emitter(emitter_config)
-
-
-def path_timeseries_from_data(data):
+def path_timeseries_from_data(data: dict) -> dict:
+    '''Does something with timeseries data.'''
     embedded_timeseries = timeseries_from_data(data)
     return path_timeseries_from_embedded_timeseries(embedded_timeseries)
 
 
-def path_timeseries_from_embedded_timeseries(embedded_timeseries):
+def path_timeseries_from_embedded_timeseries(embedded_timeseries: dict) -> dict:
+    '''Does something with timeseries data.'''
     times_vector = embedded_timeseries['time']
     path_timeseries = make_path_dict(
         {key: val for key, val in embedded_timeseries.items() if key != 'time'})
@@ -90,9 +79,10 @@ def path_timeseries_from_embedded_timeseries(embedded_timeseries):
     return path_timeseries
 
 
-def time_indexed_timeseries_from_data(data):
+def time_indexed_timeseries_from_data(data: Dict[float, Any]) -> dict:
+    '''Does something with timeseries data.'''
     times_vector = list(data.keys())
-    embedded_timeseries = {}
+    embedded_timeseries: dict = {}
     for time_index, value in enumerate(data.values()):
         if isinstance(value, dict):
             embedded_timeseries = value_in_embedded_dict(
@@ -101,9 +91,10 @@ def time_indexed_timeseries_from_data(data):
     return embedded_timeseries
 
 
-def timeseries_from_data(data):
+def timeseries_from_data(data: dict) -> dict:
+    '''Does something with timeseries data.'''
     times_vector = list(data.keys())
-    embedded_timeseries = {}
+    embedded_timeseries: dict = {}
     for value in data.values():
         if isinstance(value, dict):
             embedded_timeseries = value_in_embedded_dict(
@@ -115,27 +106,27 @@ def timeseries_from_data(data):
 
 class Emitter:
     '''
-    Emit data to terminal
+    Emit data to stdout
     '''
-    def __init__(self, config):
+    def __init__(self, config: Dict[str, str]) -> None:
         self.config = config
 
-    def emit(self, data_config):
-        print(data_config)
+    def emit(self, data: Dict[str, Any]) -> None:
+        print(data)
 
-    def get_data(self):
+    def get_data(self) -> dict:
         return {}
 
-    def get_data_deserialized(self):
+    def get_data_deserialized(self) -> Any:
         return deserialize_value(self.get_data())
 
-    def get_data_unitless(self):
+    def get_data_unitless(self) -> Any:
         return remove_units(self.get_data_deserialized())
 
-    def get_path_timeseries(self):
+    def get_path_timeseries(self) -> dict:
         return path_timeseries_from_data(self.get_data_deserialized())
 
-    def get_timeseries(self):
+    def get_timeseries(self) -> dict:
         return timeseries_from_data(self.get_data_deserialized())
 
 
@@ -143,24 +134,33 @@ class NullEmitter(Emitter):
     '''
     Don't emit anything
     '''
-    def emit(self, data_config):
+    def emit(self, data: Dict[str, Any]) -> None:
         pass
 
 
 class TimeSeriesEmitter(Emitter):
+    '''
+    Accumulate the timeseries history portion of the "emitted" data to a table
+    in RAM.
+    '''
 
-    def __init__(self, config):
+    def __init__(self, config: Dict[str, str]) -> None:
         super().__init__(config)
-        self.saved_data = {}
+        self.saved_data: Dict[float, Dict[str, Any]] = {}
 
-    def emit(self, data_config):
-        # save history data
-        if data_config['table'] == 'history':
-            emit_data = data_config['data']
-            time = emit_data.pop('time')
+    def emit(self, data: Dict[str, Any]) -> None:
+        '''
+        Emit the timeseries history portion of `data`, which is
+        `data['data'] if data['table'] == 'history'` and put it at
+        `data['data']['time']` in the history.
+        '''
+        if data['table'] == 'history':
+            emit_data = data['data']
+            time = emit_data.pop('time')  # TODO: OK to modify caller's dict?
             self.saved_data[time] = emit_data
 
-    def get_data(self):
+    def get_data(self) -> dict:
+        ''' Return the accumulated timeseries history of "emitted" data. '''
         return self.saved_data
 
 
@@ -180,7 +180,16 @@ class DatabaseEmitter(Emitter):
     client = None
     default_host = 'localhost:27017'
 
-    def __init__(self, config):
+    @classmethod
+    def create_indexes(cls, table: Any, columns: List[str]) -> None:
+        '''Create the listed column indexes for the given DB table.'''
+        for column in columns:
+            table.create_index(column)
+
+    def __init__(self, config: Dict[str, str]) -> None:
+        '''config may have 'host' and 'database' items.'''
+        # TODO(jerry): Will this create the DB tables or does it fail if they
+        #  don't already exist?
         super().__init__(config)
         self.experiment_id = config.get('experiment_id')
 
@@ -193,25 +202,26 @@ class DatabaseEmitter(Emitter):
         self.history = getattr(self.db, 'history')
         self.configuration = getattr(self.db, 'configuration')
         self.phylogeny = getattr(self.db, 'phylogeny')
-        create_indexes(self.history, HISTORY_INDEXES)
-        create_indexes(self.configuration, CONFIGURATION_INDEXES)
-        create_indexes(self.phylogeny, CONFIGURATION_INDEXES)
+        self.create_indexes(self.history, HISTORY_INDEXES)
+        self.create_indexes(self.configuration, CONFIGURATION_INDEXES)
+        self.create_indexes(self.phylogeny, CONFIGURATION_INDEXES)
 
-    def emit(self, data_config):
-        data = data_config['data']
-        data.update({
-            'experiment_id': self.experiment_id})
-        table = getattr(self.db, data_config['table'])
-        table.insert_one(data)
+    def emit(self, data: Dict[str, Any]) -> None:
+        emit_data: dict = data['data']
+        emit_data['experiment_id'] = self.experiment_id
+        # TODO(jerry): Should this pop('table') from emit_data?
+        table = getattr(self.db, emit_data['table'])
+        table.insert_one(emit_data)
 
-    def get_data(self):
+    def get_data(self) -> dict:
         return get_history_data_db(self.history, self.experiment_id)
 
 
-def get_history_data_db(history_collection, experiment_id):
+def get_history_data_db(
+        history_collection: Any, experiment_id: Any) -> Dict[float, dict]:
+    '''Query MongoDB for history data.'''
     query = {'experiment_id': experiment_id}
-    raw_data = history_collection.find(query)
-    raw_data = list(raw_data)
+    raw_data = list(history_collection.find(query))
     data = {}
     for datum in raw_data:
         time = datum['time']
@@ -221,7 +231,8 @@ def get_history_data_db(history_collection, experiment_id):
     return data
 
 
-def get_atlas_client(secrets_path):
+def get_atlas_client(secrets_path: str) -> Any:
+    '''Open a MongoDB client using the named secrets config JSON file.'''
     with open(secrets_path, 'r') as f:
         secrets = json.load(f)
     emitter_config = get_atlas_database_emitter_config(
@@ -231,12 +242,14 @@ def get_atlas_client(secrets_path):
     return client[emitter_config['database']]
 
 
-def get_local_client(host, port, database_name):
+def get_local_client(host: str, port: Any, database_name: str) -> Any:
+    '''Open a MongoDB client onto the given host, port, and DB.'''
     client = MongoClient('{}:{}'.format(host, port))
     return client[database_name]
 
 
-def data_from_database(experiment_id, client):
+def data_from_database(experiment_id: str, client: Any) -> Tuple[dict, Any]:
+    '''Fetch something from a MongoDB.'''
     # Retrieve environment config
     config_collection = client.configuration
     environment_config = config_collection.find_one({
@@ -289,7 +302,9 @@ def data_from_database(experiment_id, client):
     return data, environment_config
 
 
-def data_to_database(data, environment_config, client):
+def data_to_database(
+        data: Dict[float, dict], environment_config: Any, client: Any) -> Any:
+    '''Insert something into a MongoDB.'''
     history_collection = client.history
     reshaped_data = []
     for time, timepoint_data in data.items():
@@ -308,15 +323,16 @@ def data_to_database(data, environment_config, client):
 
 
 def get_atlas_database_emitter_config(
-    username, password, cluster_subdomain, database
-):
+    username: str, password: str, cluster_subdomain: Any, database: str
+) -> Dict[str, Any]:
+    '''Construct an Emitter config for a MongoDB on the Atlas service.'''
     username = quote_plus(username)
     password = quote_plus(password)
     database = quote_plus(database)
 
     uri = (
         "mongodb+srv://{}:{}@{}.mongodb.net/"
-        + "?retryWrites=true&w=majority"
+        "?retryWrites=true&w=majority"
     ).format(username, password, cluster_subdomain)
     return {
         'type': 'database',
@@ -325,7 +341,9 @@ def get_atlas_database_emitter_config(
     }
 
 
-def emit_environment_config(environment_config, emitter):
+def emit_environment_config(
+        environment_config: Dict[str, Any], emitter: Emitter) -> None:
+    '''Emit a multibody bounds environment config to the given Emitter.'''
     config = {
         'bounds': environment_config['multibody']['bounds'],
         'type': 'environment_config',
