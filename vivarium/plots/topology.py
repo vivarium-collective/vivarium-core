@@ -164,13 +164,13 @@ def graph_figure(
                            node_shape=cast(str, STORAGE_PATH)
                            )
     # edges
+    edge_args = {}
     if color_edges:
-        colors = list(range(1, len(edges) + 1))
-    else:
-        colors = 'k'
+        edge_args['edge_color'] = list(range(1, len(edges) + 1))
     nx.draw_networkx_edges(graph, pos,
-                           edge_color=colors,
-                           width=1.5)
+                           width=1.5,
+                           **edge_args)
+
     # labels
     nx.draw_networkx_labels(graph, pos,
                             font_size=font_size)
