@@ -3,7 +3,7 @@ import uuid
 
 # typing
 from typing import (
-    Any, Dict, Optional, Callable, NoReturn, Union, Tuple)
+    Any, Dict, Optional, Callable)
 from vivarium.core.types import (
     Topology, CompositeDict)
 
@@ -175,11 +175,13 @@ def add_timeline(
         topology: Dict[str, Any],
         timeline: Dict[str, Any],
 ) -> None:
-    '''Add a TimelineProcess to a composite
+    '''Add a timeline process to a composite
 
         Args:
-            timeline (dict): with 'timeline' key. An optional 'paths' key
-            overrides the topology mapping from {port: path}.
+            processes (dict): with {`process_name`: Process}
+            topology (dict): with {`process_name`: topology mapping}
+            timeline (dict): with `timeline` key. An optional `paths` key
+                overrides the topology mapping from (port: path).
     '''
     timeline_paths = timeline.pop('paths', {})
     timeline_process = TimelineProcess(timeline)
@@ -198,9 +200,15 @@ def add_environment(
         topology: Dict[str, Any],
         environment: Dict[str, Any],
 ) -> None:
-    '''Add a NonSpatialEnvironment to a composite'''
+    '''Add a NonSpatialEnvironment to a composite
 
-    # An optional 'paths' key overrides the topology mapping from {port: path}.
+        Args:
+            processes (dict): with {`process_name`: Process}
+            topology (dict): with {`process_name`: topology mapping}
+            environment (dict): with `environment` key. An optional `paths` key
+                overrides the topology mapping from (port: path).
+    '''
+
     overide_topology = environment.pop('paths', {})
     environment_process = NonSpatialEnvironment(environment)
     processes.update({
