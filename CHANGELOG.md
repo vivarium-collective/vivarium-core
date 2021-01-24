@@ -1,6 +1,9 @@
 # Changelog
 
 
+## v0.1.6
+
+* topology grapher option to leave edge colors black
 
 ## v0.1.5
 
