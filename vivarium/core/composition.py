@@ -5,7 +5,7 @@ import uuid
 from typing import (
     Any, Dict, Optional, Callable)
 from vivarium.core.types import (
-    Topology, CompositeDict)
+    Topology, CompositeDict, HierarchyPath)
 
 from vivarium.core.process import Process, Composer
 from vivarium.core.experiment import Experiment
@@ -307,8 +307,8 @@ def composer_in_experiment(
         composer: Composer,
         settings: Dict[str, Any] = None,
         initial_state: Dict[str, Any] = None,
-        config={},
-        outer_path=tuple(),
+        config: Dict[str, Any] = None,
+        outer_path: HierarchyPath = (),
 ) -> Experiment:
     '''generate a Composite in an Experiment
 
@@ -456,7 +456,7 @@ def test_composite_in_experiment() -> None:
     composer = PoQo({
         '_schema': {'po': {'A': {'a': {'_emit': True}}}}})
     composite = composer.generate()
-    settings = {}
+    settings: Dict = {}
     experiment = composite_in_experiment(
         composite=composite,
         settings=settings)

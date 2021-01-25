@@ -429,11 +429,13 @@ class Process(Composer, metaclass=abc.ABCMeta):
                 self.name))
 
     def generate_processes(
-            self, config: Optional[dict]) -> Dict[str, Any]:
+            self, config: Optional[dict] = None) -> Dict[str, Any]:
+        config = config or {}
         name = config.get('name', self.name)
         return {name: self}
 
-    def generate_topology(self, config: Optional[dict]) -> Topology:
+    def generate_topology(self, config: Optional[dict] = None) -> Topology:
+        config = config or {}
         name = config.get('name', self.name)
         override_topology = config.get('topology', {})
         ports = self.ports()
