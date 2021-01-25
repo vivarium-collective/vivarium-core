@@ -207,7 +207,7 @@ def _override_schemas(
         process = processes[key]
         if isinstance(process, Process):
             process.merge_overrides(override)
-        else:
+        elif isinstance(process, dict):
             _override_schemas(override, process)
 
 
@@ -319,7 +319,7 @@ class Composer(metaclass=abc.ABCMeta):
     def generate(
             self,
             config: Optional[dict] = None,
-            path: HierarchyPath = tuple()) -> CompositeDict:
+            path: HierarchyPath = ()) -> CompositeDict:
         '''Generate processes and topology dictionaries.
 
         Args:
@@ -738,7 +738,7 @@ class ToyComposite(Composer):
 
     def generate_processes(
             self,
-            config: Optional[dict] = None) -> Dict[str, ToyProcess]:
+            config: Optional[dict]) -> Dict[str, ToyProcess]:
         assert config is not None
         return {
             'A': ToyProcess(config['A']),

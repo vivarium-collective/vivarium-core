@@ -120,6 +120,7 @@ def update_merge(current_value, new_value):
             update[k] = new
     return update
 
+
 def update_set(current_value, new_value):
     """Set Updater
 
@@ -128,6 +129,7 @@ def update_set(current_value, new_value):
     """
     return new_value
 
+
 def update_accumulate(current_value, new_value):
     """Accumulate Updater
 
@@ -135,6 +137,7 @@ def update_accumulate(current_value, new_value):
         The sum of ``current_value`` and ``new_value``.
     """
     return current_value + new_value
+
 
 def update_nonnegative_accumulate(current_value, new_value):
     """Non-negative Accumulate Updater

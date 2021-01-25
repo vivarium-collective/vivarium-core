@@ -227,17 +227,17 @@ class Store:
                 self.default = self.check_default(config.get('_default'))
                 if isinstance(self.default, Quantity):
                     self.units = self.units or self.default.units
-                    self.serializer = self.serializer or \
-                                      serializer_registry.access('units')
+                    self.serializer = (self.serializer or
+                                       serializer_registry.access('units'))
                 elif isinstance(self.default, list) and \
                         len(self.default) > 0 and \
                         isinstance(self.default[0], Quantity):
                     self.units = self.units or self.default[0].units
-                    self.serializer = self.serializer or \
-                                      serializer_registry.access('units')
+                    self.serializer = (self.serializer or
+                                       serializer_registry.access('units'))
                 elif isinstance(self.default, np.ndarray):
-                    self.serializer = self.serializer or \
-                                      serializer_registry.access('numpy')
+                    self.serializer = (self.serializer or
+                                       serializer_registry.access('numpy'))
 
             if '_value' in config:
                 self.value = self.check_value(config.get('_value'))
@@ -425,8 +425,6 @@ class Store:
                     return self.serializer.serialize(
                         self.value.to(self.units))
                 return self.serializer.serialize(self.value)
-            if isinstance(self.value, Process):
-                return self.value.pull_data()
             if self.units:
                 return self.value.to(self.units).magnitude
             return self.value
@@ -523,11 +521,7 @@ class Store:
 
         Arguments:
             update: The update being applied.
-            process_topology: The topology of the process from which
-                this update was passed.
             state: The state at the start of the time step.
-            experiment_topology: The topology of the full experiment,
-                with all processes and their port mappings.
 
         There are five topology update methods, which use the following
         special update keys:

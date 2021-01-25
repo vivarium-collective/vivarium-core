@@ -35,6 +35,8 @@ from vivarium.core.registry import (
     ProcessSerializer, ComposerSerializer, FunctionSerializer,
 )
 
+_ = plt  # suppress PyCharm's unused-import warning
+
 
 # register processes
 process_registry.register(DivideCondition.name, DivideCondition)

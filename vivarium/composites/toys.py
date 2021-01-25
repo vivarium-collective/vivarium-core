@@ -179,8 +179,8 @@ class ToyMetabolism(Process):
 
     def next_update(self, timestep, states):
         update = {}
-        glucose_required = timestep / \
-                           self.parameters['mass_conversion_rate']
+        glucose_required = (timestep /
+                            self.parameters['mass_conversion_rate'])
         if states['pool']['GLC'] >= glucose_required:
             update = {
                 'pool': {

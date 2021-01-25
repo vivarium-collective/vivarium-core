@@ -168,11 +168,10 @@ def compose_experiment(
     return Experiment(experiment_config)
 
 
-
 # experiment loading functions
 def add_timeline(
-        processes: Dict[str, Any],
-        topology: Dict[str, Any],
+        processes: Dict[str, Process],
+        topology: Dict[str, Topology],
         timeline: Dict[str, Any],
 ) -> None:
     '''Add a timeline process to a composite
@@ -224,7 +223,6 @@ def add_environment(
         environment_process.name: environment_topology})
 
 
-
 def process_in_experiment(
         process: Process,
         settings: Dict[str, Any] = None,
@@ -233,6 +231,7 @@ def process_in_experiment(
     '''put a Process in an Experiment
 
     Args:
+        process (Process): the Process to put into the Experiment
         settings (dict): a dictionary of optional configuration options,
             keywords include timeline, environment, and topology that
             add to or modify the Process.
@@ -324,7 +323,6 @@ def composite_in_experiment(
     return Experiment(experiment_config)
 
 
-
 # simulate helper functions
 
 def simulate_process(
@@ -376,12 +374,12 @@ def simulate_experiment(
     return experiment.emitter.get_timeseries()
 
 
-
 # Tests
 def test_process_in_experiment() -> None:
     process = ExchangeA()
     experiment = process_in_experiment(process)
     assert experiment.processes['process'] is process
+
 
 def test_process_in_experiment_timeline() -> None:
     timeline = [
@@ -397,6 +395,7 @@ def test_process_in_experiment_timeline() -> None:
     assert isinstance(
         experiment.processes['timeline'],
         TimelineProcess)
+
 
 def test_process_in_experiment_environment() -> None:
     process = ExchangeA()
@@ -469,6 +468,7 @@ def test_replace_names() -> None:
     assert len(process_names) == 2
     # process_names[1] has added string
     assert process_names[0] in process_names[1]
+
 
 def test_process_deletion() -> None:
     '''Check that processes are successfully deleted'''
