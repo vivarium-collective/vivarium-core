@@ -51,10 +51,10 @@ def add_processes_to_hierarchy(
     composer_topology = composer_topology or {}
 
     # generate
-    composite = composer_type(composer_config)
-    network = composite.generate()
-    new_processes = network['processes']
-    new_topology = network['topology']
+    composer = composer_type(composer_config)
+    composite = composer.generate()
+    new_processes = composite['processes']
+    new_topology = composite['topology']
 
     # replace process names that already exist
     replace_name = []
@@ -105,9 +105,9 @@ def initialize_hierarchy(
                     composer_config=level.get('config', {}),
                     composer_topology=level.get('topology', {}))
         else:
-            network = initialize_hierarchy(level)
-            deep_merge_check(processes, {key: network['processes']})
-            deep_merge(topology, {key: network['topology']})
+            composite = initialize_hierarchy(level)
+            deep_merge_check(processes, {key: composite['processes']})
+            deep_merge(topology, {key: composite['topology']})
 
     return {
         'processes': processes,
@@ -147,15 +147,13 @@ def compose_experiment(
     Returns:
         The experiment.
     '''
-    if settings is None:
-        settings = {}
-    if initial_state is None:
-        initial_state = {}
+    settings = settings or {}
+    initial_state = initial_state or {}
 
     # make the hierarchy
-    network = initialize_hierarchy(hierarchy)
-    processes = network['processes']
-    topology = network['topology']
+    composite = initialize_hierarchy(hierarchy)
+    processes = composite['processes']
+    topology = composite['topology']
 
     experiment_config = {
         'processes': processes,
@@ -182,7 +180,7 @@ def add_timeline(
             timeline (dict): with `timeline` key. An optional `paths` key
                 overrides the topology mapping from (port: path).
     '''
-    timeline_paths = timeline.pop('paths', {})
+    timeline_paths = timeline.get('paths', {})
     timeline_process = TimelineProcess(timeline)
     processes.update({
         TimelineProcess.name: timeline_process})
@@ -208,7 +206,7 @@ def add_environment(
                 overrides the topology mapping from (port: path).
     '''
 
-    overide_topology = environment.pop('paths', {})
+    overide_topology = environment.get('paths', {})
     environment_process = NonSpatialEnvironment(environment)
     processes.update({
         environment_process.name: environment_process})
@@ -239,43 +237,30 @@ def process_in_experiment(
 
     Returns:
         an **Experiment**
-
-    TODO: derivers can be added here, instead of with the
-        Process.deriver() method
     '''
-    if settings is None:
-        settings = {}
-    if initial_state is None:
-        initial_state = {}
+    settings = settings or {}
+    initial_state = initial_state or {}
 
-    paths = settings.get('topology', {})
+    override_topology = settings.get('topology', {})
     processes = {'process': process}
     topology = {
         'process': {
-            port: paths.get(port, (port,))
+            port: override_topology.get(port, (port,))
             for port in process.ports_schema().keys()}}
 
-    timeline = settings.pop('timeline', None)
-    if timeline is not None:
-        add_timeline(processes, topology, timeline)
-
-    environment = settings.pop('environment', None)
-    if environment is not None:
-        add_environment(processes, topology, environment)
-
-    # initialize the experiment
-    experiment_config = {
+    composite = {
         'processes': processes,
-        'topology': topology,
-        'initial_state': initial_state}
-    for key, setting in settings.items():
-        if key in experiment_config_keys:
-            experiment_config[key] = setting
-    return Experiment(experiment_config)
+        'topology': topology}
+
+    return composite_in_experiment(
+        composite=composite,
+        settings=settings,
+        initial_state=initial_state
+    )
 
 
 def composite_in_experiment(
-        composite: Composer,
+        composite: CompositeDict,
         settings: Dict[str, Any] = None,
         initial_state: Dict[str, Any] = None,
 ) -> Experiment:
@@ -291,24 +276,19 @@ def composite_in_experiment(
     Returns:
         an :term:`Experiment`
     '''
+    settings = settings or {}
+    initial_state = initial_state or {}
 
-    if settings is None:
-        settings = {}
-    if initial_state is None:
-        initial_state = {}
+    processes = composite['processes']
+    topology = composite['topology']
 
-    composite_config = settings.get('composite_config', {})
-    outer_path = settings.get('outer_path', tuple())
-
-    network = composite.generate(composite_config, outer_path)
-    processes = network['processes']
-    topology = network['topology']
-
-    timeline = settings.pop('timeline', None)
+    timeline = settings.get('timeline', None)
     if timeline is not None:
         add_timeline(processes, topology, timeline)
+        all_times = [t[0] for t in timeline['timeline']]
+        settings['total_time'] = max(all_times)
 
-    environment = settings.pop('environment', None)
+    environment = settings.get('environment', None)
     if environment is not None:
         add_environment(processes, topology, environment)
 
@@ -323,6 +303,32 @@ def composite_in_experiment(
     return Experiment(experiment_config)
 
 
+def composer_in_experiment(
+        composer: Composer,
+        settings: Dict[str, Any] = None,
+        initial_state: Dict[str, Any] = None,
+        config={},
+        outer_path=tuple(),
+) -> Experiment:
+    '''generate a Composite in an Experiment
+
+    Args:
+        composite: a :term:`Composer` object.
+        settings (dict): a dictionary of options, including composite_config
+            for configuring the composite. Additional  keywords include
+            timeline, environment, and outer_path.
+        initial_state (dict): initial state to overrides the defaults.
+
+    Returns:
+        an :term:`Experiment`
+    '''
+    composite = composer.generate(config, outer_path)
+    return composite_in_experiment(
+        composite=composite,
+        settings=settings,
+        initial_state=initial_state,
+    )
+
 # simulate helper functions
 
 def simulate_process(
@@ -335,11 +341,28 @@ def simulate_process(
 
 
 def simulate_composite(
-        composite: Composer,
+        composite: CompositeDict,
         settings: Optional[Dict[str, Any]] = None
 ) -> Dict:
     settings = settings or {}
     experiment = composite_in_experiment(composite, settings)
+    return simulate_experiment(experiment, settings)
+
+
+def simulate_composer(
+        composer: Composer,
+        settings: Optional[Dict[str, Any]] = None,
+        config: Optional[Dict[str, Any]] = None,
+) -> Dict:
+    settings = settings or {}
+    config = config or {}
+    outer_path = settings.get('outer_path', tuple())
+    composite = composer.generate(config, outer_path)
+    initial_state = settings.get('initial_state')
+    experiment = composite_in_experiment(
+        composite,
+        settings=settings,
+        initial_state=initial_state)
     return simulate_experiment(experiment, settings)
 
 
@@ -359,10 +382,6 @@ def simulate_experiment(
     settings = settings or {}
     total_time = settings.get('total_time', 10)
     return_raw_data = settings.get('return_raw_data', False)
-
-    if 'timeline' in settings:
-        all_times = [t[0] for t in settings['timeline']['timeline']]
-        total_time = max(all_times)
 
     # run simulation
     experiment.update(total_time)
@@ -409,19 +428,18 @@ def test_process_in_experiment_environment() -> None:
         NonSpatialEnvironment)
 
 
-def test_composite_in_experiment() -> None:
-    composite = PoQo({
-        '_schema': {'po': {'A': {'a': {'_emit': True}}}}
-    })
+def test_composer_in_experiment() -> None:
+    composer = PoQo({
+        '_schema': {'po': {'A': {'a': {'_emit': True}}}}})
 
     timeline = [
         (0, {('aaa', 'a'): 1}),
         (5, {('aaa', 'a'): 10}),
-        (10, {})]
+        (15, {})]
     settings = {
         'environment': {},
         'timeline': {'timeline': timeline}}
-    experiment = composite_in_experiment(composite, settings)
+    experiment = composer_in_experiment(composer=composer, settings=settings)
 
     assert isinstance(
         experiment.processes['nonspatial_environment'],
@@ -430,6 +448,22 @@ def test_composite_in_experiment() -> None:
     output = simulate_experiment(experiment, settings)
     # check that timeline worked
     assert output['aaa']['a'][6] == 10
+    assert settings['total_time'] == 15
+    assert len(output['aaa']['a']) == 16
+
+
+def test_composite_in_experiment() -> None:
+    composer = PoQo({
+        '_schema': {'po': {'A': {'a': {'_emit': True}}}}})
+    composite = composer.generate()
+    settings = {}
+    experiment = composite_in_experiment(
+        composite=composite,
+        settings=settings)
+    assert experiment.processes['po'] is composite['processes']['po']
+
+    output = simulate_composite(composite, settings)
+    assert output['aaa']['a'][-1] == 4747
 
 
 def test_compose_experiment() -> None:
@@ -488,7 +522,7 @@ def test_process_deletion() -> None:
     assert masses == expected_masses
 
 
-def test_compartment() -> Dict:
+def test_composer() -> Dict:
     toy_compartment = ToyCompartment({})
     settings = {
         'total_time': 10,
@@ -501,13 +535,14 @@ def test_compartment() -> Dict:
                 'GLC': 0,
                 'MASS': 3,
                 'DENSITY': 10}}}
-    return simulate_composite(toy_compartment, settings)
+    return simulate_composer(toy_compartment, settings)
 
 
 if __name__ == '__main__':
     # test_process_deletion()
-    # test_compartment()
+    # test_composer()
     # test_replace_names()
     # test_process_in_experiment_environment()
+    # test_composer_in_experiment()
 
     test_composite_in_experiment()

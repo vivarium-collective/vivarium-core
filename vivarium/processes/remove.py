@@ -13,7 +13,7 @@ from vivarium.core.process import (
     Composer,
 )
 from vivarium.core.composition import (
-    simulate_composite,
+    simulate_composer,
     PROCESS_OUT_DIR,
 )
 from vivarium.composites.toys import ExchangeA
@@ -103,7 +103,7 @@ def test_remove():
         'timeline': {
             'timeline': timeline},
         'initial_state': initial_state}
-    output = simulate_composite(
+    output = simulate_composer(
         compartment,
         settings)
 

@@ -12,7 +12,7 @@ import copy
 
 from vivarium.core.experiment import timestamp
 from vivarium.core.composition import (
-    test_compartment,
+    test_composer,
     BASE_OUT_DIR,
 )
 from vivarium.composites.toys import ToyCompartment
@@ -151,9 +151,9 @@ def toy_control(args=None):
         # put in dictionary with name
         '1': {
             'name': 'exp_1',
-            'experiment': test_compartment},
+            'experiment': test_composer},
         # map to function to run as is
-        '2': test_compartment,
+        '2': test_composer,
     }
     plot_library = {
         # put in dictionary with config

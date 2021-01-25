@@ -415,7 +415,7 @@ class Process(Composer, metaclass=abc.ABCMeta):
 
         Every subclass may override this method.
 
-        Arguments:
+        Args:
             config (dict): A dictionary of configuration options. All
                 subclass implementation must accept this parameter, but
                 some may ignore it.
@@ -430,13 +430,18 @@ class Process(Composer, metaclass=abc.ABCMeta):
 
     def generate_processes(
             self, config: Optional[dict]) -> Dict[str, Any]:
-        return {self.name: self}
+        name = config.get('name', self.name)
+        return {name: self}
 
     def generate_topology(self, config: Optional[dict]) -> Topology:
+        name = config.get('name', self.name)
+        override_topology = config.get('topology', {})
         ports = self.ports()
         return {
-            self.name: {
-                port: (port,) for port in ports.keys()}}
+            name: {
+                port: override_topology.get(port, (port,))
+                for port in ports.keys()}}
+
 
     def get_schema(self, override: Optional[Schema] = None) -> dict:
         '''Get the process's schema, optionally with a schema override.
