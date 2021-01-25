@@ -10,6 +10,11 @@ import os
 import argparse
 import copy
 
+# typing
+from typing import (
+    Any, Dict, Optional, Union, Sequence)
+from vivarium.core.types import OutputDict
+
 from vivarium.core.experiment import timestamp
 from vivarium.core.composition import (
     test_composer,
@@ -20,7 +25,7 @@ from vivarium.composites.toys import ToyCompartment
 from vivarium.plots.simulation_output import plot_simulation_output
 
 
-def make_dir(out_dir):
+def make_dir(out_dir: str = 'out') -> None:
     os.makedirs(out_dir, exist_ok=True)
 
 
@@ -28,20 +33,20 @@ class Control:
 
     def __init__(
             self,
-            out_dir=None,
-            experiments=None,
-            compartments=None,
-            plots=None,
-            workflows=None,
-            args=None,
-    ):
-        if workflows is None:
-            workflows = {}
-        if experiments is None:
-            experiments = {}
+            out_dir: Optional[str] = None,
+            experiments: Optional[Dict[str, Any]] = None,
+            composers: Optional[Dict[str, Any]] = None,
+            plots: Optional[Dict[str, Any]] = None,
+            workflows: Optional[Dict[str, Any]] = None,
+            args: Optional[Sequence[str]] = None,
+    ) -> None:
+        workflows = workflows or {}
+        experiments = experiments or {}
+        plots = plots or {}
+        workflows = workflows or {}
 
         self.experiments_library = experiments
-        self.compartments_library = compartments
+        self.compposers_library = composers
         self.plots_library = plots
         self.workflows_library = workflows
         self.output_data = None
@@ -62,7 +67,9 @@ class Control:
             workflow_id = str(self.args.workflow)
             self.run_workflow(workflow_id)
 
-    def parse_args(self, args=None):
+    def parse_args(
+            self, args: Optional[Sequence[str]] = None
+    ) -> argparse.Namespace:
         parser = argparse.ArgumentParser(
             description='command line control of experiments'
         )
@@ -80,14 +87,19 @@ class Control:
         )
         return parser.parse_args(args)
 
-    def run_experiment(self, experiment_id):
+    def run_experiment(self, experiment_id: str) -> OutputDict:
         experiment = self.experiments_library[experiment_id]
         if isinstance(experiment, dict):
             kwargs = experiment.get('kwargs', {})
             return experiment['experiment'](**kwargs)
         return experiment()
 
-    def run_one_plot(self, plot_id, data, out_dir=None):
+    def run_one_plot(
+            self,
+            plot_id: str,
+            data: OutputDict,
+            out_dir: Optional[str] = None,
+    ) -> None:
         data_copy = copy.deepcopy(data)
         plot_spec = self.plots_library[plot_id]
         if isinstance(plot_spec, dict):
@@ -105,10 +117,12 @@ class Control:
                 data=data_copy,
                 out_dir=out_dir)
 
-    def run_plots(self, plot_ids, data, out_dir=None):
-        if out_dir is None:
-            out_dir = self.out_dir
-        make_dir(out_dir)
+    def run_plots(
+            self,
+            plot_ids: Union[list, str],
+            data: OutputDict,
+            out_dir: Optional[str] = None,
+    ) -> None:
 
         if isinstance(plot_ids, list):
             for plot_id in plot_ids:
@@ -116,7 +130,7 @@ class Control:
         else:
             self.run_one_plot(plot_ids, data, out_dir=out_dir)
 
-    def run_workflow(self, workflow_id):
+    def run_workflow(self, workflow_id: str) -> None:
         workflow = self.workflows_library[workflow_id]
         experiment_id = workflow['experiment']
         plot_ids = workflow['plots']
@@ -136,12 +150,17 @@ class Control:
 
 # testing
 
-def toy_plot(data, config=None, out_dir='out'):
+def toy_plot(
+        data: OutputDict,
+        config: Optional[Dict] = None,
+        out_dir: Optional[str] = 'out'
+) -> None:
     del config  # unused
     plot_simulation_output(data, out_dir=out_dir)
 
 
-def toy_control(args=None):
+def toy_control(
+        args: Optional[Sequence[str]] = None) -> Control:
     """ a toy example of control
 
     To run:
@@ -163,7 +182,7 @@ def toy_control(args=None):
         # map to function to run as is
         '2': toy_plot
     }
-    compartment_library = {
+    composers_library = {
         'agent': ToyCompartment,
     }
     workflow_library = {
@@ -176,7 +195,7 @@ def toy_control(args=None):
     control = Control(
         out_dir=os.path.join('out', 'control_test'),
         experiments=experiment_library,
-        compartments=compartment_library,
+        composers=composers_library,
         plots=plot_library,
         workflows=workflow_library,
         args=args,
@@ -185,10 +204,10 @@ def toy_control(args=None):
     return control
 
 
-def test_control():
+def test_control() -> None:
     control = toy_control(args=[])
     control.run_workflow('1')
 
 
 if __name__ == '__main__':
-    toy_control()
+    test_control()

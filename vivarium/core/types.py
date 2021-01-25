@@ -32,3 +32,6 @@ CompositeDict = Dict[str, Any]
 # TODO(jerry): ^ Dict values should be Union[Process, Topology, CompositeDict]
 #  but Process would make recursive imports and CompositeDict would make
 #  recursive types. Fix this by switching from a dict to a class or dataclass.
+
+#: A dictionary that contains the retrieved output of an :term:`experiment`
+OutputDict = Dict[Union[Tuple, str], Any]
