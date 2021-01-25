@@ -209,9 +209,10 @@ def toy_control(
 
 
 def test_control() -> None:
-    control = toy_control(args=['-w', '1'])
-    control = toy_control(args=['-w', '2'])
+    toy_control(args=['-w', '1'])
+    toy_control(args=['-w', '2'])
     control = toy_control(args=['-e', '2'])
+    control.run_workflow('1')
 
 
 if __name__ == '__main__':
