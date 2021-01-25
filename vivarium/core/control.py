@@ -189,7 +189,11 @@ def toy_control(
         '1': {
             'name': 'test_workflow',
             'experiment': '1',
-            'plots': ['1']}
+            'plots': ['1']},
+        '2': {
+            'name': 'test_workflow',
+            'experiment': '1',
+            'plots': '2'}
     }
 
     control = Control(
@@ -205,8 +209,9 @@ def toy_control(
 
 
 def test_control() -> None:
-    control = toy_control(args=[])
-    control.run_workflow('1')
+    control = toy_control(args=['-w', '1'])
+    control = toy_control(args=['-w', '2'])
+    control = toy_control(args=['-e', '2'])
 
 
 if __name__ == '__main__':
