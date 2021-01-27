@@ -548,4 +548,4 @@ if __name__ == '__main__':
     # test_process_in_experiment_environment()
     # test_composer_in_experiment()
 
-    test_composite_in_experiment()
+    test_composite_in_experiment()  # pragma: no cover

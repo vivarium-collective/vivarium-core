@@ -26,7 +26,7 @@ from vivarium.plots.simulation_output import plot_simulation_output
 
 
 def make_dir(out_dir: str = 'out') -> None:
-    os.makedirs(out_dir, exist_ok=True)
+    os.makedirs(out_dir, exist_ok=True)  # pragma: no cover
 
 
 class Control:
@@ -216,4 +216,4 @@ def test_control() -> None:
 
 
 if __name__ == '__main__':
-    test_control()
+    test_control()  # pragma: no cover
