@@ -341,6 +341,9 @@ class Process(Composite, metaclass=abc.ABCMeta):
         if self.config.get('_register'):
             self.register()
 
+        if 'time_step' not in self.parameters:
+             self.parameters['time_step'] = DEFAULT_TIME_STEP
+
     def initial_state(self, config=None):
         """Get initial state in embedded path dictionary
 
@@ -384,12 +387,19 @@ class Process(Composite, metaclass=abc.ABCMeta):
             port: list(states.keys())
             for port, states in ports_schema.items()}
 
+    def set_timestep(self, timestep) -> None:
+         '''Update the process's timestep
+
+         This will override the default timestep
+         '''
+         self.parameters['time_step'] = timestep
+
     def local_timestep(self):
         '''
         Returns the favored timestep for this process.
         Meant to be overridden in subclasses, unless 1.0 is a happy value.
         '''
-        return self.parameters.get('time_step', DEFAULT_TIME_STEP)
+        return self.parameters['time_step']
 
     def default_state(self):
         schema = self.ports_schema()
