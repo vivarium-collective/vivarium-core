@@ -32,6 +32,7 @@ class GrowthRate(Process):
             'variables': {
                 variable: {
                     '_default': 1000.0,
+                    '_divider': 'split',
                     '_emit': True,
                 } for variable in self.parameters['variables']
             },
