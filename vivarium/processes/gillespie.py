@@ -38,35 +38,62 @@ class StochasticTSC(Process):
                     '_default': 1.0,
                     '_emit': True}}}
 
-    def gillespie(self, X, dT):
-        '''
-        * X: initial condition
-        * dT: how long to simulate
-        '''
+    # def gillespie(self, X, dT):
+    #     '''
+    #     * X: initial condition
+    #     * dT: how long to simulate
+    #     '''
+    #
+    #     t = 0.0
+    #     while t < dT + self.time_remaining:
+    #         # Calculate propensities
+    #         propensities = [self.ktsc * X[0], self.kdeg * X[1]]
+    #         prop_sum = sum(propensities)
+    #
+    #         # The wait time is distributed exponentially
+    #         wait_time = np.random.exponential(scale=prop_sum)
+    #
+    #         # Reached the end of the simulation interval?
+    #         if wait_time + t >= dT:
+    #             self.time_remaining = dT - t  # save the unaccounted sim time
+    #             break
+    #
+    #         t += wait_time
+    #
+    #         # Choose the next reaction
+    #         r_rxn = np.random.random()
+    #         for i in range(len(propensities)):
+    #             if r_rxn < propensities[i] / prop_sum:
+    #                 # This means propensity i fires
+    #                 break
+    #         X += self.stoichiometry[i]
+    #
+    #     return X
+    #
 
-        t = 0.0
-        while t < dT + self.time_remaining:
-            # Calculate propensities
-            propensities = [self.ktsc * X[0], self.kdeg * X[1]]
-            prop_sum = sum(propensities)
+    def next_timestep(self, X):
 
-            # The wait time is distributed exponentially
-            wait_time = np.random.exponential(scale=prop_sum)
+        # Calculate propensities
+        propensities = [self.ktsc * X[0], self.kdeg * X[1]]
+        prop_sum = sum(propensities)
 
-            # Reached the end of the simulation interval?
-            if wait_time + t >= dT:
-                self.time_remaining = dT - t  # save the unaccounted sim time
+        # The wait time is distributed exponentially
+        wait_time = np.random.exponential(scale=prop_sum)
+
+        return wait_time
+
+    def next_reaction(self, X):
+
+        propensities = [self.ktsc * X[0], self.kdeg * X[1]]
+        prop_sum = sum(propensities)
+
+        # Choose the next reaction
+        r_rxn = np.random.random()
+        for i in range(len(propensities)):
+            if r_rxn < propensities[i] / prop_sum:
+                # This means propensity i fires
                 break
-
-            t += wait_time
-
-            # Choose the next reaction
-            r_rxn = np.random.random()
-            for i in range(len(propensities)):
-                if r_rxn < propensities[i] / prop_sum:
-                    # This means propensity i fires
-                    break
-            X += self.stoichiometry[i]
+        X += self.stoichiometry[i]
 
         return X
 
@@ -76,14 +103,16 @@ class StochasticTSC(Process):
         G = states['DNA']['G']
         C = states['mRNA']['C']
 
-        # apply the mechanism
-        new_state = self.gillespie(
-            np.array([G, C]),
-            timestep)
+        array_state = np.array([G, C])
+
+        new_state = self.next_reaction(array_state)
 
         # get delta mRNA
         C1 = new_state[1]
         dC = C1 - C
+
+        next_ts = self.next_timestep(array_state)
+        self.set_timestep(next_ts)
 
         # return an update
         return {
@@ -105,9 +134,6 @@ def test_gillespie_process():
     # run it and retrieve the data that was emitted to the simulation log
     gillespie_experiment.update(1000)
     gillespie_data = gillespie_experiment.emitter.get_timeseries()
-
-    #
-    # import ipdb; ipdb.set_trace()
 
     return gillespie_data
 
