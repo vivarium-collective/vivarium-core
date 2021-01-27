@@ -4,11 +4,13 @@ Stochastic transcription process
 import os
 import numpy as np
 
-from vivarium.core.process import Process
+from vivarium.core.process import Process, Composite
 from vivarium.core.composition import (
     process_in_experiment,
+    compartment_in_experiment,
     PROCESS_OUT_DIR,
 )
+from vivarium.core.registry import process_registry
 from vivarium.plots.simulation_output import plot_simulation_output
 
 
@@ -37,39 +39,6 @@ class StochasticTSC(Process):
                 'C': {
                     '_default': 1.0,
                     '_emit': True}}}
-
-    # def gillespie(self, X, dT):
-    #     '''
-    #     * X: initial condition
-    #     * dT: how long to simulate
-    #     '''
-    #
-    #     t = 0.0
-    #     while t < dT + self.time_remaining:
-    #         # Calculate propensities
-    #         propensities = [self.ktsc * X[0], self.kdeg * X[1]]
-    #         prop_sum = sum(propensities)
-    #
-    #         # The wait time is distributed exponentially
-    #         wait_time = np.random.exponential(scale=prop_sum)
-    #
-    #         # Reached the end of the simulation interval?
-    #         if wait_time + t >= dT:
-    #             self.time_remaining = dT - t  # save the unaccounted sim time
-    #             break
-    #
-    #         t += wait_time
-    #
-    #         # Choose the next reaction
-    #         r_rxn = np.random.random()
-    #         for i in range(len(propensities)):
-    #             if r_rxn < propensities[i] / prop_sum:
-    #                 # This means propensity i fires
-    #                 break
-    #         X += self.stoichiometry[i]
-    #
-    #     return X
-    #
 
     def next_timestep(self, X):
 
@@ -120,8 +89,73 @@ class StochasticTSC(Process):
                 'C': dC}}
 
 
+class TRL(Process):
+
+    defaults = {
+        'ktrl': 1e-2,
+        'kdeg': 1e-4,
+        }
+
+    def ports_schema(self):
+        return {
+            'mRNA': {
+                'C': {
+                    '_default': 1.0,
+                    '_emit': True}},
+            'Protein': {
+                'X': {
+                    '_default': 1.0,
+                    '_emit': True}}}
+
+    def next_update(self, timestep, states):
+        C = states['mRNA']['C']
+        X = states['Protein']['X']
+        dX = (self.parameters['ktrl'] * C - self.parameters['kdeg'] * X) * timestep
+        return {
+            'Protein': {
+                'X': dX}}
+
+
+class TrlConcentration(TRL):
+    """rescale mRNA"""
+
+    def next_update(self, timestep, states):
+        states['mRNA']['C'] = states['mRNA']['C'].magnitude * 1e5
+        return super().next_update(timestep, states)
+
+
+class StochasticTscTrl(Composite):
+    defaults = {
+        'stochastic_TSC': {'time_step': 10},
+        'TRL': {'time_step': 10},
+    }
+
+    def generate_processes(self, config):
+        concentrations_deriver = process_registry.access('concentrations_deriver')
+        return {
+            'stochastic_TSC': StochasticTSC(config['stochastic_TSC']),
+            'TRL': TrlConcentration(config['TRL']),
+            'concs': concentrations_deriver({'concentration_keys': ['C']})
+        }
+
+    def generate_topology(self, config):
+        return {
+            'stochastic_TSC': {
+                'DNA': ('DNA',),
+                'mRNA': ('mRNA_counts',)
+            },
+            'TRL': {
+                'mRNA': ('mRNA',),
+                'Protein': ('Protein',)
+            },
+            'concs': {
+                'counts': ('mRNA_counts',),
+                'concentrations': ('mRNA',)}
+        }
+
+
+
 def test_gillespie_process():
-    # construct TscTrl
     gillespie_process = StochasticTSC()
 
     # make the experiment
@@ -137,16 +171,38 @@ def test_gillespie_process():
 
     return gillespie_data
 
+def test_gillespie_composite():
+    total_time = 10000
+
+    stochastic_tsc_trl = StochasticTscTrl()
+
+    # make the experiment
+    exp_settings = {
+        'experiment_id': 'stochastic_tsc_trl'}
+    stoch_experiment = compartment_in_experiment(
+        stochastic_tsc_trl,
+        exp_settings)
+
+    # simulate and retrieve the data from emitter
+    stoch_experiment.update(total_time)
+    data = stoch_experiment.emitter.get_timeseries()
+
+    import ipdb; ipdb.set_trace()
+    
+    return data
+
+
 def main():
     out_dir = os.path.join(PROCESS_OUT_DIR, 'gillespie')
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
 
-    output = test_gillespie_process()
+    # output = test_gillespie_process()
+    output = test_gillespie_composite()
 
-    # plot the simulation output
-    plot_settings = {}
-    plot_simulation_output(output, plot_settings, out_dir)
+    # # plot the simulation output
+    # plot_settings = {}
+    # plot_simulation_output(output, plot_settings, out_dir)
 
 
 # run module with python vivarium/process/template_process.py
