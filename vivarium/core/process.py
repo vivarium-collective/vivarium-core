@@ -446,7 +446,6 @@ class Process(Composer, metaclass=abc.ABCMeta):
                 port: override_topology.get(port, (port,))
                 for port in ports.keys()}}
 
-
     def get_schema(self, override: Optional[Schema] = None) -> dict:
         '''Get the process's schema, optionally with a schema override.
 

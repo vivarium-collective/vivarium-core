@@ -313,11 +313,13 @@ def composer_in_experiment(
     '''generate a Composite in an Experiment
 
     Args:
-        composite: a :term:`Composer` object.
+        composer: a :term:`Composer` object.
         settings (dict): a dictionary of options, including composite_config
             for configuring the composite. Additional  keywords include
             timeline, environment, and outer_path.
         initial_state (dict): initial state to overrides the defaults.
+        config: updates values in composer's config
+        outer_path: path to the processes and topology
 
     Returns:
         an :term:`Experiment`
@@ -328,6 +330,7 @@ def composer_in_experiment(
         settings=settings,
         initial_state=initial_state,
     )
+
 
 # simulate helper functions
 
