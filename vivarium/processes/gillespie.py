@@ -188,7 +188,7 @@ def test_gillespie_composite():
     data = stoch_experiment.emitter.get_timeseries()
 
     import ipdb; ipdb.set_trace()
-    
+
     return data
 
 
