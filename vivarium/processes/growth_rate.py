@@ -1,10 +1,13 @@
+"""
+==================
+GrowthRate Process
+==================
+"""
+
 import os
 import numpy as np
-from typing import Any, Dict, Optional
 
-# import the vivarium process class
 from vivarium.core.process import Process
-
 from vivarium.core.composition import (
     PROCESS_OUT_DIR,
     process_in_experiment,
@@ -15,7 +18,7 @@ NAME = 'growth_rate'
 
 
 class GrowthRate(Process):
-    ''' A Vivarium process that models exponential growth of biomass '''
+    """ A Vivarium process that models exponential growth of biomass """
 
     name = NAME
     defaults = {
@@ -35,12 +38,14 @@ class GrowthRate(Process):
             'rates': {
                 'growth_rate': {
                     variable: {
-                        '_default': self.parameters['default_growth_rate'],
+                        '_default': self.parameters[
+                            'default_growth_rate'],
                     } for variable in self.parameters['variables']
                 },
                 'growth_noise': {
                     variable: {
-                        '_default': self.parameters['default_growth_noise'],
+                        '_default': self.parameters[
+                            'default_growth_noise'],
                     } for variable in self.parameters['variables']
                 },
             }
@@ -61,16 +66,36 @@ class GrowthRate(Process):
 
 
 def test_growth_rate(total_time=1350):
-    growth_rate = GrowthRate({'variables': ['mass']})
-    initial_state = {'variables': {'mass': 100}}
-    experiment = process_in_experiment(growth_rate, initial_state=initial_state)
+    initial_mass = 100
+    growth_rate = 0.0005
+    config = {
+        'variables': ['mass'],
+        'default_growth_rate': growth_rate}
+
+    growth_rate_process = GrowthRate(config)
+    initial_state = {'variables': {'mass': initial_mass}}
+    experiment = process_in_experiment(
+        growth_rate_process,
+        initial_state=initial_state)
     experiment.update(total_time)
     output = experiment.emitter.get_timeseries()
-    assert output['variables']['mass'][-1] > output['variables']['mass'][0]
+
+    # asserts
+    final_mass = output['variables']['mass'][-1]
+    expected_mass = initial_mass * np.exp(growth_rate * total_time)
+    decimal_precision = 7
+    assert abs(expected_mass - final_mass) < \
+           1.5 * 10 ** (-decimal_precision)
+
     return output
 
 
-def main(out_dir):
+def main():
+    """run test and plot"""
+    out_dir = os.path.join(PROCESS_OUT_DIR, NAME)
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
+
     data = test_growth_rate()
     plot_settings = {}
     plot_simulation_output(data, plot_settings, out_dir)
@@ -78,8 +103,4 @@ def main(out_dir):
 
 
 if __name__ == '__main__':
-    out_dir = os.path.join(PROCESS_OUT_DIR, NAME)
-    if not os.path.exists(out_dir):
-        os.makedirs(out_dir)
-
-    main(out_dir)
+    main()
