@@ -409,6 +409,8 @@ class Process(Composer, metaclass=abc.ABCMeta):
 
         self.parameters = self.config
         self.parallel = self.config.pop('_parallel', False)
+        if 'time_step' not in self.parameters:
+            self.parameters['time_step'] = DEFAULT_TIME_STEP
 
     def initial_state(self, config: Optional[dict] = None) -> State:
         """Get initial state in embedded path dictionary.
@@ -479,6 +481,13 @@ class Process(Composer, metaclass=abc.ABCMeta):
             port: list(states.keys())
             for port, states in ports_schema.items()}
 
+    def set_timestep(self, timestep:  Union[float, int]) -> None:
+        '''Update the process's timestep
+
+        This will override the default timestep
+        '''
+        self.parameters['time_step'] = timestep
+
     def local_timestep(self) -> Union[float, int]:
         '''Get a process's favored timestep.
 
@@ -490,7 +499,7 @@ class Process(Composer, metaclass=abc.ABCMeta):
         Returns:
             Favored timestep.
         '''
-        return self.parameters.get('time_step', DEFAULT_TIME_STEP)
+        return self.parameters['time_step']
 
     def default_state(self) -> State:
         '''Get the default values of the variables in each port.
