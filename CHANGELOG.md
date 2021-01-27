@@ -1,6 +1,10 @@
 # Changelog
 
 
+## v0.1.7
+
+* growth_rate process for generic exponential growth of variables
+
 ## v0.1.6
 
 * topology grapher option to leave edge colors black
