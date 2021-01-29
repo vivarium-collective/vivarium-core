@@ -1481,7 +1481,7 @@ class Experiment(object):
                     #  schema dynamically like this?
                     # TODO (Eran): The state needs to be converted to the process's schema
 
-                    # import ipdb; ipdb.set_trace()
+                    import ipdb; ipdb.set_trace()
 
                     update = self.process_update(path, process, timestep)
 

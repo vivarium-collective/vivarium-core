@@ -29,6 +29,9 @@ class StochasticTSC(Process):
         self.stoichiometry = np.array([[0, 1], [0, -1]])
         self.time_remaining = 0.0
 
+        # TODO - initialize with next timestep?
+
+
     def ports_schema(self):
         return {
             'DNA': {
@@ -67,6 +70,11 @@ class StochasticTSC(Process):
         return X
 
     def next_update(self, timestep, states):
+
+        if timestep != self.local_timestep():
+            # TODO -- how much time is left?
+            import ipdb; ipdb.set_trace()
+            return {}
 
         # retrieve the state values
         G = states['DNA']['G']
@@ -187,7 +195,7 @@ def test_gillespie_composite():
     stoch_experiment.update(total_time)
     data = stoch_experiment.emitter.get_timeseries()
 
-    import ipdb; ipdb.set_trace()
+    # import ipdb; ipdb.set_trace()
 
     return data
 
