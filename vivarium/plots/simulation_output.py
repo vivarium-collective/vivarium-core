@@ -194,6 +194,7 @@ def plot_variables(
         output,
         variables,
         row_height=1.2,
+        row_padding=0.8,
         out_dir=None,
         filename='variables'
 ):
@@ -229,6 +230,7 @@ def plot_variables(
             set_axes(ax)
         ax.ticklabel_format(style='plain', axis='y', scilimits=(-5, 5))
 
+    fig.subplots_adjust(hspace=row_padding)
     if out_dir:
         save_fig_to_dir(fig, filename, out_dir)
     return fig
