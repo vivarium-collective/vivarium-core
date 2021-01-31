@@ -193,13 +193,15 @@ def get_variable_title(var, port):
 def plot_variables(
         output,
         variables,
+        column_width=8,
         row_height=1.2,
         row_padding=0.8,
+        linewidth=3.0,
         out_dir=None,
         filename='variables'
 ):
     n_rows = len(variables)
-    fig = plt.figure(figsize=(8, n_rows * row_height))
+    fig = plt.figure(figsize=(column_width, n_rows * row_height))
     grid = plt.GridSpec(n_rows, 1)
 
     time_vec = output['time']
@@ -218,7 +220,7 @@ def plot_variables(
 
         # make a new subplot
         ax = fig.add_subplot(grid[row_idx, 0])
-        ax.plot(time_vec, series, linewidth=3.0, color=var_color)
+        ax.plot(time_vec, series, linewidth=linewidth, color=var_color)
         ax.set_title(variable_title)
 
         # x-axis only at bottom row
