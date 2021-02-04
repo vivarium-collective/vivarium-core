@@ -1,6 +1,10 @@
 # Changelog
 
 
+## v0.1.8
+
+* clock process for keeping track of global time
+
 ## v0.1.7
 
 * growth_rate process for generic exponential growth of variables
