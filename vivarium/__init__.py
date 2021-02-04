@@ -20,6 +20,7 @@ from vivarium.processes.derive_concentrations import (
     DeriveConcentrations)
 from vivarium.processes.derive_counts import DeriveCounts
 from vivarium.processes.timeline import TimelineProcess
+from vivarium.processes.clock import Clock
 from vivarium.processes.nonspatial_environment import (
     NonSpatialEnvironment)
 from vivarium.processes.swap_processes import SwapProcesses
@@ -48,6 +49,7 @@ process_registry.register(
     NonSpatialEnvironment.name, NonSpatialEnvironment)
 process_registry.register(SwapProcesses.name, SwapProcesses)
 process_registry.register(Remove.name, Remove)
+process_registry.register(Clock.name, Clock)
 
 # register updaters
 updater_registry.register('accumulate', update_accumulate)
