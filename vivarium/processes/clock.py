@@ -1,7 +1,16 @@
+"""
+=============
+Clock Process
+=============
+"""
 from vivarium.core.process import Process
 
 class Clock(Process):
+    """ Clock
 
+    A process for tracking global time
+    """
+    name = 'clock'
     defaults = {
         'time_step': 1.0}
 
