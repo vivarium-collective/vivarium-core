@@ -71,8 +71,9 @@ class StochasticTSC(Process):
 
     def next_update(self, timestep, states):
 
-        if timestep != self.local_timestep():
-            # TODO -- how much time is left?
+        local_timestep = self.local_timestep()
+        time_left = local_timestep - timestep
+        if time_left > 1e-6:
             import ipdb; ipdb.set_trace()
             return {}
 

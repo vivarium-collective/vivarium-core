@@ -1479,10 +1479,7 @@ class Experiment(object):
                     #    Type Process doesn't have expected attribute 'schema'
                     # TODO(chris): Is there any reason to generate a process's
                     #  schema dynamically like this?
-                    # TODO (Eran): The state needs to be converted to the process's schema
-
-                    import ipdb; ipdb.set_trace()
-
+                    # TODO (Eran): The state is here converted to the process's schema
                     update = self.process_update(path, process, timestep)
 
                     # store the update to apply at its projected time
@@ -1534,12 +1531,6 @@ class Experiment(object):
             except:
                 import ipdb;
                 ipdb.set_trace()
-                # ipdb > advance['time']  (= front[path]['time'] = future)
-                # 9995.622504104247
-                # ipdb > time
-                # 10005.599494951883
-                # ipdb > interval
-                # 10000
 
         clock_finish = clock.time() - clock_start
 
