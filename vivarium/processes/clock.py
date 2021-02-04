@@ -22,6 +22,6 @@ class Clock(Process):
             'global_time': {
                 '_default': 0.0,
                 '_updater': 'accumulate'}}
-    
+
     def next_update(self, timestep, states):
         return {'global_time': timestep}

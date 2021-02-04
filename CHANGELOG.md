@@ -1,6 +1,10 @@
 # Changelog
 
 
+## v0.1.11
+
+* clock process initial state
+
 ## v0.1.10
 
 * add plot_variables plotting function to simulation_output
