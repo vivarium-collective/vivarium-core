@@ -387,15 +387,19 @@ class Process(Composite, metaclass=abc.ABCMeta):
             port: list(states.keys())
             for port, states in ports_schema.items()}
 
+    def set_timestep(self, timestep) -> None:
+         '''Update the process's timestep
+
+         This will override the default timestep
+         '''
+         self.parameters['time_step'] = timestep
+
     def local_timestep(self):
         '''
         Returns the favored timestep for this process.
         Meant to be overridden in subclasses, unless 1.0 is a happy value.
         '''
         return self.parameters['time_step']
-
-    def set_timestep(self, timestep):
-        self.parameters['time_step'] = timestep
 
     def default_state(self):
         schema = self.ports_schema()
