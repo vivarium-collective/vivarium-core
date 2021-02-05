@@ -2091,7 +2091,8 @@ def test_complex_topology():
                 'po': {
                     'A': {
                         '_path': ('aaa',),
-                        'b': ('o',)},
+                        'b': ('o',),
+                        'c': ('..', '..', 'UP')},
                     'B': ('bbb',)},
                 'qo': {
                     'D': {
@@ -2102,6 +2103,9 @@ def test_complex_topology():
                         'u': ('aaa', 'u'),
                         'v': ('bbb', 'e')}}}
 
+
+
+    outer_path = ('universe', 'agent')
     initial_state = {
         'aaa': {
             'a': 2,
@@ -2114,14 +2118,22 @@ def test_complex_topology():
         'ddd': {
             'z': 333}}
 
-    pq = PoQo({})
-    pq_config = pq.generate()
-    pq_config['initial_state'] = initial_state
+    initial_state = {
+        'universe': {
+            'agent': initial_state}}
 
-    experiment = Experiment(pq_config)
+    pq = PoQo({})
+    pq_composite = pq.generate(path=outer_path)
+    pq_composite['initial_state'] = initial_state
+
+    experiment = Experiment(pq_composite)
 
     pp(experiment.state.get_value())
     experiment.update(1)
+
+    import ipdb;
+    ipdb.set_trace()
+
 
     state = experiment.state.get_value()
     assert state['aaa']['a'] == initial_state['aaa']['a'] + initial_state['aaa']['o'] - 1
@@ -2263,8 +2275,7 @@ if __name__ == '__main__':
     # test_multi()
     # test_sine()
     # test_parallel()
-    # test_complex_topology()
+    test_complex_topology()
     # test_multi_port_merge()
     # test_2_store_1_port()
-
-    test_units()
+    # test_units()
