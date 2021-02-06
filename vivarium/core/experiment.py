@@ -1479,11 +1479,11 @@ class Experiment(object):
 
                     # get the time step
                     store, states = self.process_state(path, process)
-                    process_timestep = process.calculate_timestep(states)
+                    requested_timestep = process.calculate_timestep(states)
 
                     # progress only to the end of interval
-                    future = min(time + process_timestep, interval)
-                    timestep = future - process_time
+                    future = min(process_time + requested_timestep, interval)
+                    process_timestep = future - process_time
 
                     # calculate the update for this process
                     # TODO(jerry): Do something cleaner than having
@@ -1492,20 +1492,17 @@ class Experiment(object):
                     #    Type Process doesn't have expected attribute 'schema'
                     # TODO(chris): Is there any reason to generate a process's
                     #  schema dynamically like this?
-                    # TODO (Eran): The state is here converted to the process's schema
-                    update = self.process_update(path, process, store, states, timestep)
-
-                    if time + timestep > interval:
-                        # time + timestep != process_time + timestep
-                        import ipdb;
-                        ipdb.set_trace()
-
+                    update = self.process_update(
+                        path, process, store, states, process_timestep)
 
                     # store the update to apply at its projected time
-                    if timestep < full_step:
-                        full_step = timestep
                     front[path]['time'] = future
                     front[path]['update'] = update
+
+                    # absolute timestep
+                    timestep = future - time
+                    if timestep < full_step:
+                        full_step = timestep
 
             if full_step == math.inf:
                 # no processes ran, jump to next process
@@ -1544,8 +1541,12 @@ class Experiment(object):
 
         # post-simulation
         for process_name, advance in front.items():
-            assert advance['time'] == time == interval
-            assert len(advance['update']) == 0
+            try:
+                assert advance['time'] == time == interval, f"times: {advance['time']} {time} {interval}"
+                assert len(advance['update']) == 0
+            except:
+                import ipdb; ipdb.set_trace()
+                # TODO -- advance['time'] is not reaching interval...
 
         clock_finish = clock.time() - clock_start
 
