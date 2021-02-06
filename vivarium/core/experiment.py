@@ -1354,13 +1354,7 @@ class Experiment(object):
             # if not parallel, perform a normal invocation
             return self.invoke(process, interval, states)
 
-    def process_update(self, path, process, interval):
-        state = self.state.get_path(path)
-        process_topology = get_in(self.topology, path)
-
-        # translate the values from the tree structure into the form
-        # that this process expects, based on its declared topology
-        states = state.outer.schema_topology(process.schema, process_topology)
+    def process_update(self, path, process, store, states, interval):
 
         update = self.invoke_process(
             process,
@@ -1368,9 +1362,22 @@ class Experiment(object):
             interval,
             states)
 
-        absolute = Defer(update, invert_topology, (path, process_topology))
+        absolute = Defer(update, invert_topology, (path, store.topology))
 
-        return absolute, state
+        return absolute, store
+
+    def process_state(self, path, process):
+        store = self.state.get_path(path)
+
+        # translate the values from the tree structure into the form
+        # that this process expects, based on its declared topology
+        states = store.outer.schema_topology(process.schema, store.topology)
+
+        return store, states
+
+    def calculate_update(self, path, process, interval):
+        store, states = self.process_state(path, process)
+        return self.process_update(path, process, store, states, interval)
 
     def apply_update(self, update, state):
         topology_updates, process_updates, deletions = self.state.apply_update(
@@ -1412,7 +1419,7 @@ class Experiment(object):
                 #  generate_paths() add a schema attribute to the Deriver.
                 #  PyCharm's type check reports:
                 #    Type Process doesn't have expected attribute 'schema'
-                update, state = self.process_update(
+                update, state = self.calculate_update(
                     path, deriver, 0)
                 self.apply_update(update.get(), state)
 
@@ -1469,7 +1476,13 @@ class Experiment(object):
                 process_time = front[path]['time']
 
                 if process_time <= time:
-                    future = min(process_time + process.local_timestep(), interval)
+
+                    # get the time step
+                    store, states = self.process_state(path, process)
+                    process_timestep = process.calculate_timestep(states)
+
+                    # progress only to the end of interval
+                    future = min(time + process_timestep, interval)
                     timestep = future - process_time
 
                     # calculate the update for this process
@@ -1480,7 +1493,13 @@ class Experiment(object):
                     # TODO(chris): Is there any reason to generate a process's
                     #  schema dynamically like this?
                     # TODO (Eran): The state is here converted to the process's schema
-                    update = self.process_update(path, process, timestep)
+                    update = self.process_update(path, process, store, states, timestep)
+
+                    if time + timestep > interval:
+                        # time + timestep != process_time + timestep
+                        import ipdb;
+                        ipdb.set_trace()
+
 
                     # store the update to apply at its projected time
                     if timestep < full_step:
@@ -1525,12 +1544,8 @@ class Experiment(object):
 
         # post-simulation
         for process_name, advance in front.items():
-            try:
-                assert advance['time'] == time == interval
-                assert len(advance['update']) == 0
-            except:
-                import ipdb;
-                ipdb.set_trace()
+            assert advance['time'] == time == interval
+            assert len(advance['update']) == 0
 
         clock_finish = clock.time() - clock_start
 

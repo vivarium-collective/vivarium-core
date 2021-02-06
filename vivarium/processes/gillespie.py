@@ -29,8 +29,19 @@ class StochasticTSC(Process):
         self.stoichiometry = np.array([[0, 1], [0, -1]])
         self.time_remaining = 0.0
 
-        # TODO - initialize with next timestep?
+        # initialize the next timestep
+        initial_state = self.initial_state()
+        self.calculate_timestep(initial_state)
 
+    def initial_state(self, config=None):
+        return {
+            'DNA': {
+                'G': 1.0
+            },
+            'mRNA': {
+                'C': 1.0
+            }
+        }
 
     def ports_schema(self):
         return {
@@ -43,16 +54,20 @@ class StochasticTSC(Process):
                     '_default': 1.0,
                     '_emit': True}}}
 
-    def next_timestep(self, X):
+    def calculate_timestep(self, states):
+        # retrieve the state values
+        G = states['DNA']['G']
+        C = states['mRNA']['C']
+
+        array_state = np.array([G, C])
 
         # Calculate propensities
-        propensities = [self.ktsc * X[0], self.kdeg * X[1]]
+        propensities = [self.ktsc * array_state[0], self.kdeg * array_state[1]]
         prop_sum = sum(propensities)
 
         # The wait time is distributed exponentially
-        wait_time = np.random.exponential(scale=prop_sum)
-
-        return wait_time
+        self.calculated_timestep = np.random.exponential(scale=prop_sum)
+        return self.calculated_timestep
 
     def next_reaction(self, X):
 
@@ -71,26 +86,20 @@ class StochasticTSC(Process):
 
     def next_update(self, timestep, states):
 
-        local_timestep = self.local_timestep()
-        time_left = local_timestep - timestep
-        if time_left > 1e-6:
-            import ipdb; ipdb.set_trace()
+        if self.calculated_timestep > timestep + 1e-6:
             return {}
 
-        # retrieve the state values
+        # retrieve the state values, put them in array
         G = states['DNA']['G']
         C = states['mRNA']['C']
-
         array_state = np.array([G, C])
 
+        # calculate the next reaction
         new_state = self.next_reaction(array_state)
 
         # get delta mRNA
         C1 = new_state[1]
         dC = C1 - C
-
-        next_ts = self.next_timestep(array_state)
-        self.set_timestep(next_ts)
 
         # return an update
         return {
@@ -209,9 +218,9 @@ def main():
     # output = test_gillespie_process()
     output = test_gillespie_composite()
 
-    # # plot the simulation output
-    # plot_settings = {}
-    # plot_simulation_output(output, plot_settings, out_dir)
+    # plot the simulation output
+    plot_settings = {}
+    plot_simulation_output(output, plot_settings, out_dir)
 
 
 # run module with python vivarium/process/template_process.py
