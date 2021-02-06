@@ -1284,7 +1284,7 @@ class Experiment(object):
         emitter_config['experiment_id'] = self.experiment_id
         self.emitter = get_emitter(emitter_config)
 
-        self.local_time = 0.0
+        self.experiment_time = 0.0
 
         # run the derivers
         self.send_updates([])
@@ -1426,7 +1426,7 @@ class Experiment(object):
     def emit_data(self):
         data = self.state.emit_data()
         data.update({
-            'time': self.local_time})
+            'time': self.experiment_time})
         emit_config = {
             'table': 'history',
             'data': serialize_dictionary(data)}
@@ -1512,13 +1512,15 @@ class Experiment(object):
                         next_event = front[path]['time']
                 time = next_event
             else:
-                # at least one process ran, apply updates and continue
-                future = time + full_step
+                # at least one process ran
+                # increase the time, apply updates, and continue
+                time += full_step
+                self.experiment_time += full_step
 
                 updates = []
                 paths = []
                 for path, advance in front.items():
-                    if advance['time'] <= future:
+                    if advance['time'] <= time:
                         new_update = advance['update']
                         # new_update['_path'] = path
                         updates.append(new_update)
@@ -1527,9 +1529,7 @@ class Experiment(object):
 
                 self.send_updates(updates)
 
-                time = future
-                self.local_time += full_step
-
+                # display and emit
                 if self.progress_bar:
                     print_progress_bar(time, interval)
                 if self.emit_step is None:
