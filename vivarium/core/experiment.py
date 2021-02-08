@@ -2037,22 +2037,22 @@ def test_complex_topology():
         def ports_schema(self):
             return {
                 'A': {
-                    'a': {'_default': 0},
-                    'b': {'_default': 0},
-                    'c': {'_default': 0}},
+                    'a1': {'_default': 0},
+                    'a2': {'_default': 0},
+                    'a3': {'_default': 0}},
                 'B': {
-                    'd': {'_default': 0},
-                    'e': {'_default': 0}}}
+                    'b1': {'_default': 0},
+                    'b2': {'_default': 0}}}
 
         def next_update(self, timestep, states):
             return {
                 'A': {
-                    'a': states['A']['b'],
-                    'b': states['A']['c'],
-                    'c': states['B']['d'] + states['B']['e']},
+                    'a1': 1,
+                    'a2': 1,
+                    'a3': 1},
                 'B': {
-                    'd': states['A']['a'],
-                    'e': states['B']['e']}}
+                    'b1': -1,
+                    'b2': -1}}
 
     class Qo(Process):
         name = 'qo'
@@ -2060,89 +2060,82 @@ def test_complex_topology():
         def ports_schema(self):
             return {
                 'D': {
-                    'x': {'_default': 0},
-                    'y': {'_default': 0},
-                    'z': {'_default': 0}},
+                    'd1': {'_default': 0},
+                    'd2': {'_default': 0},
+                    'd3': {'_default': 0}},
                 'E': {
-                    'u': {'_default': 0},
-                    'v': {'_default': 0}}}
+                    'e1': {'_default': 0},
+                    'e2': {'_default': 0}}}
 
         def next_update(self, timestep, states):
             return {
                 'D': {
-                    'x': -1,
-                    'y': 12,
-                    'z': states['D']['x'] + states['D']['y']},
+                    'd1': 10,
+                    'd2': 10,
+                    'd3': 10},
                 'E': {
-                    'u': 3,
-                    'v': states['E']['u']}}
+                    'e1': -10,
+                    'e2': -10}}
 
     class PoQo(Composite):
         def generate_processes(self, config=None):
-            p = Po(config)
-            q = Qo(config)
-
             return {
-                'po': p,
-                'qo': q}
+                'po': Po(config),
+                'qo': Qo(config),
+            }
 
         def generate_topology(self, config=None):
             return {
                 'po': {
                     'A': {
                         '_path': ('aaa',),
-                        'b': ('o',),
-                        'c': ('..', '..', 'UP')},
-                    'B': ('bbb',)},
+                        'a2': ('x',),
+                        'a3': ('..', 'ccc', 'a3')},
+                    'B': ('bbb',),
+                },
                 'qo': {
                     'D': {
-                        'x': ('aaa', 'a'),
-                        'y': ('aaa', 'o'),
-                        'z': ('ddd', 'z')},
+                        '_path': (),
+                        'd1': ('aaa', 'd1'),
+                        'd2': ('aaa', 'd2'),
+                        'd3': ('ccc', 'd3')},
                     'E': {
-                        'u': ('aaa', 'u'),
-                        'v': ('bbb', 'e')}}}
+                        '_path': (),
+                        'e1': ('aaa', 'x'),
+                        'e2': ('bbb', 'e2')}
+                },
+            }
 
 
-
+    # make the experiment
     outer_path = ('universe', 'agent')
-    initial_state = {
-        'aaa': {
-            'a': 2,
-            'c': 5,
-            'o': 3,
-            'u': 11},
-        'bbb': {
-            'd': 14,
-            'e': 88},
-        'ddd': {
-            'z': 333}}
-
-    initial_state = {
-        'universe': {
-            'agent': initial_state}}
-
     pq = PoQo({})
     pq_composite = pq.generate(path=outer_path)
-    pq_composite['initial_state'] = initial_state
-
     experiment = Experiment(pq_composite)
 
-    pp(experiment.state.get_value())
+    # get the initial state
+    initial_state = experiment.state.get_value()
+    print('time 0:')
+    pp(initial_state)
+
+    # simulate for 1 second
     experiment.update(1)
 
-    import ipdb;
-    ipdb.set_trace()
+    next_state = experiment.state.get_value()
+    print('time 1:')
+    pp(next_state)
 
+    # pull out the agent state
+    initial_agent_state = initial_state['universe']['agent']
+    agent_state = next_state['universe']['agent']
 
-    state = experiment.state.get_value()
-    assert state['aaa']['a'] == initial_state['aaa']['a'] + initial_state['aaa']['o'] - 1
-    assert state['aaa']['o'] == initial_state['aaa']['o'] + initial_state['aaa']['c'] + 12
-    assert state['aaa']['c'] == initial_state['aaa']['c'] + initial_state['bbb']['d'] + initial_state['bbb']['e']
-    assert state['aaa']['u'] == initial_state['aaa']['u'] + 3
-    assert state['bbb']['d'] == initial_state['bbb']['d'] + initial_state['aaa']['a']
-    assert state['bbb']['e'] == initial_state['bbb']['e'] + initial_state['bbb']['e'] + initial_state['aaa']['u']
-    assert state['ddd']['z'] == initial_state['ddd']['z'] + initial_state['aaa']['a'] + initial_state['aaa']['o']
+    # import ipdb;
+    # ipdb.set_trace()
+    # TODO -- is ['ccc']['a3'] updating appropriately?
+
+    assert agent_state['aaa']['a1'] == initial_agent_state['aaa']['a1'] + 1
+    assert agent_state['aaa']['x'] == initial_agent_state['aaa']['x'] - 9
+    assert agent_state['ccc']['a3'] == initial_agent_state['ccc']['a3'] + 1
 
 
 def test_multi():
