@@ -794,6 +794,9 @@ class Store(object):
                     if inner_deletions:
                         deletions.extend(inner_deletions)
 
+                if key == '..':
+                    self.outer.apply_update(value, state)
+
             if delete_keys is not None:
                 # delete a list of paths
                 here = self.path_for()
@@ -1356,7 +1359,7 @@ class Experiment(object):
 
     def process_update(self, path, process, interval):
         state = self.state.get_path(path)
-        process_topology = get_in(self.topology, path)
+        process_topology = state.topology
 
         # translate the values from the tree structure into the form
         # that this process expects, based on its declared topology
@@ -2128,10 +2131,6 @@ def test_complex_topology():
     # pull out the agent state
     initial_agent_state = initial_state['universe']['agent']
     agent_state = next_state['universe']['agent']
-
-    # import ipdb;
-    # ipdb.set_trace()
-    # TODO -- is ['ccc']['a3'] updating appropriately?
 
     assert agent_state['aaa']['a1'] == initial_agent_state['aaa']['a1'] + 1
     assert agent_state['aaa']['x'] == initial_agent_state['aaa']['x'] - 9
