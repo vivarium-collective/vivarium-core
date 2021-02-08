@@ -265,7 +265,7 @@ def timeseries_to_ndarrays(timeseries, keys=None):
     if keys is None:
         keys = timeseries.keys()
     return {
-        key: np.array(timeseries[key], dtype=np.float) for key in keys}
+        key: np.array(timeseries[key], dtype=float) for key in keys}
 
 
 def load_timeseries(path_to_csv):

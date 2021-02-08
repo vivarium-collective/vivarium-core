@@ -93,7 +93,6 @@ def serialize_value(value: Any) -> Any:
         return _serialize_dictionary(
             serializer_registry.access('composer').serialize(value))
     if isinstance(value, (np.integer, np.floating)):
-        value = cast(Union[np.integer, np.floating], value)
         return serializer_registry.access(
             'numpy_scalar').serialize(value)
     if isinstance(value, ObjectId):

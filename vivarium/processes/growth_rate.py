@@ -57,9 +57,10 @@ class GrowthRate(Process):
         growth_noise = states['rates']['growth_noise']
 
         variable_update = {
-            variable: value * (np.exp(growth_rate[variable] +
-                       np.random.normal(0, growth_noise[variable])
-                       ) * timestep) - value
+            variable: value * (
+                    np.exp(growth_rate[variable] +
+                           np.random.normal(0, growth_noise[variable]))
+                    * timestep) - value
             for variable, value in variables.items()}
 
         return {'variables': variable_update}
@@ -99,7 +100,6 @@ def main():
     data = test_growth_rate()
     plot_settings = {}
     plot_simulation_output(data, plot_settings, out_dir)
-
 
 
 if __name__ == '__main__':

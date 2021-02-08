@@ -263,9 +263,9 @@ class NumpySerializer(Serializer):
 
 class NumpyScalarSerializer(Serializer):
     def serialize(self, data):
-        if isinstance(data, np.integer):
+        if isinstance(data, (int, np.integer)):
             return int(data)
-        if isinstance(data, np.floating):
+        if isinstance(data, (float, np.floating)):
             return float(data)
         raise ValueError(
             'Cannot serialize numpy scalar {} of type {}.'.format(
