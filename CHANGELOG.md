@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.1.11
+
+* clock process initial state
+
+## v0.1.10
+
+* add plot_variables plotting function to simulation_output
+
+## v0.1.9
+
+* clock process for keeping track of global time
+
 ## v0.1.7
 
 * growth_rate process for generic exponential growth of variables

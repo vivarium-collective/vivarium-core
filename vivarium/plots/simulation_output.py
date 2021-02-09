@@ -21,11 +21,22 @@ def set_axes(ax, show_xaxis=False):
         ax.tick_params(bottom=False, labelbottom=False)
 
 
+def save_fig_to_dir(
+        fig,
+        filename,
+        out_dir='out/',
+):
+    os.makedirs(out_dir, exist_ok=True)
+    fig_path = os.path.join(out_dir, filename)
+    print(f"Writing {fig_path}")
+    fig.savefig(fig_path, bbox_inches='tight')
+
+
 def plot_simulation_output(
         timeseries_raw,
         settings: Optional[Dict[str, Any]] = None,
         out_dir=None,
-        filename=None,
+        filename='simulation',
 ):
     '''
     Plot simulation output, with rows organized into separate columns.
@@ -165,12 +176,66 @@ def plot_simulation_output(
             ax.set_xlim([time_vec[0], time_vec[-1]])
 
     if out_dir:
-        os.makedirs(out_dir, exist_ok=True)
-        if filename is None:
-            filename = 'simulation'
-        # save figure
-        fig_path = os.path.join(out_dir, filename)
         plt.subplots_adjust(wspace=column_width/3, hspace=column_width/3)
-        plt.savefig(fig_path, bbox_inches='tight')
+        save_fig_to_dir(fig, filename, out_dir)
+    return fig
+
+
+# simple plotting function
+def get_variable_title(var, port):
+    if isinstance(var, tuple):  # if units are included in variable
+        title = f'{port}: {var[0]} ({var[1]})'
     else:
-        return fig
+        title = f'{port}: {var}'
+    return title
+
+
+# simple plotting function
+def plot_variables(
+        output,
+        variables,
+        column_width=8,
+        row_height=1.2,
+        row_padding=0.8,
+        linewidth=3.0,
+        out_dir=None,
+        filename='variables'
+):
+    n_rows = len(variables)
+    fig = plt.figure(figsize=(column_width, n_rows * row_height))
+    grid = plt.GridSpec(n_rows, 1)
+
+    time_vec = output['time']
+    for row_idx, variable_definition in enumerate(variables):
+        if isinstance(variable_definition, dict):
+            (port, var) = variable_definition['variable']
+            var_color = variable_definition.get('color', None)
+            variable_title = variable_definition.get('display', get_variable_title(var, port))
+        else:
+            (port, var) = variable_definition
+            var_color = None
+            variable_title = get_variable_title(var, port)
+
+        # get the output timeseries
+        series = output[port][var]
+
+        # make a new subplot
+        ax = fig.add_subplot(grid[row_idx, 0])
+        ax.plot(time_vec, series, linewidth=linewidth, color=var_color)
+        ax.set_title(variable_title)
+
+        # x-axis only at bottom row
+        if row_idx == n_rows - 1:
+            set_axes(ax, show_xaxis=True)
+            ax.set_xlabel('time (s)')
+            ax.spines['bottom'].set_position(('axes', -0.2))
+        else:
+            set_axes(ax)
+        ax.ticklabel_format(style='plain', axis='y', scilimits=(-5, 5))
+
+    fig.subplots_adjust(hspace=row_padding)
+    if out_dir:
+        save_fig_to_dir(fig, filename, out_dir)
+    return fig
+
+

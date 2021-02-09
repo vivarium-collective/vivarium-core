@@ -728,6 +728,9 @@ class Store:
                         process_updates.extend(inner_processes)
                     if inner_deletions:
                         deletions.extend(inner_deletions)
+                        
+                elif key == '..':
+                    self.outer.apply_update(value, state)
 
             if delete_keys is not None:
                 # delete a list of paths

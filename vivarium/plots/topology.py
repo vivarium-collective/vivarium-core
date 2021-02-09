@@ -236,8 +236,7 @@ def plot_topology(
         save_network(
             out_dir=out_dir,
             filename=filename)
-    else:
-        return fig
+    return fig
 
 
 # tests

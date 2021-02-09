@@ -269,7 +269,7 @@ class Experiment:
 
     def process_update(self, path, process, interval):
         state = self.state.get_path(path)
-        process_topology = get_in(self.topology, path)
+        process_topology = state.topology
 
         # translate the values from the tree structure into the form
         # that this process expects, based on its declared topology
@@ -829,42 +829,104 @@ def test_multi_port_merge():
 
 
 def test_complex_topology():
-    initial_state = {
-        'aaa': {
-            'a': 2,
-            'c': 5,
-            'o': 3,
-            'u': 11},
-        'bbb': {
-            'd': 14,
-            'e': 88},
-        'ddd': {
-            'z': 333}}
+    class Po(Process):
+        name = 'po'
+        def ports_schema(self):
+            return {
+                'A': {
+                    'a1': {'_default': 0},
+                    'a2': {'_default': 0},
+                    'a3': {'_default': 0}},
+                'B': {
+                    'b1': {'_default': 0},
+                    'b2': {'_default': 0}}}
 
+        def next_update(self, timestep, states):
+            return {
+                'A': {
+                    'a1': 1,
+                    'a2': 1,
+                    'a3': 1},
+                'B': {
+                    'b1': -1,
+                    'b2': -1}}
+
+    class Qo(Process):
+        name = 'qo'
+        def ports_schema(self):
+            return {
+                'D': {
+                    'd1': {'_default': 0},
+                    'd2': {'_default': 0},
+                    'd3': {'_default': 0}},
+                'E': {
+                    'e1': {'_default': 0},
+                    'e2': {'_default': 0}}}
+
+        def next_update(self, timestep, states):
+            return {
+                'D': {
+                    'd1': 10,
+                    'd2': 10,
+                    'd3': 10},
+                'E': {
+                    'e1': -10,
+                    'e2': -10}}
+
+    class PoQo(Composer):
+        def generate_processes(self, config=None):
+            return {
+                'po': Po(config),
+                'qo': Qo(config),
+            }
+
+        def generate_topology(self, config=None):
+            return {
+                'po': {
+                    'A': {
+                        '_path': ('aaa',),
+                        'a2': ('x',),
+                        'a3': ('..', 'ccc', 'a3')},
+                    'B': ('bbb',),
+                },
+                'qo': {
+                    'D': {
+                        '_path': (),
+                        'd1': ('aaa', 'd1'),
+                        'd2': ('aaa', 'd2'),
+                        'd3': ('ccc', 'd3')},
+                    'E': {
+                        '_path': (),
+                        'e1': ('aaa', 'x'),
+                        'e2': ('bbb', 'e2')}
+                },
+            }
+
+    # make the experiment
+    outer_path = ('universe', 'agent')
     pq = PoQo({})
-    pq_config = pq.generate()
-    pq_config['initial_state'] = initial_state
+    pq_composite = pq.generate(path=outer_path)
+    experiment = Experiment(pq_composite)
 
-    experiment = Experiment(pq_config)
+    # get the initial state
+    initial_state = experiment.state.get_value()
+    print('time 0:')
+    pp(initial_state)
 
-    pp(experiment.state.get_value())
+    # simulate for 1 second
     experiment.update(1)
 
-    state = experiment.state.get_value()
-    assert state['aaa']['a'] == initial_state['aaa']['a'] + \
-           initial_state['aaa']['o'] - 1
-    assert state['aaa']['o'] == initial_state['aaa']['o'] + \
-           initial_state['aaa']['c'] + 12
-    assert state['aaa']['c'] == initial_state['aaa']['c'] + \
-           initial_state['bbb']['d'] + initial_state['bbb']['e']
-    assert state['aaa']['u'] == initial_state['aaa']['u'] + \
-           3
-    assert state['bbb']['d'] == initial_state['bbb']['d'] + \
-           initial_state['aaa']['a']
-    assert state['bbb']['e'] == initial_state['bbb']['e'] + \
-           initial_state['bbb']['e'] + initial_state['aaa']['u']
-    assert state['ddd']['z'] == initial_state['ddd']['z'] + \
-           initial_state['aaa']['a'] + initial_state['aaa']['o']
+    next_state = experiment.state.get_value()
+    print('time 1:')
+    pp(next_state)
+
+    # pull out the agent state
+    initial_agent_state = initial_state['universe']['agent']
+    agent_state = next_state['universe']['agent']
+
+    assert agent_state['aaa']['a1'] == initial_agent_state['aaa']['a1'] + 1
+    assert agent_state['aaa']['x'] == initial_agent_state['aaa']['x'] - 9
+    assert agent_state['ccc']['a3'] == initial_agent_state['ccc']['a3'] + 1
 
 
 def test_multi():
@@ -1001,8 +1063,7 @@ if __name__ == '__main__':
     # test_multi()
     # test_sine()
     # test_parallel()
-    # test_complex_topology()
+    test_complex_topology()
     # test_multi_port_merge()
     # test_2_store_1_port()
-
-    test_units()
+    # test_units()
