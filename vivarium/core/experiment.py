@@ -1504,6 +1504,12 @@ class Experiment(object):
                     if timestep < full_step:
                         full_step = timestep
 
+                else:
+                    # don't shoot past processes that didn't get to run this time
+                    process_delay = process_time - time
+                    if process_delay < full_step:
+                        full_step = process_delay
+
             if full_step == math.inf:
                 # no processes ran, jump to next process
                 next_event = interval

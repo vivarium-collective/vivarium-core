@@ -27,7 +27,7 @@ class StochasticTSC(Process):
         self.ktsc = self.parameters['ktsc']
         self.kdeg = self.parameters['kdeg']
         self.stoichiometry = np.array([[0, 1], [0, -1]])
-        self.time_remaining = 0.0
+        self.time_left = None
 
         # initialize the next timestep
         initial_state = self.initial_state()
@@ -85,26 +85,46 @@ class StochasticTSC(Process):
         return X
 
     def next_update(self, timestep, states):
+        # TODO: what is this case fixing?
+        # if self.calculated_timestep > timestep + 1e-6:
+        #     return {}
 
-        if self.calculated_timestep > timestep + 1e-6:
-            return {}
+        if self.time_left is not None:
+            if timestep >= self.time_left:
+                event = self.event
+                self.event = None
+                self.time_left = None
+                return event
+            else:
+                self.time_left -= timestep
+                return {}
+        else:
+            # retrieve the state values, put them in array
+            G = states['DNA']['G']
+            C = states['mRNA']['C']
+            array_state = np.array([G, C])
 
-        # retrieve the state values, put them in array
-        G = states['DNA']['G']
-        C = states['mRNA']['C']
-        array_state = np.array([G, C])
+            # calculate the next reaction
+            new_state = self.next_reaction(array_state)
 
-        # calculate the next reaction
-        new_state = self.next_reaction(array_state)
+            # get delta mRNA
+            C1 = new_state[1]
+            dC = C1 - C
 
-        # get delta mRNA
-        C1 = new_state[1]
-        dC = C1 - C
+            update = {
+                'mRNA': {
+                    'C': dC}}
 
-        # return an update
-        return {
-            'mRNA': {
-                'C': dC}}
+            if self.calculated_timestep > timestep:
+                # didn't get all of our time, need to store the event for later
+                self.time_left = self.calculated_timestep - timestep
+                self.event = update
+                return {}
+            else:
+                # return an update
+                return {
+                    'mRNA': {
+                        'C': dC}}
 
 
 class TRL(Process):
@@ -184,9 +204,10 @@ def test_gillespie_process():
         exp_settings)
 
     # run it and retrieve the data that was emitted to the simulation log
-    gillespie_experiment.update(1000)
-    gillespie_data = gillespie_experiment.emitter.get_timeseries()
+    for era in range(1000):
+        gillespie_experiment.update(1)
 
+    gillespie_data = gillespie_experiment.emitter.get_timeseries()
     return gillespie_data
 
 def test_gillespie_composite():
@@ -215,12 +236,13 @@ def main():
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
 
-    # output = test_gillespie_process()
-    output = test_gillespie_composite()
+    process_output = test_gillespie_process()
+    composite_output = test_gillespie_composite()
 
     # plot the simulation output
     plot_settings = {}
-    plot_simulation_output(output, plot_settings, out_dir)
+    plot_simulation_output(process_output, plot_settings, out_dir, filename='process')
+    plot_simulation_output(composite_output, plot_settings, out_dir, filename='composite')
 
 
 # run module with python vivarium/process/template_process.py
