@@ -201,7 +201,7 @@ class Experiment:
         emitter_config['experiment_id'] = self.experiment_id
         self.emitter = get_emitter(emitter_config)
 
-        self.local_time = 0.0
+        self.experiment_time = 0.0
 
         # run the derivers
         self.send_updates([])
@@ -270,13 +270,7 @@ class Experiment:
         # if not parallel, perform a normal invocation
         return self.invoke(process, interval, states)
 
-    def process_update(self, path, process, interval):
-        state = self.state.get_path(path)
-        process_topology = state.topology
-
-        # translate the values from the tree structure into the form
-        # that this process expects, based on its declared topology
-        states = state.outer.schema_topology(process.schema, process_topology)
+    def process_update(self, path, process, store, states, interval):
 
         update = self.invoke_process(
             process,
@@ -284,9 +278,22 @@ class Experiment:
             interval,
             states)
 
-        absolute = Defer(update, invert_topology, (path, process_topology))
+        absolute = Defer(update, invert_topology, (path, store.topology))
 
-        return absolute, state
+        return absolute, store
+
+    def process_state(self, path, process):
+        store = self.state.get_path(path)
+
+        # translate the values from the tree structure into the form
+        # that this process expects, based on its declared topology
+        states = store.outer.schema_topology(process.schema, store.topology)
+
+        return store, states
+
+    def calculate_update(self, path, process, interval):
+        store, states = self.process_state(path, process)
+        return self.process_update(path, process, store, states, interval)
 
     def apply_update(self, update, state):
         topology_updates, process_updates, deletions = self.state.apply_update(
@@ -328,14 +335,14 @@ class Experiment:
                 #  generate_paths() add a schema attribute to the Deriver.
                 #  PyCharm's type check reports:
                 #    Type Process doesn't have expected attribute 'schema'
-                update, state = self.process_update(
+                update, state = self.calculate_update(
                     path, deriver, 0)
                 self.apply_update(update.get(), state)
 
     def emit_data(self):
         data = self.state.emit_data()
         data.update({
-            'time': self.local_time})
+            'time': self.experiment_time})
         emit_config = {
             'table': 'history',
             'data': serialize_value(data)}
@@ -386,10 +393,14 @@ class Experiment:
                 process_time = front[path]['time']
 
                 if process_time <= time:
-                    future = min(
-                        process_time + process.local_timestep(),
-                        interval)
-                    timestep = future - process_time
+
+                    # get the time step
+                    store, states = self.process_state(path, process)
+                    requested_timestep = process.calculate_timestep(states)
+
+                    # progress only to the end of interval
+                    future = min(process_time + requested_timestep, interval)
+                    process_timestep = future - process_time
 
                     # calculate the update for this process
                     # TODO(jerry): Do something cleaner than having
@@ -398,13 +409,23 @@ class Experiment:
                     #    Type Process doesn't have expected attribute 'schema'
                     # TODO(chris): Is there any reason to generate a process's
                     #  schema dynamically like this?
-                    update = self.process_update(path, process, timestep)
+                    update = self.process_update(
+                        path, process, store, states, process_timestep)
 
                     # store the update to apply at its projected time
-                    if timestep < full_step:
-                        full_step = timestep
                     front[path]['time'] = future
                     front[path]['update'] = update
+
+                    # absolute timestep
+                    timestep = future - time
+                    if timestep < full_step:
+                        full_step = timestep
+
+                else:
+                    # don't shoot past processes that didn't run this time
+                    process_delay = process_time - time
+                    if process_delay < full_step:
+                        full_step = process_delay
 
             if full_step == math.inf:
                 # no processes ran, jump to next process
@@ -414,13 +435,15 @@ class Experiment:
                         next_event = front[path]['time']
                 time = next_event
             else:
-                # at least one process ran, apply updates and continue
-                future = time + full_step
+                # at least one process ran
+                # increase the time, apply updates, and continue
+                time += full_step
+                self.experiment_time += full_step
 
                 updates = []
                 paths = []
                 for path, advance in front.items():
-                    if advance['time'] <= future:
+                    if advance['time'] <= time:
                         new_update = advance['update']
                         # new_update['_path'] = path
                         updates.append(new_update)
@@ -429,9 +452,7 @@ class Experiment:
 
                 self.send_updates(updates)
 
-                time = future
-                self.local_time += full_step
-
+                # display and emit
                 if self.progress_bar:
                     print_progress_bar(time, interval)
                 if self.emit_step is None:

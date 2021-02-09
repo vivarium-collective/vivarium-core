@@ -478,13 +478,6 @@ class Process(Composer, metaclass=abc.ABCMeta):
             port: list(states.keys())
             for port, states in ports_schema.items()}
 
-    def set_timestep(self, timestep:  Union[float, int]) -> None:
-        """Update the process's timestep
-
-        This will override the default timestep
-        """
-        self.parameters['time_step'] = timestep
-
     def local_timestep(self) -> Union[float, int]:
         """Get a process's favored timestep.
 
@@ -496,6 +489,15 @@ class Process(Composer, metaclass=abc.ABCMeta):
         Returns:
             Favored timestep.
         """
+        return self.parameters['time_step']
+
+    def calculate_timestep(self, states: Optional[State]) -> Union[float, int]:
+        """Return the next process time step
+
+        A process subclass may override this method to implement
+        adaptive timesteps. By default it returns self.parameters['time_step'].
+        """
+        _ = states
         return self.parameters['time_step']
 
     def default_state(self) -> State:
