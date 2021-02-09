@@ -1,8 +1,10 @@
-'''
-==========================================
-Experiment and Store Classes
-==========================================
-'''
+"""
+==========
+Experiment
+==========
+
+Experiment runs the simulation.
+"""
 
 import os
 import logging as log

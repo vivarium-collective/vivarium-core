@@ -1,7 +1,7 @@
 """
-=======================================
+============================
 Composer and Process Classes
-=======================================
+============================
 """
 
 from __future__ import annotations
@@ -29,7 +29,7 @@ DEFAULT_TIME_STEP = 1.0
 
 
 def serialize_value(value: Any) -> Any:
-    '''Attempt to serialize a value.
+    """Attempt to serialize a value.
 
     For this function, consider "serializable" to mean serializiable by
     this function.  This function can serialize the following kinds of
@@ -65,7 +65,7 @@ def serialize_value(value: Any) -> Any:
     Returns:
         The serialized value if ``value`` is serializable. Otherwise,
         ``value`` is returned unaltered.
-    '''
+    """
     if isinstance(value, dict):
         value = cast(dict, value)
         return _serialize_dictionary(value)
@@ -102,7 +102,7 @@ def serialize_value(value: Any) -> Any:
 
 
 def deserialize_value(value: Any) -> Any:
-    '''Attempt to deserialize a value.
+    """Attempt to deserialize a value.
 
     Supports deserializing the following kinds ov values:
 
@@ -120,7 +120,7 @@ def deserialize_value(value: Any) -> Any:
     Returns:
         The deserialized value if ``value`` is of a supported type.
         Otherwise, returns ``value`` unmodified.
-    '''
+    """
     if isinstance(value, dict):
         value = cast(dict, value)
         return _deserialize_dictionary(value)
@@ -168,7 +168,7 @@ def _deserialize_dictionary(d: dict) -> dict:
 
 
 def assoc_in(d: dict, path: HierarchyPath, value: Any) -> dict:
-    '''Insert a value into a dictionary at an arbitrary depth.
+    """Insert a value into a dictionary at an arbitrary depth.
 
     Empty dictionaries will be created as needed to insert the value at
     the specified depth.
@@ -188,7 +188,7 @@ def assoc_in(d: dict, path: HierarchyPath, value: Any) -> dict:
 
     Returns:
         Dictionary with the value inserted.
-    '''
+    """
     if path:
         return dict(
             d,
@@ -319,7 +319,7 @@ class Composer(metaclass=abc.ABCMeta):
             self,
             config: Optional[dict] = None,
             path: HierarchyPath = ()) -> CompositeDict:
-        '''Generate processes and topology dictionaries.
+        """Generate processes and topology dictionaries.
 
         Args:
             config: Updates values in the configuration declared
@@ -333,7 +333,7 @@ class Composer(metaclass=abc.ABCMeta):
             a topology dictionary. Both are suitable to be passed to the
             constructor for
             :py:class:`vivarium.core.experiment.Experiment`.
-        '''
+        """
 
         if config is None:
             config = self.config
@@ -358,12 +358,12 @@ class Composer(metaclass=abc.ABCMeta):
         }
 
     def get_parameters(self) -> dict:
-        '''Get the parameters for all :term:`processes`.
+        """Get the parameters for all :term:`processes`.
 
         Returns:
             A map from process names to dictionaries of those processes'
             parameters.
-        '''
+        """
         network = self.generate({})
         processes = cast(Dict[str, Process], network['processes'])
         return {
@@ -445,48 +445,48 @@ class Process(Composer, metaclass=abc.ABCMeta):
                 for port in ports.keys()}}
 
     def get_schema(self, override: Optional[Schema] = None) -> dict:
-        '''Get the process's schema, optionally with a schema override.
+        """Get the process's schema, optionally with a schema override.
 
         Args:
             override: Override schema
 
         Returns:
             The combined schema.
-        '''
+        """
         ports = copy.deepcopy(self.ports_schema())
         deep_merge(ports, self.schema_override)
         deep_merge(ports, override)
         return ports
 
     def merge_overrides(self, override: Schema) -> None:
-        '''Add a schema override to the process's schema overrides.
+        """Add a schema override to the process's schema overrides.
 
         Args:
             override: The schema override to add.
-        '''
+        """
         deep_merge(self.schema_override, override)
 
     def ports(self) -> Dict[str, List[str]]:
-        '''Get ports and each port's variables.
+        """Get ports and each port's variables.
 
         Returns:
             A map from port names to lists of the variables that go into
             that port.
-        '''
+        """
         ports_schema = self.ports_schema()
         return {
             port: list(states.keys())
             for port, states in ports_schema.items()}
 
     def set_timestep(self, timestep:  Union[float, int]) -> None:
-        '''Update the process's timestep
+        """Update the process's timestep
 
         This will override the default timestep
-        '''
+        """
         self.parameters['time_step'] = timestep
 
     def local_timestep(self) -> Union[float, int]:
-        '''Get a process's favored timestep.
+        """Get a process's favored timestep.
 
         The timestep may change over the course of the simulation.
         Processes must not assume that their favored timestep will
@@ -495,18 +495,18 @@ class Process(Composer, metaclass=abc.ABCMeta):
 
         Returns:
             Favored timestep.
-        '''
+        """
         return self.parameters['time_step']
 
     def default_state(self) -> State:
-        '''Get the default values of the variables in each port.
+        """Get the default values of the variables in each port.
 
         The default values are computed based on the schema.
 
         Returns:
             A state dictionary that assigns each variable's default
             value to that variable.
-        '''
+        """
         schema = self.ports_schema()
         state: State = {}
         for port, states in schema.items():
@@ -518,16 +518,16 @@ class Process(Composer, metaclass=abc.ABCMeta):
         return state
 
     def is_deriver(self) -> bool:
-        '''Check whether this process is a deriver.
+        """Check whether this process is a deriver.
 
         Returns:
             Whether this process is a deriver. This class always returns
             ``False``, but subclasses may change this.
-        '''
+        """
         return False
 
     def get_private_state(self) -> State:
-        '''Get the process's private state.
+        """Get the process's private state.
 
         Processes can store state in instance variables instead of in
         the :term:`stores` that hold the simulation-wide state. These
@@ -538,12 +538,12 @@ class Process(Composer, metaclass=abc.ABCMeta):
         Returns:
             An empty dictionary. You may override this behavior to
             return your process's private state.
-        '''
+        """
         return {}
 
     @abc.abstractmethod
     def ports_schema(self) -> Schema:
-        '''Get the schemas for each port.
+        """Get the schemas for each port.
 
         This must be overridden by any subclasses.
 
@@ -552,11 +552,11 @@ class Process(Composer, metaclass=abc.ABCMeta):
             processes, and how each state will behave. State keys can be
             assigned properties through schema_keys declared in
             :py:class:`vivarium.core.store.Store`.
-        '''
+        """
         return {}
 
     def or_default(self, parameters: Dict[str, Any], key: str) -> Any:
-        '''Get parameter from dictionary, falling back to defaults.
+        """Get parameter from dictionary, falling back to defaults.
 
         Args:
             parameters: Dictionary to get parameter from.
@@ -569,13 +569,13 @@ class Process(Composer, metaclass=abc.ABCMeta):
         Raises:
             KeyError: If ``key`` is in neither the provided dictionary
                 nor the process defaults.
-        '''
+        """
         return parameters.get(key, self.defaults[key])
 
     @abc.abstractmethod
     def next_update(
             self, timestep: Union[float, int], states: State) -> Update:
-        '''Compute the next update to the simulation state.
+        """Compute the next update to the simulation state.
 
         Args:
             timestep: The duration for which the update should be
@@ -587,15 +587,15 @@ class Process(Composer, metaclass=abc.ABCMeta):
         Returns:
             An empty dictionary for now. This should be overridden by
             each subclass to return an update.
-        '''
+        """
         return {}
 
 
 class Deriver(Process, metaclass=abc.ABCMeta):
-    '''Base class for :term:`derivers`.'''
+    """Base class for :term:`derivers`."""
 
     def is_deriver(self) -> bool:
-        '''Returns ``True`` to signal this process is a deriver.'''
+        """Returns ``True`` to signal this process is a deriver."""
         return True
 
 
@@ -618,7 +618,7 @@ def _run_update(connection: Connection, process: Process) -> None:
 
 class ParallelProcess:
     def __init__(self, process: Process) -> None:
-        '''Wraps a :py:class:`Process` for multiprocessing.
+        """Wraps a :py:class:`Process` for multiprocessing.
 
         To run a simulation distributed across multiple processors, we
         use Python's multiprocessing tools. This object runs in the main
@@ -628,7 +628,7 @@ class ParallelProcess:
 
         Args:
             process: The Process to manage.
-        '''
+        """
         self.process = process
         self.parent, self.child = Pipe()
         self.multiprocess = Multiprocess(
@@ -638,25 +638,25 @@ class ParallelProcess:
 
     def update(
             self, interval: Union[float, int], states: State) -> None:
-        '''Request an update from the process.
+        """Request an update from the process.
 
         Args:
             interval: The length of the timestep for which the update
                 should be computed.
             states: The pre-update state of the simulation.
-        '''
+        """
         self.parent.send((interval, states))
 
     def get(self) -> Update:
-        '''Get an update from the process.
+        """Get an update from the process.
 
         Returns:
             The update from the process.
-        '''
+        """
         return self.parent.recv()
 
     def end(self) -> None:
-        '''End the child process.'''
+        """End the child process."""
         self.parent.send((-1, None))
         self.multiprocess.join()
 

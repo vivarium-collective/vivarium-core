@@ -236,11 +236,11 @@ def divide_split_dict(state):
 
 
 def assert_no_divide(state):
-    '''Assert that the variable is never divided
+    """Assert that the variable is never divided
 
     Raises:
         AssertionError: If the variable is divided
-    '''
+    """
     raise AssertionError('Variable cannot be divided')
 
 

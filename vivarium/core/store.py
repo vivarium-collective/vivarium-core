@@ -1,3 +1,11 @@
+"""
+=====
+Store
+=====
+
+The file system for storing and updating state variables during an experiment.
+"""
+
 import copy
 import logging as log
 
@@ -22,10 +30,10 @@ def key_for_value(d, looking):
 
 
 def hierarchy_depth(hierarchy, path=()):
-    '''
+    """
     Create a mapping of every path in the hierarchy to the node living at
     that path in the hierarchy.
-    '''
+    """
 
     base = {}
 
@@ -142,7 +150,7 @@ class Store:
             subschema)
 
     def apply_config(self, config, source=None):
-        '''
+        """
         Expand the tree by applying additional config.
 
         Special keys for the config are:
@@ -176,7 +184,7 @@ class Store:
           here.
         * _subtopology - The subschema is informed by the subtopology to
           map the process perspective to the actual tree structure.
-        '''
+        """
 
         if '*' in config:
             self.apply_subschema_config(config['*'])
@@ -282,11 +290,11 @@ class Store:
         return updater
 
     def get_config(self, sources=False):
-        '''
+        """
         Assemble a dictionary representation of the config for this node.
         A desired property is that the node can be exactly recreated by
         applying the resulting config to an empty node again.
-        '''
+        """
 
         config = {}
 
@@ -322,18 +330,18 @@ class Store:
         return config
 
     def top(self):
-        '''
+        """
         Find the top of this tree.
-        '''
+        """
 
         if self.outer:
             return self.outer.top()
         return self
 
     def path_for(self):
-        '''
+        """
         Find the path to this node.
-        '''
+        """
 
         if self.outer:
             key = key_for_value(self.outer.inner, self)
@@ -342,9 +350,9 @@ class Store:
         return tuple()
 
     def get_value(self, condition=None, f=None):
-        '''
+        """
         Pull the values out of the tree in a structure symmetrical to the tree.
-        '''
+        """
 
         if self.inner:
             if condition is None:
@@ -362,9 +370,9 @@ class Store:
         return self.value
 
     def get_path(self, path):
-        '''
+        """
         Get the node at the given path relative to this node.
-        '''
+        """
 
         if path:
             step = path[0]
@@ -431,9 +439,9 @@ class Store:
         return None
 
     def delete_path(self, path):
-        '''
+        """
         Delete the subtree at the given path.
-        '''
+        """
 
         if not path:
             self.inner = {}
@@ -448,10 +456,10 @@ class Store:
         return None
 
     def divide_value(self):
-        '''
+        """
         Apply the divider for each node to the value in that node to
         assemble two parallel divided states of this subtree.
-        '''
+        """
 
         if self.divider:
             # divider is either a function or a dict with topology
@@ -472,9 +480,9 @@ class Store:
         return None
 
     def reduce(self, reducer, initial=None):
-        '''
+        """
         Call the reducer on each node accumulating over the result.
-        '''
+        """
 
         value = initial
 
@@ -483,10 +491,10 @@ class Store:
         return value
 
     def set_value(self, value):
-        '''
+        """
         Set the value for the given tree elements directly instead of using
         the updaters from their nodes.
-        '''
+        """
 
         if self.inner or self.subschema:
             for child, inner_value in value.items():
@@ -503,9 +511,9 @@ class Store:
             self.value = value
 
     def apply_defaults(self):
-        '''
+        """
         If value is None, set to default.
-        '''
+        """
         if self.inner:
             for child in self.inner.values():
                 child.apply_defaults()
@@ -514,7 +522,7 @@ class Store:
                 self.value = self.default
 
     def apply_update(self, update, state=None):
-        '''
+        """
         Given an arbitrary update, map all the values in that update
         to their positions in the tree where they apply, and update
         these values using each node's `_updater`.
@@ -578,7 +586,7 @@ class Store:
               This function returns the next `value` for the reduction.
               The result of the reduction will be assigned to this point
               in the tree.
-        '''
+        """
 
         if isinstance(update, dict) and MULTI_UPDATE_KEY in update:
             # apply multiple updates to same node
@@ -763,22 +771,22 @@ class Store:
         return EMPTY_UPDATES
 
     def inner_value(self, key):
-        '''
+        """
         Get the value of an inner state
-        '''
+        """
 
         if key in self.inner:
             return self.inner[key].get_value()
         return None
 
     def topology_state(self, topology):
-        '''
+        """
         Fill in the structure of the given topology with the values at all
         the paths the topology points at. Essentially, anywhere in the topology
         that has a tuple path will be filled in with the value at that path.
 
         This is the inverse function of the standalone `inverse_topology`.
-        '''
+        """
 
         state = {}
 
@@ -800,10 +808,10 @@ class Store:
         return state
 
     def schema_topology(self, schema, topology):
-        '''
+        """
         Fill in the structure of the given schema with the values
         located according to the given topology.
-        '''
+        """
 
         state = {}
 
@@ -841,9 +849,9 @@ class Store:
         return state
 
     def state_for(self, path, keys):
-        '''
+        """
         Get the value of a state at a given path
-        '''
+        """
 
         state = self.get_path(path)
         if state is None:
@@ -855,12 +863,12 @@ class Store:
             for key in keys}
 
     def depth(self, path=(), filter_function=None):
-        '''
+        """
         Create a mapping of every path in the tree to the node living at
         that path in the tree. An optional `filter` argument is a function
         that can declares the instances that will be returned, for example:
         * filter=lambda x: isinstance(x.value, Process)
-        '''
+        """
         base = []
         if filter_function is None or filter_function(self):
             base += [(path, self)]
@@ -882,11 +890,11 @@ class Store:
             inner.apply_subschema_path(path[1:])
 
     def apply_subschema(self, subschema=None, subtopology=None):
-        '''
+        """
         Apply a subschema to all inner nodes (either provided or from this
         node's personal subschema) as governed by the given/personal
         subtopology.
-        '''
+        """
 
         if subschema is None:
             subschema = self.subschema
@@ -902,9 +910,9 @@ class Store:
                 source=self.path_for() + ('*',))
 
     def apply_subschemas(self):
-        '''
+        """
         Apply all subschemas from all nodes at this point or lower in the tree.
-        '''
+        """
 
         if self.subschema:
             self.apply_subschema()
@@ -912,9 +920,9 @@ class Store:
             child.apply_subschemas()
 
     def update_subschema(self, path, subschema):
-        '''
+        """
         Merge a new subschema into an existing subschema at the given path.
-        '''
+        """
 
         target = self.get_path(path)
         if target.subschema is None:
@@ -926,13 +934,13 @@ class Store:
         return target
 
     def establish_path(self, path, config, source=None):
-        '''
+        """
         Create a node at the given path if it does not exist, then
         apply a config to it.
 
         Paths can include '..' to go up a level (which raises an exception
         if that level does not exist).
-        '''
+        """
 
         if len(path) > 0:
             path_step = path[0]
@@ -959,7 +967,7 @@ class Store:
         return self
 
     def add_node(self, path, node):
-        ''' Add a node instance at the provided path '''
+        """ Add a node instance at the provided path """
         target = self.establish_path(path[:-1], {})
         if target.get_value() and path[-1] in target.get_value():
             # this path already exists, update it
@@ -970,11 +978,11 @@ class Store:
         return target
 
     def outer_path(self, path, source=None):
-        '''
+        """
         Address a topology with the `_path` keyword if present,
         establishing a path to this node and using it as the
         starting point for future path operations.
-        '''
+        """
 
         node = self
         if '_path' in path:
@@ -987,10 +995,10 @@ class Store:
         return node, path
 
     def topology_ports(self, schema, topology, source=None):
-        '''
+        """
         Distribute a schema into the tree by mapping its ports
         according to the given topology.
-        '''
+        """
 
         source = source or self.path_for()
 
@@ -1069,12 +1077,12 @@ class Store:
                     subtopology)
 
     def generate(self, path, processes, topology, initial_state):
-        '''
+        """
         Generate a subtree of this store at the given path.
         The processes will be mapped into locations in the tree by the
         topology, and once everything is constructed the initial_state
         will be applied.
-        '''
+        """
 
         target = self.establish_path(path, {})
         target.generate_paths(processes, topology)

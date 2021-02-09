@@ -1,8 +1,8 @@
-'''
+"""
 =====
 Types
 =====
-'''
+"""
 
 from typing import Tuple, Dict, Any, Union
 

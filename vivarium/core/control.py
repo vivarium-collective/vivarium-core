@@ -3,7 +3,7 @@
 Experiment Control
 ===================
 
-Run experiments and analyses from the command line
+Run experiments and analyses from the command line.
 """
 
 import os
@@ -30,6 +30,7 @@ def make_dir(out_dir: str = 'out') -> None:
 
 
 class Control:
+    """Load experiments, plots, and workflows, and trigger them from the command line"""
 
     def __init__(
             self,

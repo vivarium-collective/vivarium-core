@@ -1,3 +1,11 @@
+"""
+===========
+Composition
+===========
+
+Helper function for initializing and running experiments.
+"""
+
 import os
 import uuid
 
@@ -46,7 +54,7 @@ def add_processes_to_hierarchy(
         composer_config: Optional[Dict[str, Any]] = None,
         composer_topology: Optional[Dict[str, Any]] = None
 ) -> CompositeDict:
-    '''Use a composer to add processes and topology'''
+    """Use a composer to add processes and topology"""
     composer_config = composer_config or {}
     composer_topology = composer_topology or {}
 
@@ -81,7 +89,7 @@ def add_processes_to_hierarchy(
 def initialize_hierarchy(
         hierarchy: Dict[str, Any]
 ) -> CompositeDict:
-    '''Make a hierarchy with initialized processes'''
+    """Make a hierarchy with initialized processes"""
     processes: Dict[str, Process] = {}
     topology: Topology = {}
     for key, level in hierarchy.items():
@@ -133,7 +141,7 @@ def compose_experiment(
         settings: Optional[Dict[str, Any]] = None,
         initial_state: Optional[Dict[str, Any]] = None,
 ) -> Experiment:
-    '''Make an experiment with arbitrarily embedded compartments.
+    """Make an experiment with arbitrarily embedded compartments.
 
     Args:
         hierarchy: an embedded dictionary mapping the desired topology
@@ -146,7 +154,7 @@ def compose_experiment(
 
     Returns:
         The experiment.
-    '''
+    """
     settings = settings or {}
     initial_state = initial_state or {}
 
@@ -172,14 +180,14 @@ def add_timeline(
         topology: Dict[str, Topology],
         timeline: Dict[str, Any],
 ) -> None:
-    '''Add a timeline process to a composite
+    """Add a timeline process to a composite
 
         Args:
             processes (dict): with {`process_name`: Process}
             topology (dict): with {`process_name`: topology mapping}
             timeline (dict): with `timeline` key. An optional `paths` key
                 overrides the topology mapping from (port: path).
-    '''
+    """
     timeline_paths = timeline.get('paths', {})
     timeline_process = TimelineProcess(timeline)
     processes.update({
@@ -197,14 +205,14 @@ def add_environment(
         topology: Dict[str, Any],
         environment: Dict[str, Any],
 ) -> None:
-    '''Add a NonSpatialEnvironment to a composite
+    """Add a NonSpatialEnvironment to a composite
 
         Args:
             processes (dict): with {`process_name`: Process}
             topology (dict): with {`process_name`: topology mapping}
             environment (dict): with `environment` key. An optional `paths` key
                 overrides the topology mapping from (port: path).
-    '''
+    """
 
     overide_topology = environment.get('paths', {})
     environment_process = NonSpatialEnvironment(environment)
@@ -226,7 +234,7 @@ def process_in_experiment(
         settings: Dict[str, Any] = None,
         initial_state: Dict[str, Any] = None,
 ) -> Experiment:
-    '''put a Process in an Experiment
+    """put a Process in an Experiment
 
     Args:
         process (Process): the Process to put into the Experiment
@@ -237,7 +245,7 @@ def process_in_experiment(
 
     Returns:
         an **Experiment**
-    '''
+    """
     settings = settings or {}
     initial_state = initial_state or {}
 
@@ -264,7 +272,7 @@ def composite_in_experiment(
         settings: Dict[str, Any] = None,
         initial_state: Dict[str, Any] = None,
 ) -> Experiment:
-    '''put a Composite in an Experiment
+    """put a Composite in an Experiment
 
     Args:
         composite: the :term:`Composite` object.
@@ -275,7 +283,7 @@ def composite_in_experiment(
 
     Returns:
         an :term:`Experiment`
-    '''
+    """
     settings = settings or {}
     initial_state = initial_state or {}
 
@@ -310,7 +318,7 @@ def composer_in_experiment(
         config: Dict[str, Any] = None,
         outer_path: HierarchyPath = (),
 ) -> Experiment:
-    '''generate a Composite in an Experiment
+    """generate a Composite in an Experiment
 
     Args:
         composer: a :term:`Composer` object.
@@ -323,7 +331,7 @@ def composer_in_experiment(
 
     Returns:
         an :term:`Experiment`
-    '''
+    """
     composite = composer.generate(config, outer_path)
     return composite_in_experiment(
         composite=composite,
@@ -338,6 +346,7 @@ def simulate_process(
         process: Process,
         settings: Optional[Dict[str, Any]] = None
 ) -> Dict:
+    """Put a :term:`Process` in an :term:`Experiment` and simulate it"""
     settings = settings or {}
     experiment = process_in_experiment(process, settings)
     return simulate_experiment(experiment, settings)
@@ -347,6 +356,7 @@ def simulate_composite(
         composite: CompositeDict,
         settings: Optional[Dict[str, Any]] = None
 ) -> Dict:
+    """Put a :term:`Composite` in an :term:`Experiment` and simulate it"""
     settings = settings or {}
     experiment = composite_in_experiment(composite, settings)
     return simulate_experiment(experiment, settings)
@@ -357,6 +367,7 @@ def simulate_composer(
         settings: Optional[Dict[str, Any]] = None,
         config: Optional[Dict[str, Any]] = None,
 ) -> Dict:
+    """Initialize a :term:`Composer` in an :term:`Experiment` and simulate it"""
     settings = settings or {}
     config = config or {}
     outer_path = settings.get('outer_path', tuple())
@@ -373,7 +384,7 @@ def simulate_experiment(
         experiment: Experiment,
         settings: Optional[Dict[str, Any]] = None
 ) -> Dict:
-    '''run an experiment simulation
+    """Simulate an term:`Experiment`
 
         Args:
         - a configured experiment
@@ -381,7 +392,7 @@ def simulate_experiment(
         Returns:
             - a timeseries of variables from all ports.
             - if 'return_raw_data' is True, it returns the raw data instead
-    '''
+    """
     settings = settings or {}
     total_time = settings.get('total_time', 10)
     return_raw_data = settings.get('return_raw_data', False)
@@ -484,7 +495,7 @@ def test_compose_experiment() -> None:
 
 
 def test_replace_names() -> None:
-    '''if processes on the same level have the same name, add uuid string'''
+    """if processes on the same level have the same name, add uuid string"""
     # declare the hierarchy
     hierarchy = {
         COMPOSER_KEY: [
@@ -509,7 +520,7 @@ def test_replace_names() -> None:
 
 
 def test_process_deletion() -> None:
-    '''Check that processes are successfully deleted'''
+    """Check that processes are successfully deleted"""
     process = ToyLinearGrowthDeathProcess({'targets': ['process']})
     settings = {
         'emit_step': 1,
