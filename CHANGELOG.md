@@ -1,6 +1,11 @@
 # Changelog
 
 
+## v0.1.12
+
+* bug fix when handling complex_topology. store.apply_update() can now go up paths with '..'.
+* calculate_timestep() for Process supports adaptive timesteps.
+
 ## v0.1.11
 
 * clock process initial state
