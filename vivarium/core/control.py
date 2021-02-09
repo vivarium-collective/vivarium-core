@@ -30,7 +30,11 @@ def make_dir(out_dir: str = 'out') -> None:
 
 
 class Control:
-    """Load experiments, plots, and workflows, and trigger them from the command line"""
+    """ Control experiments from the command line
+
+    Load experiments, plots, and workflows in this Control class,
+    and trigger them from the command line
+    """
 
     def __init__(
             self,
