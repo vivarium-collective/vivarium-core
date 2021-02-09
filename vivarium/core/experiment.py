@@ -794,6 +794,9 @@ class Store(object):
                     if inner_deletions:
                         deletions.extend(inner_deletions)
 
+                elif key == '..':
+                    self.outer.apply_update(value, state)
+
             if delete_keys is not None:
                 # delete a list of paths
                 here = self.path_for()
@@ -2060,22 +2063,22 @@ def test_complex_topology():
         def ports_schema(self):
             return {
                 'A': {
-                    'a': {'_default': 0},
-                    'b': {'_default': 0},
-                    'c': {'_default': 0}},
+                    'a1': {'_default': 0},
+                    'a2': {'_default': 0},
+                    'a3': {'_default': 0}},
                 'B': {
-                    'd': {'_default': 0},
-                    'e': {'_default': 0}}}
+                    'b1': {'_default': 0},
+                    'b2': {'_default': 0}}}
 
         def next_update(self, timestep, states):
             return {
                 'A': {
-                    'a': states['A']['b'],
-                    'b': states['A']['c'],
-                    'c': states['B']['d'] + states['B']['e']},
+                    'a1': 1,
+                    'a2': 1,
+                    'a3': 1},
                 'B': {
-                    'd': states['A']['a'],
-                    'e': states['B']['e']}}
+                    'b1': -1,
+                    'b2': -1}}
 
     class Qo(Process):
         name = 'qo'
@@ -2083,77 +2086,78 @@ def test_complex_topology():
         def ports_schema(self):
             return {
                 'D': {
-                    'x': {'_default': 0},
-                    'y': {'_default': 0},
-                    'z': {'_default': 0}},
+                    'd1': {'_default': 0},
+                    'd2': {'_default': 0},
+                    'd3': {'_default': 0}},
                 'E': {
-                    'u': {'_default': 0},
-                    'v': {'_default': 0}}}
+                    'e1': {'_default': 0},
+                    'e2': {'_default': 0}}}
 
         def next_update(self, timestep, states):
             return {
                 'D': {
-                    'x': -1,
-                    'y': 12,
-                    'z': states['D']['x'] + states['D']['y']},
+                    'd1': 10,
+                    'd2': 10,
+                    'd3': 10},
                 'E': {
-                    'u': 3,
-                    'v': states['E']['u']}}
+                    'e1': -10,
+                    'e2': -10}}
 
     class PoQo(Composite):
         def generate_processes(self, config=None):
-            p = Po(config)
-            q = Qo(config)
-
             return {
-                'po': p,
-                'qo': q}
+                'po': Po(config),
+                'qo': Qo(config),
+            }
 
         def generate_topology(self, config=None):
             return {
                 'po': {
                     'A': {
                         '_path': ('aaa',),
-                        'b': ('o',)},
-                    'B': ('bbb',)},
+                        'a2': ('x',),
+                        'a3': ('..', 'ccc', 'a3')},
+                    'B': ('bbb',),
+                },
                 'qo': {
                     'D': {
-                        'x': ('aaa', 'a'),
-                        'y': ('aaa', 'o'),
-                        'z': ('ddd', 'z')},
+                        '_path': (),
+                        'd1': ('aaa', 'd1'),
+                        'd2': ('aaa', 'd2'),
+                        'd3': ('ccc', 'd3')},
                     'E': {
-                        'u': ('aaa', 'u'),
-                        'v': ('bbb', 'e')}}}
+                        '_path': (),
+                        'e1': ('aaa', 'x'),
+                        'e2': ('bbb', 'e2')}
+                },
+            }
 
-    initial_state = {
-        'aaa': {
-            'a': 2,
-            'c': 5,
-            'o': 3,
-            'u': 11},
-        'bbb': {
-            'd': 14,
-            'e': 88},
-        'ddd': {
-            'z': 333}}
 
+    # make the experiment
+    outer_path = ('universe', 'agent')
     pq = PoQo({})
-    pq_config = pq.generate()
-    pq_config['initial_state'] = initial_state
+    pq_composite = pq.generate(path=outer_path)
+    experiment = Experiment(pq_composite)
 
-    experiment = Experiment(pq_config)
+    # get the initial state
+    initial_state = experiment.state.get_value()
+    print('time 0:')
+    pp(initial_state)
 
-    pp(experiment.state.get_value())
+    # simulate for 1 second
     experiment.update(1)
 
-    state = experiment.state.get_value()
-    assert state['aaa']['a'] == initial_state['aaa']['a'] + initial_state['aaa']['o'] - 1
-    assert state['aaa']['o'] == initial_state['aaa']['o'] + initial_state['aaa']['c'] + 12
-    assert state['aaa']['c'] == initial_state['aaa']['c'] + initial_state['bbb']['d'] + initial_state['bbb']['e']
-    assert state['aaa']['u'] == initial_state['aaa']['u'] + 3
-    assert state['bbb']['d'] == initial_state['bbb']['d'] + initial_state['aaa']['a']
-    assert state['bbb']['e'] == initial_state['bbb']['e'] + initial_state['bbb']['e'] + initial_state['aaa']['u']
-    assert state['ddd']['z'] == initial_state['ddd']['z'] + initial_state['aaa']['a'] + initial_state['aaa']['o']
+    next_state = experiment.state.get_value()
+    print('time 1:')
+    pp(next_state)
+
+    # pull out the agent state
+    initial_agent_state = initial_state['universe']['agent']
+    agent_state = next_state['universe']['agent']
+
+    assert agent_state['aaa']['a1'] == initial_agent_state['aaa']['a1'] + 1
+    assert agent_state['aaa']['x'] == initial_agent_state['aaa']['x'] - 9
+    assert agent_state['ccc']['a3'] == initial_agent_state['ccc']['a3'] + 1
 
 
 def test_multi():
@@ -2286,8 +2290,7 @@ if __name__ == '__main__':
     # test_multi()
     # test_sine()
     # test_parallel()
-    # test_complex_topology()
+    test_complex_topology()
     # test_multi_port_merge()
     # test_2_store_1_port()
-
-    test_units()
+    # test_units()
