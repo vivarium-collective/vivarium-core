@@ -28,7 +28,8 @@ from vivarium.core.process import (
     Composer,
 )
 from vivarium.library.topology import (
-    get_in, delete_in, assoc_path,
+    delete_in,
+    assoc_path,
     inverse_topology
 )
 from vivarium.library.units import units
@@ -829,78 +830,6 @@ def test_multi_port_merge():
 
 
 def test_complex_topology():
-    class Po(Process):
-        name = 'po'
-        def ports_schema(self):
-            return {
-                'A': {
-                    'a1': {'_default': 0},
-                    'a2': {'_default': 0},
-                    'a3': {'_default': 0}},
-                'B': {
-                    'b1': {'_default': 0},
-                    'b2': {'_default': 0}}}
-
-        def next_update(self, timestep, states):
-            return {
-                'A': {
-                    'a1': 1,
-                    'a2': 1,
-                    'a3': 1},
-                'B': {
-                    'b1': -1,
-                    'b2': -1}}
-
-    class Qo(Process):
-        name = 'qo'
-        def ports_schema(self):
-            return {
-                'D': {
-                    'd1': {'_default': 0},
-                    'd2': {'_default': 0},
-                    'd3': {'_default': 0}},
-                'E': {
-                    'e1': {'_default': 0},
-                    'e2': {'_default': 0}}}
-
-        def next_update(self, timestep, states):
-            return {
-                'D': {
-                    'd1': 10,
-                    'd2': 10,
-                    'd3': 10},
-                'E': {
-                    'e1': -10,
-                    'e2': -10}}
-
-    class PoQo(Composer):
-        def generate_processes(self, config=None):
-            return {
-                'po': Po(config),
-                'qo': Qo(config),
-            }
-
-        def generate_topology(self, config=None):
-            return {
-                'po': {
-                    'A': {
-                        '_path': ('aaa',),
-                        'a2': ('x',),
-                        'a3': ('..', 'ccc', 'a3')},
-                    'B': ('bbb',),
-                },
-                'qo': {
-                    'D': {
-                        '_path': (),
-                        'd1': ('aaa', 'd1'),
-                        'd2': ('aaa', 'd2'),
-                        'd3': ('ccc', 'd3')},
-                    'E': {
-                        '_path': (),
-                        'e1': ('aaa', 'x'),
-                        'e2': ('bbb', 'e2')}
-                },
-            }
 
     # make the experiment
     outer_path = ('universe', 'agent')

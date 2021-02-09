@@ -374,22 +374,22 @@ class Po(Process):
     def ports_schema(self):
         return {
             'A': {
-                'a': {'_default': 0},
-                'b': {'_default': 0},
-                'c': {'_default': 0}},
+                'a1': {'_default': 0},
+                'a2': {'_default': 0},
+                'a3': {'_default': 0}},
             'B': {
-                'd': {'_default': 0},
-                'e': {'_default': 0}}}
+                'b1': {'_default': 0},
+                'b2': {'_default': 0}}}
 
     def next_update(self, timestep, states):
         return {
             'A': {
-                'a': states['A']['b'],
-                'b': states['A']['c'],
-                'c': states['B']['d'] + states['B']['e']},
+                'a1': 1,
+                'a2': 1,
+                'a3': 1},
             'B': {
-                'd': states['A']['a'],
-                'e': states['B']['e']}}
+                'b1': -1,
+                'b2': -1}}
 
 
 class Qo(Process):
@@ -398,45 +398,49 @@ class Qo(Process):
     def ports_schema(self):
         return {
             'D': {
-                'x': {'_default': 0},
-                'y': {'_default': 0},
-                'z': {'_default': 0}},
+                'd1': {'_default': 0},
+                'd2': {'_default': 0},
+                'd3': {'_default': 0}},
             'E': {
-                'u': {'_default': 0},
-                'v': {'_default': 0}}}
+                'e1': {'_default': 0},
+                'e2': {'_default': 0}}}
 
     def next_update(self, timestep, states):
         return {
             'D': {
-                'x': -1,
-                'y': 12,
-                'z': states['D']['x'] + states['D']['y']},
+                'd1': 10,
+                'd2': 10,
+                'd3': 10},
             'E': {
-                'u': 3,
-                'v': states['E']['u']}}
+                'e1': -10,
+                'e2': -10}}
 
 
 class PoQo(Composer):
     def generate_processes(self, config=None):
-        p = Po(config)
-        q = Qo(config)
-
         return {
-            'po': p,
-            'qo': q}
+            'po': Po(config),
+            'qo': Qo(config),
+        }
 
     def generate_topology(self, config=None):
         return {
             'po': {
                 'A': {
                     '_path': ('aaa',),
-                    'b': ('o',)},
-                'B': ('bbb',)},
+                    'a2': ('x',),
+                    'a3': ('..', 'ccc', 'a3')},
+                'B': ('bbb',),
+            },
             'qo': {
                 'D': {
-                    'x': ('aaa', 'a'),
-                    'y': ('aaa', 'o'),
-                    'z': ('ddd', 'z')},
+                    '_path': (),
+                    'd1': ('aaa', 'd1'),
+                    'd2': ('aaa', 'd2'),
+                    'd3': ('ccc', 'd3')},
                 'E': {
-                    'u': ('aaa', 'u'),
-                    'v': ('bbb', 'e')}}}
+                    '_path': (),
+                    'e1': ('aaa', 'x'),
+                    'e2': ('bbb', 'e2')}
+            },
+        }

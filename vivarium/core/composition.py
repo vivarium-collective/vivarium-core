@@ -433,11 +433,11 @@ def test_process_in_experiment_environment() -> None:
 
 def test_composer_in_experiment() -> None:
     composer = PoQo({
-        '_schema': {'po': {'A': {'a': {'_emit': True}}}}})
+        '_schema': {'po': {'A': {'a1': {'_emit': True}}}}})
 
     timeline = [
-        (0, {('aaa', 'a'): 1}),
-        (5, {('aaa', 'a'): 10}),
+        (0, {('aaa', 'a1'): 50}),
+        (5, {('aaa', 'a1'): 10}),
         (15, {})]
     settings = {
         'environment': {},
@@ -449,15 +449,16 @@ def test_composer_in_experiment() -> None:
         NonSpatialEnvironment)
 
     output = simulate_experiment(experiment, settings)
+
     # check that timeline worked
-    assert output['aaa']['a'][6] == 10
+    assert output['aaa']['a1'][6] == 10
     assert settings['total_time'] == 15
-    assert len(output['aaa']['a']) == 16
+    assert len(output['aaa']['a1']) == 16
 
 
 def test_composite_in_experiment() -> None:
     composer = PoQo({
-        '_schema': {'po': {'A': {'a': {'_emit': True}}}}})
+        '_schema': {'po': {'A': {'a2': {'_emit': True}}}}})
     composite = composer.generate()
     settings: Dict = {}
     experiment = composite_in_experiment(
@@ -466,7 +467,7 @@ def test_composite_in_experiment() -> None:
     assert experiment.processes['po'] is composite['processes']['po']
 
     output = simulate_composite(composite, settings)
-    assert output['aaa']['a'][-1] == 4747
+    assert output['aaa']['x'][-1] == -90
 
 
 def test_compose_experiment() -> None:
