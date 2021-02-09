@@ -794,7 +794,7 @@ class Store(object):
                     if inner_deletions:
                         deletions.extend(inner_deletions)
 
-                if key == '..':
+                elif key == '..':
                     self.outer.apply_update(value, state)
 
             if delete_keys is not None:
