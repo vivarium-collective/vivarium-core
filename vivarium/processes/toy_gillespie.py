@@ -1,5 +1,5 @@
 """
-Stochastic transcription process
+Toy model of stochastic transcription, composed with deterministic translation
 """
 import os
 import numpy as np
@@ -12,7 +12,6 @@ from vivarium.core.composition import (
 )
 from vivarium.core.registry import process_registry
 from vivarium.plots.simulation_output import plot_simulation_output
-
 
 
 
@@ -85,9 +84,6 @@ class StochasticTSC(Process):
         return X
 
     def next_update(self, timestep, states):
-        # TODO: what is this case fixing?
-        # if self.calculated_timestep > timestep + 1e-6:
-        #     return {}
 
         if self.time_left is not None:
             if timestep >= self.time_left:
@@ -193,26 +189,25 @@ class StochasticTscTrl(Composite):
 
 
 
-def test_gillespie_process():
+def test_gillespie_process(total_time=1000):
     gillespie_process = StochasticTSC()
 
     # make the experiment
     exp_settings = {
+        'display_info': False,
         'experiment_id': 'TscTrl'}
     gillespie_experiment = process_in_experiment(
         gillespie_process,
         exp_settings)
 
     # run it and retrieve the data that was emitted to the simulation log
-    for era in range(1000):
+    for era in range(total_time):
         gillespie_experiment.update(1)
 
     gillespie_data = gillespie_experiment.emitter.get_timeseries()
     return gillespie_data
 
-def test_gillespie_composite():
-    total_time = 10000
-
+def test_gillespie_composite(total_time=10000):
     stochastic_tsc_trl = StochasticTscTrl()
 
     # make the experiment
@@ -226,13 +221,11 @@ def test_gillespie_composite():
     stoch_experiment.update(total_time)
     data = stoch_experiment.emitter.get_timeseries()
 
-    # import ipdb; ipdb.set_trace()
-
     return data
 
 
 def main():
-    out_dir = os.path.join(PROCESS_OUT_DIR, 'gillespie')
+    out_dir = os.path.join(PROCESS_OUT_DIR, 'toy_gillespie')
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
 
@@ -245,6 +238,5 @@ def main():
     plot_simulation_output(composite_output, plot_settings, out_dir, filename='composite')
 
 
-# run module with python vivarium/process/template_process.py
 if __name__ == '__main__':
     main()

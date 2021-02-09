@@ -1547,12 +1547,8 @@ class Experiment(object):
 
         # post-simulation
         for process_name, advance in front.items():
-            try:
-                assert advance['time'] == time == interval, f"times: {advance['time']} {time} {interval}"
-                assert len(advance['update']) == 0
-            except:
-                import ipdb; ipdb.set_trace()
-                # TODO -- advance['time'] is not reaching interval...
+            assert advance['time'] == time == interval, f"times: {advance['time']} {time} {interval}"
+            assert len(advance['update']) == 0
 
         clock_finish = clock.time() - clock_start
 
