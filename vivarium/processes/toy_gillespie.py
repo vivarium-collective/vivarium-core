@@ -1,5 +1,10 @@
-"""
-Toy model of stochastic transcription, composed with deterministic translation
+""" Toy Stochastic Transcription Process
+Toy model of Gillespie algorithm-based  transcription,
+and a composite with deterministic translation.
+
+Note: This Process is primarily for testing multi-timestepping.
+variables and parameters are hard-coded. Do not use this as a
+general stochastic transcription.
 """
 import os
 import numpy as np
@@ -16,6 +21,7 @@ from vivarium.plots.simulation_output import plot_simulation_output
 
 
 class StochasticTSC(Process):
+    """Toy Stochastic Transcription Process"""
     defaults = {
         'ktsc': 5e0,
         'kdeg': 1e-1,
@@ -55,22 +61,24 @@ class StochasticTSC(Process):
 
     def calculate_timestep(self, states):
         # retrieve the state values
-        G = states['DNA']['G']
-        C = states['mRNA']['C']
+        g = states['DNA']['G']
+        c = states['mRNA']['C']
 
-        array_state = np.array([G, C])
+        array_state = np.array([g, c])
 
         # Calculate propensities
-        propensities = [self.ktsc * array_state[0], self.kdeg * array_state[1]]
+        propensities = [
+            self.ktsc * array_state[0], self.kdeg * array_state[1]]
         prop_sum = sum(propensities)
 
         # The wait time is distributed exponentially
         self.calculated_timestep = np.random.exponential(scale=prop_sum)
         return self.calculated_timestep
 
-    def next_reaction(self, X):
+    def next_reaction(self, x):
+        """get the next reaction and return a new state"""
 
-        propensities = [self.ktsc * X[0], self.kdeg * X[1]]
+        propensities = [self.ktsc * x[0], self.kdeg * x[1]]
         prop_sum = sum(propensities)
 
         # Choose the next reaction
@@ -79,9 +87,9 @@ class StochasticTSC(Process):
             if r_rxn < propensities[i] / prop_sum:
                 # This means propensity i fires
                 break
-        X += self.stoichiometry[i]
+        x += self.stoichiometry[i]
 
-        return X
+        return x
 
     def next_update(self, timestep, states):
 
@@ -96,23 +104,23 @@ class StochasticTSC(Process):
                 return {}
         else:
             # retrieve the state values, put them in array
-            G = states['DNA']['G']
-            C = states['mRNA']['C']
-            array_state = np.array([G, C])
+            g = states['DNA']['G']
+            c = states['mRNA']['C']
+            array_state = np.array([g, c])
 
             # calculate the next reaction
             new_state = self.next_reaction(array_state)
 
             # get delta mRNA
-            C1 = new_state[1]
-            dC = C1 - C
+            c1 = new_state[1]
+            d_c = c1 - c
 
             update = {
                 'mRNA': {
-                    'C': dC}}
+                    'C': d_c}}
 
             if self.calculated_timestep > timestep:
-                # didn't get all of our time, need to store the event for later
+                # didn't get all of our time, store the event for later
                 self.time_left = self.calculated_timestep - timestep
                 self.event = update
                 return {}
@@ -120,7 +128,7 @@ class StochasticTSC(Process):
                 # return an update
                 return {
                     'mRNA': {
-                        'C': dC}}
+                        'C': d_c}}
 
 
 class TRL(Process):
@@ -142,12 +150,14 @@ class TRL(Process):
                     '_emit': True}}}
 
     def next_update(self, timestep, states):
-        C = states['mRNA']['C']
-        X = states['Protein']['X']
-        dX = (self.parameters['ktrl'] * C - self.parameters['kdeg'] * X) * timestep
+        c = states['mRNA']['C']
+        x = states['Protein']['X']
+        d_x = (
+            self.parameters['ktrl'] * c -
+            self.parameters['kdeg'] * x) * timestep
         return {
             'Protein': {
-                'X': dX}}
+                'X': d_x}}
 
 
 class TrlConcentration(TRL):
@@ -165,11 +175,13 @@ class StochasticTscTrl(Composite):
     }
 
     def generate_processes(self, config):
-        concentrations_deriver = process_registry.access('concentrations_deriver')
+        concentrations_deriver = process_registry.access(
+            'concentrations_deriver')
         return {
             'stochastic_TSC': StochasticTSC(config['stochastic_TSC']),
             'TRL': TrlConcentration(config['TRL']),
-            'concs': concentrations_deriver({'concentration_keys': ['C']})
+            'concs': concentrations_deriver({
+                'concentration_keys': ['C']})
         }
 
     def generate_topology(self, config):
@@ -200,7 +212,7 @@ def test_gillespie_process(total_time=1000):
         gillespie_process,
         exp_settings)
 
-    # run it and retrieve the data that was emitted to the simulation log
+    # run the experiment in increments
     for era in range(total_time):
         gillespie_experiment.update(1)
 
@@ -234,8 +246,10 @@ def main():
 
     # plot the simulation output
     plot_settings = {}
-    plot_simulation_output(process_output, plot_settings, out_dir, filename='process')
-    plot_simulation_output(composite_output, plot_settings, out_dir, filename='composite')
+    plot_simulation_output(
+        process_output, plot_settings, out_dir, filename='process')
+    plot_simulation_output(
+        composite_output, plot_settings, out_dir, filename='composite')
 
 
 if __name__ == '__main__':
