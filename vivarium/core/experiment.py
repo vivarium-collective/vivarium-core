@@ -1547,7 +1547,7 @@ class Experiment(object):
 
         # post-simulation
         for process_name, advance in front.items():
-            assert advance['time'] == time == interval, f"times: {advance['time']} {time} {interval}"
+            assert advance['time'] == time == interval
             assert len(advance['update']) == 0
 
         clock_finish = clock.time() - clock_start
