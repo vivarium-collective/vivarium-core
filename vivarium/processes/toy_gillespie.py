@@ -21,7 +21,7 @@ from vivarium.plots.simulation_output import plot_simulation_output
 
 
 class StochasticTSC(Process):
-    """Toy Stochastic Transcription Process"""
+    """stochastic toy transcription"""
     defaults = {
         'ktsc': 5e0,
         'kdeg': 1e-1,
@@ -33,6 +33,7 @@ class StochasticTSC(Process):
         self.kdeg = self.parameters['kdeg']
         self.stoichiometry = np.array([[0, 1], [0, -1]])
         self.time_left = None
+        self.event = None
 
         # initialize the next timestep
         initial_state = self.initial_state()
@@ -82,13 +83,13 @@ class StochasticTSC(Process):
         prop_sum = sum(propensities)
 
         # Choose the next reaction
-        r_rxn = np.random.random()
-        for i in range(len(propensities)):
+        r_rxn = np.random.uniform()
+        i = 0
+        for i, _ in enumerate(propensities):
             if r_rxn < propensities[i] / prop_sum:
                 # This means propensity i fires
                 break
         x += self.stoichiometry[i]
-
         return x
 
     def next_update(self, timestep, states):
@@ -99,39 +100,40 @@ class StochasticTSC(Process):
                 self.event = None
                 self.time_left = None
                 return event
-            else:
-                self.time_left -= timestep
-                return {}
-        else:
-            # retrieve the state values, put them in array
-            g = states['DNA']['G']
-            c = states['mRNA']['C']
-            array_state = np.array([g, c])
 
-            # calculate the next reaction
-            new_state = self.next_reaction(array_state)
+            self.time_left -= timestep
+            return {}
 
-            # get delta mRNA
-            c1 = new_state[1]
-            d_c = c1 - c
+        # retrieve the state values, put them in array
+        g = states['DNA']['G']
+        c = states['mRNA']['C']
+        array_state = np.array([g, c])
 
-            update = {
-                'mRNA': {
-                    'C': d_c}}
+        # calculate the next reaction
+        new_state = self.next_reaction(array_state)
 
-            if self.calculated_timestep > timestep:
-                # didn't get all of our time, store the event for later
-                self.time_left = self.calculated_timestep - timestep
-                self.event = update
-                return {}
-            else:
-                # return an update
-                return {
-                    'mRNA': {
-                        'C': d_c}}
+        # get delta mRNA
+        c1 = new_state[1]
+        d_c = c1 - c
+
+        update = {
+            'mRNA': {
+                'C': d_c}}
+
+        if self.calculated_timestep > timestep:
+            # didn't get all of our time, store the event for later
+            self.time_left = self.calculated_timestep - timestep
+            self.event = update
+            return {}
+
+        # return an update
+        return {
+            'mRNA': {
+                'C': d_c}}
 
 
 class TRL(Process):
+    """deterministic toy translation"""
 
     defaults = {
         'ktrl': 1e-2,
@@ -169,6 +171,10 @@ class TrlConcentration(TRL):
 
 
 class StochasticTscTrl(Composite):
+    """
+    composite toy model with stochastic transcription,
+    deterministic translation.
+    """
     defaults = {
         'stochastic_TSC': {'time_step': 10},
         'TRL': {'time_step': 10},
@@ -213,7 +219,7 @@ def test_gillespie_process(total_time=1000):
         exp_settings)
 
     # run the experiment in increments
-    for era in range(total_time):
+    for _ in range(total_time):
         gillespie_experiment.update(1)
 
     gillespie_data = gillespie_experiment.emitter.get_timeseries()
@@ -237,6 +243,7 @@ def test_gillespie_composite(total_time=10000):
 
 
 def main():
+    """run the tests and plot"""
     out_dir = os.path.join(PROCESS_OUT_DIR, 'toy_gillespie')
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
