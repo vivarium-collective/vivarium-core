@@ -8,7 +8,7 @@ import os
 
 from vivarium.core.process import Process
 from vivarium.core.composition import (
-    simulate_process_in_experiment,
+    simulate_process,
     PROCESS_OUT_DIR,
 )
 from vivarium.plots.simulation_output import plot_simulation_output
@@ -67,12 +67,6 @@ class Template(Process):
             },
         }
 
-    def derivers(self):
-        '''
-        declare which derivers are needed for this process
-        '''
-        return {}
-
     def next_update(self, timestep, states):
 
         # get the states
@@ -118,7 +112,7 @@ def run_template_process():
     sim_settings = {
         'total_time': 10,
         'initial_state': initial_state}
-    output = simulate_process_in_experiment(template_process, sim_settings)
+    output = simulate_process(template_process, sim_settings)
 
     return output
 
@@ -136,8 +130,7 @@ def main():
     '''Simulate the process and plot results.'''
     # make an output directory to save plots
     out_dir = os.path.join(PROCESS_OUT_DIR, NAME)
-    if not os.path.exists(out_dir):
-        os.makedirs(out_dir)
+    os.makedirs(out_dir, exist_ok=True)
 
     output = run_template_process()
 

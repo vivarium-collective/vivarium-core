@@ -120,6 +120,7 @@ def update_merge(current_value, new_value):
             update[k] = new
     return update
 
+
 def update_set(current_value, new_value):
     """Set Updater
 
@@ -128,6 +129,7 @@ def update_set(current_value, new_value):
     """
     return new_value
 
+
 def update_accumulate(current_value, new_value):
     """Accumulate Updater
 
@@ -135,6 +137,7 @@ def update_accumulate(current_value, new_value):
         The sum of ``current_value`` and ``new_value``.
     """
     return current_value + new_value
+
 
 def update_nonnegative_accumulate(current_value, new_value):
     """Non-negative Accumulate Updater
@@ -233,11 +236,11 @@ def divide_split_dict(state):
 
 
 def assert_no_divide(state):
-    '''Assert that the variable is never divided
+    """Assert that the variable is never divided
 
     Raises:
         AssertionError: If the variable is divided
-    '''
+    """
     raise AssertionError('Variable cannot be divided')
 
 
@@ -260,9 +263,9 @@ class NumpySerializer(Serializer):
 
 class NumpyScalarSerializer(Serializer):
     def serialize(self, data):
-        if isinstance(data, np.integer):
+        if isinstance(data, (int, np.integer)):
             return int(data)
-        if isinstance(data, np.floating):
+        if isinstance(data, (float, np.floating)):
             return float(data)
         raise ValueError(
             'Cannot serialize numpy scalar {} of type {}.'.format(
@@ -310,7 +313,7 @@ class ProcessSerializer(Serializer):
         return dict(data.parameters, _name=data.name)
 
 
-class FactorySerializer(Serializer):
+class ComposerSerializer(Serializer):
     def serialize(self, data):
         return dict(data.config, _name=str(type(data)))
 

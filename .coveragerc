@@ -1,3 +1,11 @@
 [report]
-fail_under = 70
+fail_under = 85
 show_missing = True
+exclude_lines =
+    pragma: no cover
+omit =
+    vivarium/library/*
+    vivarium/processes/*
+    vivarium/composites/*
+    vivarium/experiments/*
+    vivarium/plots/*

@@ -9,10 +9,10 @@ general stochastic transcription.
 import os
 import numpy as np
 
-from vivarium.core.process import Process, Composite
+from vivarium.core.process import Process, Composer
 from vivarium.core.composition import (
     process_in_experiment,
-    compartment_in_experiment,
+    composite_in_experiment,
     PROCESS_OUT_DIR,
 )
 from vivarium.core.registry import process_registry
@@ -170,7 +170,7 @@ class TrlConcentration(TRL):
         return super().next_update(timestep, states)
 
 
-class StochasticTscTrl(Composite):
+class StochasticTscTrl(Composer):
     """
     composite toy model with stochastic transcription,
     deterministic translation.
@@ -226,12 +226,12 @@ def test_gillespie_process(total_time=1000):
     return gillespie_data
 
 def test_gillespie_composite(total_time=10000):
-    stochastic_tsc_trl = StochasticTscTrl()
+    stochastic_tsc_trl = StochasticTscTrl().generate()
 
     # make the experiment
     exp_settings = {
         'experiment_id': 'stochastic_tsc_trl'}
-    stoch_experiment = compartment_in_experiment(
+    stoch_experiment = composite_in_experiment(
         stochastic_tsc_trl,
         exp_settings)
 

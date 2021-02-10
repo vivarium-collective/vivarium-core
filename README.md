@@ -4,7 +4,7 @@ Vivarium-core provides a process interface and simulation engine for composing a
 computational biology models.
 
 ## Documentation and Tutorials
-Visit [Vivarium documentation](https://vivarium-core.readthedocs.io/)
+Visit [Vivarium documentation](https://vivarium-core.readthedocs.io/).
 
 ## Installation
 vivarium-core can be used as a python library. To install:

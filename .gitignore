@@ -3,6 +3,7 @@
 /build
 /dist
 /doc/_build
+/doc/reference/api
 /vivarium_core.egg-info
 
 *.out

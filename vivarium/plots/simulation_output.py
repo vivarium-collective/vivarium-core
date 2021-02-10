@@ -62,6 +62,7 @@ def plot_simulation_output(
               highlighted, even if they are otherwise to be removed
               TODO: Obsolete?
     '''
+    int_or_float = (int, np.int32, np.int64, float, np.float32, np.float64)
 
     settings = settings or {}
     plot_fontsize = 8
@@ -147,7 +148,7 @@ def plot_simulation_output(
 
             ax = fig.add_subplot(grid[row_idx, col_idx])  # grid is (row, column)
 
-            if not all(isinstance(state, (int, float, np.int64, np.int32)) for state in series):
+            if not all(isinstance(state, int_or_float) for state in series):
                 # check if series is a list of ints or floats
                 ax.title.set_text(str(port) + ': ' + str(state_id) + ' (non numeric)')
             else:

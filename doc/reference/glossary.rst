@@ -42,13 +42,18 @@ Glossary
         two child compartments for the two cells in the environment. For
         more details, see our :doc:`guide to compartments</guides/compartments>`.
 
+    composer
+    Composer
+        An object with a generate method, which returns a :term:`Composite` with
+        :term:`Processes` and :term:`Topologies`.
+
     Composite
     composite
     Composites
     composites
-        Composites a collection of :term:`processes` that operate on the
-        compartment's :term:`stores` simultaneously. These are specified by a
-        :term:`topology`.
+        Composites are dictionaries with special keys for :term:`processes` and
+        :term:`topology`. The `processes` key map to a dictionary with initialized
+        processes, and the `topology` specifies how they are wire to :term:`stores`.
 
     Deriver
     deriver
@@ -112,11 +117,6 @@ Glossary
         and you can run them to simulate your model over time. See the
         documentation for the ``Experiment`` class and our :doc:`guide
         to experiments </guides/experiments>` for more details.
-
-    factory
-    Factory
-        An object with a generate method, which returns a dictionary of
-        :term:`Processes` and a dictionary of :term:`Topologies`.
 
     Inner
     inner
@@ -237,9 +237,9 @@ Glossary
     schema key-value pairs
         Each :term:`variable` is defined by a set of schema key-value
         pairs. The available keys are defined in
-        :py:attr:`vivarium.core.experiment.Store.schema_keys`. These
+        :py:attr:`vivarium.core.store.Store.schema_keys`. These
         keys are described in more detail in the documentation for
-        :py:class:`vivarium.core.experiment.Store`.
+        :py:class:`vivarium.core.store.Store`.
 
     Serializer
     serializer

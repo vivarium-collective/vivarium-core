@@ -11,8 +11,14 @@
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
 import os
+import shutil
 import sys
 sys.path.insert(0, os.path.abspath('..'))
+
+from docutils.nodes import Text
+from sphinx.addnodes import pending_xref
+from sphinx.ext import apidoc
+from sphinx.ext.intersphinx import missing_reference
 
 
 # -- Project information -----------------------------------------------------
@@ -51,13 +57,6 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', 'venv']
 # will help avoid broken links.
 nitpicky = True
 
-# Ignore warnings like:
-# "docstring of ... reference target not found: matplotlib.pyplot.Figure".
-# Is there a way to make those references work?
-nitpick_ignore = [
-    ('py:class', 'networkx.Graph'),
-    ('py:class', 'matplotlib.pyplot.Figure')]
-
 
 # -- Options for HTML output -------------------------------------------------
 
@@ -71,17 +70,34 @@ html_theme = 'sphinx_rtd_theme'
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
 
-# -- Options for extensions
-# --------------------------------------------------
+# -- Options for extensions --------------------------------------------------
 
 # -- sphinx.ext.intersphinx options --
 intersphinx_mapping = {
+    'matplotlib': ('https://matplotlib.org/3.3.1/', None),
+    'networkx': ('http://networkx.org/documentation/latest/', None),
     'python': ('https://docs.python.org/3', None),
-    'matplotlib': ('https://matplotlib.org/3.2.2/', None),
     'shapely': ('https://shapely.readthedocs.io/en/latest/', None),
+    'pint': ('https://pint.readthedocs.io/en/stable/', None),
 }
 
-# -- sphinx.ext.autodic options --
+# -- sphinx.ext.napoleon options --
+# Map from the alias to a tuple of the actual ref and the text to
+# display.
+reftarget_aliases = {
+    type_name: ('vivarium.core.types.{}'.format(type_name), type_name)
+    for type_name in (
+        'HierarchyPath', 'Topology', 'Schema', 'State', 'Update',
+        'CompositeDict')
+}
+reftarget_aliases.update({
+    type_name: ('typing.{}'.format(type_name), type_name)
+    for type_name in (
+        'Any', 'Dict', 'Tuple', 'Union', 'Optional', 'Callable', 'List')
+})
+
+
+# -- sphinx.ext.autodoc options --
 autodoc_inherit_docstrings = False
 # The Python dependencies aren't really required for building the docs
 autodoc_mock_imports = [
@@ -91,3 +107,58 @@ autodoc_mock_imports = [
 ]
 # Concatenate class and __init__ docstrings
 autoclass_content = 'both'
+
+
+# -- Custom Extensions -------------------------------------------------
+
+
+# This function is adapted from a StackOverflow answer by Oleg Höfling
+# at https://stackoverflow.com/a/62301461. Per StackOverflow's licensing
+# terms, it is available under a CC-BY-SA 4.0 license
+# (https://creativecommons.org/licenses/by-sa/4.0/).
+def resolve_internal_aliases(_, doctree):
+    pending_xrefs = doctree.traverse(condition=pending_xref)
+    for node in pending_xrefs:
+        alias = node.get('reftarget')
+        if alias is not None and alias in reftarget_aliases:
+            resolved_ref, text = reftarget_aliases[alias]
+            node['reftarget'] = resolved_ref
+            text_node = next(iter(
+                node.traverse(lambda n: n.tagname == '#text')))
+            text_node.parent.replace(text_node, Text(text, ''))
+
+
+# This function is adapted from a StackOverflow answer by Oleg Höfling
+# at https://stackoverflow.com/a/62301461. Per StackOverflow's licensing
+# terms, it is available under a CC-BY-SA 4.0 license
+# (https://creativecommons.org/licenses/by-sa/4.0/).
+def resolve_intersphinx_aliases(app, env, node, contnode):
+    alias = node.get('reftarget')
+    if alias is not None and alias in reftarget_aliases:
+        resolved_ref, text = reftarget_aliases[alias]
+        node['reftarget'] = resolved_ref
+        text_node = next(iter(
+            contnode.traverse(lambda n: n.tagname == '#text')))
+        text_node.parent.replace(text, Text(text, ''))
+        return missing_reference(app, env, node, contnode)
+    return None
+
+
+def run_apidoc(_):
+    cur_dir = os.path.abspath(os.path.dirname(__file__))
+    module = os.path.join(cur_dir, '..', 'vivarium')
+    apidoc_dir = os.path.join(cur_dir, 'reference', 'api')
+    if os.path.exists(apidoc_dir):
+        shutil.rmtree(apidoc_dir)
+    os.mkdir(apidoc_dir)
+    apidoc.main(['-f', '-e', '-o', apidoc_dir, module])
+
+
+# This function is adapted from a StackOverflow answer by Oleg Höfling
+# at https://stackoverflow.com/a/62301461. Per StackOverflow's licensing
+# terms, it is available under a CC-BY-SA 4.0 license
+# (https://creativecommons.org/licenses/by-sa/4.0/).
+def setup(app):
+    app.connect('doctree-read', resolve_internal_aliases)
+    app.connect('missing-reference', resolve_intersphinx_aliases)
+    app.connect('builder-inited', run_apidoc)
