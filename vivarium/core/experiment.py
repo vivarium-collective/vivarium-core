@@ -39,11 +39,11 @@ from vivarium.library.units import units
 pretty = pprint.PrettyPrinter(indent=2)
 
 
-def pp(x):
+def pp(x: Any) -> None:
     pretty.pprint(x)
 
 
-def pf(x):
+def pf(x: Any) -> str:
     return pretty.pformat(x)
 
 
