@@ -1,6 +1,12 @@
 # Changelog
 
 
+## v0.2.0
+
+* breaking API changes:
+    * Composer class instead of Composite. 
+    * several composition.py functions have been renamed to improve self-description.
+
 ## v0.1.12
 
 * bug fix when handling complex_topology. store.apply_update() can now go up paths with '..'.
