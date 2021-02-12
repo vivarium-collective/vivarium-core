@@ -198,6 +198,7 @@ def plot_variables(
         row_height=1.2,
         row_padding=0.8,
         linewidth=3.0,
+        default_color='tab:blue',
         out_dir=None,
         filename='variables'
 ):
@@ -209,11 +210,11 @@ def plot_variables(
     for row_idx, variable_definition in enumerate(variables):
         if isinstance(variable_definition, dict):
             (port, var) = variable_definition['variable']
-            var_color = variable_definition.get('color', None)
+            var_color = variable_definition.get('color', default_color)
             variable_title = variable_definition.get('display', get_variable_title(var, port))
         else:
             (port, var) = variable_definition
-            var_color = None
+            var_color = default_color
             variable_title = get_variable_title(var, port)
 
         # get the output timeseries
