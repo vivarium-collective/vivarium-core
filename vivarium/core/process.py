@@ -18,6 +18,7 @@ from bson.objectid import ObjectId
 import numpy as np
 from pint.errors import UndefinedUnitError
 
+from vivarium.library.datum import Datum
 from vivarium.library.topology import inverse_topology
 from vivarium.library.units import Quantity
 from vivarium.core.registry import serializer_registry
@@ -230,6 +231,69 @@ def _get_composite_initial_state(
     return initial_state
 
 
+class Composite(Datum):
+    """Composite parent class.
+
+    Contains keys for processes and topology
+    """
+
+    defaults: Dict[str, Any] = {
+        'processes': {},
+        'topology': {},
+        '_schema': {},
+    }
+
+    def __init__(
+            self,
+            config
+    ):
+        super().__init__(config)
+        _override_schemas(self._schema, self.processes)
+
+    def initial_state(self, config: Optional[dict] = None) -> State:
+        """ Merge all processes' initial states
+        Arguments:
+            config (dict): A dictionary of configuration options. All
+                subclass implementation must accept this parameter, but
+                some may ignore it.
+        Returns:
+            A map from process names to dictionaries of those processes'
+            parameters.
+            dict: Subclass implementations must return a dictionary
+            mapping state paths to initial values.
+        """
+        initial_state = _get_composite_initial_state(self.processes, self.topology)
+        return initial_state
+
+    def merge(
+            self,
+            processes: Optional[Dict[str, Process]] = None,
+            topology: Optional[Topology] = None,
+            schema_override: Optional[Schema] = None,
+    ) -> None:
+        processes = processes or {}
+        topology = topology or {}
+        schema_override = schema_override or {}
+
+        for process in processes.values():
+            assert isinstance(process, Process)
+
+        self.processes.update(processes)
+        self.topology.update(topology)
+        self._schema.update(schema_override)
+        _override_schemas(self._schema, self.processes)
+
+    def get_parameters(self) -> dict:
+        """Get the parameters for all :term:`processes`.
+        Returns:
+            A map from process names to dictionaries of those processes'
+            parameters.
+        """
+        return {
+            process_id: process.parameters
+            for process_id, process in self.processes.items()}
+
+
 class Composer(metaclass=abc.ABCMeta):
     defaults: Dict[str, Any] = {}
 
@@ -253,30 +317,7 @@ class Composer(metaclass=abc.ABCMeta):
 
         self.config = copy.deepcopy(self.defaults)
         self.config = deep_merge(self.config, config)
-
-        self.merge_processes = self.config.pop('_processes', {})
-        self.merge_topology = self.config.pop('_topology', {})
         self.schema_override = self.config.pop('_schema', {})
-
-    def initial_state(self, config: Optional[dict] = None) -> State:
-        """ Merge all processes' initial states
-
-        Every subclass may override this method.
-
-        Arguments:
-            config (dict): A dictionary of configuration options. All
-                subclass implementation must accept this parameter, but
-                some may ignore it.
-
-        Returns:
-            dict: Subclass implementations must return a dictionary
-            mapping state paths to initial values.
-        """
-        network = self.generate(config)
-        processes = cast(Dict[str, Any], network['processes'])
-        topology = network['topology']
-        initial_state = _get_composite_initial_state(processes, topology)
-        return initial_state
 
     @abc.abstractmethod
     def generate_processes(
@@ -343,19 +384,29 @@ class Composer(metaclass=abc.ABCMeta):
 
         processes = self.generate_processes(config)
         topology = self.generate_topology(config)
-
-        # add merged processes
-        # TODO - this assumes all merge_processes are initialized.
-        # TODO - make option to initialize new processes here
-        processes = deep_merge(processes, self.merge_processes)
-        topology = deep_merge(topology, self.merge_topology)
-
         _override_schemas(self.schema_override, processes)
 
-        return {
+        return Composite({
             'processes': assoc_in({}, path, processes),
             'topology': assoc_in({}, path, topology),
-        }
+        })
+
+    def initial_state(self, config: Optional[dict] = None) -> State:
+        """ Merge all processes' initial states
+
+        Every subclass may override this method.
+
+        Arguments:
+            config (dict): A dictionary of configuration options. All
+                subclass implementation must accept this parameter, but
+                some may ignore it.
+
+        Returns:
+            dict: Subclass implementations must return a dictionary
+            mapping state paths to initial values.
+        """
+        composite = self.generate(config)
+        return composite.initial_state(config)
 
     def get_parameters(self) -> dict:
         """Get the parameters for all :term:`processes`.
@@ -364,29 +415,22 @@ class Composer(metaclass=abc.ABCMeta):
             A map from process names to dictionaries of those processes'
             parameters.
         """
-        network = self.generate({})
-        processes = cast(Dict[str, Process], network['processes'])
-        return {
-            process_id: process.parameters
-            for process_id, process in processes.items()}
+        composite = self.generate()
+        return composite.get_parameters()
 
     def merge(
             self,
             processes: Optional[Dict[str, Process]] = None,
             topology: Optional[Topology] = None,
-            schema_override: Optional[Schema] = None) -> None:
-        processes = processes or {}
-        topology = topology or {}
-        schema_override = schema_override or {}
-
-        for process in processes.values():
-            assert isinstance(process, Process)
-
-        self.merge_processes = deep_merge_check(
-            self.merge_processes, processes)
-        self.merge_topology = deep_merge(self.merge_topology, topology)
-        self.schema_override = deep_merge(
-            self.schema_override, schema_override)
+            schema_override: Optional[Schema] = None
+    ):
+        composite = self.generate()
+        composite.merge(
+            processes,
+            topology,
+            schema_override,
+        )
+        return composite
 
 
 class Process(Composer, metaclass=abc.ABCMeta):
@@ -772,7 +816,7 @@ class ToyComposite(Composer):
 
 def test_composite_merge() -> None:
     composer = ToyComposite()
-    initial_network = composer.generate()
+    composite = composer.generate()
 
     expected_initial_topology = {
         'A': {
@@ -784,11 +828,11 @@ def test_composite_merge() -> None:
             'B': ('ccc',),
         },
     }
-    assert initial_network['topology'] == expected_initial_topology
+    assert composite['topology'] == expected_initial_topology
 
     for key in ('A', 'B'):
-        assert key in initial_network['processes']
-        assert isinstance(initial_network['processes'][key], ToyProcess)
+        assert key in composite['processes']
+        assert isinstance(composite['processes'][key], ToyProcess)
 
     # merge
     merge_processes: Dict[str, Process] = {
@@ -797,12 +841,9 @@ def test_composite_merge() -> None:
         'C': {
             'A': ('aaa',),
             'B': ('bbb',)}}
-    composer.merge(
+    composite.merge(
         merge_processes,
         merge_topology)
-
-    config = {'A': {'name': 'D'}, 'B': {'name': 'E'}}
-    merged_network = composer.generate(config)
 
     expected_merged_topology = {
         'A': {
@@ -818,24 +859,22 @@ def test_composite_merge() -> None:
             'B': ('bbb',),
         },
     }
-    assert merged_network['topology'] == expected_merged_topology
+    assert composite['topology'] == expected_merged_topology
 
     for key in ('A', 'B', 'C'):
-        assert key in merged_network['processes']
-        assert isinstance(merged_network['processes'][key], ToyProcess)
+        assert key in composite['processes']
+        assert isinstance(composite['processes'][key], ToyProcess)
 
 
 def test_get_composite() -> None:
     a = ToyProcess({'name': 'a'})
 
-    a.merge(
+    composite = a.merge(
         processes={'b': ToyProcess()},
         topology={'b': {
             'A': ('A',),
             'B': ('B',),
         }})
-
-    network = a.generate()
 
     expected_topology = {
         'a': {
@@ -845,7 +884,7 @@ def test_get_composite() -> None:
             'A': ('A',),
             'B': ('B',)}}
 
-    assert network['topology'] == expected_topology
+    assert composite['topology'] == expected_topology
 
 
 if __name__ == '__main__':
