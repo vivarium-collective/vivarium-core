@@ -7,11 +7,12 @@ def get_default_global_state():
     mass = 1000 * units.fg
     density = 1100 * units.g / units.L
     volume = mass / density
-    mmol_to_counts = (AVOGADRO * volume)
+    # mmol_to_counts = (AVOGADRO * volume)
     return {
         'global': {
             'volume': volume.to('fL'),
-            'mmol_to_counts': mmol_to_counts.to('L/mmol')}}
+            # 'mmol_to_counts': mmol_to_counts.to('L/mmol')
+        }}
 
 
 class DeriveCounts(Deriver):
@@ -21,24 +22,27 @@ class DeriveCounts(Deriver):
     name = 'counts_deriver'
     defaults = {
         'concentration_keys': [],
-        'initial_state': get_default_global_state(),
     }
 
     def __init__(self, parameters=None):
-        super(DeriveCounts, self).__init__(parameters)
+        super().__init__(parameters)
 
     def initial_state(self, config=None):
-        return {}
+        mass = 1000 * units.fg
+        density = 1100 * units.g / units.L
+        volume = mass / density
+        return {
+            'global': {
+                'volume': volume.to('fL'),
+            }}
 
     def ports_schema(self):
+        initial_state = self.initial_state()
         return {
             'global': {
                 'volume': {
-                    '_default': self.parameters[
-                        'initial_state']['global']['volume'].to('fL')},
-                'mmol_to_counts': {
-                    '_default': self.parameters[
-                        'initial_state']['global']['mmol_to_counts'].to('L/mmol')}},
+                    '_default': initial_state['global']['volume'].to('fL')},
+            },
             'counts': {
                 molecule: {
                     '_default': 0,
@@ -50,7 +54,8 @@ class DeriveCounts(Deriver):
                 for molecule in self.parameters['concentration_keys']}}
 
     def next_update(self, timestep, states):
-        mmol_to_counts = states['global']['mmol_to_counts'].to('L/mmol').magnitude
+        volume = states['global']['volume']
+        mmol_to_counts = (AVOGADRO * volume).to('L/mmol')
         concentrations = states['concentrations']
 
         counts = {}
