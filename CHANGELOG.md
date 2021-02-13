@@ -1,6 +1,10 @@
 # Changelog
 
 
+## v0.2.1
+
+* add mass_adaptor
+
 ## v0.2.0
 
 * breaking API changes:
