@@ -22,9 +22,9 @@ from vivarium.library.datum import Datum
 from vivarium.library.topology import inverse_topology
 from vivarium.library.units import Quantity
 from vivarium.core.registry import serializer_registry
-from vivarium.library.dict_utils import deep_merge, deep_merge_check
+from vivarium.library.dict_utils import deep_merge
 from vivarium.core.types import (
-    HierarchyPath, Topology, Schema, State, Update, CompositeDict)
+    HierarchyPath, Topology, Schema, State, Update)
 
 DEFAULT_TIME_STEP = 1.0
 
@@ -213,7 +213,9 @@ def _override_schemas(
 
 def _get_composite_initial_state(
         processes: Dict[str, Process],
-        topology: Topology) -> State:
+        topology: Topology,
+        config: Optional[dict] = None) -> State:
+    config = config or {}
     initial_state = {}
     for path, node in processes.items():
         if isinstance(node, dict):
@@ -222,7 +224,7 @@ def _get_composite_initial_state(
                     node, cast(Topology, topology[path]))
         elif isinstance(node, Process):
             process_topology = topology[path]
-            process_state = node.initial_state()
+            process_state = node.initial_state(config.get(node.name))
             process_path: HierarchyPath = tuple()
             state = inverse_topology(
                 process_path, process_state, process_topology)
@@ -236,17 +238,18 @@ class Composite(Datum):
 
     Contains keys for processes and topology
     """
-
+    processes: Dict[str, Any] = {}
+    topology: Dict[str, Any] = {}
+    _schema: Dict[str, Any] = {}
     defaults: Dict[str, Any] = {
-        'processes': {},
-        'topology': {},
-        '_schema': {},
-    }
+        'processes': processes,
+        'topology': topology,
+        '_schema': _schema}
 
     def __init__(
             self,
-            config
-    ):
+            config: Dict[str, Any]
+    ) -> None:
         super().__init__(config)
         _override_schemas(self._schema, self.processes)
 
@@ -262,8 +265,10 @@ class Composite(Datum):
             dict: Subclass implementations must return a dictionary
             mapping state paths to initial values.
         """
-        initial_state = _get_composite_initial_state(self.processes, self.topology)
-        return initial_state
+        return _get_composite_initial_state(
+            self.processes,
+            self.topology,
+            config)
 
     def merge(
             self,
@@ -308,8 +313,7 @@ class Composer(metaclass=abc.ABCMeta):
             config: Dictionary of configuration options that can
                 override the class defaults.
         """
-        if config is None:
-            config = {}
+        config = config or {}
         if 'name' in config:
             self.name = config['name']
         elif not hasattr(self, 'name'):
@@ -359,7 +363,7 @@ class Composer(metaclass=abc.ABCMeta):
     def generate(
             self,
             config: Optional[dict] = None,
-            path: HierarchyPath = ()) -> CompositeDict:
+            path: HierarchyPath = ()) -> Composite:
         """Generate processes and topology dictionaries.
 
         Args:
@@ -375,7 +379,6 @@ class Composer(metaclass=abc.ABCMeta):
             constructor for
             :py:class:`vivarium.core.experiment.Experiment`.
         """
-
         if config is None:
             config = self.config
         else:
@@ -423,7 +426,7 @@ class Composer(metaclass=abc.ABCMeta):
             processes: Optional[Dict[str, Process]] = None,
             topology: Optional[Topology] = None,
             schema_override: Optional[Schema] = None
-    ):
+    ) -> Composite:
         composite = self.generate()
         composite.merge(
             processes,
