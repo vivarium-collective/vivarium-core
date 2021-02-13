@@ -182,13 +182,17 @@ def plot_simulation_output(
 
 
 # simple plotting function
-def get_variable_title(var, port):
+def get_variable_title(path):
+    var = path[-1]
+    separator = '>'
+    connect_path = separator.join(path[:-1])
     if isinstance(var, tuple):  # if units are included in variable
-        title = f'{port}: {var[0]} ({var[1]})'
+        title = f'{connect_path}: {var[0]} ({var[1]})'
     else:
-        title = f'{port}: {var}'
+        title = f'{connect_path}: {var}'
     return title
 
+from vivarium.library.dict_utils import get_value_from_path
 
 # simple plotting function
 def plot_variables(
@@ -209,16 +213,16 @@ def plot_variables(
     time_vec = output['time']
     for row_idx, variable_definition in enumerate(variables):
         if isinstance(variable_definition, dict):
-            (port, var) = variable_definition['variable']
+            path = variable_definition['variable']
             var_color = variable_definition.get('color', default_color)
-            variable_title = variable_definition.get('display', get_variable_title(var, port))
+            variable_title = variable_definition.get('display', get_variable_title(path))
         else:
-            (port, var) = variable_definition
+            path = variable_definition
             var_color = default_color
-            variable_title = get_variable_title(var, port)
+            variable_title = get_variable_title(path)
 
         # get the output timeseries
-        series = output[port][var]
+        series = get_value_from_path(output, path)
 
         # make a new subplot
         ax = fig.add_subplot(grid[row_idx, 0])
@@ -238,5 +242,3 @@ def plot_variables(
     if out_dir:
         save_fig_to_dir(fig, filename, out_dir)
     return fig
-
-
