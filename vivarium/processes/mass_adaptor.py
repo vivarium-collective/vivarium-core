@@ -4,7 +4,7 @@ from vivarium.library.units import units
 
 class MassToConcentration(Deriver):
     """ Adapts mass variable to mass concentration """
-
+    name = 'mass_to_concentration'
     defaults = {
         'input_mass_units': 1.0 * units.fg,
         'input_volume_units': 1.0 * units.fL,
@@ -53,7 +53,7 @@ class MassToConcentration(Deriver):
 
 class MassToCount(Deriver):
     """ Adapts mass variable to mass concentration """
-
+    name = 'mass_to_count'
     defaults = {
         'input_mass_units': 1.0 * units.fg,
         'mass_species_molecular_weight': 1.0 * units.fg / units.molec
