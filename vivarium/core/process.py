@@ -257,12 +257,10 @@ class Composite(Datum):
         """ Merge all processes' initial states
         Arguments:
             config (dict): A dictionary of configuration options. All
-                subclass implementation must accept this parameter, but
-                some may ignore it.
+            subclass implementation must accept this parameter, but
+            some may ignore it.
         Returns:
-            A map from process names to dictionaries of those processes'
-            parameters.
-            dict: Subclass implementations must return a dictionary
+            (dict): Subclass implementations must return a dictionary
             mapping state paths to initial values.
         """
         return _get_composite_initial_state(
@@ -291,8 +289,7 @@ class Composite(Datum):
     def get_parameters(self) -> dict:
         """Get the parameters for all :term:`processes`.
         Returns:
-            A map from process names to dictionaries of those processes'
-            parameters.
+            A map from process names to parameters.
         """
         return {
             process_id: process.parameters
