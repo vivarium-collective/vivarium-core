@@ -55,8 +55,8 @@ class DeriveCounts(Deriver):
 
     def next_update(self, timestep, states):
         volume = states['global']['volume']
-        mmol_to_counts = (AVOGADRO * volume).to('L/mmol')
-        concentrations = states['concentrations']
+        mmol_to_counts = (AVOGADRO * volume).to('L/mmol').magnitude
+        concentrations = states['concentrations']  # assumes mmol/L
 
         counts = {}
         for molecule, concentration in concentrations.items():
