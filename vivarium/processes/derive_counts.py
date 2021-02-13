@@ -27,6 +27,9 @@ class DeriveCounts(Deriver):
     def __init__(self, parameters=None):
         super(DeriveCounts, self).__init__(parameters)
 
+    def initial_state(self, config=None):
+        return {}
+
     def ports_schema(self):
         return {
             'global': {

@@ -27,6 +27,9 @@ class DeriveConcentrations(Deriver):
 
         super(DeriveConcentrations, self).__init__(parameters)
 
+    def initial_state(self, confi =None):
+        return {}
+
     def ports_schema(self):
         return {
             'global': {
