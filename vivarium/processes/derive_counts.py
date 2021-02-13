@@ -42,8 +42,7 @@ class DeriveCounts(Deriver):
             'counts': {
                 molecule: {
                     '_default': 0,
-                    '_divider': 'split',
-                    '_updater': 'set'}
+                    '_divider': 'split'}
                 for molecule in self.parameters['concentration_keys']},
             'concentrations': {
                 molecule: {
@@ -56,7 +55,9 @@ class DeriveCounts(Deriver):
 
         counts = {}
         for molecule, concentration in concentrations.items():
-            counts[molecule] = int(concentration * mmol_to_counts)
+            counts[molecule] = {
+                '_value': int(concentration * mmol_to_counts),
+                '_updater': 'set'}
 
         return {
             'counts': counts}
