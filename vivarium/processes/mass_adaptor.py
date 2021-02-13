@@ -10,7 +10,7 @@ class MassToConcentration(Deriver):
         'input_volume_units': 1.0 * units.fL,
         'output_concentration_units': 1.0 * units.mmolar,
         'characteristic_output_volume': 1.0 * units.fL,
-        'mass_species_molecular_weight': 1.0 * units.fg / units.molec
+        'mass_species_mw': 1.0 * units.fg / units.molec
     }
 
     def initial_state(self, config=None):
@@ -38,14 +38,15 @@ class MassToConcentration(Deriver):
 
         # do conversion
         # Concentration = mass/molecular_weight/characteristic volume
-        # Note: Biomass is also used to set Volume, so here we just set the scale
-        mass_species_conc = mass / self.config['mass_species_molecular_weight'] / (
+        # Note: here we just set the scale, not the volume
+        mass_species_conc = mass / self.config['mass_species_mw'] / (
             self.config['characteristic_output_volume'])
 
         update = {
             'output': {
                 # Return the correct units, with units stripped away
-                'biomass': mass_species_conc.to(self.config['output_concentration_units']).magnitude
+                'biomass': mass_species_conc.to(
+                    self.config['output_concentration_units']).magnitude
             }
         }
         return update
@@ -56,7 +57,7 @@ class MassToCount(Deriver):
     name = 'mass_to_count'
     defaults = {
         'input_mass_units': 1.0 * units.fg,
-        'mass_species_molecular_weight': 1.0 * units.fg / units.molec
+        'mass_species_mw': 1.0 * units.fg / units.molec
     }
 
     def initial_state(self, config=None):
@@ -82,8 +83,8 @@ class MassToCount(Deriver):
 
         # do conversion
         # count = mass/molecular_weight
-        # Note: Biomass is also used to set Volume, so here we just set the scale
-        mass_species_count = mass / self.config['mass_species_molecular_weight']
+        # Note: here we just set the scale, not the volume
+        mass_species_count = mass / self.config['mass_species_mw']
 
         update = {
             'output': {
