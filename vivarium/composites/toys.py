@@ -371,6 +371,16 @@ class ExchangeA(Process):
 class Po(Process):
     name = 'po'
 
+    def initial_state(self, config=None):
+        return {
+            'A': {
+                'a1': -1,
+                'a2': -2,
+                'a3': -3},
+            'B': {
+                'b1': -4,
+                'b2': -5}}
+
     def ports_schema(self):
         return {
             'A': {
@@ -394,6 +404,16 @@ class Po(Process):
 
 class Qo(Process):
     name = 'qo'
+
+    def initial_state(self, config=None):
+        return {
+            'D': {
+                'd1': 1,
+                'd2': 2,
+                'd3': 3},
+            'E': {
+                'e1': 4,
+                'e2': 5}}
 
     def ports_schema(self):
         return {
@@ -444,3 +464,26 @@ class PoQo(Composer):
                     'e2': ('bbb', 'e2')}
             },
         }
+
+
+def test_composite_initial_state() -> None:
+
+    outer_path = ('universe', 'agent')
+    pq = PoQo({})
+    pq_composite = pq.generate(path=outer_path)
+    pq_initial = pq_composite.initial_state()
+
+    expected_initial = {
+        'universe': {
+            'agent': {
+                'aaa': {'a1': -1, 'd1': 1, 'd2': 2, 'x': 4},
+                'bbb': {'b1': -4, 'b2': -5, 'e2': 5},
+                'ccc': {'a3': -3, 'd3': 3}
+            }}}
+
+    assert pq_initial == expected_initial
+    # import ipdb; ipdb.set_trace()
+
+
+if __name__ == '__main__':
+    test_composite_initial_state()
