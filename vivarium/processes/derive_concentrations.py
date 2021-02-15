@@ -2,16 +2,17 @@ from vivarium.core.process import Deriver
 from vivarium.library.units import units
 from vivarium.processes.tree_mass import AVOGADRO
 
-def get_default_global_state():
-    mass = 1000 * units.fg
-    density = 1100 * units.g / units.L
-    volume = mass / density
-    mmol_to_counts = (AVOGADRO * volume)
-    return {
-        'global': {
-            'volume': volume.to('fL'),
-            'mmol_to_counts': mmol_to_counts.to('L/mmol')
-        }}
+# def get_default_global_state():
+#     mass = 1000 * units.fg
+#     density = 1100 * units.g / units.L
+#     volume = mass / density
+#     mmol_to_counts = (AVOGADRO * volume)
+#     return {
+#         'global': {
+#             'volume': volume.to('fL'),
+#             'mmol_to_counts': mmol_to_counts.to('L/mmol')
+#         }}
+
 
 class DeriveConcentrations(Deriver):
     """
@@ -21,42 +22,39 @@ class DeriveConcentrations(Deriver):
     name = 'concentrations_deriver'
     defaults = {
         'concentration_keys': [],
-        'initial_state': get_default_global_state(),
     }
 
-    def __init__(self, initial_parameters=None):
-        if initial_parameters is None:
-            initial_parameters = {}
+    def __init__(self, parameters=None):
+        super().__init__(parameters)
 
-        self.initial_state = self.or_default(
-            initial_parameters, 'initial_state')
-        self.concentration_keys = self.or_default(
-            initial_parameters, 'concentration_keys')
-
-        parameters = {}
-        parameters.update(initial_parameters)
-
-        super(DeriveConcentrations, self).__init__(parameters)
-
-    def initial_state(self, confi =None):
-        return {}
+    def initial_state(self, config=None):
+        mass = 1000 * units.fg
+        density = 1100 * units.g / units.L
+        volume = mass / density
+        mmol_to_counts = (AVOGADRO * volume)
+        return {
+            'global': {
+                'volume': volume.to('fL'),
+                'mmol_to_counts': mmol_to_counts.to('L/mmol')
+            }}
 
     def ports_schema(self):
+        initial_state = self.initial_state()
         return {
             'global': {
                 'volume': {
-                    '_default': self.initial_state['global']['volume'].to('fL')},
+                    '_default': initial_state['global']['volume'].to('fL')},
                 'mmol_to_counts': {
-                    '_default': self.initial_state['global']['mmol_to_counts'].to('L/mmol')}},
+                    '_default': initial_state['global']['mmol_to_counts'].to('L/mmol')}},
             'counts': {
                 concentration: {
                     '_divider': 'split'}
-                for concentration in self.concentration_keys},
+                for concentration in self.parameters['concentration_keys']},
             'concentrations': {
                 concentration: {
                     '_divider': 'set',
                     '_updater': 'set'}
-                for concentration in self.concentration_keys}}
+                for concentration in self.parameters['concentration_keys']}}
 
     def next_update(self, timestep, states):
 
