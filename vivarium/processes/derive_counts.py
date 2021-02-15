@@ -3,18 +3,6 @@ from vivarium.library.units import units
 from vivarium.processes.tree_mass import AVOGADRO
 
 
-def get_default_global_state():
-    mass = 1000 * units.fg
-    density = 1100 * units.g / units.L
-    volume = mass / density
-    # mmol_to_counts = (AVOGADRO * volume)
-    return {
-        'global': {
-            'volume': volume.to('fL'),
-            # 'mmol_to_counts': mmol_to_counts.to('L/mmol')
-        }}
-
-
 class DeriveCounts(Deriver):
     """
     Process for deriving counts from concentrations
