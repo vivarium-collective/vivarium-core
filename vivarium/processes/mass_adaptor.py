@@ -92,6 +92,9 @@ class MassToCount(Deriver):
                     '_default': 1.0,
                     '_updater': 'set',
                 } for key in keys
+            },
+            'global': {
+                'volume': {}
             }
         }
 
