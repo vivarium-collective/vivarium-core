@@ -15,7 +15,7 @@ from typing import (
 from vivarium.core.types import (
     Topology, CompositeDict, HierarchyPath)
 
-from vivarium.core.process import Process, Composer
+from vivarium.core.process import Process, Composer, Composite
 from vivarium.core.experiment import Experiment
 from vivarium.library.dict_utils import (
     deep_merge,
@@ -53,7 +53,7 @@ def add_processes_to_hierarchy(
         composer_type: Callable,
         composer_config: Optional[Dict[str, Any]] = None,
         composer_topology: Optional[Dict[str, Any]] = None
-) -> CompositeDict:
+) -> Composite:
     """Use a composer to add processes and topology"""
     composer_config = composer_config or {}
     composer_topology = composer_topology or {}
@@ -88,7 +88,7 @@ def add_processes_to_hierarchy(
 
 def initialize_hierarchy(
         hierarchy: Dict[str, Any]
-) -> CompositeDict:
+) -> Composite:
     """Make a hierarchy with initialized processes"""
     processes: Dict[str, Process] = {}
     topology: Topology = {}
@@ -268,7 +268,7 @@ def process_in_experiment(
 
 
 def composite_in_experiment(
-        composite: CompositeDict,
+        composite: Composite,
         settings: Dict[str, Any] = None,
         initial_state: Dict[str, Any] = None,
 ) -> Experiment:
@@ -353,7 +353,7 @@ def simulate_process(
 
 
 def simulate_composite(
-        composite: CompositeDict,
+        composite: Composite,
         settings: Optional[Dict[str, Any]] = None
 ) -> Dict:
     """Put a :term:`Composite` in an :term:`Experiment` and simulate it"""

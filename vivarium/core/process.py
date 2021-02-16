@@ -418,19 +418,38 @@ class Composer(metaclass=abc.ABCMeta):
         composite = self.generate()
         return composite.get_parameters()
 
-    def merge(
+
+class AggregateComposer(Composer):
+
+    def __init__(self, config=None, composers=tuple()):
+        super().__init__(config)
+        self.composers = list(composers)
+
+    def generate_processes(
             self,
-            processes: Optional[Dict[str, Process]] = None,
-            topology: Optional[Topology] = None,
-            schema_override: Optional[Schema] = None
-    ) -> Composite:
-        composite = self.generate()
-        composite.merge(
-            processes,
-            topology,
-            schema_override,
-        )
-        return composite
+            config: Optional[dict]) -> Dict[str, Any]:
+        processes = {}
+        for composer in self.composers:
+            new_processes = composer.generate_processes(config)
+            if set(processes.keys()) & set(new_processes.keys()):
+                ValueError(f"{processes} and {new_processes} contain overlapping keys")
+            processes.update(new_processes)
+        return processes
+
+    def generate_topology(self, config: Optional[dict]) -> Topology:
+        topology = {}
+        for composer in self.composers:
+            new_topology = composer.generate_processes(config)
+            if set(topology.keys()) & set(new_topology.keys()):
+                ValueError(f"{topology} and {new_topology} contain overlapping keys")
+            topology.update(new_topology)
+        return topology
+
+    def append(self, composer: Composer):
+        self.composers.append(composer)
+
+    def extend(self, composer: Composer):
+        self.composers.extend(composer)
 
 
 class Process(Composer, metaclass=abc.ABCMeta):
