@@ -3,7 +3,7 @@ from vivarium.library.units import units
 
 
 class CountsToConcentration(Deriver):
-    """ Adapts mass variable to mass concentration """
+    """ Adapts counts to mass-based concentration """
     name = 'counts_to_concentration'
     defaults = {
         'concentration_unit': units.mg / units.mL,
@@ -13,6 +13,7 @@ class CountsToConcentration(Deriver):
     }
 
     def __init__(self, parameters=None):
+        parameters = parameters or {}
         if 'molecular_weights' not in parameters:
             parameters['molecular_weights'] = {
                 'mass': 1.0 * units.g / units.mol}
@@ -61,7 +62,7 @@ class CountsToConcentration(Deriver):
 
 
 class MassToCount(Deriver):
-    """ Adapts mass variable to mass concentration """
+    """ Adapts mass variable to counts """
     name = 'mass_to_count'
     defaults = {
         'input_mass_units': 1.0 * units.fg,
@@ -69,6 +70,7 @@ class MassToCount(Deriver):
     }
 
     def __init__(self, parameters=None):
+        parameters = parameters or {}
         if 'molecular_weights' not in parameters:
             parameters['molecular_weights'] = {
                 'mass': 1.0 * units.fg / units.molec}
@@ -105,6 +107,67 @@ class MassToCount(Deriver):
             for mol_id, mass in masses.items()}
 
         return {'output': mass_species_count}
+
+
+
+class MassToMolar(Deriver):
+    """ Adapts mass variable to mmolar concentration """
+    name = 'mass_to_concentration'
+    defaults = {
+        'mass_units': units.fg,
+        'concentration_unit': units.mmolar,
+        'default_volume': 1 * units.fL,
+        # map molecule name to mw in units.g / units.mol
+        'molecular_weights': {},
+    }
+
+    def __init__(self, parameters=None):
+        parameters = parameters or {}
+        if 'molecular_weights' not in parameters:
+            parameters['molecular_weights'] = {
+                'mass': 1.0 * units.g / units.mol}
+        super().__init__(parameters)
+        for mol_id, mw in self.parameters['molecular_weights'].items():
+            assert mw.units == units.g / units.mol, (
+                f"{mol_id} needs a molecular weight in units.g / units.mol")
+
+    def initial_state(self, config=None):
+        return self.default_state()
+
+    def ports_schema(self):
+        keys = list(self.parameters['molecular_weights'].keys())
+        return {
+            'global': {
+                'volume': {
+                    '_default': self.parameters['default_volume']}
+            },
+            'input': {
+                key: {
+                    '_default': 0 * self.parameters['mass_units'],
+                } for key in keys
+            },
+            'output': {
+                key: {
+                    '_default': 1.0 * self.parameters['concentration_unit'],
+                    '_updater': 'set',
+                } for key in keys
+            }
+        }
+
+    def next_update(self, timestep, states):
+        masses = states['input']
+        volume = states['global']['volume']
+
+        # do conversion
+        # Concentration = mass/molecular_weight/characteristic volume
+        # Note: here we just set the scale, not the volume
+        mass_species_conc = {
+            mol_id: (mass / self.parameters['molecular_weights'][mol_id] /
+                     volume).to(self.parameters['concentration_unit'])
+            for mol_id, mass in masses.items()}
+
+        return {'output': mass_species_conc}
+
 
 
 def test_derivers():

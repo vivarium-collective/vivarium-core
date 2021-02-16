@@ -28,6 +28,7 @@ from vivarium.processes.remove import Remove
 from vivarium.processes.divide_condition import DivideCondition
 from vivarium.processes.mass_adaptor import (
     CountsToConcentration,
+    MassToMolar,
     MassToCount)
 
 # import updaters, dividers, serializers
@@ -56,6 +57,7 @@ process_registry.register(Remove.name, Remove)
 process_registry.register(Clock.name, Clock)
 process_registry.register(CountsToConcentration.name, CountsToConcentration)
 process_registry.register(MassToCount.name, MassToCount)
+process_registry.register(MassToMolar.name, MassToMolar)
 
 # register updaters
 updater_registry.register('accumulate', update_accumulate)
