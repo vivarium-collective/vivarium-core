@@ -14,7 +14,8 @@ class CountsToConcentration(Deriver):
 
     def __init__(self, parameters=None):
         if 'molecular_weights' not in parameters:
-            parameters['molecular_weights'] = {'mass': 1.0 * units.g / units.mol}
+            parameters['molecular_weights'] = {
+                'mass': 1.0 * units.g / units.mol}
         super().__init__(parameters)
         for mol_id, mw in self.parameters['molecular_weights'].items():
             assert mw.units == units.g / units.mol, (
@@ -51,8 +52,9 @@ class CountsToConcentration(Deriver):
         # Concentration = mass/molecular_weight/characteristic volume
         # Note: here we just set the scale, not the volume
         mass_species_conc = {
-            mol_id: (count * units.molec * self.parameters['molecular_weights'][mol_id] /
-                     volume).to(self.parameters['concentration_unit'])
+            mol_id: (count * units.molec * self.parameters[
+                'molecular_weights'][mol_id] / volume).to(
+                self.parameters['concentration_unit'])
             for mol_id, count in counts.items()}
 
         return {'output': mass_species_conc}
@@ -68,7 +70,8 @@ class MassToCount(Deriver):
 
     def __init__(self, parameters=None):
         if 'molecular_weights' not in parameters:
-            parameters['molecular_weights'] = {'mass': 1.0 * units.fg / units.molec}
+            parameters['molecular_weights'] = {
+                'mass': 1.0 * units.fg / units.molec}
         super().__init__(parameters)
 
     def initial_state(self, config=None):
@@ -107,8 +110,8 @@ class MassToCount(Deriver):
 def test_derivers():
     config = {
         'molecular_weights': {
-            'A': 1.0 * units.fg / units.molec,
-            'B': 2.0 * units.fg / units.molec,
+            'A': 1.0 * units.g / units.mol,
+            'B': 2.0 * units.g / units.mol,
         }}
 
     # MassToCount
@@ -124,7 +127,7 @@ def test_derivers():
 
     # convert mass to concentration
     mass_in = m_to_conc.initial_state()
-    mass_in['input'] = {'A': 1 * units.fg, 'B': 1 * units.fg}
+    mass_in['input'] = {'A': 1, 'B': 1}
     concs_out = m_to_conc.next_update(0, mass_in)
 
     # asserts
