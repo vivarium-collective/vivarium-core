@@ -70,6 +70,7 @@ disable=print-statement,
         unsubscriptable-object,  # Buggy with NewType objects
         no-member,  # Buggy with NewType objects
 ignore=injected_glc_phosphorylation.py,
+       ecoli_shape_deriver.py,
        injector.py,
        topology.py,
        make_network.py,

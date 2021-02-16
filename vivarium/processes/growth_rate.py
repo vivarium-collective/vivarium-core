@@ -31,7 +31,7 @@ class GrowthRate(Process):
         return {
             'variables': {
                 variable: {
-                    '_default': 1000.0,
+                    '_default': 1.0,
                     '_divider': 'split',
                     '_emit': True,
                 } for variable in self.parameters['variables']
@@ -63,7 +63,6 @@ class GrowthRate(Process):
                            np.random.normal(0, growth_noise[variable]))
                     * timestep) - value
             for variable, value in variables.items()}
-
         return {'variables': variable_update}
 
 
