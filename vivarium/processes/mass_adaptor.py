@@ -4,7 +4,7 @@ from vivarium.library.units import units
 
 class CountsToConcentration(Deriver):
     """ Adapts mass variable to mass concentration """
-    name = 'mass_to_concentration'
+    name = 'counts_to_concentration'
     defaults = {
         'concentration_unit': units.mg / units.mL,
         'default_volume': 1 * units.fL,
@@ -38,13 +38,13 @@ class CountsToConcentration(Deriver):
             'output': {
                 key: {
                     '_default': 1.0 * self.parameters['concentration_unit'],
-                    '_update': 'set',
+                    '_updater': 'set',
                 } for key in keys
             }
         }
 
     def next_update(self, timestep, states):
-        masses = states['input']
+        counts = states['input']
         volume = states['global']['volume']
 
         # do conversion
@@ -53,7 +53,7 @@ class CountsToConcentration(Deriver):
         mass_species_conc = {
             mol_id: (count * units.molec * self.parameters['molecular_weights'][mol_id] /
                      volume).to(self.parameters['concentration_unit'])
-            for mol_id, count in masses.items()}
+            for mol_id, count in counts.items()}
 
         return {'output': mass_species_conc}
 
@@ -85,7 +85,7 @@ class MassToCount(Deriver):
             'output': {
                 key: {
                     '_default': 1.0,
-                    '_update': 'set',
+                    '_updater': 'set',
                 } for key in keys
             }
         }
