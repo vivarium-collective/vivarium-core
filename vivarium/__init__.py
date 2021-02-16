@@ -27,7 +27,7 @@ from vivarium.processes.swap_processes import SwapProcesses
 from vivarium.processes.remove import Remove
 from vivarium.processes.divide_condition import DivideCondition
 from vivarium.processes.mass_adaptor import (
-    MassToConcentration,
+    CountsToConcentration,
     MassToCount)
 
 # import updaters, dividers, serializers
@@ -54,7 +54,7 @@ process_registry.register(
 process_registry.register(SwapProcesses.name, SwapProcesses)
 process_registry.register(Remove.name, Remove)
 process_registry.register(Clock.name, Clock)
-process_registry.register(MassToConcentration.name, MassToConcentration)
+process_registry.register(CountsToConcentration.name, CountsToConcentration)
 process_registry.register(MassToCount.name, MassToCount)
 
 # register updaters
