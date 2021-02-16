@@ -12,7 +12,7 @@ from multiprocessing import Pipe
 from multiprocessing import Process as Multiprocess
 from multiprocessing.connection import Connection
 from typing import (
-    Any, Callable, Dict, Optional, Union, List, cast)
+    Any, Callable, Dict, Optional, Union, List, Tuple, cast)
 
 from bson.objectid import ObjectId
 import numpy as np
@@ -270,13 +270,19 @@ class Composite(Datum):
 
     def merge(
             self,
+            composite: Optional[Composite] = None,
             processes: Optional[Dict[str, Process]] = None,
             topology: Optional[Topology] = None,
             schema_override: Optional[Schema] = None,
     ) -> None:
+        composite = composite or Composite({})
         processes = processes or {}
         topology = topology or {}
         schema_override = schema_override or {}
+
+        if composite:
+            processes.update(composite['processes'])
+            topology.update(composite['topology'])
 
         for process in processes.values():
             assert isinstance(process, Process)
@@ -421,34 +427,44 @@ class Composer(metaclass=abc.ABCMeta):
 
 class AggregateComposer(Composer):
 
-    def __init__(self, config=None, composers=tuple()):
+    def __init__(
+            self,
+            config: Optional[dict] = None,
+            composers: Tuple = tuple()
+    ) -> None:
         super().__init__(config)
-        self.composers = list(composers)
+        self.composers: List = list(composers)
 
     def generate_processes(
             self,
-            config: Optional[dict]) -> Dict[str, Any]:
-        processes = {}
+            config: Optional[dict]
+    ) -> Dict[str, Any]:
+        processes: Dict = {}
         for composer in self.composers:
             new_processes = composer.generate_processes(config)
             if set(processes.keys()) & set(new_processes.keys()):
-                ValueError(f"{processes} and {new_processes} contain overlapping keys")
+                ValueError(
+                    f"{processes} and {new_processes} contain overlapping keys")
             processes.update(new_processes)
         return processes
 
-    def generate_topology(self, config: Optional[dict]) -> Topology:
-        topology = {}
+    def generate_topology(
+            self,
+            config: Optional[dict]
+    ) -> Topology:
+        topology: Topology = {}
         for composer in self.composers:
             new_topology = composer.generate_processes(config)
             if set(topology.keys()) & set(new_topology.keys()):
-                ValueError(f"{topology} and {new_topology} contain overlapping keys")
+                ValueError(
+                    f"{topology} and {new_topology} contain overlapping keys")
             topology.update(new_topology)
         return topology
 
-    def append(self, composer: Composer):
+    def append(self, composer: Composer) -> None:
         self.composers.append(composer)
 
-    def extend(self, composer: Composer):
+    def extend(self, composer: List) -> None:
         self.composers.extend(composer)
 
 
@@ -619,23 +635,6 @@ class Process(Composer, metaclass=abc.ABCMeta):
             :py:class:`vivarium.core.store.Store`.
         """
         return {}
-
-    def or_default(self, parameters: Dict[str, Any], key: str) -> Any:
-        """Get parameter from dictionary, falling back to defaults.
-
-        Args:
-            parameters: Dictionary to get parameter from.
-            key: Parameter key.
-
-        Returns:
-            The value of ``key`` from ``parameters``, or the value in
-            the class defaults if not in ``parameters``.
-
-        Raises:
-            KeyError: If ``key`` is in neither the provided dictionary
-                nor the process defaults.
-        """
-        return parameters.get(key, self.defaults[key])
 
     @abc.abstractmethod
     def next_update(
@@ -861,8 +860,8 @@ def test_composite_merge() -> None:
             'A': ('aaa',),
             'B': ('bbb',)}}
     composite.merge(
-        merge_processes,
-        merge_topology)
+        processes=merge_processes,
+        topology=merge_topology)
 
     expected_merged_topology = {
         'A': {
@@ -888,12 +887,13 @@ def test_composite_merge() -> None:
 def test_get_composite() -> None:
     a = ToyProcess({'name': 'a'})
 
-    composite = a.merge(
+    composite = Composite(dict(
         processes={'b': ToyProcess()},
-        topology={'b': {
-            'A': ('A',),
-            'B': ('B',),
-        }})
+        topology={'b': {'A': ('A',), 'B': ('B',)}}
+    ))
+    composite.merge(
+        processes={a.name: a},
+        topology=a.generate_topology())
 
     expected_topology = {
         'a': {

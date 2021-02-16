@@ -13,19 +13,10 @@ class DeriveConcentrations(Deriver):
         'initial_state': get_default_global_state(),
     }
 
-    def __init__(self, initial_parameters=None):
-        if initial_parameters is None:
-            initial_parameters = {}
-
-        self.initial_state = self.or_default(
-            initial_parameters, 'initial_state')
-        self.concentration_keys = self.or_default(
-            initial_parameters, 'concentration_keys')
-
-        parameters = {}
-        parameters.update(initial_parameters)
-
-        super(DeriveConcentrations, self).__init__(parameters)
+    def __init__(self, parameters=None):
+        super().__init__(parameters)
+        self.initial_state = self.parameters['initial_state']
+        self.concentration_keys = parameters['concentration_keys']
 
     def ports_schema(self):
         return {

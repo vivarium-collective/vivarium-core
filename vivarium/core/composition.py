@@ -13,7 +13,7 @@ import uuid
 from typing import (
     Any, Dict, Optional, Callable)
 from vivarium.core.types import (
-    Topology, CompositeDict, HierarchyPath)
+    Topology, HierarchyPath)
 
 from vivarium.core.process import Process, Composer, Composite
 from vivarium.core.experiment import Experiment
@@ -81,9 +81,9 @@ def add_processes_to_hierarchy(
     deep_merge(topology, new_topology)
     deep_merge_check(processes, new_processes)
 
-    return {
+    return Composite({
         'processes': processes,
-        'topology': topology}
+        'topology': topology})
 
 
 def initialize_hierarchy(
@@ -117,9 +117,9 @@ def initialize_hierarchy(
             deep_merge_check(processes, {key: composite['processes']})
             deep_merge(topology, {key: composite['topology']})
 
-    return {
+    return Composite({
         'processes': processes,
-        'topology': topology}
+        'topology': topology})
 
 
 # list of keys expected in experiment settings
@@ -256,9 +256,9 @@ def process_in_experiment(
             port: override_topology.get(port, (port,))
             for port in process.ports_schema().keys()}}
 
-    composite = {
+    composite = Composite({
         'processes': processes,
-        'topology': topology}
+        'topology': topology})
 
     return composite_in_experiment(
         composite=composite,
