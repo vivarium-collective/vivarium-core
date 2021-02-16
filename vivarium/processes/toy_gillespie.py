@@ -181,13 +181,12 @@ class StochasticTscTrl(Composer):
     }
 
     def generate_processes(self, config):
-        concentrations_deriver = process_registry.access(
-            'concentrations_deriver')
+        counts_to_molar = process_registry.access(
+            'counts_to_molar')
         return {
             'stochastic_TSC': StochasticTSC(config['stochastic_TSC']),
             'TRL': TrlConcentration(config['TRL']),
-            'concs': concentrations_deriver({
-                'concentration_keys': ['C']})
+            'concs': counts_to_molar({'keys': ['C']})
         }
 
     def generate_topology(self, config):

@@ -16,9 +16,9 @@ from vivarium.core.registry import (
 # import processes
 from vivarium.processes.meta_division import MetaDivision
 from vivarium.processes.tree_mass import TreeMass
-from vivarium.processes.derive_concentrations import (
-    DeriveConcentrations)
-from vivarium.processes.derive_counts import DeriveCounts
+from vivarium.processes.molarity_deriver import (
+    MolarToCounts,
+    CountsToMolar)
 from vivarium.processes.timeline import TimelineProcess
 from vivarium.processes.clock import Clock
 from vivarium.processes.nonspatial_environment import (
@@ -26,7 +26,9 @@ from vivarium.processes.nonspatial_environment import (
 from vivarium.processes.swap_processes import SwapProcesses
 from vivarium.processes.remove import Remove
 from vivarium.processes.divide_condition import DivideCondition
-from vivarium.processes.mass_adaptor import MassToConcentration, MassToCount
+from vivarium.processes.mass_adaptor import (
+    MassToConcentration,
+    MassToCount)
 
 # import updaters, dividers, serializers
 from vivarium.core.registry import (
@@ -44,9 +46,8 @@ _ = plt  # suppress PyCharm's unused-import warning
 process_registry.register(DivideCondition.name, DivideCondition)
 process_registry.register(MetaDivision.name, MetaDivision)
 process_registry.register(TreeMass.name, TreeMass)
-process_registry.register(
-    DeriveConcentrations.name, DeriveConcentrations)
-process_registry.register(DeriveCounts.name, DeriveCounts)
+process_registry.register(MolarToCounts.name, MolarToCounts)
+process_registry.register(CountsToMolar.name, CountsToMolar)
 process_registry.register(TimelineProcess.name, TimelineProcess)
 process_registry.register(
     NonSpatialEnvironment.name, NonSpatialEnvironment)
