@@ -1,6 +1,14 @@
 # Changelog
 
 
+## v0.2.2
+
+* generalize mass_adaptors and molarity_derivers
+
+## v0.2.1
+
+* add mass_adaptor
+
 ## v0.2.0
 
 * breaking API changes:

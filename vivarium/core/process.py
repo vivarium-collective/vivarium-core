@@ -292,7 +292,7 @@ class Composite(Datum):
         self._schema.update(schema_override)
         _override_schemas(self._schema, self.processes)
 
-    def get_parameters(self) -> dict:
+    def get_parameters(self) -> Dict:
         """Get the parameters for all :term:`processes`.
         Returns:
             A map from process names to parameters.
@@ -300,7 +300,10 @@ class Composite(Datum):
         return _get_parameters(self.processes)
 
 
-def _get_parameters(processes):
+def _get_parameters(
+        processes: Optional[Dict[str, Process]] = None
+) -> Dict:
+    processes = processes or {}
     parameters: Dict = {}
     for key, value in processes.items():
         if isinstance(value, Process):
