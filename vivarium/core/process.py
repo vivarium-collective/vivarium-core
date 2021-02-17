@@ -297,9 +297,10 @@ class Composite(Datum):
         Returns:
             A map from process names to parameters.
         """
-        return {
-            process_id: process.parameters
-            for process_id, process in self.processes.items()}
+        parameters: Dict = {}
+        for process_id, process in self.processes.items():
+            parameters[process_id] = process.parameters
+        return parameters
 
 
 class Composer(metaclass=abc.ABCMeta):
@@ -430,18 +431,18 @@ class AggregateComposer(Composer):
     def __init__(
             self,
             config: Optional[dict] = None,
-            composers: Tuple = tuple()
+            composers: Optional[Tuple] = tuple()
     ) -> None:
         super().__init__(config)
         self.composers: List = list(composers)
 
     def generate_processes(
             self,
-            config: Optional[dict]
+            config: Optional[dict] = None
     ) -> Dict[str, Any]:
         processes: Dict = {}
         for composer in self.composers:
-            new_processes = composer.generate_processes(config)
+            new_processes = composer.generate_processes(composer.config)  # TODO -- pass config in here?
             if set(processes.keys()) & set(new_processes.keys()):
                 ValueError(
                     f"{processes} and {new_processes} contain overlapping keys")
@@ -450,11 +451,11 @@ class AggregateComposer(Composer):
 
     def generate_topology(
             self,
-            config: Optional[dict]
+            config: Optional[dict] = None
     ) -> Topology:
         topology: Topology = {}
         for composer in self.composers:
-            new_topology = composer.generate_processes(config)
+            new_topology = composer.generate_topology(composer.config)
             if set(topology.keys()) & set(new_topology.keys()):
                 ValueError(
                     f"{topology} and {new_topology} contain overlapping keys")
@@ -725,65 +726,44 @@ class ParallelProcess:
         self.multiprocess.join()
 
 
-def test_composite_initial_state() -> None:
-    """
-    test that initial state in composite merges individual processes'
-    initial states
-    """
-    class AA(Process):
-        name = 'AA'
+# tests
 
-        def initial_state(self, config: Optional[dict] = None) -> State:
-            return {'a_port': {'a': 1}}
+class AA(Process):
+    name = 'AA'
 
-        def ports_schema(self) -> Schema:
-            return {'a_port': {'a': {'_emit': True}}}
+    def initial_state(self, config: Optional[dict] = None) -> State:
+        return {'a_port': {'a': 1}}
 
-        def next_update(
-                self,
-                timestep: Union[float, int],
-                states: State) -> Update:
-            return {'a_port': {'a': 1}}
+    def ports_schema(self) -> Schema:
+        return {'a_port': {'a': {'_emit': True}}}
 
-    class BB(Composer):
-        name = 'BB'
+    def next_update(
+            self,
+            timestep: Union[float, int],
+            states: State) -> Update:
+        return {'a_port': {'a': 1}}
 
-        def generate_processes(
-                self, config: Optional[dict]) -> Dict[str, Any]:
-            return {
-                'a1': AA({}),
-                'a2': AA({}),
-                'a3': {
-                    'a3_store': AA({})}
-            }
+class BB(Composer):
+    name = 'BB'
 
-        def generate_topology(self, config: Optional[dict]) -> Topology:
-            return {
-                'a1': {
-                    'a_port': ('a1_store',)
-                },
-                'a2': {
-                    'a_port': {
-                        'a': ('a1_store', 'b')}
-                },
-                'a3': {
-                    'a3_store': {
-                        'a_port': ('a3_1_store',)},
-                }
-            }
+    def generate_processes(
+            self, config: Optional[dict]) -> Dict[str, Any]:
+        return {
+            'a1': AA({}),
+            'a2': AA({}),
+            'a3': {
+                'a3_store': AA({})}}
 
-    # run experiment
-    bb_composite = BB({})
-    initial_state = bb_composite.initial_state()
-    expected_initial_state = {
-        'a3_store': {
-            'a3_1_store': {
-                'a': 1}},
-        'a1_store': {
-            'a': 1,
-            'b': 1}}
-    assert initial_state == expected_initial_state
-
+    def generate_topology(self, config: Optional[dict]) -> Topology:
+        return {
+            'a1': {
+                'a_port': ('a1_store',)},
+            'a2': {
+                'a_port': {
+                    'a': ('a1_store', 'b')}},
+            'a3': {
+                'a3_store': {
+                    'a_port': ('a3_1_store',)}}}
 
 class ToyProcess(Process):
     name = 'toy'
@@ -807,7 +787,6 @@ class ToyProcess(Process):
                 'a': states['A']['b'],
                 'b': states['B']['a']}}
 
-
 class ToyComposite(Composer):
     defaults = {
         'A':  {'name': 'A'},
@@ -830,6 +809,46 @@ class ToyComposite(Composer):
             'B': {
                 'A': ('bbb',),
                 'B': ('ccc',)}}
+
+
+def test_composite_initial_state() -> None:
+    """
+    test that initial state in composite merges individual processes'
+    initial states
+    """
+
+    bb_composer = BB({})
+    bb_composite = bb_composer.generate()
+    initial_state = bb_composite.initial_state()
+
+    expected_initial_state = {
+        'a3_store': {
+            'a3_1_store': {
+                'a': 1}},
+        'a1_store': {
+            'a': 1,
+            'b': 1}}
+    assert initial_state == expected_initial_state
+
+
+def test_composite_parameters() -> None:
+    """
+    test that initial state in composite merges individual processes'
+    initial states
+    """
+
+    bb_composer = BB({})
+    bb_composite = bb_composer.generate()
+    parameters = bb_composite.get_parameters()
+
+    # expected_parameters = {
+    #     'a3_store': {
+    #         'a3_1_store': {
+    #             'a': 1}},
+    #     'a1_store': {
+    #         'a': 1,
+    #         'b': 1}}
+    # assert parameters == expected_parameters
 
 
 def test_composite_merge() -> None:
@@ -905,11 +924,24 @@ def test_get_composite() -> None:
 
     assert composite['topology'] == expected_topology
 
+def test_aggregate_composer():
+    aggregate = AggregateComposer(composers=[ToyComposite()])
+    composite = aggregate.generate()
+
+    assert 'A' in composite['processes']
+    assert 'B' in composite['processes']
+    assert 'A' in composite['topology']
+    assert 'B' in composite['topology']
+
 
 if __name__ == '__main__':
     print('Running test_composite_initial_state')
     test_composite_initial_state()
+    print('Running test_composite_parameters')
+    test_composite_parameters()
     print('Running test_composite_merge()')
     test_composite_merge()
     print('Running test_get_composite()')
     test_get_composite()
+    print('Running test_aggregate_composer()')
+    test_aggregate_composer()
