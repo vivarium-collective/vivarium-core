@@ -12,7 +12,7 @@ from multiprocessing import Pipe
 from multiprocessing import Process as Multiprocess
 from multiprocessing.connection import Connection
 from typing import (
-    Any, Callable, Dict, Optional, Union, List, Tuple, cast)
+    Any, Callable, Dict, Optional, Union, List, Iterable, cast)
 
 from bson.objectid import ObjectId
 import numpy as np
@@ -297,10 +297,17 @@ class Composite(Datum):
         Returns:
             A map from process names to parameters.
         """
-        parameters: Dict = {}
-        for process_id, process in self.processes.items():
-            parameters[process_id] = process.parameters
-        return parameters
+        return _get_parameters(self.processes)
+
+
+def _get_parameters(processes):
+    parameters: Dict = {}
+    for key, value in processes.items():
+        if isinstance(value, Process):
+            parameters[key] = value.parameters
+        elif isinstance(value, dict):
+            parameters[key] = _get_parameters(value)
+    return parameters
 
 
 class Composer(metaclass=abc.ABCMeta):
@@ -430,8 +437,8 @@ class AggregateComposer(Composer):
 
     def __init__(
             self,
+            composers: Iterable[Any] = tuple(),
             config: Optional[dict] = None,
-            composers: Optional[Tuple] = tuple()
     ) -> None:
         super().__init__(config)
         self.composers: List = list(composers)
@@ -440,9 +447,10 @@ class AggregateComposer(Composer):
             self,
             config: Optional[dict] = None
     ) -> Dict[str, Any]:
+        # TODO(Eran)-- override composite.config with config
         processes: Dict = {}
         for composer in self.composers:
-            new_processes = composer.generate_processes(composer.config)  # TODO -- pass config in here?
+            new_processes = composer.generate_processes(composer.config)
             if set(processes.keys()) & set(new_processes.keys()):
                 ValueError(
                     f"{processes} and {new_processes} contain overlapping keys")
@@ -840,15 +848,12 @@ def test_composite_parameters() -> None:
     bb_composer = BB({})
     bb_composite = bb_composer.generate()
     parameters = bb_composite.get_parameters()
-
-    # expected_parameters = {
-    #     'a3_store': {
-    #         'a3_1_store': {
-    #             'a': 1}},
-    #     'a1_store': {
-    #         'a': 1,
-    #         'b': 1}}
-    # assert parameters == expected_parameters
+    expected_parameters = {
+        'a1': {'time_step': 1.0},
+        'a2': {'time_step': 1.0},
+        'a3': {
+            'a3_store': {'time_step': 1.0}}}
+    assert parameters == expected_parameters
 
 
 def test_composite_merge() -> None:
@@ -924,7 +929,7 @@ def test_get_composite() -> None:
 
     assert composite['topology'] == expected_topology
 
-def test_aggregate_composer():
+def test_aggregate_composer() -> None:
     aggregate = AggregateComposer(composers=[ToyComposite()])
     composite = aggregate.generate()
 
