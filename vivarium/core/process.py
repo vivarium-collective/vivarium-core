@@ -595,6 +595,8 @@ class Process(Composer, metaclass=abc.ABCMeta):
 
 class Deriver(Process, metaclass=abc.ABCMeta):
     """Base class for :term:`derivers`."""
+    def initial_state(self, config: Optional[dict] = None) -> State:
+        return {}
 
     def is_deriver(self) -> bool:
         """Returns ``True`` to signal this process is a deriver."""

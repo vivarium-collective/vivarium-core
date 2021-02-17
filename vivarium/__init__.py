@@ -16,16 +16,17 @@ from vivarium.core.registry import (
 # import processes
 from vivarium.processes.meta_division import MetaDivision
 from vivarium.processes.tree_mass import TreeMass
-from vivarium.processes.molarity_deriver import (
-    MolarToCounts,
-    CountsToMolar)
 from vivarium.processes.timeline import TimelineProcess
 from vivarium.processes.clock import Clock
-from vivarium.processes.nonspatial_environment import (
-    NonSpatialEnvironment)
 from vivarium.processes.swap_processes import SwapProcesses
 from vivarium.processes.remove import Remove
 from vivarium.processes.divide_condition import DivideCondition
+from vivarium.processes.strip_units import StripUnits
+from vivarium.processes.nonspatial_environment import (
+    NonSpatialEnvironment)
+from vivarium.processes.molarity_deriver import (
+    MolarToCounts,
+    CountsToMolar)
 from vivarium.processes.mass_adaptor import (
     CountsToConcentration,
     MassToMolar,
@@ -58,6 +59,7 @@ process_registry.register(Clock.name, Clock)
 process_registry.register(CountsToConcentration.name, CountsToConcentration)
 process_registry.register(MassToCount.name, MassToCount)
 process_registry.register(MassToMolar.name, MassToMolar)
+process_registry.register(StripUnits.name, StripUnits)
 
 # register updaters
 updater_registry.register('accumulate', update_accumulate)
