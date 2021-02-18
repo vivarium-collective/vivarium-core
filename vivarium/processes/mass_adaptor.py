@@ -19,8 +19,10 @@ class CountsToConcentration(Deriver):
                 'mass': 1.0 * units.g / units.mol}
         super().__init__(parameters)
         for mol_id, mw in self.parameters['molecular_weights'].items():
-            assert mw.units == units.g / units.mol, (
-                f"{mol_id} needs a molecular weight in units.g / units.mol")
+            try:
+                mw.to(units.g / units.mol)
+            except:
+                ValueError(f"{mol_id} needs a molecular weight in units.g / units.mol")
 
     def initial_state(self, config=None):
         return self.default_state()
@@ -75,6 +77,11 @@ class MassToCount(Deriver):
             parameters['molecular_weights'] = {
                 'mass': 1.0 * units.fg / units.molec}
         super().__init__(parameters)
+        for mol_id, mw in self.parameters['molecular_weights'].items():
+            try:
+                mw.to(units.g / units.mol)
+            except:
+                ValueError(f"{mol_id} needs a molecular weight in units.g / units.mol")
 
     def initial_state(self, config=None):
         return self.default_state()
@@ -131,8 +138,10 @@ class MassToMolar(Deriver):
                 'mass': 1.0 * units.g / units.mol}
         super().__init__(parameters)
         for mol_id, mw in self.parameters['molecular_weights'].items():
-            assert mw.units == units.g / units.mol, (
-                f"{mol_id} needs a molecular weight in units.g / units.mol")
+            try:
+                mw.to(units.g / units.mol)
+            except:
+                ValueError(f"{mol_id} needs a molecular weight in units.g / units.mol")
 
     def initial_state(self, config=None):
         return self.default_state()
