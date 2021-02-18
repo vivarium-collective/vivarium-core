@@ -21,8 +21,9 @@ class CountsToConcentration(Deriver):
         for mol_id, mw in self.parameters['molecular_weights'].items():
             try:
                 mw.to(units.g / units.mol)
-            except:
-                ValueError(f"{mol_id} needs a molecular weight in units.g / units.mol")
+            except ValueError:
+                print(
+                    f"{mol_id} needs a mw convertable to units.g / units.mol")
 
     def initial_state(self, config=None):
         return self.default_state()
@@ -80,8 +81,9 @@ class MassToCount(Deriver):
         for mol_id, mw in self.parameters['molecular_weights'].items():
             try:
                 mw.to(units.g / units.mol)
-            except:
-                ValueError(f"{mol_id} needs a molecular weight in units.g / units.mol")
+            except ValueError:
+                print(
+                    f"{mol_id} needs a mw convertable to units.g / units.mol")
 
     def initial_state(self, config=None):
         return self.default_state()
@@ -140,8 +142,9 @@ class MassToMolar(Deriver):
         for mol_id, mw in self.parameters['molecular_weights'].items():
             try:
                 mw.to(units.g / units.mol)
-            except:
-                ValueError(f"{mol_id} needs a molecular weight in units.g / units.mol")
+            except ValueError:
+                print(
+                    f"{mol_id} needs a mw convertable to units.g / units.mol")
 
     def initial_state(self, config=None):
         return self.default_state()
