@@ -166,7 +166,7 @@ class TrlConcentration(TRL):
     """rescale mRNA"""
 
     def next_update(self, timestep, states):
-        states['mRNA']['C'] = states['mRNA']['C'].magnitude * 1e5
+        states['mRNA']['C'] = states['mRNA']['C'] * 1e5
         return super().next_update(timestep, states)
 
 

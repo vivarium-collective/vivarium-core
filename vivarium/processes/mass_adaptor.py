@@ -197,7 +197,7 @@ def test_derivers():
 
     # convert mass to counts
     mass_in = m_to_c.initial_state()
-    mass_in['input'] = {'A': 1 * units.fg, 'B': 1 * units.fg}
+    mass_in['input'] = {'A': 10 * units.fg, 'B': 10 * units.fg}
     counts_out = m_to_c.next_update(0, mass_in)
 
     # MassToConcentration
@@ -205,11 +205,11 @@ def test_derivers():
 
     # convert mass to concentration
     mass_in = m_to_conc.initial_state()
-    mass_in['input'] = {'A': 1, 'B': 1}
+    mass_in['input'] = {'A': 10, 'B': 10}
     concs_out = m_to_conc.next_update(0, mass_in)
 
     # asserts
-    assert counts_out == {'output': {'A': 1.0, 'B': 0.5}}
+    assert counts_out == {'output': {'A': 10, 'B': 5}}
     # TODO assert concs_out
     _ = concs_out
 
