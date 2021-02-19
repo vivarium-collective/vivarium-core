@@ -114,8 +114,8 @@ class MassToCount(Deriver):
         # count = mass/molecular_weight
         # Note: here we just set the scale, not the volume
         mass_species_count = {
-            mol_id: (mass / self.parameters[
-                'molecular_weights'][mol_id]).magnitude
+            mol_id: int((mass / self.parameters[
+                'molecular_weights'][mol_id]).magnitude)
             for mol_id, mass in masses.items()}
 
         return {'output': mass_species_count}

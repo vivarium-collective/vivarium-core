@@ -31,10 +31,7 @@ class CountsToMolar(Deriver):
             'global': {
                 'volume': {
                     '_default': initial_state[
-                        'global']['volume'].to('fL')},
-                'mmol_to_counts': {
-                    '_default': initial_state[
-                        'global']['mmol_to_counts'].to('L/mmol')}},
+                        'global']['volume'].to('fL')}},
             'counts': {
                 concentration: {
                     '_divider': 'split'}
@@ -46,14 +43,13 @@ class CountsToMolar(Deriver):
                 for concentration in self.parameters['keys']}}
 
     def next_update(self, timestep, states):
-
-        # states
-        mmol_to_counts = states['global']['mmol_to_counts']
+        volume = states['global']['volume']
+        mmol_to_counts = (AVOGADRO * volume).to('L/mmol').magnitude
         counts = states['counts']
 
         # concentration update
         concentrations = {}
-        if mmol_to_counts != 0:
+        if volume != 0:
             for molecule, count in counts.items():
                 concentrations[molecule] = count / mmol_to_counts
 
@@ -63,7 +59,7 @@ class CountsToMolar(Deriver):
 
             return {
                 'concentrations': concentrations}
-        print('mmol_to_counts is 0!')
+        print('volume is 0!')
         return {}
 
 
