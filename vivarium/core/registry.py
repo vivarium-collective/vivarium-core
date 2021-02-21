@@ -130,6 +130,15 @@ def update_set(current_value, new_value):
     return new_value
 
 
+def update_null(current_value, new_value):
+    """Null Updater
+
+    Returns:
+        The value provided in ``current_value``.
+    """
+    return current_value
+
+
 def update_accumulate(current_value, new_value):
     """Accumulate Updater
 

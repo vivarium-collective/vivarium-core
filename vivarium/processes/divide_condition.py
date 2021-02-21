@@ -9,7 +9,7 @@ class DivideCondition(Deriver):
     defaults: Dict[str, Any] = {}
 
     def __init__(self, parameters=None):
-        super(DivideCondition, self).__init__(parameters)
+        super().__init__(parameters)
         self.threshold = self.parameters['threshold']
 
     def initial_state(self, config=None):

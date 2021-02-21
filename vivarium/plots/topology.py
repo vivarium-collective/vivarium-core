@@ -195,7 +195,7 @@ def save_network(out_dir='out', filename='network'):
     fig_path = os.path.join(out_dir, filename)
     print(f"Writing {fig_path}")
     plt.savefig(fig_path, bbox_inches='tight')
-    plt.close()
+    # plt.close()
 
 
 def plot_compartment_topology(
