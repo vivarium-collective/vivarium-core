@@ -10,7 +10,7 @@ import os
 import logging as log
 import pprint
 from multiprocessing import Pool
-from typing import Any, Dict
+from typing import Any, Dict, Optional, Union, Literal
 import math
 import datetime
 import time as clock
@@ -35,6 +35,8 @@ from vivarium.library.topology import (
     inverse_topology
 )
 from vivarium.library.units import units
+from vivarium.core.types import (
+    HierarchyPath, Topology, Schema, State, Update, CompositeDict)
 
 pretty = pprint.PrettyPrinter(indent=2)
 
@@ -499,7 +501,7 @@ def print_progress_bar(
         total,
         decimals=1,
         length=50,
-):
+) -> None:
     """ Call in a loop to create terminal progress bar
 
     Arguments:
@@ -519,7 +521,7 @@ def print_progress_bar(
         print()
 
 
-def make_proton(parallel=False):
+def make_proton(parallel: Literal[True, False] = False) -> Dict[str, Any]:
     processes = {
         'proton': Proton({'_parallel': parallel}),
         'electrons': {
@@ -575,7 +577,7 @@ def make_proton(parallel=False):
         'initial_state': initial_state}
 
 
-def test_recursive_store():
+def test_recursive_store() -> None:
     environment_config = {
         'environment': {
             'temperature': {
@@ -653,7 +655,7 @@ def test_recursive_store():
     state.state_for(['environment'], ['temperature'])
 
 
-def test_topology_ports():
+def test_topology_ports() -> None:
     proton = make_proton()
 
     experiment = Experiment(proton)
@@ -666,24 +668,24 @@ def test_topology_ports():
     log.debug(pf(experiment.state.divide_value()))
 
 
-def test_timescales():
+def test_timescales() -> None:
     class Slow(Process):
         name = 'slow'
         defaults = {'timestep': 3.0}
 
-        def __init__(self, config=None):
+        def __init__(self, config: Optional[dict] = None) -> None:
             super().__init__(config)
 
-        def ports_schema(self):
+        def ports_schema(self) -> Schema:
             return {
                 'state': {
                     'base': {
                         '_default': 1.0}}}
 
-        def local_timestep(self):
-            return self.parameters['timestep']
-
-        def next_update(self, timestep, states):
+        def next_update(
+                self,
+                timestep: Union[float, int],
+                states: State) -> Update:
             base = states['state']['base']
             next_base = timestep * base * 0.1
 
@@ -694,10 +696,10 @@ def test_timescales():
         name = 'fast'
         defaults = {'timestep': 0.3}
 
-        def __init__(self, config=None):
+        def __init__(self, config: Optional[dict] = None) -> None:
             super().__init__(config)
 
-        def ports_schema(self):
+        def ports_schema(self) -> Schema:
             return {
                 'state': {
                     'base': {
@@ -705,10 +707,10 @@ def test_timescales():
                     'motion': {
                         '_default': 0.0}}}
 
-        def local_timestep(self):
-            return self.parameters['timestep']
-
-        def next_update(self, timestep, states):
+        def next_update(
+                self,
+                timestep: Union[float, int],
+                states: State) -> Update:
             base = states['state']['base']
             motion = timestep * base * 0.001
 
@@ -738,14 +740,14 @@ def test_timescales():
     experiment.update(10.0)
 
 
-def test_2_store_1_port():
+def test_2_store_1_port() -> None:
     """
     Split one port of a processes into two stores
     """
     class OnePort(Process):
         name = 'one_port'
 
-        def ports_schema(self):
+        def ports_schema(self) -> Schema:
             return {
                 'A': {
                     'a': {
@@ -757,7 +759,10 @@ def test_2_store_1_port():
                 }
             }
 
-        def next_update(self, timestep, states):
+        def next_update(
+                self,
+                timestep: Union[float, int],
+                states: State) -> Update:
             return {
                 'A': {
                     'a': 1,
@@ -767,11 +772,12 @@ def test_2_store_1_port():
         """splits OnePort's ports into two stores"""
         name = 'split_port_composer'
 
-        def generate_processes(self, config):
+        def generate_processes(
+                self, config: Optional[dict]) -> Dict[str, Any]:
             return {
                 'one_port': OnePort({})}
 
-        def generate_topology(self, config):
+        def generate_topology(self, config: Optional[dict]) -> Topology:
             return {
                 'one_port': {
                     'A': {
@@ -796,11 +802,11 @@ def test_2_store_1_port():
     assert output == expected_output
 
 
-def test_multi_port_merge():
+def test_multi_port_merge() -> None:
     class MultiPort(Process):
         name = 'multi_port'
 
-        def ports_schema(self):
+        def ports_schema(self) -> Schema:
             return {
                 'A': {
                     'a': {
@@ -815,7 +821,10 @@ def test_multi_port_merge():
                         '_default': 0,
                         '_emit': True}}}
 
-        def next_update(self, timestep, states):
+        def next_update(
+                self,
+                timestep: Union[float, int],
+                states: State) -> Update:
             return {
                 'A': {'a': 1},
                 'B': {'a': 1},
@@ -825,11 +834,12 @@ def test_multi_port_merge():
         """combines both of MultiPort's ports into one store"""
         name = 'multi_port_composer'
 
-        def generate_processes(self, config):
+        def generate_processes(
+                self, config: Optional[dict]) -> Dict[str, Any]:
             return {
                 'multi_port': MultiPort({})}
 
-        def generate_topology(self, config):
+        def generate_topology(self, config: Optional[dict]) -> Topology:
             return {
                 'multi_port': {
                     'A': ('aaa',),
@@ -852,7 +862,7 @@ def test_multi_port_merge():
     assert output == expected_output
 
 
-def test_complex_topology():
+def test_complex_topology() -> None:
 
     # make the experiment
     outer_path = ('universe', 'agent')
@@ -881,7 +891,7 @@ def test_complex_topology():
     assert agent_state['ccc']['a3'] == initial_agent_state['ccc']['a3'] + 1
 
 
-def test_multi():
+def test_multi() -> None:
     with Pool(processes=4) as pool:
         multi = MultiInvoke(pool)
         proton = make_proton()
@@ -895,7 +905,7 @@ def test_multi():
         log.debug(pf(experiment.state.divide_value()))
 
 
-def test_parallel():
+def test_parallel() -> None:
     proton = make_proton(parallel=True)
     experiment = Experiment(proton)
 
@@ -909,7 +919,7 @@ def test_parallel():
     experiment.end()
 
 
-def test_depth():
+def test_depth() -> None:
     nested = {
         'A': {
             'AA': 5,
@@ -923,7 +933,7 @@ def test_depth():
     assert dissected[('A', 'AB', 'ABC')] == 11
 
 
-def test_sine():
+def test_sine() -> None:
     sine = Sine()
     print(sine.next_update(0.25 / 440.0, {
         'frequency': 440.0,
@@ -931,11 +941,11 @@ def test_sine():
         'phase': 1.5}))
 
 
-def test_units():
+def test_units() -> None:
     class UnitsMicrometer(Process):
         name = 'units_micrometer'
 
-        def ports_schema(self):
+        def ports_schema(self) -> Schema:
             return {
                 'A': {
                     'a': {
@@ -948,35 +958,39 @@ def test_units():
                 }
             }
 
-        def next_update(self, timestep, states):
+        def next_update(
+                self, timestep: Union[float, int], states: State) -> Update:
             return {
                 'A': {'a': 1 * units.um}}
 
     class UnitsMillimeter(Process):
         name = 'units_millimeter'
 
-        def ports_schema(self):
+        def ports_schema(self) -> Schema:
             return {
                 'A': {
                     'a': {
                         # '_default': 0 * units.mm,
                         '_emit': True}}}
 
-        def next_update(self, timestep, states):
+        def next_update(
+                self, timestep: Union[float, int], states: State) -> Update:
             return {
                 'A': {'a': 1 * units.mm}}
 
     class MultiUnits(Composer):
         name = 'multi_units_composer'
 
-        def generate_processes(self, config):
+        def generate_processes(
+                self,
+                config: Optional[dict]) -> Dict[str, Any]:
             return {
                 'units_micrometer':
                     UnitsMicrometer({}),
                 'units_millimeter':
                     UnitsMillimeter({})}
 
-        def generate_topology(self, config):
+        def generate_topology(self, config: Optional[dict]) -> Topology:
             return {
                 'units_micrometer': {
                     'A': ('aaa',)},
