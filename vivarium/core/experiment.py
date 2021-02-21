@@ -10,7 +10,8 @@ import os
 import logging as log
 import pprint
 from multiprocessing import Pool
-from typing import Any, Dict, Optional, Union, Literal
+from typing import (
+    Any, Dict, Optional, Union, Literal, Tuple)
 import math
 import datetime
 import time as clock
@@ -52,7 +53,7 @@ def pf(x: Any) -> str:
 log.basicConfig(level=os.environ.get("LOGLEVEL", log.WARNING))
 
 
-def starts_with(a_list, sub):
+def starts_with(a_list, sub) -> bool:
     return len(sub) <= len(a_list) and all(
         a_list[i] == el
         for i, el in enumerate(sub))
@@ -81,12 +82,16 @@ def timestamp(dt=None) -> str:
         dt.hour, dt.minute, dt.second)
 
 
-def invoke_process(process, interval, states):
+def invoke_process(
+        process: Process,
+        interval: float,
+        states: State,
+) -> Update:
     return process.next_update(interval, states)
 
 
 class Defer:
-    def __init__(self, defer, f, args):
+    def __init__(self, defer, f, args) -> None:
         self.defer = defer
         self.f = f
         self.args = args
@@ -98,7 +103,12 @@ class Defer:
 
 
 class InvokeProcess:
-    def __init__(self, process, interval, states):
+    def __init__(
+            self,
+            process: Process,
+            interval: float,
+            states: State,
+    ) -> None:
         self.process = process
         self.interval = interval
         self.states = states
@@ -112,7 +122,7 @@ class InvokeProcess:
 
 
 class MultiInvoke:
-    def __init__(self, pool):
+    def __init__(self, pool) -> None:
         self.pool = pool
 
     def invoke(self, process, interval, states):
@@ -259,7 +269,13 @@ class Experiment:
             del emit_config['data']['state']
             self.emitter.emit(emit_config)
 
-    def invoke_process(self, process, path, interval, states):
+    def invoke_process(
+            self,
+            process: Process,
+            path: HierarchyPath,
+            interval: float,
+            states: State,
+    ):
         if process.parallel:
             # add parallel process if it doesn't exist
             if path not in self.parallel:
@@ -271,7 +287,14 @@ class Experiment:
         # if not parallel, perform a normal invocation
         return self.invoke(process, interval, states)
 
-    def process_update(self, path, process, store, states, interval):
+    def process_update(
+            self,
+            path: HierarchyPath,
+            process: Process,
+            store,
+            states: State,
+            interval: float,
+    ):
 
         update = self.invoke_process(
             process,
@@ -279,11 +302,18 @@ class Experiment:
             interval,
             states)
 
-        absolute = Defer(update, invert_topology, (path, store.topology))
+        absolute = Defer(
+            update,
+            invert_topology,
+            (path, store.topology))
 
         return absolute, store
 
-    def process_state(self, path, process):
+    def process_state(
+            self,
+            path: HierarchyPath,
+            process: Process,
+    ):
         store = self.state.get_path(path)
 
         # translate the values from the tree structure into the form
@@ -292,11 +322,21 @@ class Experiment:
 
         return store, states
 
-    def calculate_update(self, path, process, interval):
+    def calculate_update(
+            self,
+            path: HierarchyPath,
+            process: Process,
+            interval: float
+    ):
         store, states = self.process_state(path, process)
-        return self.process_update(path, process, store, states, interval)
+        return self.process_update(
+            path, process, store, states, interval)
 
-    def apply_update(self, update, state) -> None:
+    def apply_update(
+            self,
+            update: Update,
+            state: State
+    ) -> None:
         topology_updates, process_updates, deletions = self.state.apply_update(
             update, state)
 
@@ -313,7 +353,10 @@ class Experiment:
             for deletion in deletions:
                 self.delete_path(deletion)
 
-    def delete_path(self, deletion: HierarchyPath) -> None:
+    def delete_path(
+            self,
+            deletion: HierarchyPath
+    ) -> None:
         delete_in(self.processes, deletion)
         delete_in(self.topology, deletion)
 
@@ -349,14 +392,20 @@ class Experiment:
             'data': serialize_value(data)}
         self.emitter.emit(emit_config)
 
-    def send_updates(self, update_tuples: list) -> None:
+    def send_updates(
+            self,
+            update_tuples: list
+    ) -> None:
         for update_tuple in update_tuples:
             update, state = update_tuple
             self.apply_update(update.get(), state)
 
         self.run_derivers()
 
-    def update(self, interval: float) -> None:
+    def update(
+            self,
+            interval: float
+    ) -> None:
         """ Run each process for the given interval and update the states.
         """
 
@@ -488,7 +537,10 @@ class Experiment:
         if self.description:
             print('Description: {}'.format(self.description))
 
-    def print_summary(self, clock_finish: float) -> None:
+    def print_summary(
+            self,
+            clock_finish: float
+    ) -> None:
         if clock_finish < 1:
             print('Completed in {:.6f} seconds'.format(clock_finish))
         else:
@@ -520,7 +572,9 @@ def print_progress_bar(
         print()
 
 
-def make_proton(parallel: Literal[True, False] = False) -> Dict[str, Any]:
+def make_proton(
+        parallel: Literal[True, False] = False
+) -> Dict[str, Any]:
     processes = {
         'proton': Proton({'_parallel': parallel}),
         'electrons': {
