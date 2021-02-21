@@ -73,7 +73,7 @@ def generate_state(processes, topology, initial_state):
     return state
 
 
-def timestamp(dt=None):
+def timestamp(dt=None) -> str:
     if not dt:
         dt = datetime.datetime.now()
     return "%04d%02d%02d.%02d%02d%02d" % (
@@ -122,8 +122,7 @@ class MultiInvoke:
 
 
 class Experiment:
-    def __init__(self, config):
-        # type: (Dict[str, Any]) -> None
+    def __init__(self, config: Dict[str, Any]) -> None:
         """Defines simulations
 
         Arguments:
@@ -167,7 +166,7 @@ class Experiment:
         self.processes = config['processes']
         self.topology = config['topology']
         self.initial_state = config.get('initial_state', {})
-        self.emit_step = config.get('emit_step')
+        self.emit_step = config.get('emit_step', 1.0)
 
         # display settings
         self.experiment_name = config.get(
@@ -227,18 +226,18 @@ class Experiment:
         # log.info('\nCONFIG:')
         # log.info(pf(self.state.get_config(True)))
 
-    def add_process_path(self, process, path):
+    def add_process_path(self, process, path) -> None:
         if process.is_deriver():
             self.deriver_paths[path] = process
         else:
             self.process_paths[path] = process
 
-    def find_process_paths(self, processes):
+    def find_process_paths(self, processes) -> None:
         tree = hierarchy_depth(processes)
         for path, process in tree.items():
             self.add_process_path(process, path)
 
-    def emit_configuration(self):
+    def emit_configuration(self) -> None:
         data = {
             'time_created': self.time_created,
             'experiment_id': self.experiment_id,
@@ -297,7 +296,7 @@ class Experiment:
         store, states = self.process_state(path, process)
         return self.process_update(path, process, store, states, interval)
 
-    def apply_update(self, update, state):
+    def apply_update(self, update, state) -> None:
         topology_updates, process_updates, deletions = self.state.apply_update(
             update, state)
 
@@ -314,7 +313,7 @@ class Experiment:
             for deletion in deletions:
                 self.delete_path(deletion)
 
-    def delete_path(self, deletion):
+    def delete_path(self, deletion: HierarchyPath) -> None:
         delete_in(self.processes, deletion)
         delete_in(self.topology, deletion)
 
@@ -326,7 +325,7 @@ class Experiment:
             if starts_with(path, deletion):
                 del self.deriver_paths[path]
 
-    def run_derivers(self):
+    def run_derivers(self) -> None:
         paths = list(self.deriver_paths.keys())
         for path in paths:
             # deriver could have been deleted by another deriver
@@ -341,7 +340,7 @@ class Experiment:
                     path, deriver, 0)
                 self.apply_update(update.get(), state)
 
-    def emit_data(self):
+    def emit_data(self) -> None:
         data = self.state.emit_data()
         data.update({
             'time': self.experiment_time})
@@ -350,28 +349,28 @@ class Experiment:
             'data': serialize_value(data)}
         self.emitter.emit(emit_config)
 
-    def send_updates(self, update_tuples):
+    def send_updates(self, update_tuples: list) -> None:
         for update_tuple in update_tuples:
             update, state = update_tuple
             self.apply_update(update.get(), state)
 
         self.run_derivers()
 
-    def update(self, interval):
+    def update(self, interval: float) -> None:
         """ Run each process for the given interval and update the states.
         """
 
-        time = 0
+        time = 0.0
         emit_time = self.emit_step
         clock_start = clock.time()
 
-        def empty_front(t):
+        def empty_front(t: float) -> Dict[str, Union[float, dict]]:
             return {
                 'time': t,
                 'update': {}}
 
         # keep track of which processes have simulated until when
-        front = {}
+        front: Dict = {}
 
         while time < interval:
             full_step = math.inf
@@ -474,11 +473,11 @@ class Experiment:
         if self.display_info:
             self.print_summary(clock_finish)
 
-    def end(self):
+    def end(self) -> None:
         for parallel in self.parallel.values():
             parallel.end()
 
-    def print_display(self):
+    def print_display(self) -> None:
         date, time = self.time_created.split('.')
         print('\nExperiment ID: {}'.format(self.experiment_id))
         print('Created: {} at {}'.format(
@@ -489,7 +488,7 @@ class Experiment:
         if self.description:
             print('Description: {}'.format(self.description))
 
-    def print_summary(self, clock_finish):
+    def print_summary(self, clock_finish: float) -> None:
         if clock_finish < 1:
             print('Completed in {:.6f} seconds'.format(clock_finish))
         else:
@@ -497,10 +496,10 @@ class Experiment:
 
 
 def print_progress_bar(
-        iteration,
-        total,
-        decimals=1,
-        length=50,
+        iteration: float,
+        total: float,
+        decimals: float = 1,
+        length: int = 50,
 ) -> None:
     """ Call in a loop to create terminal progress bar
 
@@ -510,8 +509,8 @@ def print_progress_bar(
         decimals:  (Optional) positive number of decimals in percent complete
         length:    (Optional) character length of bar
     """
-    progress = ("{0:." + str(decimals) + "f}").format(total - iteration)
-    filled_length = int(length * iteration // total)
+    progress: str = ("{0:." + str(decimals) + "f}").format(total - iteration)
+    filled_length: int = int(length * iteration // total)
     filled_bar = '█' * filled_length + '-' * (length - filled_length)
     print(
         f'\rProgress:|{filled_bar}| {progress}/{float(total)} '
