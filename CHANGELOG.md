@@ -1,6 +1,44 @@
 # Changelog
 
 
+## v0.2.2
+
+* generalize mass_adaptors and molarity_derivers
+
+## v0.2.1
+
+* add mass_adaptor
+
+## v0.2.0
+
+* breaking API changes:
+    * Composer class instead of Composite. 
+    * several composition.py functions have been renamed to improve self-description.
+
+## v0.1.12
+
+* bug fix when handling complex_topology. store.apply_update() can now go up paths with '..'.
+* calculate_timestep() for Process supports adaptive timesteps.
+
+## v0.1.11
+
+* clock process initial state
+
+## v0.1.10
+
+* add plot_variables plotting function to simulation_output
+
+## v0.1.9
+
+* clock process for keeping track of global time
+
+## v0.1.7
+
+* growth_rate process for generic exponential growth of variables
+
+## v0.1.6
+
+* topology grapher option to leave edge colors black
 
 ## v0.1.5
 

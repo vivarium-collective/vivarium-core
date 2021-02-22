@@ -1,5 +1,8 @@
 [MASTER]
 
+# Rules reference:
+# https://pylint.pycqa.org/en/latest/technical_reference/features.html
+# Begins with the statements ignored by default
 disable=print-statement,
         parameter-unpacking,
         unpacking-in-except,
@@ -50,7 +53,24 @@ disable=print-statement,
         cmp-method,
         input-builtin,
         round-builtin,
+# TODO: Ignore docstrings temporarily
+        missing-class-docstring,
+        missing-function-docstring,
+        missing-module-docstring,
+# Rules we ignore that are not ignored by default
+        too-many-instance-attributes,
+        too-many-return-statements,
+        too-many-arguments,
+        too-many-locals,
+        too-many-branches,
+        too-few-public-methods,
+        no-self-use,
+        fixme,
+        unsupported-assignment-operation,  # Buggy with NewType objects
+        unsubscriptable-object,  # Buggy with NewType objects
+        no-member,  # Buggy with NewType objects
 ignore=injected_glc_phosphorylation.py,
+       ecoli_shape_deriver.py,
        injector.py,
        topology.py,
        make_network.py,
@@ -59,15 +79,11 @@ ignore=injected_glc_phosphorylation.py,
        path.py,
        divide_condition.py,
        agents_multigen.py,
-       experiment.py,
+       exponential.py,
        burst.py,
-       composition.py,
        dict_utils.py,
-       control.py,
-       emitter.py,
        tree_mass.py,
        filepath.py,
-       process.py,
        exchange_a.py,
        registry.py,
        units.py,
@@ -82,13 +98,19 @@ ignore=injected_glc_phosphorylation.py,
        swap_processes.py,
        schema.py,
        timeline.py,
-       agent_names.py,
        derive_concentrations.py,
        nonspatial_environment.py,
+       store.py,
+# Good variable names which should be accepted
+good-names=pp,pf,_,
 
 [BASIC]
 
 no-docstring-rgx=(^_)|(^[Tt]est)
-max-line-length=72
+max-line-length=80
+max-module-lines=1200
+attr-rgx=^[a-z_][a-z0-9]*((_[a-z0-9]+)*)?$
 variable-rgx=^[a-z][a-z0-9]*((_[a-z0-9]+)*)?$
 argument-rgx=^[a-z][a-z0-9]*((_[a-z0-9]+)*)?$
+include-naming-hint=yes
+max-statements=55

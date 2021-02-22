@@ -104,7 +104,7 @@ serializer_registry = Registry()
 # These can be defined here, but are registered in the base module's __init__.py file
 
 # Updater functions
-def update_merge(current_value, new_value, states):
+def update_merge(current_value, new_value):
     """Merge Updater
 
     Returns:
@@ -121,7 +121,7 @@ def update_merge(current_value, new_value, states):
     return update
 
 
-def update_set(current_value, new_value, states):
+def update_set(current_value, new_value):
     """Set Updater
 
     Returns:
@@ -130,7 +130,16 @@ def update_set(current_value, new_value, states):
     return new_value
 
 
-def update_accumulate(current_value, new_value, states):
+def update_null(current_value, new_value):
+    """Null Updater
+
+    Returns:
+        The value provided in ``current_value``.
+    """
+    return current_value
+
+
+def update_accumulate(current_value, new_value):
     """Accumulate Updater
 
     Returns:
@@ -139,7 +148,7 @@ def update_accumulate(current_value, new_value, states):
     return current_value + new_value
 
 
-def update_nonnegative_accumulate(current_value, new_value, states):
+def update_nonnegative_accumulate(current_value, new_value):
     """Non-negative Accumulate Updater
 
     Returns:
@@ -236,11 +245,11 @@ def divide_split_dict(state):
 
 
 def assert_no_divide(state):
-    '''Assert that the variable is never divided
+    """Assert that the variable is never divided
 
     Raises:
         AssertionError: If the variable is divided
-    '''
+    """
     raise AssertionError('Variable cannot be divided')
 
 
@@ -263,9 +272,9 @@ class NumpySerializer(Serializer):
 
 class NumpyScalarSerializer(Serializer):
     def serialize(self, data):
-        if isinstance(data, np.integer):
+        if isinstance(data, (int, np.integer)):
             return int(data)
-        if isinstance(data, np.floating):
+        if isinstance(data, (float, np.floating)):
             return float(data)
         raise ValueError(
             'Cannot serialize numpy scalar {} of type {}.'.format(
@@ -313,7 +322,7 @@ class ProcessSerializer(Serializer):
         return dict(data.parameters, _name=data.name)
 
 
-class FactorySerializer(Serializer):
+class ComposerSerializer(Serializer):
     def serialize(self, data):
         return dict(data.config, _name=str(type(data)))
 

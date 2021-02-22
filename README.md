@@ -4,7 +4,7 @@ Vivarium-core provides a process interface and simulation engine for composing a
 computational biology models.
 
 ## Documentation and Tutorials
-Visit [Vivarium documentation](https://vivarium-core.readthedocs.io/)
+Visit [Vivarium documentation](https://vivarium-core.readthedocs.io/).
 
 ## Installation
 vivarium-core can be used as a python library. To install:
@@ -18,16 +18,12 @@ separating the interface that connects models from the frameworks that implement
 The modular "process" interface allows different models to be assembled within a hierarchy of embedded compartments, 
 and then run by the engine as integrated, multi-scale simulations.
 
-![vivarium](doc/_static/multiscale.png)
-(**a**) Processes and stores are the framework's basic elements. Processes declare *parameters*, *ports* that 
-connect to stores, and an *update function* that computes how the state variables unfold over time. 
-Stores hold the variables' states and determine how process updates are handled with *units*, *updaters*, *dividers*, 
-*emitters*, properties such as *molecular weight*, and more. 
-(**b**) A *compartment* is a composite of processes created with a bipartite graph called a topology, which declares how 
-processes connect to stores through their ports. 
-Boundary stores reach outside of the compartment, allowing it to connect with other compartments above or below. 
-(**c**) A *hierarchy* of embedded compartments is a place graph with the higher compartments containing those below. 
-(**d**) Two coupled processes operating at different time scales, showing their separated updates of a shared store, and 
-an advancing temporal *front*.
-(**e**) A topology update shows the addition of a compartment in the time-step after a division update message is 
-sent---other topology updates might include merging, engulfing, deleting, or adding.
+![vivarium](doc/_static/interface.png)
+
+(**a**) *Processes* define the functions that update the system's state variables.They declare *parameters*, *ports*, and an *update function*.
+(**b**) *Stores* hold the state variables and map each process' variable *names* to their *values*.
+They have a schema that determines how the variables are handled with properties such as *units*, *updaters*, *dividers*, *emitters*, and more. 
+(**c**) *Topology* is a bipartite graph of processes connected to stores through their ports. 
+Shared stores aggregate the processes' required variables, and couple the processes as they unfold in time. 
+(**d**) Processes and Stores can be linked together with a topology in a single level called a compartment, and across compartments by way of boundary stores.
+(**e**) Compartments are embedded within each other in a hierarchy -- depicted here as a place graph with outer compartments at the top and inner compartments below them.

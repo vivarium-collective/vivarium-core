@@ -9,14 +9,14 @@ import os
 from vivarium.core.experiment import pp
 from vivarium.core.process import (
     Deriver,
-    Factory,
+    Composer,
 )
 from vivarium.core.composition import (
     compose_experiment,
-    GENERATORS_KEY,
+    COMPOSER_KEY,
     PROCESS_OUT_DIR,
 )
-from vivarium.processes.exchange_a import ExchangeA
+from vivarium.composites.toys import ExchangeA
 from vivarium.processes.timeline import TimelineProcess
 
 
@@ -72,7 +72,7 @@ class Engulf(Deriver):
 
 
 # test
-class ToyAgent(Factory):
+class ToyAgent(Composer):
     defaults = {
         'exchange': {'uptake_rate': 0.1},
         'engulf': {
@@ -126,7 +126,7 @@ def test_engulf():
 
     # declare the hierarchy
     hierarchy = {
-        GENERATORS_KEY: [
+        COMPOSER_KEY: [
             {
                 'type': TimelineProcess,
                 'config': {'timeline': timeline},
@@ -138,7 +138,7 @@ def test_engulf():
         ],
         'agents': {
             agent_id: {
-                GENERATORS_KEY: {
+                COMPOSER_KEY: {
                     'type': ToyAgent,
                     'config': {
                         'exchange': {
@@ -176,8 +176,7 @@ def test_engulf():
 
 def run_engulf():
     out_dir = os.path.join(PROCESS_OUT_DIR, NAME)
-    if not os.path.exists(out_dir):
-        os.makedirs(out_dir)
+    os.makedirs(out_dir, exist_ok=True)
     output = test_engulf()
     pp(output)
 

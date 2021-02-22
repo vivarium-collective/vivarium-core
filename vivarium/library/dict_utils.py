@@ -1,8 +1,11 @@
+from __future__ import annotations
+
 import collections.abc
 import copy
 from functools import reduce
 import operator
 import traceback
+from typing import Optional
 
 from vivarium.library.units import Quantity
 
@@ -211,16 +214,24 @@ def str_to_tuple_keys(dictionary):
     return dictionary
 
 
-def keys_list(d):
+def keys_list(d: dict) -> list:
+    """Return list(d.keys())."""
     return list(d.keys())
 
 
 def value_in_embedded_dict(
-        data, timeseries: dict = None, time_index=None):
+        data: dict,
+        timeseries: dict = None,
+        time_index: Optional[float] = None) -> dict:
     """
-    converts data from a single time step into an embedded dictionary with lists of values.
+    converts data from a single time step into an embedded dictionary with lists
+    of values.
     If the value has a unit, saves under a key with (key, unit_string).
     """
+    # TODO(jerry): ^^^ Explain this further. Note that this function modifies
+    #  timeseries.
+    # TODO(jerry): Refine the type declarations.
+    # TODO(jerry): Use dictionary.setdefault(key, default) to simplify.
     timeseries = timeseries or {}
 
     for key, value in data.items():
@@ -274,7 +285,7 @@ def get_value_from_path(dictionary, path):
 
 
 def make_path_dict(embedded_dict):
-    """ converts embedded dict to a flat dict with path names as keys """
+    """ converts embedded_dict to a flat dict with path names as keys """
     path_dict = {}
     paths_list = get_path_list_from_dict(embedded_dict)
     for path in paths_list:

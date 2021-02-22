@@ -20,6 +20,8 @@ False
 False
 '''
 
+from typing import Any
+
 import pint
 # noinspection PyProtectedMember
 from pint.quantity import _Quantity as Quantity
@@ -33,7 +35,7 @@ units = pint.UnitRegistry()
 pint.set_application_registry(units)
 
 
-def remove_units(collection):
+def remove_units(collection: Any) -> Any:
     '''Strip the units from a collection or scalar
 
     If no units are present, the provided object is returned unaltered.

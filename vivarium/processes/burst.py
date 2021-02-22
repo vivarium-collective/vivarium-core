@@ -9,14 +9,14 @@ import os
 from vivarium.core.experiment import pp
 from vivarium.core.process import (
     Deriver,
-    Factory,
+    Composer,
 )
 from vivarium.core.composition import (
     compose_experiment,
-    GENERATORS_KEY,
+    COMPOSER_KEY,
     PROCESS_OUT_DIR,
 )
-from vivarium.processes.exchange_a import ExchangeA
+from vivarium.composites.toys import ExchangeA
 from vivarium.processes.timeline import TimelineProcess
 
 
@@ -81,7 +81,7 @@ class Burst(Deriver):
 
 
 # test
-class ToyAgent(Factory):
+class ToyAgent(Composer):
     defaults = {
         'exchange': {
             'uptake_rate': 0.1},
@@ -147,7 +147,7 @@ def test_burst():
 
     # declare the hierarchy
     hierarchy = {
-        GENERATORS_KEY: [
+        COMPOSER_KEY: [
             {
                 'type': TimelineProcess,
                 'config': {'timeline': timeline},
@@ -159,7 +159,7 @@ def test_burst():
         ],
         'agents': {
             agent_1_id: {
-                GENERATORS_KEY: {
+                COMPOSER_KEY: {
                     'type': ToyAgent,
                     'config': {
                         'agent_id': agent_1_id,
@@ -167,7 +167,7 @@ def test_burst():
                 },
                 'agents': {
                     agent_2_id: {
-                        GENERATORS_KEY: {
+                        COMPOSER_KEY: {
                             'type': ToyAgent,
                             'config': {
                                 'agent_id': agent_2_id
@@ -203,8 +203,7 @@ def test_burst():
 
 def run_burst():
     out_dir = os.path.join(PROCESS_OUT_DIR, NAME)
-    if not os.path.exists(out_dir):
-        os.makedirs(out_dir)
+    os.makedirs(out_dir, exist_ok=True)
     output = test_burst()
     pp(output)
 

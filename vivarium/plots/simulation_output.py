@@ -21,11 +21,22 @@ def set_axes(ax, show_xaxis=False):
         ax.tick_params(bottom=False, labelbottom=False)
 
 
+def save_fig_to_dir(
+        fig,
+        filename,
+        out_dir='out/',
+):
+    os.makedirs(out_dir, exist_ok=True)
+    fig_path = os.path.join(out_dir, filename)
+    print(f"Writing {fig_path}")
+    fig.savefig(fig_path, bbox_inches='tight')
+
+
 def plot_simulation_output(
         timeseries_raw,
         settings: Optional[Dict[str, Any]] = None,
         out_dir=None,
-        filename=None,
+        filename='simulation',
 ):
     '''
     Plot simulation output, with rows organized into separate columns.
@@ -51,6 +62,7 @@ def plot_simulation_output(
               highlighted, even if they are otherwise to be removed
               TODO: Obsolete?
     '''
+    int_or_float = (int, np.int32, np.int64, float, np.float32, np.float64)
 
     settings = settings or {}
     plot_fontsize = 8
@@ -136,7 +148,7 @@ def plot_simulation_output(
 
             ax = fig.add_subplot(grid[row_idx, col_idx])  # grid is (row, column)
 
-            if not all(isinstance(state, (int, float, np.int64, np.int32)) for state in series):
+            if not all(isinstance(state, int_or_float) for state in series):
                 # check if series is a list of ints or floats
                 ax.title.set_text(str(port) + ': ' + str(state_id) + ' (non numeric)')
             else:
@@ -164,12 +176,69 @@ def plot_simulation_output(
             ax.set_xlim([time_vec[0], time_vec[-1]])
 
     if out_dir:
-        os.makedirs(out_dir, exist_ok=True)
-        if filename is None:
-            filename = 'simulation'
-        # save figure
-        fig_path = os.path.join(out_dir, filename)
         plt.subplots_adjust(wspace=column_width/3, hspace=column_width/3)
-        plt.savefig(fig_path, bbox_inches='tight')
+        save_fig_to_dir(fig, filename, out_dir)
+    return fig
+
+
+# simple plotting function
+def get_variable_title(path):
+    var = path[-1]
+    separator = '>'
+    connect_path = separator.join(path[:-1])
+    if isinstance(var, tuple):  # if units are included in variable
+        title = f'{connect_path}: {var[0]} ({var[1]})'
     else:
-        return fig
+        title = f'{connect_path}: {var}'
+    return title
+
+from vivarium.library.dict_utils import get_value_from_path
+
+# simple plotting function
+def plot_variables(
+        output,
+        variables,
+        column_width=8,
+        row_height=1.2,
+        row_padding=0.8,
+        linewidth=3.0,
+        default_color='tab:blue',
+        out_dir=None,
+        filename='variables'
+):
+    n_rows = len(variables)
+    fig = plt.figure(figsize=(column_width, n_rows * row_height))
+    grid = plt.GridSpec(n_rows, 1)
+
+    time_vec = output['time']
+    for row_idx, variable_definition in enumerate(variables):
+        if isinstance(variable_definition, dict):
+            path = variable_definition['variable']
+            var_color = variable_definition.get('color', default_color)
+            variable_title = variable_definition.get('display', get_variable_title(path))
+        else:
+            path = variable_definition
+            var_color = default_color
+            variable_title = get_variable_title(path)
+
+        # get the output timeseries
+        series = get_value_from_path(output, path)
+
+        # make a new subplot
+        ax = fig.add_subplot(grid[row_idx, 0])
+        ax.plot(time_vec, series, linewidth=linewidth, color=var_color)
+        ax.set_title(variable_title)
+
+        # x-axis only at bottom row
+        if row_idx == n_rows - 1:
+            set_axes(ax, show_xaxis=True)
+            ax.set_xlabel('time (s)')
+            ax.spines['bottom'].set_position(('axes', -0.2))
+        else:
+            set_axes(ax)
+        ax.ticklabel_format(style='plain', axis='y', scilimits=(-5, 5))
+
+    fig.subplots_adjust(hspace=row_padding)
+    if out_dir:
+        save_fig_to_dir(fig, filename, out_dir)
+    return fig

@@ -75,6 +75,7 @@ def plot_agents_multigen(
     '''
 
     settings = settings or {}
+    agent_colors = settings.get('agent_colors', {})
     agents_key = settings.get('agents_key', 'agents')
     max_rows = settings.get('max_rows', 25)
     column_width = settings.get('column_width', 4)
@@ -206,11 +207,12 @@ def plot_agents_multigen(
             ax.yaxis.get_offset_text().set_fontsize(tick_label_size)
 
             # if last state in this column, add time ticks
-            if (stack_column and row_idx >= highest_row-1) or \
-               (not stack_column and (row_idx >= highest_row or
-                    path_idx >= len(ordered_paths[port_id]) - 1)):
-                        set_axes(ax, True)
-                        ax.set_xlabel('time (s)', fontsize=title_size)
+            if ((stack_column and row_idx >= highest_row - 1) or
+                    (not stack_column and
+                     (row_idx >= highest_row or
+                      path_idx >= len(ordered_paths[port_id]) - 1))):
+                set_axes(ax, True)
+                ax.set_xlabel('time (s)', fontsize=title_size)
             else:
                 set_axes(ax)
             ax.set_xlim([time_vec[0], time_vec[-1]])
@@ -239,7 +241,7 @@ def plot_agents_multigen(
                         plot_times = time_vec[time_idx:time_idx+n_times]
 
                         ax = port_axes[port_schema_path]
-                        ax.plot(plot_times, series)
+                        ax.plot(plot_times, series, color=agent_colors.get(agent_id, None))
 
     plt.subplots_adjust(wspace=0.2, hspace=0.2)
     if out_dir:

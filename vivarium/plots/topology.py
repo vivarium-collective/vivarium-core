@@ -6,9 +6,10 @@ from typing import Any, cast, Dict, Optional
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.path import Path
+from matplotlib.figure import Figure
 import networkx as nx
 
-from vivarium.core.process import Process, Factory
+from vivarium.core.process import Process, Composer
 
 
 def construct_storage_path() -> Path:
@@ -93,6 +94,7 @@ def graph_figure(
         show_ports: bool = True,
         store_color: Any = 'tab:blue',
         process_color: Any = 'tab:orange',
+        color_edges: bool = True,
         fill_color: Any = 'w',
         node_size: float = 8000,
         font_size: int = 14,
@@ -100,7 +102,7 @@ def graph_figure(
         buffer: float = 1.0,
         border_width: float = 3,
         label_pos: float = 0.65,
-) -> plt.Figure:
+) -> Figure:
     """ Make a figure from a networkx graph.
 
     :param graph: the networkx.Graph to plot
@@ -108,6 +110,7 @@ def graph_figure(
     :param show_ports: whether to show the Port labels
     :param store_color: color for the Store nodes; any matplotlib color value
     :param process_color: color for the Process nodes; any matplotlib color value
+    :param color_edges: color each edge between Store and Process a different color
     :param fill_color: fill color for the Store and Process nodes; any
         matplotlib color value
     :param node_size: size to draw the Store and Process nodes
@@ -162,10 +165,13 @@ def graph_figure(
                            node_shape=cast(str, STORAGE_PATH)
                            )
     # edges
-    colors = list(range(1, len(edges) + 1))
+    edge_args = {}
+    if color_edges:
+        edge_args['edge_color'] = list(range(1, len(edges) + 1))
     nx.draw_networkx_edges(graph, pos,
-                           edge_color=colors,
-                           width=1.5)
+                           width=1.5,
+                           **edge_args)
+
     # labels
     nx.draw_networkx_labels(graph, pos,
                             font_size=font_size)
@@ -189,7 +195,7 @@ def save_network(out_dir='out', filename='network'):
     fig_path = os.path.join(out_dir, filename)
     print(f"Writing {fig_path}")
     plt.savefig(fig_path, bbox_inches='tight')
-    plt.close()
+    # plt.close()
 
 
 def plot_compartment_topology(
@@ -230,8 +236,7 @@ def plot_topology(
         save_network(
             out_dir=out_dir,
             filename=filename)
-    else:
-        return fig
+    return fig
 
 
 # tests
@@ -260,9 +265,9 @@ class MultiPort(Process):
             'c': {'molecule': 1}}
 
 
-class MergePort(Factory):
+class MergePort(Composer):
     """combines both of MultiPort's ports into one store"""
-    name = 'multi_port_generator'
+    name = 'multi_port_composer'
     defaults = {
         'topology': {
             'multiport1': {

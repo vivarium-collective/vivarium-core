@@ -9,15 +9,14 @@ from typing import Any, Dict
 
 from vivarium.core.process import (
     Deriver,
-    Factory,
+    Composer,
 )
 from vivarium.core.composition import (
-    simulate_compartment_in_experiment,
+    simulate_composer,
     PROCESS_OUT_DIR,
 )
 from vivarium.plots.simulation_output import plot_simulation_output
-from vivarium.processes.exchange_a import ExchangeA
-
+from vivarium.composites.toys import ExchangeA
 
 NAME = 'swap_compartment'
 
@@ -84,7 +83,7 @@ class SwapProcesses(Deriver):
 
 
 # test
-class ToyDeadCompartment(Factory):
+class ToyDeadCompartment(Composer):
     defaults = {
         'secrete': {
             'secrete_rate': 0.1}}
@@ -100,7 +99,7 @@ class ToyDeadCompartment(Factory):
                 'external': ('external',)}}
 
 
-class ToyLivingCompartment(Factory):
+class ToyLivingCompartment(Composer):
     defaults = {
         'exchange': {'uptake_rate': 0.1},
         'death': {
@@ -155,7 +154,7 @@ def test_death():
         'timeline': {
             'timeline': timeline},
         'initial_state': initial_state}
-    output = simulate_compartment_in_experiment(
+    output = simulate_composer(
         compartment,
         settings)
 
@@ -175,8 +174,7 @@ def test_death():
 
 def run_death():
     out_dir = os.path.join(PROCESS_OUT_DIR, NAME)
-    if not os.path.exists(out_dir):
-        os.makedirs(out_dir)
+    os.makedirs(out_dir, exist_ok=True)
     output = test_death()
     plot_simulation_output(output, {}, out_dir)
 
