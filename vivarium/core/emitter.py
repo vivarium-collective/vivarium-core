@@ -6,8 +6,6 @@ Emitters
 Emitters log configuration data and time-series data somewhere.
 """
 
-from __future__ import annotations
-
 import json
 from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import quote_plus
@@ -35,7 +33,7 @@ CONFIGURATION_INDEXES = [
 SECRETS_PATH = 'secrets.json'
 
 
-def get_emitter(config: Optional[Dict[str, str]]) -> Emitter:
+def get_emitter(config: Optional[Dict[str, str]]) -> 'Emitter':
     """Construct an Emitter using the provided config.
 
     The available Emitter type names and their classes are:
