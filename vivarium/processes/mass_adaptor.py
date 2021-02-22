@@ -19,8 +19,11 @@ class CountsToConcentration(Deriver):
                 'mass': 1.0 * units.g / units.mol}
         super().__init__(parameters)
         for mol_id, mw in self.parameters['molecular_weights'].items():
-            assert mw.units == units.g / units.mol, (
-                f"{mol_id} needs a molecular weight in units.g / units.mol")
+            try:
+                mw.to(units.g / units.mol)
+            except ValueError:
+                print(
+                    f"{mol_id} needs a mw convertable to units.g / units.mol")
 
     def initial_state(self, config=None):
         return self.default_state()
@@ -75,6 +78,12 @@ class MassToCount(Deriver):
             parameters['molecular_weights'] = {
                 'mass': 1.0 * units.fg / units.molec}
         super().__init__(parameters)
+        for mol_id, mw in self.parameters['molecular_weights'].items():
+            try:
+                mw.to(units.g / units.mol)
+            except ValueError:
+                print(
+                    f"{mol_id} needs a mw convertable to units.g / units.mol")
 
     def initial_state(self, config=None):
         return self.default_state()
@@ -105,8 +114,8 @@ class MassToCount(Deriver):
         # count = mass/molecular_weight
         # Note: here we just set the scale, not the volume
         mass_species_count = {
-            mol_id: (mass / self.parameters[
-                'molecular_weights'][mol_id]).magnitude
+            mol_id: int((mass / self.parameters[
+                'molecular_weights'][mol_id]).magnitude)
             for mol_id, mass in masses.items()}
 
         return {'output': mass_species_count}
@@ -131,8 +140,11 @@ class MassToMolar(Deriver):
                 'mass': 1.0 * units.g / units.mol}
         super().__init__(parameters)
         for mol_id, mw in self.parameters['molecular_weights'].items():
-            assert mw.units == units.g / units.mol, (
-                f"{mol_id} needs a molecular weight in units.g / units.mol")
+            try:
+                mw.to(units.g / units.mol)
+            except ValueError:
+                print(
+                    f"{mol_id} needs a mw convertable to units.g / units.mol")
 
     def initial_state(self, config=None):
         return self.default_state()
@@ -185,7 +197,7 @@ def test_derivers():
 
     # convert mass to counts
     mass_in = m_to_c.initial_state()
-    mass_in['input'] = {'A': 1 * units.fg, 'B': 1 * units.fg}
+    mass_in['input'] = {'A': 10 * units.fg, 'B': 10 * units.fg}
     counts_out = m_to_c.next_update(0, mass_in)
 
     # MassToConcentration
@@ -193,11 +205,11 @@ def test_derivers():
 
     # convert mass to concentration
     mass_in = m_to_conc.initial_state()
-    mass_in['input'] = {'A': 1, 'B': 1}
+    mass_in['input'] = {'A': 10, 'B': 10}
     concs_out = m_to_conc.next_update(0, mass_in)
 
     # asserts
-    assert counts_out == {'output': {'A': 1.0, 'B': 0.5}}
+    assert counts_out == {'output': {'A': 10, 'B': 5}}
     # TODO assert concs_out
     _ = concs_out
 
