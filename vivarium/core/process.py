@@ -456,7 +456,8 @@ class AggregateComposer(Composer):
             new_processes = composer.generate_processes(composer.config)
             if set(processes.keys()) & set(new_processes.keys()):
                 raise ValueError(
-                    f"{set(processes.keys())} and {set(new_processes.keys())} in contain overlapping keys")
+                    f"{set(processes.keys())} and {set(new_processes.keys())} "
+                    f"in contain overlapping keys")
             processes.update(new_processes)
         return processes
 
@@ -469,7 +470,8 @@ class AggregateComposer(Composer):
             new_topology = composer.generate_topology(composer.config)
             if set(topology.keys()) & set(new_topology.keys()):
                 raise ValueError(
-                    f"{set(topology.keys())} and {set(new_topology.keys())} contain overlapping keys")
+                    f"{set(topology.keys())} and {set(new_topology.keys())} "
+                    f"contain overlapping keys")
             topology.update(new_topology)
         return topology
 
@@ -819,23 +821,28 @@ class ToyComposer(Composer):
 
     def generate_processes(
             self,
-            config: Optional[dict]) -> Dict[str, ToyProcess]:
+            config: Optional[dict]
+    ) -> Dict[str, ToyProcess]:
         assert config is not None
-        A = ToyProcess(config['A'])
-        B = ToyProcess(config['B'])
+        config = config or self.defaults
+        a = ToyProcess(config['A'])
+        b = ToyProcess(config['B'])
         return {
-            A.name: A,
-            B.name: B}
+            a.name: a,
+            b.name: b}
 
     def generate_topology(
-            self, config: Optional[dict] = None) -> Topology:
-        A_name = config['A']['name']
-        B_name = config['B']['name']
+            self,
+            config: Optional[dict] = None
+    ) -> Topology:
+        config = config or self.defaults
+        a_name = config['A']['name']
+        b_name = config['B']['name']
         return {
-            A_name: {
+            a_name: {
                 'A': ('aaa',),
                 'B': ('bbb',)},
-            B_name: {
+            b_name: {
                 'A': ('bbb',),
                 'B': ('ccc',)}}
 
@@ -965,8 +972,12 @@ def test_aggregate_composer() -> None:
         composers=[ToyComposer(config2)])
     composite2 = aggregate.generate()
 
-    assert all(item in composite2['processes'].keys() for item in composite1['processes'].keys())
-    assert all(item in composite2['topology'].keys() for item in composite1['topology'].keys())
+    assert all(
+        item in composite2['processes'].keys()
+        for item in composite1['processes'].keys())
+    assert all(
+        item in composite2['topology'].keys()
+        for item in composite1['topology'].keys())
     assert len(composite1['processes']) < len(composite2['processes'])
 
 
