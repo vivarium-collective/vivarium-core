@@ -455,8 +455,8 @@ class AggregateComposer(Composer):
         for composer in self.composers:
             new_processes = composer.generate_processes(composer.config)
             if set(processes.keys()) & set(new_processes.keys()):
-                ValueError(
-                    f"{processes} and {new_processes} contain overlapping keys")
+                raise ValueError(
+                    f"{set(processes.keys())} and {set(new_processes.keys())} in contain overlapping keys")
             processes.update(new_processes)
         return processes
 
@@ -468,16 +468,28 @@ class AggregateComposer(Composer):
         for composer in self.composers:
             new_topology = composer.generate_topology(composer.config)
             if set(topology.keys()) & set(new_topology.keys()):
-                ValueError(
-                    f"{topology} and {new_topology} contain overlapping keys")
+                raise ValueError(
+                    f"{set(topology.keys())} and {set(new_topology.keys())} contain overlapping keys")
             topology.update(new_topology)
         return topology
 
-    def append(self, composer: Composer) -> None:
+    def add_composer(
+            self,
+            composer: Composer,
+            config: Optional[Dict] = None,
+    ) -> None:
+        if config:
+            self.config.update(config)
         self.composers.append(composer)
 
-    def extend(self, composer: List) -> None:
-        self.composers.extend(composer)
+    def add_composers(
+            self,
+            composers: List,
+            config: Optional[Dict] = None,
+    ) -> None:
+        if config:
+            self.config.update(config)
+        self.composers.extend(composers)
 
 
 class Process(Composer, metaclass=abc.ABCMeta):
@@ -800,7 +812,7 @@ class ToyProcess(Process):
                 'a': states['A']['b'],
                 'b': states['B']['a']}}
 
-class ToyComposite(Composer):
+class ToyComposer(Composer):
     defaults = {
         'A':  {'name': 'A'},
         'B': {'name': 'B'}}
@@ -809,17 +821,21 @@ class ToyComposite(Composer):
             self,
             config: Optional[dict]) -> Dict[str, ToyProcess]:
         assert config is not None
+        A = ToyProcess(config['A'])
+        B = ToyProcess(config['B'])
         return {
-            'A': ToyProcess(config['A']),
-            'B': ToyProcess(config['B'])}
+            A.name: A,
+            B.name: B}
 
     def generate_topology(
             self, config: Optional[dict] = None) -> Topology:
+        A_name = config['A']['name']
+        B_name = config['B']['name']
         return {
-            'A': {
+            A_name: {
                 'A': ('aaa',),
                 'B': ('bbb',)},
-            'B': {
+            B_name: {
                 'A': ('bbb',),
                 'B': ('ccc',)}}
 
@@ -862,7 +878,7 @@ def test_composite_parameters() -> None:
 
 
 def test_composite_merge() -> None:
-    composer = ToyComposite()
+    composer = ToyComposer()
     composite = composer.generate()
 
     expected_initial_topology = {
@@ -935,13 +951,23 @@ def test_get_composite() -> None:
     assert composite['topology'] == expected_topology
 
 def test_aggregate_composer() -> None:
-    aggregate = AggregateComposer(composers=[ToyComposite()])
-    composite = aggregate.generate()
+    config1 = {'name': 'one'}
+    aggregate = AggregateComposer(
+        composers=[ToyComposer(config1)])
+    composite1 = aggregate.generate()
 
-    assert 'A' in composite['processes']
-    assert 'B' in composite['processes']
-    assert 'A' in composite['topology']
-    assert 'B' in composite['topology']
+    config2 = {
+        'name': 'two',
+        'A':  {'name': 'AA'},
+        'B': {'name': 'BB'},
+    }
+    aggregate.add_composers(
+        composers=[ToyComposer(config2)])
+    composite2 = aggregate.generate()
+
+    assert all(item in composite2['processes'].keys() for item in composite1['processes'].keys())
+    assert all(item in composite2['topology'].keys() for item in composite1['topology'].keys())
+    assert len(composite1['processes']) < len(composite2['processes'])
 
 
 if __name__ == '__main__':
