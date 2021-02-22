@@ -1,6 +1,10 @@
 # Changelog
 
 
+## v0.2.5
+
+* remove future annotations to continue support of python 3.6
+
 ## v0.2.3
 
 * bring back compatibility for python 3.6
