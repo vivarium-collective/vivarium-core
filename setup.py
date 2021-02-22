@@ -18,7 +18,7 @@ with open("README.md", 'r') as readme:
 
 setup(
     name='vivarium-core',
-    version='0.2.2',
+    version='0.2.5',
     packages=[
         'vivarium',
         'vivarium.core',
@@ -47,7 +47,7 @@ setup(
     long_description_content_type='text/markdown',
     package_data={},
     include_package_data=True,
-    python_requires='>=3.8, <4',
+    python_requires='>=3.6, <4',
     install_requires=[
         'matplotlib',
         'networkx',

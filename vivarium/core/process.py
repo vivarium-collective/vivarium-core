@@ -4,8 +4,6 @@ Composer and Process Classes
 ============================
 """
 
-from __future__ import annotations
-
 import abc
 import copy
 from multiprocessing import Pipe
@@ -201,7 +199,7 @@ def assoc_in(d: dict, path: HierarchyPath, value: Any) -> dict:
 
 def _override_schemas(
         overrides: Dict[str, Schema],
-        processes: Dict[str, Process]) -> None:
+        processes: Dict[str, 'Process']) -> None:
     for key, override in overrides.items():
         process = processes[key]
         if isinstance(process, Process):
@@ -211,7 +209,7 @@ def _override_schemas(
 
 
 def _get_composite_initial_state(
-        processes: Dict[str, Process],
+        processes: Dict[str, 'Process'],
         topology: Topology) -> State:
     initial_state = {}
     for path, node in processes.items():
@@ -372,7 +370,7 @@ class Composer(metaclass=abc.ABCMeta):
 
     def merge(
             self,
-            processes: Optional[Dict[str, Process]] = None,
+            processes: Optional[Dict[str, 'Process']] = None,
             topology: Optional[Topology] = None,
             schema_override: Optional[Schema] = None) -> None:
         processes = processes or {}
