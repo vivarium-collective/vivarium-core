@@ -11,7 +11,7 @@ import logging as log
 import pprint
 from multiprocessing import Pool
 from typing import (
-    Any, Dict, Optional, Union, Literal, Tuple)
+    Any, Dict, Optional, Union, Literal, Tuple, Callable)
 import math
 import datetime
 import time as clock
@@ -37,7 +37,7 @@ from vivarium.library.topology import (
 )
 from vivarium.library.units import units
 from vivarium.core.types import (
-    HierarchyPath, Topology, Schema, State, Update, CompositeDict)
+    HierarchyPath, Topology, Schema, State, Update, Processes)
 
 pretty = pprint.PrettyPrinter(indent=2)
 
@@ -53,28 +53,38 @@ def pf(x: Any) -> str:
 log.basicConfig(level=os.environ.get("LOGLEVEL", log.WARNING))
 
 
-def starts_with(a_list, sub) -> bool:
+def starts_with(
+        a_list: HierarchyPath,
+        sub: HierarchyPath,
+) -> bool:
     return len(sub) <= len(a_list) and all(
         a_list[i] == el
         for i, el in enumerate(sub))
 
 
-def invert_topology(update, args):
+def invert_topology(
+        update: Update,
+        args: Tuple[HierarchyPath, Topology],
+) -> State:
     path, topology = args
     return inverse_topology(path[:-1], update, topology)
 
 
-def generate_state(processes, topology, initial_state):
-    state = Store({})
-    state.generate_paths(processes, topology)
-    state.apply_subschemas()
-    state.set_value(initial_state)
-    state.apply_defaults()
+def generate_state(
+        processes: Processes,
+        topology: Topology,
+        initial_state: State,
+) -> Store:
+    store = Store({})
+    store.generate_paths(processes, topology)
+    store.apply_subschemas()
+    store.set_value(initial_state)
+    store.apply_defaults()
 
-    return state
+    return store
 
 
-def timestamp(dt=None) -> str:
+def timestamp(dt: Optional[Any] = None) -> str:
     if not dt:
         dt = datetime.datetime.now()
     return "%04d%02d%02d.%02d%02d%02d" % (
@@ -117,12 +127,12 @@ class InvokeProcess:
             self.interval,
             self.states)
 
-    def get(self):
+    def get(self) -> Update:
         return self.update
 
 
 class MultiInvoke:
-    def __init__(self, pool) -> None:
+    def __init__(self, pool: Callable) -> None:
         self.pool = pool
 
     def invoke(self, process, interval, states):
@@ -194,7 +204,7 @@ class Experiment:
 
         # get a mapping of all paths to processes
         self.process_paths: Dict[HierarchyPath, Process] = {}
-        self.deriver_paths: Dict[HierarchyPath, Deriver] = {}
+        self.deriver_paths: Dict[HierarchyPath, Process] = {}
         self.find_process_paths(self.processes)
 
         # initialize the state
@@ -236,19 +246,26 @@ class Experiment:
         # log.info('\nCONFIG:')
         # log.info(pf(self.state.get_config(True)))
 
-    def add_process_path(self, process, path) -> None:
+    def add_process_path(
+            self,
+            process: Process,
+            path: HierarchyPath
+    ) -> None:
         if process.is_deriver():
             self.deriver_paths[path] = process
         else:
             self.process_paths[path] = process
 
-    def find_process_paths(self, processes) -> None:
+    def find_process_paths(
+            self,
+            processes: Processes
+    ) -> None:
         tree = hierarchy_depth(processes)
         for path, process in tree.items():
             self.add_process_path(process, path)
 
     def emit_configuration(self) -> None:
-        data = {
+        data: Dict[str, Any] = {
             'time_created': self.time_created,
             'experiment_id': self.experiment_id,
             'name': self.experiment_name,
@@ -257,7 +274,7 @@ class Experiment:
             'processes': serialize_value(self.processes),
             'state': self.state.get_config()
         }
-        emit_config = {
+        emit_config: Dict[str, Any] = {
             'table': 'configuration',
             'data': data}
         try:
@@ -291,10 +308,10 @@ class Experiment:
             self,
             path: HierarchyPath,
             process: Process,
-            store,
+            store: Store,
             states: State,
             interval: float,
-    ):
+    ) -> Tuple[Defer, Store]:
 
         update = self.invoke_process(
             process,
@@ -313,7 +330,7 @@ class Experiment:
             self,
             path: HierarchyPath,
             process: Process,
-    ):
+    ) -> Tuple[Store, State]:
         store = self.state.get_path(path)
 
         # translate the values from the tree structure into the form
@@ -327,7 +344,7 @@ class Experiment:
             path: HierarchyPath,
             process: Process,
             interval: float
-    ):
+    ) -> Tuple[Defer, Store]:
         store, states = self.process_state(path, process)
         return self.process_update(
             path, process, store, states, interval)
@@ -335,7 +352,7 @@ class Experiment:
     def apply_update(
             self,
             update: Update,
-            state: State
+            state: Store
     ) -> None:
         topology_updates, process_updates, deletions = self.state.apply_update(
             update, state)
@@ -379,9 +396,9 @@ class Experiment:
                 #  generate_paths() add a schema attribute to the Deriver.
                 #  PyCharm's type check reports:
                 #    Type Process doesn't have expected attribute 'schema'
-                update, state = self.calculate_update(
+                update, store = self.calculate_update(
                     path, deriver, 0)
-                self.apply_update(update.get(), state)
+                self.apply_update(update.get(), store)
 
     def emit_data(self) -> None:
         data = self.state.emit_data()

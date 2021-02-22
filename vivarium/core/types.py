@@ -15,6 +15,10 @@ HierarchyPath = Tuple[str, ...]
 #: :term:`hierarchy` should be wired to each port.
 Topology = Dict[str, Union[HierarchyPath, dict]]
 
+#: Mapping from processes names to Processes, which can be embedded in
+#: a hierarchy.
+Processes = Dict[str, Any]
+
 #: A dictionary that specifies a :term:`schema`.
 Schema = Dict[str, Any]
 
