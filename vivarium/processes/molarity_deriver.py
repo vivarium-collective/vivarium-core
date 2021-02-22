@@ -54,7 +54,6 @@ class CountsToMolar(Deriver):
                 concentrations[molecule] = count / mmol_to_counts
             return {
                 'concentrations': concentrations}
-        
         print('volume is 0!')
         return {}
 
