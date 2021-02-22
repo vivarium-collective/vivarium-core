@@ -101,12 +101,17 @@ def invoke_process(
 
 
 class Defer:
-    def __init__(self, defer, f, args) -> None:
+    def __init__(
+            self,
+            defer: Any,
+            f: Callable,
+            args: Tuple,
+    ) -> None:
         self.defer = defer
         self.f = f
         self.args = args
 
-    def get(self):
+    def get(self) -> Update:
         return self.f(
             self.defer.get(),
             self.args)
@@ -132,10 +137,18 @@ class InvokeProcess:
 
 
 class MultiInvoke:
-    def __init__(self, pool: Callable) -> None:
+    def __init__(
+            self,
+            pool: Callable
+    ) -> None:
         self.pool = pool
 
-    def invoke(self, process, interval, states):
+    def invoke(
+            self,
+            process: Process,
+            interval: float,
+            states: State,
+    ) -> Update:
         args = (process, interval, states)
         result = self.pool.apply_async(invoke_process, args)
         return result
@@ -292,7 +305,7 @@ class Experiment:
             path: HierarchyPath,
             interval: float,
             states: State,
-    ):
+    ) -> Any:
         if process.parallel:
             # add parallel process if it doesn't exist
             if path not in self.parallel:
