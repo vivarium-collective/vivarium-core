@@ -9,7 +9,7 @@ Experiment runs the simulation.
 import os
 import logging as log
 import pprint
-from multiprocessing import Pool
+import multiprocessing
 from typing import (
     Any, Dict, Optional, Union, Literal, Tuple, Callable)
 import math
@@ -125,7 +125,7 @@ class InvokeProcess:
 class MultiInvoke:
     def __init__(
             self,
-            pool: Callable
+            pool: multiprocessing.pool.Pool
     ) -> None:
         self.pool = pool
 
@@ -134,7 +134,7 @@ class MultiInvoke:
             process: Process,
             interval: float,
             states: State,
-    ) -> Update:
+    ) -> multiprocessing.pool.ApplyResult[Update]:
         args = (process, interval, states)
         result = self.pool.apply_async(invoke_process, args)
         return result
@@ -961,7 +961,7 @@ def test_complex_topology() -> None:
 
 
 def test_multi() -> None:
-    with Pool(processes=4) as pool:
+    with multiprocessing.Pool(processes=4) as pool:
         multi = MultiInvoke(pool)
         proton = make_proton()
         experiment = Experiment({**proton, 'invoke': multi.invoke})
