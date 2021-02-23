@@ -83,8 +83,7 @@ def inverse_topology(outer, update, topology, inverse=None):
     to calculate.
     '''
 
-    if inverse is None:
-        inverse = {}
+    inverse = inverse or {}
 
     for key, path in topology.items():
         if key == '*':
@@ -103,7 +102,6 @@ def inverse_topology(outer, update, topology, inverse=None):
                         update[child],
                         path,
                         inverse)
-
             else:
                 for child, child_update in update.items():
                     inner = normalize_path(outer + path + (child,))
@@ -134,7 +132,6 @@ def inverse_topology(outer, update, topology, inverse=None):
                     value,
                     path,
                     inverse)
-
             else:
                 inner = normalize_path(outer + path)
                 if isinstance(value, dict):

@@ -17,7 +17,7 @@ import numpy as np
 from pint.errors import UndefinedUnitError
 
 from vivarium.library.datum import Datum
-from vivarium.library.topology import inverse_topology, get_in
+from vivarium.library.topology import inverse_topology
 from vivarium.library.units import Quantity
 from vivarium.core.registry import serializer_registry
 from vivarium.library.dict_utils import deep_merge
@@ -211,15 +211,15 @@ def _override_schemas(
 
 def _get_composite_initial_state(
         processes: Dict[str, 'Process'],
-        topology: Topology,
-        path: HierarchyPath,
-        initial_state: Optional[dict] = None,
+        topology: Any,
+        path: Optional[HierarchyPath] = None,
+        initial_state: Optional[State] = None,
         config: Optional[dict] = None,
-) -> State:
-    config = config or {}
+) -> Optional[State]:
+
     path = path or tuple()
-    if initial_state is None:
-        initial_state = {}
+    initial_state = initial_state or {}
+    config = config or {}
 
     for key, node in processes.items():
         subpath = path + (key,)
@@ -261,7 +261,7 @@ class Composite(Datum):
         super().__init__(config)
         _override_schemas(self._schema, self.processes)
 
-    def initial_state(self, config: Optional[dict] = None) -> State:
+    def initial_state(self, config: Optional[dict] = None) -> Optional[State]:
         """ Merge all processes' initial states
         Arguments:
             config (dict): A dictionary of configuration options. All
@@ -272,9 +272,9 @@ class Composite(Datum):
             mapping state paths to initial values.
         """
         return _get_composite_initial_state(
-            self.processes,
-            self.topology,
-            config)
+            processes=self.processes,
+            topology=self.topology,
+            config=config)
 
     def merge(
             self,
@@ -416,7 +416,7 @@ class Composer(metaclass=abc.ABCMeta):
             'topology': assoc_in({}, path, topology),
         })
 
-    def initial_state(self, config: Optional[dict] = None) -> State:
+    def initial_state(self, config: Optional[dict] = None) -> Optional[State]:
         """ Merge all processes' initial states
 
         Every subclass may override this method.
