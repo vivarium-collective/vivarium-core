@@ -20,6 +20,16 @@ from vivarium.library.topology import without, dict_to_paths
 EMPTY_UPDATES = None, None, None
 
 
+def generate_state(processes, topology, initial_state):
+    state = Store({})
+    state.generate_paths(processes, topology)
+    state.apply_subschemas()
+    state.set_value(initial_state)
+    state.apply_defaults()
+
+    return state
+
+
 def key_for_value(d, looking):
     found = None
     for key, value in d.items():
