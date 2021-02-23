@@ -209,9 +209,10 @@ def _override_schemas(
             _override_schemas(override, process)
 
 
-def _get_composite_initial_state(
+def _get_composite_state(
         processes: Dict[str, 'Process'],
         topology: Any,
+        state_type: Optional[str] = 'initial',
         path: Optional[HierarchyPath] = None,
         initial_state: Optional[State] = None,
         config: Optional[dict] = None,
@@ -226,14 +227,20 @@ def _get_composite_initial_state(
         subtopology = topology[key]
 
         if isinstance(node, dict):
-            state = _get_composite_initial_state(
+            state = _get_composite_state(
                 processes=node,
                 topology=subtopology,
+                state_type=state_type,
                 path=subpath,
                 initial_state=initial_state
             )
         elif isinstance(node, Process):
-            process_state = node.initial_state(config.get(node.name))
+            if state_type == 'initial':
+                # get the initial state
+                process_state = node.initial_state(config.get(node.name))
+            elif state_type == 'default':
+                # get the default state
+                process_state = node.default_state()
             state = inverse_topology(path, process_state, subtopology)
 
         initial_state = deep_merge(initial_state, state)
@@ -271,9 +278,26 @@ class Composite(Datum):
             (dict): Subclass implementations must return a dictionary
             mapping state paths to initial values.
         """
-        return _get_composite_initial_state(
+        return _get_composite_state(
             processes=self.processes,
             topology=self.topology,
+            state_type='initial',
+            config=config)
+
+    def default_state(self, config: Optional[dict] = None) -> Optional[State]:
+        """ Merge all processes' default states
+        Arguments:
+            config (dict): A dictionary of configuration options. All
+            subclass implementation must accept this parameter, but
+            some may ignore it.
+        Returns:
+            (dict): Subclass implementations must return a dictionary
+            mapping state paths to default values.
+        """
+        return _get_composite_state(
+            processes=self.processes,
+            topology=self.topology,
+            state_type='default',
             config=config)
 
     def merge(
@@ -622,7 +646,7 @@ class Process(Composer, metaclass=abc.ABCMeta):
             A state dictionary that assigns each variable's default
             value to that variable.
         """
-        schema = self.ports_schema()
+        schema = self.get_schema()
         state: State = {}
         for port, states in schema.items():
             for key, value in states.items():
@@ -786,8 +810,8 @@ class BB(Composer):
         return {
             'a1': AA({}),
             'a2': AA({}),
-            'a3': {
-                'a3_store': AA({})}}
+            'a3_store': {
+                'a3': AA({})}}
 
     def generate_topology(self, config: Optional[dict]) -> Topology:
         return {
@@ -796,8 +820,8 @@ class BB(Composer):
             'a2': {
                 'a_port': {
                     'a': ('a1_store', 'b')}},
-            'a3': {
-                'a3_store': {
+            'a3_store': {
+                'a3': {
                     'a_port': ('a3_1_store',)}}}
 
 class ToyProcess(Process):
@@ -855,6 +879,25 @@ class ToyComposer(Composer):
                 'B': ('ccc',)}}
 
 
+def test_override() -> None:
+    config = {
+        '_schema': {
+            'a3_store': {
+                'a3': {
+                    'a_port': {
+                        'a': {
+                            '_default': 2}}}}}}
+    bb_composer = BB(config)
+    bb_composite = bb_composer.generate()
+    default_state = bb_composite.default_state()
+
+    expected_default_state = {
+        'a3_store': {
+            'a3_1_store': {
+                'a': 2}}}
+
+    assert default_state == expected_default_state
+
 def test_composite_initial_state() -> None:
     """
     test that initial state in composite merges individual processes'
@@ -867,12 +910,13 @@ def test_composite_initial_state() -> None:
     initial_state = bb_composite.initial_state()
 
     expected_initial_state = {
-        'a3': {
+        'a3_store': {
             'a3_1_store': {
                 'a': 1}},
         'a1_store': {
             'a': 1,
             'b': 1}}
+
     assert initial_state == expected_initial_state
 
 
@@ -888,8 +932,8 @@ def test_composite_parameters() -> None:
     expected_parameters = {
         'a1': {'time_step': 1.0},
         'a2': {'time_step': 1.0},
-        'a3': {
-            'a3_store': {'time_step': 1.0}}}
+        'a3_store': {
+            'a3': {'time_step': 1.0}}}
     assert parameters == expected_parameters
 
 
@@ -1001,3 +1045,5 @@ if __name__ == '__main__':
     test_get_composite()
     print('Running test_aggregate_composer()')
     test_aggregate_composer()
+    print('Running test_override()')
+    test_override()
