@@ -20,7 +20,7 @@ import uuid
 from pymongo.errors import PyMongoError
 
 from vivarium.composites.toys import Proton, Electron, Sine, PoQo
-from vivarium.core.store import hierarchy_depth, Store
+from vivarium.core.store import hierarchy_depth, Store, generate_state
 from vivarium.core.emitter import get_emitter
 from vivarium.core.process import (
     HierarchyPath,
@@ -68,20 +68,6 @@ def invert_topology(
 ) -> State:
     path, topology = args
     return inverse_topology(path[:-1], update, topology)
-
-
-def generate_state(
-        processes: Processes,
-        topology: Topology,
-        initial_state: State,
-) -> Store:
-    store = Store({})
-    store.generate_paths(processes, topology)
-    store.apply_subschemas()
-    store.set_value(initial_state)
-    store.apply_defaults()
-
-    return store
 
 
 def timestamp(dt: Optional[Any] = None) -> str:
