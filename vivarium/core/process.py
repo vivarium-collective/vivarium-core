@@ -387,7 +387,7 @@ class Composer(metaclass=abc.ABCMeta):
             mapping process names to instantiated and configured process
             objects.
         """
-        return {}
+        return {}  # pragma: no cover
 
     @abc.abstractmethod
     def generate_topology(self, config: Optional[dict]) -> Topology:
@@ -404,7 +404,7 @@ class Composer(metaclass=abc.ABCMeta):
             Subclass implementations must return a :term:`topology`
             dictionary.
         """
-        return {}
+        return {}  # pragma: no cover
 
     def generate(
             self,
@@ -907,7 +907,8 @@ def test_composite_initial_state() -> None:
     bb_composer = BB({})
     bb_composite = bb_composer.generate()
 
-    initial_state = bb_composite.initial_state()
+    composer_initial_state = bb_composer.initial_state()
+    composite_initial_state = bb_composite.initial_state()
 
     expected_initial_state = {
         'a3_store': {
@@ -917,7 +918,8 @@ def test_composite_initial_state() -> None:
             'a': 1,
             'b': 1}}
 
-    assert initial_state == expected_initial_state
+    assert composite_initial_state == composer_initial_state
+    assert composite_initial_state == expected_initial_state
 
 
 def test_composite_parameters() -> None:
@@ -928,13 +930,15 @@ def test_composite_parameters() -> None:
 
     bb_composer = BB({})
     bb_composite = bb_composer.generate()
-    parameters = bb_composite.get_parameters()
+    composer_parameters = bb_composer.get_parameters()
+    composite_parameters = bb_composite.get_parameters()
     expected_parameters = {
         'a1': {'time_step': 1.0},
         'a2': {'time_step': 1.0},
         'a3_store': {
             'a3': {'time_step': 1.0}}}
-    assert parameters == expected_parameters
+    assert composite_parameters == composer_parameters
+    assert composite_parameters == expected_parameters
 
 
 def test_composite_merge() -> None:
@@ -1016,34 +1020,54 @@ def test_aggregate_composer() -> None:
         composers=[ToyComposer(config1)])
     composite1 = aggregate.generate()
 
+    # add composers (list)
     config2 = {
         'name': 'two',
         'A':  {'name': 'AA'},
         'B': {'name': 'BB'},
     }
     aggregate.add_composers(
-        composers=[ToyComposer(config2)])
+        composers=[ToyComposer(config2)],
+        config={})
     composite2 = aggregate.generate()
+
+    # add composer (single)
+    config3 = {
+        'name': 'three',
+        'A':  {'name': 'AAA'},
+        'B': {'name': 'BBB'},
+    }
+    aggregate.add_composer(
+        composer=ToyComposer(config3),
+        config={})
+    composite3 = aggregate.generate()
 
     assert all(
         item in composite2['processes'].keys()
         for item in composite1['processes'].keys())
     assert all(
+        item in composite3['processes'].keys()
+        for item in composite2['processes'].keys())
+    assert all(
         item in composite2['topology'].keys()
         for item in composite1['topology'].keys())
+    assert all(
+        item in composite3['topology'].keys()
+        for item in composite2['topology'].keys())
     assert len(composite1['processes']) < len(composite2['processes'])
+    assert len(composite2['processes']) < len(composite3['processes'])
 
 
 if __name__ == '__main__':
     print('Running test_composite_initial_state')
-    test_composite_initial_state()
+    test_composite_initial_state()  # pragma: no cover
     print('Running test_composite_parameters')
-    test_composite_parameters()
+    test_composite_parameters()  # pragma: no cover
     print('Running test_composite_merge()')
-    test_composite_merge()
+    test_composite_merge()  # pragma: no cover
     print('Running test_get_composite()')
-    test_get_composite()
+    test_get_composite()  # pragma: no cover
     print('Running test_aggregate_composer()')
-    test_aggregate_composer()
+    test_aggregate_composer()  # pragma: no cover
     print('Running test_override()')
-    test_override()
+    test_override()  # pragma: no cover
