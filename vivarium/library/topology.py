@@ -72,7 +72,7 @@ def dict_to_paths(root, d):
         return [(root, d)]
         
 
-def inverse_topology(outer, update, topology):
+def inverse_topology(outer, update, topology, inverse=None):
     '''
     Transform an update from the form its process produced into
     one aligned to the given topology.
@@ -83,7 +83,9 @@ def inverse_topology(outer, update, topology):
     to calculate.
     '''
 
-    inverse = {}
+    if inverse is None:
+        inverse = {}
+
     for key, path in topology.items():
         if key == '*':
 
@@ -91,17 +93,16 @@ def inverse_topology(outer, update, topology):
                 node = inverse
                 if '_path' in path:
                     inner = normalize_path(outer + path['_path'])
-                    node = get_in(inverse, inner)
-                    if node is None:
-                        node = {}
-                        assoc_path(inverse, inner, node)
                     path = without(path, '_path')
+                else:
+                    inner = outer
 
                 for child, child_update in update.items():
-                    node[child] = inverse_topology(
-                        tuple(),
+                    inverse = inverse_topology(
+                        inner + (child,),
                         update[child],
-                        path)
+                        path,
+                        inverse)
 
             else:
                 for child, child_update in update.items():
@@ -118,25 +119,21 @@ def inverse_topology(outer, update, topology):
         elif key in update:
             value = update[key]
             if isinstance(path, dict):
-                node = inverse
                 if '_path' in path:
                     inner = normalize_path(outer + path['_path'])
-                    node = get_in(inverse, inner)
-                    if node is None:
-                        node = {}
-                        assoc_path(inverse, inner, node)
                     path = without(path, '_path')
 
                     for update_key in update[key].keys():
                         if update_key not in path:
                             path[update_key] = (update_key,)
+                else:
+                    inner = outer
 
-                deep_merge(
-                    node,
-                    inverse_topology(
-                        tuple(),
-                        value,
-                        path))
+                inverse = inverse_topology(
+                    inner,
+                    value,
+                    path,
+                    inverse)
 
             else:
                 inner = normalize_path(outer + path)
@@ -157,7 +154,7 @@ def normalize_path(path):
             progress = progress[:-1]
         else:
             progress.append(step)
-    return progress
+    return tuple(progress)
 
 
 class TestUpdateIn:

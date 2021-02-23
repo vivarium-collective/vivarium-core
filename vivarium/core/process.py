@@ -213,28 +213,30 @@ def _get_composite_initial_state(
         processes: Dict[str, 'Process'],
         topology: Topology,
         path: HierarchyPath,
+        initial_state: Optional[dict] = None,
         config: Optional[dict] = None,
 ) -> State:
     config = config or {}
     path = path or tuple()
-    initial_state = {}
-    for process_key, node in processes.items():
-        process_path = path + (process_key,)
+    if initial_state is None:
+        initial_state = {}
+
+    for key, node in processes.items():
+        subpath = path + (key,)
+        subtopology = topology[key]
+
         if isinstance(node, dict):
-            initial_state[process_key] = _get_composite_initial_state(
+            state = _get_composite_initial_state(
                 processes=node,
-                topology=topology,
-                path=process_path
+                topology=subtopology,
+                path=subpath,
+                initial_state=initial_state
             )
         elif isinstance(node, Process):
             process_state = node.initial_state(config.get(node.name))
-            # process_state = assoc_in({}, path, process_state)
-            import ipdb; ipdb.set_trace()
-            x = get_in(topology, process_path)
+            state = inverse_topology(path, process_state, subtopology)
 
-            state = inverse_topology(path, process_state, x)
-
-            initial_state = deep_merge(initial_state, state)
+        initial_state = deep_merge(initial_state, state)
 
     return initial_state
 
@@ -861,10 +863,11 @@ def test_composite_initial_state() -> None:
 
     bb_composer = BB({})
     bb_composite = bb_composer.generate()
+
     initial_state = bb_composite.initial_state()
 
     expected_initial_state = {
-        'a3_store': {
+        'a3': {
             'a3_1_store': {
                 'a': 1}},
         'a1_store': {
