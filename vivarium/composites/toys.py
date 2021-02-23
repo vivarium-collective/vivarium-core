@@ -481,8 +481,9 @@ def test_composite_initial_state() -> None:
                 'ccc': {'a3': -3, 'd3': 3}
             }}}
 
+    import ipdb;
+    ipdb.set_trace()
     assert pq_initial == expected_initial
-    # import ipdb; ipdb.set_trace()
 
 
 if __name__ == '__main__':

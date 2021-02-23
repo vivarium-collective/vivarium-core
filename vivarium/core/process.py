@@ -17,7 +17,7 @@ import numpy as np
 from pint.errors import UndefinedUnitError
 
 from vivarium.library.datum import Datum
-from vivarium.library.topology import inverse_topology
+from vivarium.library.topology import inverse_topology, get_in
 from vivarium.library.units import Quantity
 from vivarium.core.registry import serializer_registry
 from vivarium.library.dict_utils import deep_merge
@@ -212,21 +212,28 @@ def _override_schemas(
 def _get_composite_initial_state(
         processes: Dict[str, 'Process'],
         topology: Topology,
+        path: HierarchyPath,
         config: Optional[dict] = None,
 ) -> State:
     config = config or {}
+    path = path or tuple()
     initial_state = {}
-    for path, node in processes.items():
+    for process_key, node in processes.items():
+        process_path = path + (process_key,)
         if isinstance(node, dict):
-            for key in node.keys():
-                initial_state[key] = _get_composite_initial_state(
-                    node, cast(Topology, topology[path]))
+            initial_state[process_key] = _get_composite_initial_state(
+                processes=node,
+                topology=topology,
+                path=process_path
+            )
         elif isinstance(node, Process):
-            process_topology = topology[path]
             process_state = node.initial_state(config.get(node.name))
-            process_path: HierarchyPath = tuple()
-            state = inverse_topology(
-                process_path, process_state, process_topology)
+            # process_state = assoc_in({}, path, process_state)
+            import ipdb; ipdb.set_trace()
+            x = get_in(topology, process_path)
+
+            state = inverse_topology(path, process_state, x)
+
             initial_state = deep_merge(initial_state, state)
 
     return initial_state
@@ -269,8 +276,8 @@ class Composite(Datum):
 
     def merge(
             self,
-            composite: Optional[Composite] = None,
-            processes: Optional[Dict[str, Process]] = None,
+            composite: Optional['Composite'] = None,
+            processes: Optional[Dict[str, 'Process']] = None,
             topology: Optional[Topology] = None,
             schema_override: Optional[Schema] = None,
     ) -> None:
@@ -300,7 +307,7 @@ class Composite(Datum):
 
 
 def _get_parameters(
-        processes: Optional[Dict[str, Process]] = None
+        processes: Optional[Dict[str, 'Process']] = None
 ) -> Dict:
     processes = processes or {}
     parameters: Dict = {}
