@@ -25,7 +25,7 @@ def generate_state(
         processes: Processes,
         topology: Topology,
         initial_state: State,
-) -> Store:
+) -> 'Store':
     store = Store({})
     store.generate_paths(processes, topology)
     store.apply_subschemas()

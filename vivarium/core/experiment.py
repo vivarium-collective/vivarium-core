@@ -23,8 +23,6 @@ from vivarium.composites.toys import Proton, Electron, Sine, PoQo
 from vivarium.core.store import hierarchy_depth, Store, generate_state
 from vivarium.core.emitter import get_emitter
 from vivarium.core.process import (
-    HierarchyPath,
-    Deriver,
     Process,
     ParallelProcess,
     serialize_value,
