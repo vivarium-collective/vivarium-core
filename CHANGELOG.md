@@ -1,6 +1,11 @@
 # Changelog
 
 
+## v0.2.6
+
+* new Composite and AggregateComposer classes in core/process.py
+
+
 ## v0.2.5
 
 * remove future annotations to continue support of python 3.6

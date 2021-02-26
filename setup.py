@@ -18,7 +18,7 @@ with open("README.md", 'r') as readme:
 
 setup(
     name='vivarium-core',
-    version='0.2.5',
+    version='0.2.6',
     packages=[
         'vivarium',
         'vivarium.core',
