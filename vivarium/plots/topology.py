@@ -229,9 +229,9 @@ def save_network(out_dir='out', filename='network'):
 
 def plot_topology(
         composite,
-        settings: Optional[Dict[str, Any]] = None,
-        out_dir=None,
-        filename=None,
+        settings: Optional[Dict] = None,
+        out_dir: Optional[str] = None,
+        filename: Optional[str] = None,
 ):
     """ Plot a composite's topology """
 
@@ -313,8 +313,8 @@ class MergePort(Composer):
 
 def test_graph(
         fig_name=None,
-        topology: Optional[Dict[str, Any]] = None,
-        settings: Optional[Dict[str, Any]] = None,
+        topology=None,
+        settings=None,
 ):
 
     if topology is None:
