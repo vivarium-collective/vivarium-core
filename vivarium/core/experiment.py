@@ -27,8 +27,8 @@ from vivarium.core.process import (
     Process,
     ParallelProcess,
     serialize_value,
-    Composer,
 )
+from vivarium.core.composite import Composer
 from vivarium.library.topology import (
     delete_in,
     assoc_path,

@@ -9,7 +9,8 @@ from matplotlib.path import Path
 from matplotlib.figure import Figure
 import networkx as nx
 
-from vivarium.core.process import Process, Composer
+from vivarium.core.process import Process
+from vivarium.core.composite import Composer
 
 
 def construct_storage_path() -> Path:

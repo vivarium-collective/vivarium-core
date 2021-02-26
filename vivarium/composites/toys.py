@@ -4,7 +4,8 @@ from typing import Optional, Dict, Any, Union
 import numpy as np
 
 from vivarium.core.process import (
-    Process, Deriver, Composer, Composite, AggregateComposer)
+    Process, Deriver)
+from vivarium.core.composite import Composite, Composer, AggregateComposer
 from vivarium.core.types import State, Schema, Update, Topology
 
 quark_colors = ['green', 'red', 'blue']
