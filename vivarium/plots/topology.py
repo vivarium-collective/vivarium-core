@@ -1,6 +1,7 @@
 """Plot topologies using networkx and matplotlib."""
 
 import os
+import argparse
 from typing import Any, cast, Dict, Optional
 
 import numpy as np
@@ -50,7 +51,7 @@ def get_bipartite_graph(topology):
     store_nodes = []
     edges = {}
     for process_id, connections in topology.items():
-        process_id = process_id.replace("_", "_\n")  # line breaks at underscores
+        # process_id = process_id.replace("_", "_\n")  # line breaks at underscores
         process_nodes.append(process_id)
 
         for port, store_id in connections.items():
@@ -71,9 +72,9 @@ def get_bipartite_graph(topology):
     return process_nodes, store_nodes, edges
 
 
-def get_networkx_graph(composite):
+def get_networkx_graph(topology):
     ''' Make a networkX graph from a Vivarium topology '''
-    process_nodes, store_nodes, edges = get_bipartite_graph(composite)
+    process_nodes, store_nodes, edges = get_bipartite_graph(topology)
 
     # make networkX graph
     g = nx.Graph()
@@ -298,7 +299,7 @@ class MergePort(Composer):
 
 
 def test_graph(
-        save_fig=False,
+        fig_name=None,
         topology: Optional[Dict[str, Any]] = None
 ):
     if topology is None:
@@ -308,34 +309,49 @@ def test_graph(
     composer = MergePort({'topology': topology})
     composite = composer.generate()
 
-    # make networkx graph
-    g = get_networkx_graph(composite)
+    config = {}
+    if fig_name:
+        config = dict(out_dir='out/topology', filename=fig_name)
 
-    # make graph figure
-    fig = graph_figure(g)
+    plot_topology(composite, **config)
 
-    if save_fig:
-        save_network(out_dir='out/topology', filename='topology')
+
+def main():
+
+    parser = argparse.ArgumentParser(description='topology')
+    parser.add_argument(
+        '--topology', '-t',
+        type=str,
+        choices=['1', '2'],
+        help='the topology id'
+    )
+    args = parser.parse_args()
+
+    topology_id = str(args.topology)
+    if topology_id == '1':
+        topology = {
+                'multiport1': {
+                    'a': ('D',),
+                    'b': ('D',),
+                    'c': ('D',),
+                },
+                'multiport2': {}}
+        fig_name = 'topology_1'
+    else:
+        topology = {
+                'multiport1': {
+                    'a': ('A', 'AA',),
+                    'b': ('A', 'BB',),
+                    'c': ('A', 'CC',),
+                },
+                'multiport2': {}}
+        fig_name = 'topology_2'
+
+    test_graph(
+        fig_name=fig_name,
+        topology=topology,
+    )
 
 
 if __name__ == '__main__':
-    # topology = {
-    #         'multiport1': {
-    #             'a': ('D',),
-    #             'b': ('D',),
-    #             'c': ('D',),
-    #         },
-    #         'multiport2': {}}
-
-    topology = {
-            'multiport1': {
-                'a': ('A', 'AA',),
-                'b': ('A', 'BB',),
-                'c': ('A', 'CC',),
-            },
-            'multiport2': {}}
-
-    test_graph(
-        save_fig=True,
-        topology=topology,
-    )
+    main()
