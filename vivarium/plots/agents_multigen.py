@@ -191,6 +191,7 @@ def plot_agents_multigen(
                 )
             state_title = titles_map.get(path, path)
             if isinstance(state_title, tuple):
+                state_title = tuple(str(s) for s in state_title)
                 # new line for each store
                 state_title = ' \n'.join(state_title)
             if not title_on_y_axis:
