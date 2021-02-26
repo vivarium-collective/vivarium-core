@@ -273,7 +273,6 @@ class Process(metaclass=abc.ABCMeta):
         self.parameters = deep_merge(self.parameters, parameters)
         self.schema_override = self.parameters.pop('_schema', {})
 
-        self.parameters = parameters
         self.parallel = self.parameters.pop('_parallel', False)
         self.parameters.setdefault('time_step', DEFAULT_TIME_STEP)
 
