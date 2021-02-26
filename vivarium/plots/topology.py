@@ -95,6 +95,8 @@ def graph_figure(
         show_ports: bool = True,
         store_color: Any = 'tab:blue',
         process_color: Any = 'tab:orange',
+        store_colors: Optional[Dict] = None,
+        process_colors: Optional[Dict] = None,
         color_edges: bool = True,
         fill_color: Any = 'w',
         node_size: float = 8000,
@@ -109,8 +111,10 @@ def graph_figure(
     :param graph: the networkx.Graph to plot
     :param graph_format: 'horizontal' or 'vertical'
     :param show_ports: whether to show the Port labels
-    :param store_color: color for the Store nodes; any matplotlib color value
-    :param process_color: color for the Process nodes; any matplotlib color value
+    :param store_color: default color for the Store nodes; any matplotlib color value
+    :param process_color: default color for the Process nodes; any matplotlib color value
+    :param store_colors: (dict) specific colors for the Store nodes, mapping from store name to matplotlib color
+    :param process_colors: (dict) specific colors for the Process nodes, mapping from store name to matplotlib color
     :param color_edges: color each edge between Store and Process a different color
     :param fill_color: fill color for the Store and Process nodes; any
         matplotlib color value
@@ -122,6 +126,8 @@ def graph_figure(
     :param label_pos: position of the Port labels along their connection lines,
         (0=head, 0.5=center, 1=tail)
     """
+    process_colors = process_colors or {}
+    store_colors = store_colors or {}
 
     node_attributes = dict(graph.nodes.data())
     process_nodes = [
@@ -162,12 +168,19 @@ def graph_figure(
 
         fig = plt.figure(1, figsize=(n_max * node_distance, 12))
 
+    # get node colors
+    process_color_list = [
+        process_colors.get(process_name, process_color)
+        for process_name in process_nodes]
+    store_color_list = [
+        store_colors.get(store_name, store_color)
+        for store_name in store_nodes]
 
-    # nx.draw(graph, pos=pos, node_size=node_size)
+    # draw the process and store nodes
     nx.draw_networkx_nodes(graph, pos,
                            nodelist=process_nodes,
                            node_color=fill_color,
-                           edgecolors=process_color,
+                           edgecolors=process_color_list,
                            node_size=node_size,
                            linewidths=border_width,
                            node_shape='s'
@@ -175,7 +188,7 @@ def graph_figure(
     nx.draw_networkx_nodes(graph, pos,
                            nodelist=store_nodes,
                            node_color=fill_color,
-                           edgecolors=store_color,
+                           edgecolors=store_color_list,
                            node_size=node_size,
                            linewidths=border_width,
                            node_shape=cast(str, STORAGE_PATH)
@@ -300,20 +313,23 @@ class MergePort(Composer):
 
 def test_graph(
         fig_name=None,
-        topology: Optional[Dict[str, Any]] = None
+        topology: Optional[Dict[str, Any]] = None,
+        settings: Optional[Dict[str, Any]] = None,
 ):
+
     if topology is None:
         topology = {
             'multiport1': {},
             'multiport2': {}}
     composer = MergePort({'topology': topology})
-    composite = composer.generate()
 
-    config = {}
+    config = {'settings': settings}
     if fig_name:
-        config = dict(out_dir='out/topology', filename=fig_name)
+        config.update({
+            'out_dir': 'out/topology',
+            'filename': fig_name})
 
-    plot_topology(composite, **config)
+    plot_topology(composer, **config)
 
 
 def main():
@@ -327,6 +343,7 @@ def main():
     )
     args = parser.parse_args()
 
+    settings = {}
     topology_id = str(args.topology)
     if topology_id == '1':
         topology = {
@@ -337,6 +354,11 @@ def main():
                 },
                 'multiport2': {}}
         fig_name = 'topology_1'
+        settings = {
+            'graph_format': 'vertical',
+            'process_colors': {'multiport1': 'r'},
+            'store_colors': {'C': 'k'},
+        }
     else:
         topology = {
                 'multiport1': {
@@ -350,6 +372,7 @@ def main():
     test_graph(
         fig_name=fig_name,
         topology=topology,
+        settings=settings,
     )
 
 
