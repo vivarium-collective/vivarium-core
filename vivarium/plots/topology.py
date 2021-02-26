@@ -71,9 +71,9 @@ def get_bipartite_graph(topology):
     return process_nodes, store_nodes, edges
 
 
-def get_networkx_graph(topology):
+def get_networkx_graph(composite):
     ''' Make a networkX graph from a Vivarium topology '''
-    process_nodes, store_nodes, edges = get_bipartite_graph(topology)
+    process_nodes, store_nodes, edges = get_bipartite_graph(composite)
 
     # make networkX graph
     g = nx.Graph()
@@ -90,7 +90,7 @@ def get_networkx_graph(topology):
 def graph_figure(
         graph: nx.Graph,
         *,
-        graph_format: str = 'bipartite',
+        graph_format: str = 'horizontal',
         show_ports: bool = True,
         store_color: Any = 'tab:blue',
         process_color: Any = 'tab:orange',
@@ -106,7 +106,7 @@ def graph_figure(
     """ Make a figure from a networkx graph.
 
     :param graph: the networkx.Graph to plot
-    :param graph_format: 'bipartite' or not
+    :param graph_format: 'horizontal' or 'vertical'
     :param show_ports: whether to show the Port labels
     :param store_color: color for the Store nodes; any matplotlib color value
     :param process_color: color for the Process nodes; any matplotlib color value
@@ -135,17 +135,32 @@ def graph_figure(
         edge: graph.edges[edge]['port']
         for edge in edge_list}
 
+
+    # plot
+    n_stores = len(store_nodes)
+    n_processes = len(process_nodes)
+    n_max = max(n_stores, n_processes)
+    buffer_processes = (n_max - n_processes) / 2
+    buffer_stores = (n_max - n_stores) / 2
+
     # get positions
     pos = {}
-    if graph_format == 'bipartite':
+    if graph_format == 'vertical':
         for idx, node_id in enumerate(process_nodes, 1):
             pos[node_id] = np.array([-1, -idx])
         for idx, node_id in enumerate(store_nodes, 1):
             pos[node_id] = np.array([1, -idx])
 
-    # plot
-    n_rows = max(len(process_nodes), len(store_nodes))
-    fig = plt.figure(1, figsize=(12, n_rows * node_distance))
+        fig = plt.figure(1, figsize=(12, n_max * node_distance))
+
+    else:
+        for idx, node_id in enumerate(process_nodes, 1):
+            pos[node_id] = np.array([buffer_processes + idx, 1])
+        for idx, node_id in enumerate(store_nodes, 1):
+            pos[node_id] = np.array([buffer_stores + idx, -1])
+
+        fig = plt.figure(1, figsize=(n_max * node_distance, 12))
+
 
     # nx.draw(graph, pos=pos, node_size=node_size)
     nx.draw_networkx_nodes(graph, pos,
@@ -198,22 +213,6 @@ def save_network(out_dir='out', filename='network'):
     # plt.close()
 
 
-def plot_compartment_topology(
-        compartment,
-        settings: Optional[Dict[str, Any]] = None,
-        out_dir=None,
-        filename=None,
-):
-    """ 
-    an old function, reproduced by plot_topology """
-    settings = settings or {}
-    return plot_topology(
-        compartment,
-        settings,
-        out_dir,
-        filename)
-
-
 def plot_topology(
         composite,
         settings: Optional[Dict[str, Any]] = None,
@@ -223,10 +222,11 @@ def plot_topology(
     """ Plot a composite's topology """
 
     settings = settings or {}
-    network = composite.generate()
+    if isinstance(composite, Composer):
+        composite = composite.generate()
 
     # make networkx graph
-    g = get_networkx_graph(network)
+    g = get_networkx_graph(composite)
 
     # make graph figure
     fig = graph_figure(g, **settings)
@@ -305,11 +305,11 @@ def test_graph(
         topology = {
             'multiport1': {},
             'multiport2': {}}
-    composite = MergePort({'topology': topology})
-    network = composite.generate()
+    composer = MergePort({'topology': topology})
+    composite = composer.generate()
 
     # make networkx graph
-    g = get_networkx_graph(network)
+    g = get_networkx_graph(composite)
 
     # make graph figure
     fig = graph_figure(g)
