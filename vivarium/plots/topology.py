@@ -206,14 +206,19 @@ def graph_figure(
             accounted.update(next_level)
             unaccounted = unaccounted.difference(accounted)
 
+        # buffer makes things centered
+        n_max = max([len(level) for level in levels])
+        buffer_processes = (n_max - n_processes) / 2
+
         # place the nodes according to levels
         for idx, node_id in enumerate(process_nodes, 1):
-            pos[node_id] = np.array([idx, 1])
+            pos[node_id] = np.array([buffer_processes + idx, 1])
         for level_idx, level in enumerate(levels, 1):
+            level_buffer = (n_max - len(level)) / 2
             for idx, node_id in enumerate(level, 1):
-                pos[node_id] = np.array([idx, -1*level_idx])
+                pos[node_id] = np.array([level_buffer + idx, -1*level_idx])
 
-        fig = plt.figure(1, figsize=(n_max * node_distance, 12))
+        fig = plt.figure(1, figsize=(n_max * node_distance, 6 + 3 * len(levels)))
 
     elif graph_format == 'vertical':
         # processes in a column, and stores in a column
