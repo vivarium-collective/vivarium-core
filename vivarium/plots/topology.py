@@ -114,6 +114,7 @@ def graph_figure(
         store_colors: Optional[Dict] = None,
         process_colors: Optional[Dict] = None,
         color_edges: bool = True,
+        edge_width: float = 1.5,
         fill_color: Any = 'w',
         node_size: float = 8000,
         font_size: int = 14,
@@ -266,12 +267,18 @@ def graph_figure(
 
     # edges
     edge_args = {}
-    edge_args['width'] = [1.5 for _ in edges.keys()]
+
+    # colors
     if color_edges:
         edge_args['edge_color'] = list(range(1, len(edges) + 1))
         if graph_format == 'hierarchy':
             edge_args['edge_color'].extend([0 for _ in place_edges])
-            edge_args['width'].extend([3.0 for _ in place_edges])
+
+    # width
+    edge_args['width'] = [edge_width for _ in edges.keys()]
+    if graph_format == 'hierarchy':
+        # thicker edges for hierarchy connections
+        edge_args['width'].extend([edge_width * 2 for _ in place_edges])
 
     nx.draw_networkx_edges(graph, pos,
                            # width=1.5,
