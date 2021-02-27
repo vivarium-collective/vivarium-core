@@ -175,7 +175,7 @@ def graph_figure(
         for (store_1, store_2) in place_edges:
             outers.add(store_1)
             inners.add(store_2)
-            graph.add_edge(store_1, store_2, outer=store_1, inner=store_2)
+            graph.add_edge(store_1, store_2, place_edge=True)
 
         # add non-embedded nodes to outers
         all_stores = outers.union(inners)
@@ -265,13 +265,16 @@ def graph_figure(
                            node_shape=cast(str, STORAGE_PATH))
 
     # edges
-    # TODO -- 'hierarchy' edges
     edge_args = {}
-    if graph_format != 'hierarchy' and color_edges:
+    edge_args['width'] = [1.5 for _ in edges.keys()]
+    if color_edges:
         edge_args['edge_color'] = list(range(1, len(edges) + 1))
+        if graph_format == 'hierarchy':
+            edge_args['edge_color'].extend([0 for _ in place_edges])
+            edge_args['width'].extend([3.0 for _ in place_edges])
 
     nx.draw_networkx_edges(graph, pos,
-                           width=1.5,
+                           # width=1.5,
                            **edge_args)
 
     # labels
@@ -453,11 +456,11 @@ def main():
         fig_name = 'topology_3'
         settings = {
             'graph_format': 'hierarchy',
-            'store_color': 'k'
+            'store_color': 'navy'
         }
     else:
         pass
-        # more complxe topology, with ..?
+        # more complex topology, with ..?
 
     test_graph(
         fig_name=fig_name,
