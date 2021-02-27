@@ -110,8 +110,7 @@ def graph_figure(
         graph: nx.Graph,
         *,
         graph_format: str = 'horizontal',
-        place_edges: list = None,
-        compartment_nodes: list = None,
+        place_edges: Optional[list] = None,
         show_ports: bool = True,
         store_color: Any = 'tab:blue',
         process_color: Any = 'tab:orange',
@@ -171,7 +170,8 @@ def graph_figure(
     # get positions
     pos = {}
     if graph_format == 'hierarchy':
-
+        place_edges = place_edges or []
+        
         # add new place edges by iterating over all place_edges
         outers = set()
         inners = set()
@@ -318,7 +318,6 @@ def plot_topology(
     # make networkx graph
     g, place_edges, compartment_nodes = get_networkx_graph(composite)
     settings['place_edges'] = place_edges
-    settings['compartment_nodes'] = compartment_nodes
 
     # make graph figure
     fig = graph_figure(g, **settings)
