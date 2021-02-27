@@ -50,16 +50,32 @@ def get_bipartite_graph(topology):
     process_nodes = []
     store_nodes = []
     edges = {}
+    compartment_nodes = []
+    place_edges = []
     for process_id, connections in topology.items():
         # process_id = process_id.replace("_", "_\n")  # line breaks at underscores
         process_nodes.append(process_id)
 
-        for port, store_id in connections.items():
-            store_id = '\n'.join(store_id)  # TODO: a fancier graph for a dict
-            store_id = store_id.replace('..\n', '⬆︎')
+        for port, path in connections.items():
 
+            # store_id = '\n'.join(path)  # TODO: a fancier graph for a dict
+            # store_id = store_id.replace('..\n', '⬆︎')
+            store_id = path[-1]
             if store_id not in store_nodes:
                 store_nodes.append(store_id)
+
+            if len(path) > 1:
+
+                # hierarchy place edges between inner/outer stores
+                for store_1, store_2 in zip(path, path[1:]):
+
+                    # save the place edge
+                    place_edge = (store_1, store_2)
+                    place_edges.append(place_edge)
+
+                    # add all intermediate stores to store list
+                    if store_1 not in compartment_nodes:
+                        compartment_nodes.append(store_1)
 
             edge = (process_id, store_id)
             edges[edge] = port
@@ -69,12 +85,12 @@ def get_bipartite_graph(topology):
     if overlap:
         print('{} shared by processes and stores'.format(overlap))
 
-    return process_nodes, store_nodes, edges
+    return process_nodes, store_nodes, edges, place_edges, compartment_nodes
 
 
 def get_networkx_graph(topology):
     ''' Make a networkX graph from a Vivarium topology '''
-    process_nodes, store_nodes, edges = get_bipartite_graph(topology)
+    process_nodes, store_nodes, edges, place_edges, compartment_nodes = get_bipartite_graph(topology)
 
     # make networkX graph
     g = nx.Graph()
@@ -82,16 +98,20 @@ def get_networkx_graph(topology):
         g.add_node(node_id, type='Process')
     for node_id in store_nodes:
         g.add_node(node_id, type='Store')
+
+    # add topology edges
     for (process_id, store_id), port in edges.items():
         g.add_edge(process_id, store_id, port=port)
 
-    return g
+    return g, place_edges, compartment_nodes
 
 
 def graph_figure(
         graph: nx.Graph,
         *,
         graph_format: str = 'horizontal',
+        place_edges: list = None,
+        compartment_nodes: list = None,
         show_ports: bool = True,
         store_color: Any = 'tab:blue',
         process_color: Any = 'tab:orange',
@@ -138,21 +158,65 @@ def graph_figure(
         if attributes['type'] == 'Store']
 
     edge_list = list(graph.edges)
-    edges = {
-        edge: graph.edges[edge]['port']
-        for edge in edge_list}
-
+    edges = {}
+    for edge in edge_list:
+        if 'port' in graph.edges[edge]:
+            edges[edge] = graph.edges[edge]['port']
 
     # plot
     n_stores = len(store_nodes)
     n_processes = len(process_nodes)
     n_max = max(n_stores, n_processes)
-    buffer_processes = (n_max - n_processes) / 2
-    buffer_stores = (n_max - n_stores) / 2
 
     # get positions
     pos = {}
-    if graph_format == 'vertical':
+    if graph_format == 'hierarchy':
+
+        # add new place edges by iterating over all place_edges
+        outers = set()
+        inners = set()
+        for (store_1, store_2) in place_edges:
+            outers.add(store_1)
+            inners.add(store_2)
+            graph.add_edge(store_1, store_2, outer=store_1, inner=store_2)
+
+        # add non-embedded nodes to outers
+        all_stores = outers.union(inners)
+        non_embedded = set(store_nodes).difference(all_stores)
+        outers.update(non_embedded)
+
+        # add intermediate nodes to store_nodes
+        intermediate_nodes = all_stores.difference(store_nodes)
+        store_nodes.extend(list(intermediate_nodes))
+
+        # determine the hierarchy levels
+        levels = []
+        accounted = set()
+        unaccounted = outers.union(inners)
+        top_level = outers - inners
+        levels.append(list(top_level))
+        accounted.update(top_level)
+        unaccounted = unaccounted.difference(accounted)
+        while len(unaccounted) > 0:
+            next_level = set()
+            for (store_1, store_2) in place_edges:
+                if store_1 in accounted and store_2 in unaccounted:
+                    next_level.add(store_2)
+            levels.append(list(next_level))
+            accounted.update(next_level)
+            unaccounted = unaccounted.difference(accounted)
+
+        # place the nodes according to levels
+        for idx, node_id in enumerate(process_nodes, 1):
+            pos[node_id] = np.array([idx, 1])
+        for level_idx, level in enumerate(levels, 1):
+            for idx, node_id in enumerate(level, 1):
+                pos[node_id] = np.array([idx, -1*level_idx])
+
+        fig = plt.figure(1, figsize=(n_max * node_distance, 12))
+
+    elif graph_format == 'vertical':
+        # processes in a column, and stores in a column
         for idx, node_id in enumerate(process_nodes, 1):
             pos[node_id] = np.array([-1, -idx])
         for idx, node_id in enumerate(store_nodes, 1):
@@ -160,7 +224,12 @@ def graph_figure(
 
         fig = plt.figure(1, figsize=(12, n_max * node_distance))
 
-    else:
+    elif graph_format == 'horizontal':
+        # processes in a row, and stores in a row
+        # buffer makes things centered
+        buffer_processes = (n_max - n_processes) / 2
+        buffer_stores = (n_max - n_stores) / 2
+
         for idx, node_id in enumerate(process_nodes, 1):
             pos[node_id] = np.array([buffer_processes + idx, 1])
         for idx, node_id in enumerate(store_nodes, 1):
@@ -176,27 +245,29 @@ def graph_figure(
         store_colors.get(store_name, store_color)
         for store_name in store_nodes]
 
-    # draw the process and store nodes
+    # draw the process nodes
     nx.draw_networkx_nodes(graph, pos,
                            nodelist=process_nodes,
                            node_color=fill_color,
                            edgecolors=process_color_list,
                            node_size=node_size,
                            linewidths=border_width,
-                           node_shape='s'
-                           )
+                           node_shape='s')
+    # draw the store nodes
     nx.draw_networkx_nodes(graph, pos,
                            nodelist=store_nodes,
                            node_color=fill_color,
                            edgecolors=store_color_list,
                            node_size=node_size,
                            linewidths=border_width,
-                           node_shape=cast(str, STORAGE_PATH)
-                           )
+                           node_shape=cast(str, STORAGE_PATH))
+
     # edges
+    # TODO -- 'hierarchy' edges
     edge_args = {}
-    if color_edges:
+    if graph_format != 'hierarchy' and color_edges:
         edge_args['edge_color'] = list(range(1, len(edges) + 1))
+
     nx.draw_networkx_edges(graph, pos,
                            width=1.5,
                            **edge_args)
@@ -240,7 +311,9 @@ def plot_topology(
         composite = composite.generate()
 
     # make networkx graph
-    g = get_networkx_graph(composite)
+    g, place_edges, compartment_nodes = get_networkx_graph(composite)
+    settings['place_edges'] = place_edges
+    settings['compartment_nodes'] = compartment_nodes
 
     # make graph figure
     fig = graph_figure(g, **settings)
@@ -338,7 +411,7 @@ def main():
     parser.add_argument(
         '--topology', '-t',
         type=str,
-        choices=['1', '2'],
+        choices=['1', '2', '3'],
         help='the topology id'
     )
     args = parser.parse_args()
@@ -359,7 +432,7 @@ def main():
             'process_colors': {'multiport1': 'r'},
             'store_colors': {'C': 'k'},
         }
-    else:
+    elif topology_id == '2':
         topology = {
                 'multiport1': {
                     'a': ('A', 'AA',),
@@ -368,6 +441,22 @@ def main():
                 },
                 'multiport2': {}}
         fig_name = 'topology_2'
+    elif topology_id == '3':
+        topology = {
+                'multiport1': {
+                    'a': ('A', 'AA', 'AAA',),
+                    'b': ('A', 'BB',),
+                    'c': ('A', 'CC',),
+                },
+                'multiport2': {}}
+        fig_name = 'topology_3'
+        settings = {
+            'graph_format': 'hierarchy',
+            'store_color': 'k'
+        }
+    else:
+        pass
+        # more complxe topology, with ..?
 
     test_graph(
         fig_name=fig_name,
