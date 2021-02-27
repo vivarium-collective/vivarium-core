@@ -43,7 +43,7 @@ STORAGE_PATH = construct_storage_path()
 
 
 def get_bipartite_graph(topology):
-    ''' Get a graph with Processes, Stores, and edges from a Vivarium topology '''
+    """ Get a graph with Processes, Stores, and edges from a Vivarium topology """
     if 'topology' in topology:
         topology = topology['topology']
 
@@ -53,11 +53,9 @@ def get_bipartite_graph(topology):
     compartment_nodes = []
     place_edges = []
     for process_id, connections in topology.items():
-        # process_id = process_id.replace("_", "_\n")  # line breaks at underscores
         process_nodes.append(process_id)
 
         for port, path in connections.items():
-
             # store_id = '\n'.join(path)  # TODO: a fancier graph for a dict
             # store_id = store_id.replace('..\n', '⬆︎')
             store_id = path[-1]
@@ -65,7 +63,6 @@ def get_bipartite_graph(topology):
                 store_nodes.append(store_id)
 
             if len(path) > 1:
-
                 # hierarchy place edges between inner/outer stores
                 for store_1, store_2 in zip(path, path[1:]):
 
@@ -85,12 +82,12 @@ def get_bipartite_graph(topology):
     if overlap:
         print('{} shared by processes and stores'.format(overlap))
 
-    return process_nodes, store_nodes, edges, place_edges, compartment_nodes
+    return process_nodes, store_nodes, edges, place_edges
 
 
 def get_networkx_graph(topology):
-    ''' Make a networkX graph from a Vivarium topology '''
-    process_nodes, store_nodes, edges, place_edges, compartment_nodes = get_bipartite_graph(topology)
+    """ Make a networkX graph from a Vivarium topology """
+    process_nodes, store_nodes, edges, place_edges = get_bipartite_graph(topology)
 
     # make networkX graph
     g = nx.Graph()
@@ -103,7 +100,7 @@ def get_networkx_graph(topology):
     for (process_id, store_id), port in edges.items():
         g.add_edge(process_id, store_id, port=port)
 
-    return g, place_edges, compartment_nodes
+    return g, place_edges
 
 
 def graph_figure(
@@ -128,7 +125,7 @@ def graph_figure(
     """ Make a figure from a networkx graph.
 
     :param graph: the networkx.Graph to plot
-    :param graph_format: 'horizontal' or 'vertical'
+    :param graph_format: 'horizontal', 'vertical', or 'hierarchy'
     :param show_ports: whether to show the Port labels
     :param store_color: default color for the Store nodes; any matplotlib color value
     :param process_color: default color for the Process nodes; any matplotlib color value
@@ -171,7 +168,7 @@ def graph_figure(
     pos = {}
     if graph_format == 'hierarchy':
         place_edges = place_edges or []
-        
+
         # add new place edges by iterating over all place_edges
         outers = set()
         inners = set()
@@ -316,7 +313,7 @@ def plot_topology(
         composite = composite.generate()
 
     # make networkx graph
-    g, place_edges, compartment_nodes = get_networkx_graph(composite)
+    g, place_edges = get_networkx_graph(composite)
     settings['place_edges'] = place_edges
 
     # make graph figure
