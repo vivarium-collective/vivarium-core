@@ -114,7 +114,7 @@ def graph_figure(
         store_colors: Optional[Dict] = None,
         process_colors: Optional[Dict] = None,
         color_edges: bool = True,
-        edge_width: float = 1.5,
+        edge_width: float = 2.0,
         fill_color: Any = 'w',
         node_size: float = 8000,
         font_size: int = 14,
