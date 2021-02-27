@@ -270,6 +270,7 @@ def graph_figure(
 
     # colors
     if color_edges:
+        edge_args['edge_cmap'] = plt.get_cmap('nipy_spectral')
         edge_args['edge_color'] = list(range(1, len(edges) + 1))
         if graph_format == 'hierarchy':
             edge_args['edge_color'].extend([0 for _ in place_edges])
