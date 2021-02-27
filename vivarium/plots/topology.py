@@ -145,6 +145,7 @@ def graph_figure(
     """
     process_colors = process_colors or {}
     store_colors = store_colors or {}
+    place_edges = place_edges or []
 
     node_attributes = dict(graph.nodes.data())
     process_nodes = [
@@ -168,8 +169,6 @@ def graph_figure(
     # get positions
     pos = {}
     if graph_format == 'hierarchy':
-        place_edges = place_edges or []
-
         # add new place edges by iterating over all place_edges
         outers = set()
         inners = set()
@@ -268,14 +267,14 @@ def graph_figure(
     # edges
     edge_args = {}
 
-    # colors
+    # edge colors
     if color_edges:
         edge_args['edge_cmap'] = plt.get_cmap('nipy_spectral')
         edge_args['edge_color'] = list(range(1, len(edges) + 1))
         if graph_format == 'hierarchy':
             edge_args['edge_color'].extend([0 for _ in place_edges])
 
-    # width
+    # edge width
     edge_args['width'] = [edge_width for _ in edges.keys()]
     if graph_format == 'hierarchy':
         # thicker edges for hierarchy connections
@@ -285,7 +284,7 @@ def graph_figure(
                            # width=1.5,
                            **edge_args)
 
-    # labels
+    # edge labels
     nx.draw_networkx_labels(graph, pos,
                             font_size=font_size)
     if show_ports:
@@ -294,7 +293,7 @@ def graph_figure(
                                      font_size=font_size,
                                      label_pos=label_pos)
 
-    # add buffer
+    # add white buffer around final figure
     xmin, xmax, ymin, ymax = plt.axis()
     plt.xlim(xmin - buffer, xmax + buffer)
     plt.ylim(ymin - buffer, ymax + buffer)
