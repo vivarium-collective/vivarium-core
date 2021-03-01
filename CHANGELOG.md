@@ -1,10 +1,13 @@
 # Changelog
 
 
+## v0.2.7
+
+* topology_plot includes new the `graph_options`: `horizontal` and `hierarchy`, and new  `process_colors` and `store_colors` for coloring individual nodes.
+
 ## v0.2.6
 
 * new Composite and AggregateComposer classes in core/process.py
-
 
 ## v0.2.5
 
