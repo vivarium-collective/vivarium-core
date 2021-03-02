@@ -58,6 +58,8 @@ def plot_agents_multigen(
               that won't be plotted
             * **include_paths** (:py:class:`list`): list of full paths
               to include. Overridden by skip_paths.
+            * **store_order** (:py:class:`tuple`): ordered tuple of store names
+              declares the order in which stores are plotted.
             * **title_on_y_axis** :py:class:`bool`): if True, the plot titles
               will appear to the left of the y-axis
             * **title_size** (:py:class:`int`): font size of the subplots
@@ -87,6 +89,7 @@ def plot_agents_multigen(
     remove_flat = settings.get('remove_flat', False)
     skip_paths = settings.get('skip_paths', [])
     include_paths = settings.get('include_paths', None)
+    store_order = settings.get('store_order', tuple())
     title_size = settings.get('title_size', 16)
     tick_label_size = settings.get('tick_label_size', 12)
     titles_map = settings.get('titles_map', dict())
@@ -124,7 +127,7 @@ def plot_agents_multigen(
                 remove_paths.add(path)
     # remove the paths
     port_schema_paths -= remove_paths
-    top_ports = {path[0] for path in port_schema_paths}
+    top_ports = [path[0] for path in port_schema_paths]
 
     # get the states for each port
     port_rows: Dict[Any, list] = {port_id: [] for port_id in top_ports}
@@ -139,6 +142,11 @@ def plot_agents_multigen(
             port_rows[port_id] = sorted_path
         else:
             port_rows[port_id] = path_list
+
+    for store_idx, store in enumerate(store_order):
+        if store in top_ports:
+            top_ports.remove(store)
+            top_ports.insert(store_idx, store)
 
     highest_row = 0
     row_idx = 0
