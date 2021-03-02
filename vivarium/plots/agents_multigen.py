@@ -215,6 +215,7 @@ def plot_agents_multigen(
                       path_idx >= len(ordered_paths[port_id]) - 1))):
                 set_axes(ax, True)
                 ax.set_xlabel('time (s)', fontsize=title_size)
+                ax.spines['bottom'].set_position(('axes', -0.2))
             else:
                 set_axes(ax)
             ax.set_xlim([time_vec[0], time_vec[-1]])
