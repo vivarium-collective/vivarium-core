@@ -10,6 +10,7 @@ import os
 import logging as log
 import pprint
 import multiprocessing
+from multiprocessing import pool as multipool
 from typing import (
     Any, Dict, Optional, Union, Literal, Tuple, Callable)
 import math
@@ -123,7 +124,7 @@ class InvokeProcess:
 class MultiInvoke:
     def __init__(
             self,
-            pool: multiprocessing.pool.Pool
+            pool: multipool.Pool
     ) -> None:
         self.pool = pool
 
@@ -132,7 +133,7 @@ class MultiInvoke:
             process: Process,
             interval: float,
             states: State,
-    ) -> multiprocessing.pool.ApplyResult[Update]:
+    ) -> Any:
         args = (process, interval, states)
         result = self.pool.apply_async(invoke_process, args)
         return result
