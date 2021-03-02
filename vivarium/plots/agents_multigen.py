@@ -81,6 +81,7 @@ def plot_agents_multigen(
     column_width = settings.get('column_width', 4)
     row_height = settings.get('row_height', column_width/2)
     title_on_y_axis = settings.get('title_on_y_axis', False)
+    linewidth = settings.get('linewidth', 3.0)
     stack_column = settings.get('stack_column', False)
     remove_zeros = settings.get('remove_zeros', False)
     remove_flat = settings.get('remove_flat', False)
@@ -242,7 +243,11 @@ def plot_agents_multigen(
                         plot_times = time_vec[time_idx:time_idx+n_times]
 
                         ax = port_axes[port_schema_path]
-                        ax.plot(plot_times, series, color=agent_colors.get(agent_id, None))
+                        ax.plot(
+                            plot_times,
+                            series,
+                            color=agent_colors.get(agent_id, None),
+                            linewidth=linewidth)
 
     plt.subplots_adjust(wspace=0.2, hspace=0.2)
     if out_dir:

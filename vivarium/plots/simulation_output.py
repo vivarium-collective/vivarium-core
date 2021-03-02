@@ -1,6 +1,7 @@
 import os
 from typing import Any, Dict, Optional
 
+import random
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -8,7 +9,7 @@ from vivarium.core.emitter import path_timeseries_from_embedded_timeseries
 
 
 def set_axes(ax, show_xaxis=False):
-    ax.ticklabel_format(style='sci', axis='y', scilimits=(-5, 5))
+    # ax.ticklabel_format(style='sci', axis='y', scilimits=(-5, 5))
     ax.spines['right'].set_visible(False)
     ax.spines['top'].set_visible(False)
     ax.tick_params(right=False, top=False)
@@ -242,3 +243,20 @@ def plot_variables(
     if out_dir:
         save_fig_to_dir(fig, filename, out_dir)
     return fig
+
+
+
+
+if __name__ == '__main__':
+    total_time = 500
+    data = {
+        'x': [random.uniform(0, 10) for _ in range(total_time)],
+        'y': [np.exp(random.uniform(0, 10)) for _ in range(total_time)],
+        'time': [t for t in range(total_time)]
+    }
+
+    plot_variables(
+        output=data,
+        variables=['x', 'y'],
+        out_dir='out')
+
