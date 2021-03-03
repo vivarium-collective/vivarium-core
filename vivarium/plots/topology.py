@@ -113,7 +113,7 @@ def graph_figure(
         process_color: Any = 'tab:orange',
         store_colors: Optional[Dict] = None,
         process_colors: Optional[Dict] = None,
-        color_edges: bool = True,
+        color_edges: bool = False,
         edge_width: float = 2.0,
         fill_color: Any = 'w',
         node_size: float = 8000,
@@ -161,83 +161,32 @@ def graph_figure(
         if 'port' in graph.edges[edge]:
             edges[edge] = graph.edges[edge]['port']
 
-    # plot
-    n_stores = len(store_nodes)
-    n_processes = len(process_nodes)
-    n_max = max(n_stores, n_processes)
+    # get position
+    if graph_format:
+        pos = graph_format_location(
+            graph,
+            process_nodes,
+            store_nodes,
+            place_edges,
+            graph_format)
 
-    # get positions
-    pos = {}
-    if graph_format == 'hierarchy':
-        # add new place edges by iterating over all place_edges
-        outers = set()
-        inners = set()
-        for (store_1, store_2) in place_edges:
-            outers.add(store_1)
-            inners.add(store_2)
-            graph.add_edge(store_1, store_2, place_edge=True)
+        n_stores = len(store_nodes)
+        n_processes = len(process_nodes)
+        n_max = max(n_stores, n_processes)
 
-        # add non-embedded nodes to outers
-        all_stores = outers.union(inners)
-        non_embedded = set(store_nodes).difference(all_stores)
-        outers.update(non_embedded)
+        if graph_format == 'hierarchy':
+            pos_values = list(pos.values())
+            xs = [p[0] for p in pos_values]
+            ys = [p[1] for p in pos_values]
+            xr = max(xs) - min(xs)
+            yr = max(ys) - min(ys)
 
-        # add intermediate nodes to store_nodes
-        intermediate_nodes = all_stores.difference(store_nodes)
-        store_nodes.extend(list(intermediate_nodes))
+            fig = plt.figure(1, figsize=(xr * 1.5 * node_distance, yr * 1.5 * node_distance))
 
-        # determine the hierarchy levels
-        levels = []
-        accounted = set()
-        unaccounted = outers.union(inners)
-        top_level = outers - inners
-        levels.append(list(top_level))
-        accounted.update(top_level)
-        unaccounted = unaccounted.difference(accounted)
-        while len(unaccounted) > 0:
-            next_level = set()
-            for (store_1, store_2) in place_edges:
-                if store_1 in accounted and store_2 in unaccounted:
-                    next_level.add(store_2)
-            levels.append(list(next_level))
-            accounted.update(next_level)
-            unaccounted = unaccounted.difference(accounted)
-
-        # buffer makes things centered
-        n_max = max([len(level) for level in levels])
-        buffer_processes = (n_max - n_processes) / 2
-
-        # place the nodes according to levels
-        for idx, node_id in enumerate(process_nodes, 1):
-            pos[node_id] = np.array([buffer_processes + idx, 1])
-        for level_idx, level in enumerate(levels, 1):
-            level_buffer = (n_max - len(level)) / 2
-            for idx, node_id in enumerate(level, 1):
-                pos[node_id] = np.array([level_buffer + idx, -1*level_idx])
-
-        fig = plt.figure(1, figsize=(n_max * node_distance, 6 + 3 * len(levels)))
-
-    elif graph_format == 'vertical':
-        # processes in a column, and stores in a column
-        for idx, node_id in enumerate(process_nodes, 1):
-            pos[node_id] = np.array([-1, -idx])
-        for idx, node_id in enumerate(store_nodes, 1):
-            pos[node_id] = np.array([1, -idx])
-
-        fig = plt.figure(1, figsize=(12, n_max * node_distance))
-
-    elif graph_format == 'horizontal':
-        # processes in a row, and stores in a row
-        # buffer makes things centered
-        buffer_processes = (n_max - n_processes) / 2
-        buffer_stores = (n_max - n_stores) / 2
-
-        for idx, node_id in enumerate(process_nodes, 1):
-            pos[node_id] = np.array([buffer_processes + idx, 1])
-        for idx, node_id in enumerate(store_nodes, 1):
-            pos[node_id] = np.array([buffer_stores + idx, -1])
-
-        fig = plt.figure(1, figsize=(n_max * node_distance, 12))
+        elif graph_format == 'vertical':
+            fig = plt.figure(1, figsize=(12, n_max * node_distance))
+        elif graph_format == 'horizontal':
+            fig = plt.figure(1, figsize=(n_max * node_distance, 12))
 
     # get node colors
     process_color_list = [
@@ -280,6 +229,9 @@ def graph_figure(
         # thicker edges for hierarchy connections
         edge_args['width'].extend([edge_width * 2 for _ in place_edges])
 
+        edge_args['style'] = ['dashed' for _ in edges.keys()]
+        edge_args['style'].extend(['solid' for _ in place_edges])
+
     nx.draw_networkx_edges(graph, pos,
                            # width=1.5,
                            **edge_args)
@@ -300,6 +252,91 @@ def graph_figure(
     plt.axis('off')
 
     return fig
+
+
+
+def graph_format_location(
+    graph,
+    process_nodes,
+    store_nodes,
+    place_edges,
+    graph_format,
+):
+    n_stores = len(store_nodes)
+    n_processes = len(process_nodes)
+
+    # get positions
+    pos = {}
+    if graph_format == 'hierarchy':
+        # add new place edges by iterating over all place_edges
+        outers = set()
+        inners = set()
+        for (store_1, store_2) in place_edges:
+            outers.add(store_1)
+            inners.add(store_2)
+            graph.add_edge(store_1, store_2, place_edge=True)
+
+        # add non-embedded nodes to outers
+        all_stores = outers.union(inners)
+        non_embedded = set(store_nodes).difference(all_stores)
+        outers.update(non_embedded)
+
+        # add intermediate nodes to store_nodes
+        intermediate_nodes = all_stores.difference(store_nodes)
+        store_nodes.extend(list(intermediate_nodes))
+
+        # determine the hierarchy levels
+        levels = []
+        accounted = set()
+        unaccounted = outers.union(inners)
+        top_level = outers - inners
+        levels.append(list(top_level))
+        accounted.update(top_level)
+        unaccounted = unaccounted.difference(accounted)
+        while len(unaccounted) > 0:
+            next_level = set()
+            for (store_1, store_2) in place_edges:
+                if store_1 in accounted and store_2 in unaccounted:
+                    next_level.add(store_2)
+            levels.append(list(next_level))
+            accounted.update(next_level)
+            unaccounted = unaccounted.difference(accounted)
+
+        # buffer makes things centered
+        n_max = max([len(level) for level in levels])
+
+        # place the process nodes according on the left
+        # buffer_processes = (n_max - n_processes) / 2
+        for idx, node_id in enumerate(process_nodes, 0):
+            pos[node_id] = np.array([-1, -idx])
+
+        # place the store nodes according to levels
+        for level_idx, level in enumerate(levels, 0):
+            level_buffer = (n_max - len(level)) / 2
+            for idx, node_id in enumerate(level, 1):
+                pos[node_id] = np.array([level_buffer + idx, -1.2*level_idx])
+
+    elif graph_format == 'vertical':
+        # processes in a column, and stores in a column
+        for idx, node_id in enumerate(process_nodes, 1):
+            pos[node_id] = np.array([-1, -idx])
+        for idx, node_id in enumerate(store_nodes, 1):
+            pos[node_id] = np.array([1, -idx])
+
+    elif graph_format == 'horizontal':
+        # processes in a row, and stores in a row
+        # buffer makes things centered
+        n_max = max(n_stores, n_processes)
+        buffer_processes = (n_max - n_processes) / 2
+        buffer_stores = (n_max - n_stores) / 2
+
+        for idx, node_id in enumerate(process_nodes, 1):
+            pos[node_id] = np.array([buffer_processes + idx, 1])
+        for idx, node_id in enumerate(store_nodes, 1):
+            pos[node_id] = np.array([buffer_stores + idx, -1])
+
+    return pos
+
 
 
 def save_network(out_dir='out', filename='network'):
