@@ -316,11 +316,12 @@ class Composite(Datum):
             processes.update(composite['processes'])
             topology.update(composite['topology'])
 
-        for process in processes.values():
-            assert isinstance(process, Process)
+        # TODO -- processes can also be embedded in dicts
+        # for process in processes.values():
+        #     assert isinstance(process, Process)
 
-        self.processes.update(processes)
-        self.topology.update(topology)
+        self.processes = deep_merge(self.processes, processes)
+        self.topology = deep_merge(self.topology, topology)
         self._schema.update(schema_override)
         _override_schemas(self._schema, self.processes)
 

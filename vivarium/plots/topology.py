@@ -10,7 +10,10 @@ from matplotlib.path import Path
 from matplotlib.figure import Figure
 import networkx as nx
 
-from vivarium.core.process import Process, Composer
+from vivarium.core.process import Process, Composer, Composite
+from vivarium.library.dict_utils import get_path_list_from_dict, get_value_from_path
+from vivarium.processes.engulf import ToyAgent
+from vivarium.processes.timeline import TimelineProcess
 
 
 def construct_storage_path() -> Path:
@@ -42,40 +45,56 @@ def construct_storage_path() -> Path:
 STORAGE_PATH = construct_storage_path()
 
 
-def get_bipartite_graph(topology):
+def get_bipartite_graph(composite):
     """ Get a graph with Processes, Stores, and edges from a Vivarium topology """
-    if 'topology' in topology:
-        topology = topology['topology']
+    topology = composite['topology']
+    processes = composite['processes']
 
     process_nodes = []
     store_nodes = []
     edges = {}
     compartment_nodes = []
     place_edges = []
-    for process_id, connections in topology.items():
+
+    # flatten the processes and topology dicts
+    process_paths = get_path_list_from_dict(processes)
+    port_paths = get_path_list_from_dict(topology)
+
+    # get process_nodes
+    for process_path in process_paths:
+        process = get_value_from_path(processes, process_path)
+        assert isinstance(process, Process)
+        process_id = '\n'.join(process_path)
         process_nodes.append(process_id)
 
-        for port, path in connections.items():
-            # store_id = '\n'.join(path)  # TODO: a fancier graph for a dict
-            # store_id = store_id.replace('..\n', '⬆︎')
-            store_id = path[-1]
-            if store_id not in store_nodes:
-                store_nodes.append(store_id)
+    # get store_nodes from topology paths
+    for port_path in port_paths:
+        port = port_path[-1]  # the port is the last element in the path
+        process_id = port_path[:-1]  # the process_id is the path up to the port
+        process_id = '\n'.join(process_id)
+        assert process_id in process_nodes
 
-            if len(path) > 1:
-                # hierarchy place edges between inner/outer stores
-                for store_1, store_2 in zip(path, path[1:]):
+        # get the store path mapping for this port
+        store_path = get_value_from_path(topology, port_path)
+        store_id = store_path[-1]  # the store is the final element in the path
+        store_id = store_id.replace('_', '\n')
+        if store_id not in store_nodes:
+            store_nodes.append(store_id)
 
-                    # save the place edge
-                    place_edge = (store_1, store_2)
-                    place_edges.append(place_edge)
+        # save the edge between process and store
+        edge = (process_id, store_id)
+        edges[edge] = port
 
-                    # add all intermediate stores to store list
-                    if store_1 not in compartment_nodes:
-                        compartment_nodes.append(store_1)
+        # get intermediate stores
+        if len(store_path) > 1:
+            # hierarchy place edges between inner/outer stores
+            for store_1, store_2 in zip(store_path, store_path[1:]):
+                place_edge = (store_1, store_2)
+                place_edges.append(place_edge)
 
-            edge = (process_id, store_id)
-            edges[edge] = port
+                # add all intermediate stores to store list
+                if store_1 not in compartment_nodes:
+                    compartment_nodes.append(store_1)
 
     # are there overlapping names?
     overlap = [name for name in process_nodes if name in store_nodes]
@@ -85,9 +104,9 @@ def get_bipartite_graph(topology):
     return process_nodes, store_nodes, edges, place_edges
 
 
-def get_networkx_graph(topology):
+def get_networkx_graph(composite):
     """ Make a networkX graph from a Vivarium topology """
-    process_nodes, store_nodes, edges, place_edges = get_bipartite_graph(topology)
+    process_nodes, store_nodes, edges, place_edges = get_bipartite_graph(composite)
 
     # make networkX graph
     g = nx.Graph()
@@ -121,7 +140,7 @@ def graph_figure(
         node_size: float = 8000,
         font_size: int = 14,
         node_distance: float = 3.5,
-        buffer: float = 1.0,
+        buffer: float = 0.5,
         border_width: float = 3,
         label_pos: float = 0.65,
 ) -> Figure:
@@ -188,8 +207,8 @@ def graph_figure(
     xr = max(xs) - min(xs)
     yr = max(ys) - min(ys)
     fig = plt.figure(1, figsize=(
-        xr * node_distance,
-        yr * node_distance))
+        xr * node_distance + 2 * buffer,
+        yr * node_distance + 2 * buffer))
 
     # get node colors
     process_color_list = [
@@ -366,7 +385,7 @@ def plot_topology(
     settings = settings or {}
     if isinstance(composite, Composer):
         composite = composite.generate()
-
+    assert isinstance(composite, Composite)
     # make networkx graph
     g, place_edges = get_networkx_graph(composite)
     settings['place_edges'] = place_edges
@@ -531,7 +550,7 @@ def main():
 
     parser = argparse.ArgumentParser(description='topology')
     parser.add_argument('-t', default=None, type=str, help='topology id for test_merge_port_topology')
-    parser.add_argument('-x', default=None, type=str, help='hierarchy id')
+    parser.add_argument('-x', action='store_true', help='hierarchy id')
     args = parser.parse_args()
 
     if args.t:
@@ -544,39 +563,33 @@ def main():
             settings=settings)
 
     elif args.x:
+        agent_ids = ['1', '2']
 
-        # deeply embedded topology
-        topology = {
-            'agents': {
-                '0': {
-                    'growth': {
-                        'variables': ('boundary',), 'rates': ('rates',)
-                    },
-                    'globals_deriver': {
-                        'global': ('boundary',)
-                    },
-                    'divide_condition': {
-                        'variable': ('boundary', 'mass'),
-                        'divide': ('boundary', 'divide')
-                    },
-                    'division': {
-                        'global': ('boundary',),
-                        'agents': ('..', '..', 'agents')
-                    }}},
-            'multibody': {
-                'agents': ('agents',)
-            },
-            'diffusion': {
-                'agents': ('agents',),
-                'fields': ('fields',),
-                'dimensions': ('dimensions',)}}
+        config = {
+            'exchange': {
+                'internal_path': ('concentrations',),
+                'external_path': ('..', '..', 'concentrations')},
+            'engulf': {
+                'inner_path': ('agents',),
+                'outer_path': ('..', '..', 'agents')}}
+        toy_agent_composer = ToyAgent(config)
+        toy_agent_1 = toy_agent_composer.generate(path=('agents', agent_ids[0]))
+        toy_agent_2 = toy_agent_composer.generate(path=('agents', agent_ids[1]))
 
-        import ipdb; ipdb.set_trace()
+        timeline = [(3, {('agents', agent_ids[1], 'engulf-trigger'): [agent_ids[0]]})]
+        timeline_composer = TimelineProcess({'timeline': timeline})
+        full_composite = timeline_composer.generate()
 
+        full_composite.merge(composite=toy_agent_1)
+        full_composite.merge(composite=toy_agent_2)
 
-
-
-
+        # plot topology
+        settings = {}
+        config = {
+            'settings': {},
+            'out_dir': 'out/topology',
+            'filename': 'embedded'}
+        plot_topology(full_composite, **config)
 
 
 if __name__ == '__main__':
