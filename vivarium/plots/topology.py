@@ -128,6 +128,7 @@ def graph_figure(
     """ Make a figure from a networkx graph.
 
     :param graph: the networkx.Graph to plot
+    :param coordinates: (dict) a dictionary of locations for all nodes in the graph, with {'node_id': (x, y)}
     :param graph_format: 'horizontal', 'vertical', or 'hierarchy'
     :param show_ports: whether to show the Port labels
     :param store_color: default color for the Store nodes; any matplotlib color value
