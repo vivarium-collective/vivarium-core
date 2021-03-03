@@ -440,7 +440,7 @@ class MergePort(Composer):
         return self.topology
 
 
-def test_graph(
+def test_merge_port_topology(
         fig_name=None,
         topology=None,
         settings=None,
@@ -461,20 +461,12 @@ def test_graph(
     plot_topology(composer, **config)
 
 
-def main():
-
-    parser = argparse.ArgumentParser(description='topology')
-    parser.add_argument(
-        '--topology', '-t',
-        type=str,
-        choices=['1', '2', '3', '4'],
-        help='the topology id'
-    )
-    args = parser.parse_args()
-
+def merge_port_configs(topology_id):
+    topology = {}
     settings = {}
-    topology_id = str(args.topology)
-    if topology_id == '1':
+    if topology_id == '0':
+        pass
+    elif topology_id == '1':
         # vertical graph format
         topology = {
                 'multiport1': {
@@ -483,7 +475,6 @@ def main():
                     'c': ('D',),
                 },
                 'multiport2': {}}
-        fig_name = 'topology_1'
         settings = {
             'graph_format': 'vertical',
             'process_colors': {'multiport1': 'r'},
@@ -499,7 +490,6 @@ def main():
                 },
                 'multiport2': {}}
         settings = {'dashed_edges': True}
-        fig_name = 'topology_2'
     elif topology_id == '3':
         # hierarchy graph format
         topology = {
@@ -509,7 +499,6 @@ def main():
                     'c': ('A', 'CC',),
                 },
                 'multiport2': {}}
-        fig_name = 'topology_3'
         settings = {
             'graph_format': 'hierarchy',
             'store_color': 'navy'
@@ -523,7 +512,6 @@ def main():
                     'c': ('A', 'CC',),
                 },
                 'multiport2': {}}
-        fig_name = 'topology_4'
         settings = {
             'coordinates': {
                 'multiport1': (-1, 0), 'multiport2': (-1, -2),
@@ -535,14 +523,60 @@ def main():
             'dashed_edges': True,
         }
     else:
-        pass
-        # more complex topology, with ..?
+        raise ValueError(f'topology_id "{topology_id}" is invalid')
+    return topology, settings
 
-    test_graph(
-        fig_name=fig_name,
-        topology=topology,
-        settings=settings,
-    )
+
+def main():
+
+    parser = argparse.ArgumentParser(description='topology')
+    parser.add_argument('-t', default=None, type=str, help='topology id for test_merge_port_topology')
+    parser.add_argument('-x', default=None, type=str, help='hierarchy id')
+    args = parser.parse_args()
+
+    if args.t:
+        topology_id = str(args.t)
+        topology, settings = merge_port_configs(topology_id)
+        fig_name = f"topology_{topology_id}"
+        test_merge_port_topology(
+            fig_name=fig_name,
+            topology=topology,
+            settings=settings)
+
+    elif args.x:
+
+        # deeply embedded topology
+        topology = {
+            'agents': {
+                '0': {
+                    'growth': {
+                        'variables': ('boundary',), 'rates': ('rates',)
+                    },
+                    'globals_deriver': {
+                        'global': ('boundary',)
+                    },
+                    'divide_condition': {
+                        'variable': ('boundary', 'mass'),
+                        'divide': ('boundary', 'divide')
+                    },
+                    'division': {
+                        'global': ('boundary',),
+                        'agents': ('..', '..', 'agents')
+                    }}},
+            'multibody': {
+                'agents': ('agents',)
+            },
+            'diffusion': {
+                'agents': ('agents',),
+                'fields': ('fields',),
+                'dimensions': ('dimensions',)}}
+
+        import ipdb; ipdb.set_trace()
+
+
+
+
+
 
 
 if __name__ == '__main__':
