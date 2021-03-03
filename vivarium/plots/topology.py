@@ -106,6 +106,7 @@ def get_networkx_graph(topology):
 def graph_figure(
         graph: nx.Graph,
         *,
+        coordinates: Optional[Dict] = None,
         graph_format: str = 'horizontal',
         place_edges: Optional[list] = None,
         show_ports: bool = True,
@@ -114,11 +115,12 @@ def graph_figure(
         store_colors: Optional[Dict] = None,
         process_colors: Optional[Dict] = None,
         color_edges: bool = False,
+        dashed_edges: bool = False,
         edge_width: float = 2.0,
         fill_color: Any = 'w',
         node_size: float = 8000,
         font_size: int = 14,
-        node_distance: float = 2.5,
+        node_distance: float = 3.5,
         buffer: float = 1.0,
         border_width: float = 3,
         label_pos: float = 0.65,
@@ -133,6 +135,7 @@ def graph_figure(
     :param store_colors: (dict) specific colors for the Store nodes, mapping from store name to matplotlib color
     :param process_colors: (dict) specific colors for the Process nodes, mapping from store name to matplotlib color
     :param color_edges: color each edge between Store and Process a different color
+    :param dashed_edges: edges between Store and Process are dashed lines
     :param fill_color: fill color for the Store and Process nodes; any
         matplotlib color value
     :param node_size: size to draw the Store and Process nodes
@@ -162,7 +165,14 @@ def graph_figure(
             edges[edge] = graph.edges[edge]['port']
 
     # get position
-    if graph_format:
+    if coordinates:
+        pos = {
+            node: np.array(coord)
+            for node, coord in coordinates.items()}
+        levels = add_intermediate_nodes(
+            graph, store_nodes, place_edges)
+
+    elif graph_format:
         pos = graph_format_location(
             graph,
             process_nodes,
@@ -170,23 +180,15 @@ def graph_figure(
             place_edges,
             graph_format)
 
-        n_stores = len(store_nodes)
-        n_processes = len(process_nodes)
-        n_max = max(n_stores, n_processes)
-
-        if graph_format == 'hierarchy':
-            pos_values = list(pos.values())
-            xs = [p[0] for p in pos_values]
-            ys = [p[1] for p in pos_values]
-            xr = max(xs) - min(xs)
-            yr = max(ys) - min(ys)
-
-            fig = plt.figure(1, figsize=(xr * 1.5 * node_distance, yr * 1.5 * node_distance))
-
-        elif graph_format == 'vertical':
-            fig = plt.figure(1, figsize=(12, n_max * node_distance))
-        elif graph_format == 'horizontal':
-            fig = plt.figure(1, figsize=(n_max * node_distance, 12))
+    # initialize figure based on position values
+    pos_values = list(pos.values())
+    xs = [p[0] for p in pos_values]
+    ys = [p[1] for p in pos_values]
+    xr = max(xs) - min(xs)
+    yr = max(ys) - min(ys)
+    fig = plt.figure(1, figsize=(
+        xr * node_distance,
+        yr * node_distance))
 
     # get node colors
     process_color_list = [
@@ -225,10 +227,9 @@ def graph_figure(
 
     # edge width
     edge_args['width'] = [edge_width for _ in edges.keys()]
-    if graph_format == 'hierarchy':
-        # thicker edges for hierarchy connections
-        edge_args['width'].extend([edge_width * 2 for _ in place_edges])
-
+    # thicker edges for hierarchy connections
+    edge_args['width'].extend([edge_width * 2 for _ in place_edges])
+    if dashed_edges:
         edge_args['style'] = ['dashed' for _ in edges.keys()]
         edge_args['style'].extend(['solid' for _ in place_edges])
 
@@ -254,6 +255,43 @@ def graph_figure(
     return fig
 
 
+def add_intermediate_nodes(graph, store_nodes, place_edges):
+    # add new place edges by iterating over all place_edges
+    outers = set()
+    inners = set()
+    for (store_1, store_2) in place_edges:
+        outers.add(store_1)
+        inners.add(store_2)
+        graph.add_edge(store_1, store_2, place_edge=True)
+
+    # add non-embedded nodes to outers
+    all_stores = outers.union(inners)
+    non_embedded = set(store_nodes).difference(all_stores)
+    outers.update(non_embedded)
+
+    # add intermediate nodes to store_nodes
+    intermediate_nodes = all_stores.difference(store_nodes)
+    store_nodes.extend(list(intermediate_nodes))
+
+    # determine the hierarchy levels
+    levels = []
+    accounted = set()
+    unaccounted = outers.union(inners)
+    top_level = outers - inners
+    levels.append(list(top_level))
+    accounted.update(top_level)
+    unaccounted = unaccounted.difference(accounted)
+    while len(unaccounted) > 0:
+        next_level = set()
+        for (store_1, store_2) in place_edges:
+            if store_1 in accounted and store_2 in unaccounted:
+                next_level.add(store_2)
+        levels.append(list(next_level))
+        accounted.update(next_level)
+        unaccounted = unaccounted.difference(accounted)
+
+    return levels
+
 
 def graph_format_location(
     graph,
@@ -268,39 +306,8 @@ def graph_format_location(
     # get positions
     pos = {}
     if graph_format == 'hierarchy':
-        # add new place edges by iterating over all place_edges
-        outers = set()
-        inners = set()
-        for (store_1, store_2) in place_edges:
-            outers.add(store_1)
-            inners.add(store_2)
-            graph.add_edge(store_1, store_2, place_edge=True)
-
-        # add non-embedded nodes to outers
-        all_stores = outers.union(inners)
-        non_embedded = set(store_nodes).difference(all_stores)
-        outers.update(non_embedded)
-
-        # add intermediate nodes to store_nodes
-        intermediate_nodes = all_stores.difference(store_nodes)
-        store_nodes.extend(list(intermediate_nodes))
-
-        # determine the hierarchy levels
-        levels = []
-        accounted = set()
-        unaccounted = outers.union(inners)
-        top_level = outers - inners
-        levels.append(list(top_level))
-        accounted.update(top_level)
-        unaccounted = unaccounted.difference(accounted)
-        while len(unaccounted) > 0:
-            next_level = set()
-            for (store_1, store_2) in place_edges:
-                if store_1 in accounted and store_2 in unaccounted:
-                    next_level.add(store_2)
-            levels.append(list(next_level))
-            accounted.update(next_level)
-            unaccounted = unaccounted.difference(accounted)
+        levels = add_intermediate_nodes(
+            graph, store_nodes, place_edges)
 
         # buffer makes things centered
         n_max = max([len(level) for level in levels])
@@ -314,7 +321,7 @@ def graph_format_location(
         for level_idx, level in enumerate(levels, 0):
             level_buffer = (n_max - len(level)) / 2
             for idx, node_id in enumerate(level, 1):
-                pos[node_id] = np.array([level_buffer + idx, -1.2*level_idx])
+                pos[node_id] = np.array([level_buffer + 0.9*idx, -1.2*level_idx])
 
     elif graph_format == 'vertical':
         # processes in a column, and stores in a column
@@ -459,7 +466,7 @@ def main():
     parser.add_argument(
         '--topology', '-t',
         type=str,
-        choices=['1', '2', '3'],
+        choices=['1', '2', '3', '4'],
         help='the topology id'
     )
     args = parser.parse_args()
@@ -467,6 +474,7 @@ def main():
     settings = {}
     topology_id = str(args.topology)
     if topology_id == '1':
+        # vertical graph format
         topology = {
                 'multiport1': {
                     'a': ('D',),
@@ -481,6 +489,7 @@ def main():
             'store_colors': {'C': 'k'},
         }
     elif topology_id == '2':
+        # default horizontal graph format
         topology = {
                 'multiport1': {
                     'a': ('A', 'AA',),
@@ -488,8 +497,10 @@ def main():
                     'c': ('A', 'CC',),
                 },
                 'multiport2': {}}
+        settings = {'dashed_edges': True}
         fig_name = 'topology_2'
     elif topology_id == '3':
+        # hierarchy graph format
         topology = {
                 'multiport1': {
                     'a': ('A', 'AA', 'AAA',),
@@ -501,6 +512,26 @@ def main():
         settings = {
             'graph_format': 'hierarchy',
             'store_color': 'navy'
+        }
+    elif topology_id == '4':
+        # manual locations
+        topology = {
+                'multiport1': {
+                    'a': ('A', 'AA',),
+                    'b': ('A', 'BB', 'BBB'),
+                    'c': ('A', 'CC',),
+                },
+                'multiport2': {}}
+        fig_name = 'topology_4'
+        settings = {
+            'coordinates': {
+                'multiport1': (-1, 0), 'multiport2': (-1, -2),
+                'A': (1, 0), 'B': (2, 0), 'C': (3, 0),
+                'AA': (1, -2), 'BB': (2, -2), 'CC': (3, -2),
+                'BBB': (2, -4),
+            },
+            'store_color': 'navy',
+            'dashed_edges': True,
         }
     else:
         pass
