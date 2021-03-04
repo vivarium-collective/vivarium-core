@@ -12,6 +12,7 @@ import networkx as nx
 
 from vivarium.core.process import Process, Composer, Composite
 from vivarium.library.dict_utils import get_path_list_from_dict, get_value_from_path
+from vivarium.library.topology import normalize_path
 from vivarium.processes.engulf import ToyAgent
 from vivarium.processes.timeline import TimelineProcess
 
@@ -84,6 +85,10 @@ def get_bipartite_graph(composite):
         # save the edge between process and store
         edge = (process_id, store_id)
         edges[edge] = port
+
+        # make extended store path using port path (-2 removes port name and process name)
+        store_path = port_path[:-2] + store_path
+        store_path = normalize_path(store_path)
 
         # get intermediate stores
         if len(store_path) > 1:
@@ -573,10 +578,10 @@ def main():
                 'inner_path': ('agents',),
                 'outer_path': ('..', '..', 'agents')}}
         toy_agent_composer = ToyAgent(config)
-        toy_agent_1 = toy_agent_composer.generate(path=('agents', agent_ids[0]))
-        toy_agent_2 = toy_agent_composer.generate(path=('agents', agent_ids[1]))
+        toy_agent_1 = toy_agent_composer.generate(path=('cells', agent_ids[0]))
+        toy_agent_2 = toy_agent_composer.generate(path=('cells', agent_ids[1]))
 
-        timeline = [(3, {('agents', agent_ids[1], 'engulf-trigger'): [agent_ids[0]]})]
+        timeline = [(3, {('cells', agent_ids[1], 'engulf-trigger'): [agent_ids[0]]})]
         timeline_composer = TimelineProcess({'timeline': timeline})
         full_composite = timeline_composer.generate()
 
@@ -584,9 +589,12 @@ def main():
         full_composite.merge(composite=toy_agent_2)
 
         # plot topology
-        settings = {}
+        settings = {
+            'graph_format': 'hierarchy',
+            'store_color': 'navy'
+        }
         config = {
-            'settings': {},
+            'settings': settings,
             'out_dir': 'out/topology',
             'filename': 'embedded'}
         plot_topology(full_composite, **config)
