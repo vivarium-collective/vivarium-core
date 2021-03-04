@@ -77,8 +77,10 @@ def get_bipartite_graph(composite):
 
         # get the store path mapping for this port
         store_path = get_value_from_path(topology, port_path)
-        store_id = store_path[-1]  # the store is the final element in the path
-        store_id = store_id.replace('_', '\n')
+        # get full store path using port_path (-2 removes the port name and process name from port_path)
+        store_path = port_path[:-2] + store_path
+        store_path = normalize_path(store_path)
+        store_id = '\n'.join(store_path)
         if store_id not in store_nodes:
             store_nodes.append(store_id)
 
@@ -86,14 +88,14 @@ def get_bipartite_graph(composite):
         edge = (process_id, store_id)
         edges[edge] = port
 
-        # make extended store path using port path (-2 removes port name and process name)
-        store_path = port_path[:-2] + store_path
-        store_path = normalize_path(store_path)
-
         # get intermediate stores
         if len(store_path) > 1:
             # hierarchy place edges between inner/outer stores
-            for store_1, store_2 in zip(store_path, store_path[1:]):
+            # for store_1, store_2 in zip(store_path, store_path[1:]):
+            for level, _ in enumerate(store_path[1:], 1):
+                store_1 = '\n'.join(store_path[:level])
+                store_2 = '\n'.join(store_path[:level+1])
+
                 place_edge = (store_1, store_2)
                 place_edges.append(place_edge)
 
@@ -538,8 +540,8 @@ def merge_port_configs(topology_id):
             'coordinates': {
                 'multiport1': (-1, 0), 'multiport2': (-1, -2),
                 'A': (1, 0), 'B': (2, 0), 'C': (3, 0),
-                'AA': (1, -2), 'BB': (2, -2), 'CC': (3, -2),
-                'BBB': (2, -4),
+                'A\nAA': (1, -2), 'A\nBB': (2, -2), 'A\nCC': (3, -2),
+                'A\nBB\nBBB': (2, -4),
             },
             'store_color': 'navy',
             'dashed_edges': True,
@@ -576,10 +578,10 @@ def main():
                 'inner_path': ('agents',),
                 'outer_path': ('..', '..', 'agents')}}
         toy_agent_composer = ToyAgent(config)
-        toy_agent_1 = toy_agent_composer.generate(path=('cells', agent_ids[0]))
-        toy_agent_2 = toy_agent_composer.generate(path=('cells', agent_ids[1]))
+        toy_agent_1 = toy_agent_composer.generate(path=('agents', agent_ids[0]))
+        toy_agent_2 = toy_agent_composer.generate(path=('agents', agent_ids[1]))
 
-        timeline = [(3, {('cells', agent_ids[1], 'engulf-trigger'): [agent_ids[0]]})]
+        timeline = [(3, {('agents', agent_ids[1], 'engulf-trigger'): [agent_ids[0]]})]
         timeline_composer = TimelineProcess({'timeline': timeline})
         full_composite = timeline_composer.generate()
 
@@ -587,10 +589,35 @@ def main():
         full_composite.merge(composite=toy_agent_2)
 
         # plot topology
+        agent_1_x = 0
+        agent_2_x = 6
+        level_1 = -1
+        level_2 = -2
+        level_3 = -3
         settings = {
+            'coordinates': {
+                # timeline
+                'timeline': (0, 0),
+                # agent 1
+                'agents\n1\nexchange': (agent_1_x, -1), 'agents\n1\nengulf': (agent_1_x, -1.5), 'agents\n1\nexpel': (agent_1_x, -2),
+                # agent 2
+                'agents\n2\nexchange': (agent_2_x, -1), 'agents\n2\nengulf': (agent_2_x, -1.5), 'agents\n2\nexpel': (agent_2_x, -2),
+                # 1st level stores
+                'concentrations': (2, level_1), 'agents': (3, level_1), 'global': (4, level_1),
+                # 2nd level stores
+                'agents\n1': (1.75, level_2), 'agents\n2': (4.25, level_2),
+                # 3rd level stores
+                # agent 1
+                'agents\n1\nconcentrations': (1, level_3), 'agents\n1\nengulf-trigger': (1.5, level_3),
+                'agents\n1\nexpel-trigger': (2, level_3), 'agents\n1\nagents': (2.5, level_3),
+                # agent 2
+                'agents\n2\nconcentrations': (3.5, level_3), 'agents\n2\nengulf-trigger': (4, level_3),
+                'agents\n2\nexpel-trigger': (4.5, level_3), 'agents\n2\nagents': (5, level_3),
+            },
             'graph_format': 'hierarchy',
             'store_color': 'navy',
             'dashed_edges': True,
+            'node_distance': 4.5,
         }
         config = {
             'settings': settings,
