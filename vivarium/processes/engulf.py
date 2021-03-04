@@ -91,11 +91,11 @@ class ToyAgent(Composer):
                 'external': config['exchange']['external_path'],
                 'internal': config['exchange']['internal_path']},
             'engulf': {
-                'trigger': ('trigger',),
+                'trigger': ('engulf-trigger',),
                 'inner': config['engulf']['inner_path'],
                 'outer': config['engulf']['outer_path']},
             'expel': {
-                'trigger': ('trigger',),
+                'trigger': ('expel-trigger',),
                 'inner': config['engulf']['outer_path'],
                 'outer': config['engulf']['inner_path']}}
 
