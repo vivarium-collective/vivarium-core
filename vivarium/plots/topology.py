@@ -111,9 +111,35 @@ def get_bipartite_graph(composite):
     return process_nodes, store_nodes, edges, place_edges
 
 
-def get_networkx_graph(composite):
+def replace_node_labels(
+        node_labels, node_list=None, node_dict=None, edge_list=None, edge_dict=None):
+    if node_list:
+        return [
+            node_labels.get(node_id, node_id)
+            for node_id in node_list]
+    elif node_dict:
+        return {
+            node_labels.get(node_id, node_id): value
+            for node_id, value in node_dict.items()}
+    elif edge_list:
+        return [(
+            node_labels.get(node_1, node_1),
+            node_labels.get(node_2, node_2)
+        ) for (node_1, node_2) in edge_list]
+    elif edge_dict:
+        return {(
+             node_labels.get(node_1, node_1),
+             node_labels.get(node_2, node_2)
+         ): edge_name for (node_1, node_2), edge_name in edge_dict.items()}
+    return None
+
+def get_networkx_graph(composite, node_labels=None):
     """ Make a networkX graph from a Vivarium topology """
     process_nodes, store_nodes, edges, place_edges = get_bipartite_graph(composite)
+    process_nodes = replace_node_labels(node_labels, node_list=process_nodes)
+    store_nodes = replace_node_labels(node_labels, node_list=store_nodes)
+    edges = replace_node_labels(node_labels, edge_dict=edges)
+    place_edges = replace_node_labels(node_labels, edge_list=place_edges)
 
     # make networkX graph
     g = nx.Graph()
@@ -146,7 +172,7 @@ def graph_figure(
         fill_color: Any = 'w',
         node_size: float = 8000,
         font_size: int = 14,
-        node_distance: float = 3.5,
+        node_distance: float = 3.0,
         buffer: float = 0.5,
         border_width: float = 3,
         label_pos: float = 0.65,
@@ -392,8 +418,14 @@ def plot_topology(
         composite = composite.generate()
     assert isinstance(composite, Composite)
     # make networkx graph
-    g, place_edges = get_networkx_graph(composite)
+    node_labels = settings.pop('node_labels', {})
+    g, place_edges = get_networkx_graph(composite, node_labels)
     settings['place_edges'] = place_edges
+
+    # replace coordinate node labels
+    if 'coordinates' in settings:
+        settings['coordinates'] = replace_node_labels(
+            node_labels, node_dict=settings['coordinates'])
 
     # make graph figure
     fig = graph_figure(g, **settings)
@@ -597,13 +629,13 @@ def main():
         settings = {
             'coordinates': {
                 # timeline
-                'timeline': (0, 0),
+                'timeline': (3, 0),
                 # agent 1
                 'agents\n1\nexchange': (agent_1_x, -1), 'agents\n1\nengulf': (agent_1_x, -1.5), 'agents\n1\nexpel': (agent_1_x, -2),
                 # agent 2
                 'agents\n2\nexchange': (agent_2_x, -1), 'agents\n2\nengulf': (agent_2_x, -1.5), 'agents\n2\nexpel': (agent_2_x, -2),
                 # 1st level stores
-                'concentrations': (2, level_1), 'agents': (3, level_1), 'global': (4, level_1),
+                'concentrations': (2, level_1), 'agents': (3, level_1), 'global': (4, level_1/2),
                 # 2nd level stores
                 'agents\n1': (1.75, level_2), 'agents\n2': (4.25, level_2),
                 # 3rd level stores
@@ -618,6 +650,16 @@ def main():
             'store_color': 'navy',
             'dashed_edges': True,
             'node_distance': 4.5,
+            'node_labels': {
+                'agents\n1\nexpel-trigger': 'expel1',
+                'agents\n1\nengulf-trigger': 'engulf1',
+                'agents\n1\nconcentrations': 'conc1',
+                'agents\n1\nagents': 'agents1',
+                'agents\n2\nexpel-trigger': 'expel2',
+                'agents\n2\nengulf-trigger': 'engulf2',
+                'agents\n2\nconcentrations': 'conc2',
+                'agents\n2\nagents': 'agents2',
+            }
         }
         config = {
             'settings': settings,
