@@ -258,9 +258,7 @@ def graph_figure(
         edge_args['style'] = ['dashed' for _ in edges.keys()]
         edge_args['style'].extend(['solid' for _ in place_edges])
 
-    nx.draw_networkx_edges(graph, pos,
-                           # width=1.5,
-                           **edge_args)
+    nx.draw_networkx_edges(graph, pos, **edge_args)
 
     # edge labels
     nx.draw_networkx_labels(graph, pos,
@@ -591,7 +589,8 @@ def main():
         # plot topology
         settings = {
             'graph_format': 'hierarchy',
-            'store_color': 'navy'
+            'store_color': 'navy',
+            'dashed_edges': True,
         }
         config = {
             'settings': settings,
