@@ -214,7 +214,7 @@ def graph_figure(
             edges[edge] = graph.edges[edge]['port']
 
     # get position
-    pos = {}
+    pos: Dict = {}
     if graph_format:
         pos_format = graph_format_location(
             graph,
