@@ -70,14 +70,14 @@ def get_bipartite_graph(composite):
 
     # get store_nodes from topology paths
     for port_path in port_paths:
-        if port_path[-1] == '_path':
-            port = port_path[-2]
-            process_id = port_path[:-2]
-            process_path = port_path[:-3]
-        else:
-            port = port_path[-1]  # the port is the last element in the path
-            process_id = port_path[:-1]  # the process_id is the path up to the port
-            process_path = port_path[:-2]
+        # if port_path[-1] == '_path':
+        #     port = port_path[-2]
+        #     process_id = port_path[:-2]
+        #     process_path = port_path[:-3]
+        # else:
+        port = port_path[-1]  # the port is the last element in the path
+        process_id = port_path[:-1]  # the process_id is the path up to the port
+        process_path = port_path[:-2]
         process_id = '\n'.join(process_id)
         assert process_id in process_nodes, (f"{process_id} is not in process_nodes")
 
