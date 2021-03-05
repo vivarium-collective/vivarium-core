@@ -11,8 +11,9 @@ from matplotlib.figure import Figure
 import networkx as nx
 
 from vivarium.core.process import Process, Composer, Composite
-from vivarium.library.dict_utils import get_path_list_from_dict, get_value_from_path
+from vivarium.core.store import generate_state
 from vivarium.library.topology import normalize_path
+from vivarium.library.dict_utils import deep_merge
 from vivarium.processes.engulf import ToyAgent
 from vivarium.processes.timeline import TimelineProcess
 
@@ -50,64 +51,53 @@ def get_bipartite_graph(composite):
     """ Get a graph with Processes, Stores, and edges from a Vivarium topology """
     topology = composite['topology']
     processes = composite['processes']
+    hierarchy_object = generate_state(
+        processes=processes, topology=topology, initial_state={})
 
-    process_nodes = []
-    store_nodes = []
+    # get path to processes and stores, name them by their paths
+    # leaf_paths = hierarchy_object.depth(filter_function=lambda x: x.inner == {})
+    process_paths = hierarchy_object.depth(filter_function=lambda x: isinstance(x.value, Process))
+    process_nodes = ['\n'.join(process_path[0]) for process_path in process_paths]
+    store_paths = hierarchy_object.depth(filter_function=lambda x: x.inner != {})
+    store_nodes = ['\n'.join(store_path[0]) for store_path in store_paths if store_path[0] != tuple()]
+
+    # get the edges between processes and stores
     edges = {}
-    compartment_nodes = []
-    place_edges = []
-
-    # flatten the processes and topology dicts
-    process_paths = get_path_list_from_dict(processes)
-    port_paths = get_path_list_from_dict(topology)
-
-    # get process_nodes
-    for process_path in process_paths:
-        process = get_value_from_path(processes, process_path)
-        assert isinstance(process, Process), (f"{process} is not a Process")
+    for (process_path, process) in process_paths:
         process_id = '\n'.join(process_path)
-        process_nodes.append(process_id)
+        assert process_id in process_nodes, (
+            f"{process_id} process id is not in process_nodes list: {process_nodes}")
 
-    # get store_nodes from topology paths
-    for port_path in port_paths:
-        # if port_path[-1] == '_path':
-        #     port = port_path[-2]
-        #     process_id = port_path[:-2]
-        #     process_path = port_path[:-3]
-        # else:
-        port = port_path[-1]  # the port is the last element in the path
-        process_id = port_path[:-1]  # the process_id is the path up to the port
-        process_path = port_path[:-2]
-        process_id = '\n'.join(process_id)
-        assert process_id in process_nodes, (f"{process_id} is not in process_nodes")
+        process_topology = process.topology
+        for port, store_path in process_topology.items():
+            if isinstance(store_path, dict):
+                if '_path' in store_path:
+                    store_path = store_path['_path']
+                else:
+                    store_paths = tuple()
 
-        # get the store path mapping for this port
-        store_path = get_value_from_path(topology, port_path)
-        # get full store path using port_path (-2 removes the port name and process name from port_path)
-        store_path = process_path + store_path
-        store_path = normalize_path(store_path)
-        store_id = '\n'.join(store_path)
-        if store_id not in store_nodes:
-            store_nodes.append(store_id)
+            store_path = normalize_path(process_path[:-1] + store_path)
+            store_id = '\n'.join(store_path)
+            if store_id not in store_nodes:
+                # print(f"Adding {store_id} to store_nodes list {store_nodes}")
+                store_paths.append((store_path, hierarchy_object.get_path(path=store_path)))
+                store_nodes.append(store_id)
 
-        # save the edge between process and store
-        edge = (process_id, store_id)
-        edges[edge] = port
+            # save the edge
+            edge = (process_id, store_id)
+            edges[edge] = port
 
-        # get intermediate stores
+    # get the place edges between hierarchy stores
+    place_edges = []
+    for (store_path, _) in store_paths:
         if len(store_path) > 1:
             # hierarchy place edges between inner/outer stores
             # for store_1, store_2 in zip(store_path, store_path[1:]):
             for level, _ in enumerate(store_path[1:], 1):
                 store_1 = '\n'.join(store_path[:level])
-                store_2 = '\n'.join(store_path[:level+1])
-
+                store_2 = '\n'.join(store_path[:level + 1])
                 place_edge = (store_1, store_2)
                 place_edges.append(place_edge)
-
-                # add all intermediate stores to store list
-                if store_1 not in compartment_nodes:
-                    compartment_nodes.append(store_1)
 
     # are there overlapping names?
     overlap = [name for name in process_nodes if name in store_nodes]
@@ -224,20 +214,20 @@ def graph_figure(
             edges[edge] = graph.edges[edge]['port']
 
     # get position
-    if coordinates:
-        pos = {
-            node: np.array(coord)
-            for node, coord in coordinates.items()}
-        levels = add_intermediate_nodes(
-            graph, store_nodes, place_edges)
-
-    elif graph_format:
-        pos = graph_format_location(
+    pos = {}
+    if graph_format:
+        pos_format = graph_format_location(
             graph,
             process_nodes,
             store_nodes,
             place_edges,
             graph_format)
+        pos = deep_merge(pos, pos_format)
+    if coordinates:
+        pos_format = {
+            node: np.array(coord)
+            for node, coord in coordinates.items()}
+        pos = deep_merge(pos, pos_format)
 
     # initialize figure based on position values
     pos_values = list(pos.values())
@@ -312,7 +302,7 @@ def graph_figure(
     return fig
 
 
-def add_intermediate_nodes(graph, store_nodes, place_edges):
+def get_hierarchy_levels(graph, store_nodes, place_edges):
     # add new place edges by iterating over all place_edges
     outers = set()
     inners = set()
@@ -363,7 +353,7 @@ def graph_format_location(
     # get positions
     pos = {}
     if graph_format == 'hierarchy':
-        levels = add_intermediate_nodes(
+        levels = get_hierarchy_levels(
             graph, store_nodes, place_edges)
 
         # buffer makes things centered
