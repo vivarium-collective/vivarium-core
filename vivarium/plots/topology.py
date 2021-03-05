@@ -64,7 +64,7 @@ def get_bipartite_graph(composite):
     # get process_nodes
     for process_path in process_paths:
         process = get_value_from_path(processes, process_path)
-        assert isinstance(process, Process)
+        assert isinstance(process, Process), (f"{process} is not a Process")
         process_id = '\n'.join(process_path)
         process_nodes.append(process_id)
 
@@ -73,7 +73,7 @@ def get_bipartite_graph(composite):
         port = port_path[-1]  # the port is the last element in the path
         process_id = port_path[:-1]  # the process_id is the path up to the port
         process_id = '\n'.join(process_id)
-        assert process_id in process_nodes
+        assert process_id in process_nodes, (f"{process_id} is not in process_nodes")
 
         # get the store path mapping for this port
         store_path = get_value_from_path(topology, port_path)
