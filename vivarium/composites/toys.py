@@ -4,7 +4,7 @@ from typing import Optional, Dict, Any, Union
 import numpy as np
 
 from vivarium.core.process import (
-    Process, Deriver, Composer, Composite, AggregateComposer)
+    Process, Deriver, Composer, Composite, ComposerCombinator)
 from vivarium.core.types import State, Schema, Update, Topology
 
 quark_colors = ['green', 'red', 'blue']
@@ -720,7 +720,7 @@ def test_get_composite() -> None:
 
 def test_aggregate_composer() -> None:
     config1 = {'name': 'one'}
-    aggregate = AggregateComposer(
+    aggregate = ComposerCombinator(
         composers=[ToyComposer(config1)])
     composite1 = aggregate.generate()
 

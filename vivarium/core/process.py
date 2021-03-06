@@ -305,22 +305,21 @@ class Composite(Datum):
             composite: Optional['Composite'] = None,
             processes: Optional[Dict[str, 'Process']] = None,
             topology: Optional[Topology] = None,
+            path: Optional[HierarchyPath] = None,
             schema_override: Optional[Schema] = None,
     ) -> None:
         composite = composite or Composite({})
         processes = processes or {}
         topology = topology or {}
+        path = path or tuple()
         schema_override = schema_override or {}
 
         if composite:
             processes.update(composite['processes'])
             topology.update(composite['topology'])
 
-        for process in processes.values():
-            assert isinstance(process, Process)
-
-        self.processes.update(processes)
-        self.topology.update(topology)
+        assoc_in(self.processes, path, processes)
+        assoc_in(self.topology, path, topology)
         self._schema.update(schema_override)
         _override_schemas(self._schema, self.processes)
 
@@ -468,7 +467,7 @@ class Composer(metaclass=abc.ABCMeta):
         return composite.get_parameters()
 
 
-class AggregateComposer(Composer):
+class ComposerCombinator(Composer):
 
     def __init__(
             self,
