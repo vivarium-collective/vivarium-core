@@ -318,8 +318,10 @@ class Composite(Datum):
             processes.update(composite['processes'])
             topology.update(composite['topology'])
 
-        assoc_in(self.processes, path, processes)
-        assoc_in(self.topology, path, topology)
+        processes = assoc_in({}, path, processes)
+        topology = assoc_in({}, path, topology)
+        deep_merge(self.processes, processes)
+        deep_merge(self.topology, topology)
         self._schema.update(schema_override)
         _override_schemas(self._schema, self.processes)
 
@@ -467,7 +469,7 @@ class Composer(metaclass=abc.ABCMeta):
         return composite.get_parameters()
 
 
-class ComposerCombinator(Composer):
+class Combinator(Composer):
 
     def __init__(
             self,
