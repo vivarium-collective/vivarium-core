@@ -47,7 +47,7 @@ def construct_storage_path() -> Path:
 STORAGE_PATH = construct_storage_path()
 
 
-def get_bipartite_graph(composite):
+def get_bigraph(composite):
     """ Get a graph with Processes, Stores, and edges from a Vivarium topology """
     topology = composite['topology']
     processes = composite['processes']
@@ -129,9 +129,46 @@ def replace_node_labels(
          ): edge_name for (node_1, node_2), edge_name in edge_dict.items()}
     return None
 
-def get_networkx_graph(composite, node_labels=None):
+def remove(
+        remove_nodes, node_list=None, node_dict=None, edge_list=None, edge_dict=None):
+    """remove specified nodes"""
+    if node_list:
+        return [
+            node_id for node_id in node_list
+            if node_id not in remove_nodes]
+    elif node_dict:
+        return {
+            node_id: value
+            for node_id, value in node_dict.items()
+            if node_id not in remove_nodes}
+    elif edge_list:
+        return [
+            (node_1, node_2)
+            for (node_1, node_2) in edge_list
+            if (node_1 not in remove_nodes and node_2 not in remove_nodes)]
+    elif edge_dict:
+        return {
+            (node_1, node_2): port
+            for (node_1, node_2), port in edge_dict.items()
+            if (node_1 not in remove_nodes and node_2 not in remove_nodes)}
+    return None
+
+
+def get_networkx_graph(composite, node_labels=None, remove_nodes=None):
     """ Make a networkX graph from a Vivarium topology """
-    process_nodes, store_nodes, edges, place_edges = get_bipartite_graph(composite)
+    node_labels = node_labels or {}
+    remove_nodes = remove_nodes or []
+
+    # get the nodes and edges from the composite
+    process_nodes, store_nodes, edges, place_edges = get_bigraph(composite)
+
+    # remove specified nodes
+    process_nodes = remove(remove_nodes, node_list=process_nodes)
+    store_nodes = remove(remove_nodes, node_list=store_nodes)
+    edges = remove(remove_nodes, edge_dict=edges)
+    place_edges = remove(remove_nodes, edge_list=place_edges)
+
+    # replace specified nodes labels
     process_nodes = replace_node_labels(node_labels, node_list=process_nodes)
     store_nodes = replace_node_labels(node_labels, node_list=store_nodes)
     edges = replace_node_labels(node_labels, edge_dict=edges)
@@ -178,13 +215,13 @@ def graph_figure(
     :param graph: the networkx.Graph to plot
     :param coordinates: (dict) a dictionary of locations for all nodes in the graph, with {'node_id': (x, y)}
     :param graph_format: 'horizontal', 'vertical', or 'hierarchy'
-    :param show_ports: whether to show the Port labels
     :param store_color: default color for the Store nodes; any matplotlib color value
     :param process_color: default color for the Process nodes; any matplotlib color value
     :param store_colors: (dict) specific colors for the Store nodes, mapping from store name to matplotlib color
     :param process_colors: (dict) specific colors for the Process nodes, mapping from store name to matplotlib color
     :param color_edges: color each edge between Store and Process a different color
     :param dashed_edges: edges between Store and Process are dashed lines
+    :param show_ports: whether to show the Port labels
     :param fill_color: fill color for the Store and Process nodes; any
         matplotlib color value
     :param node_size: size to draw the Store and Process nodes
@@ -415,7 +452,8 @@ def plot_topology(
     assert isinstance(composite, Composite)
     # make networkx graph
     node_labels = settings.pop('node_labels', {})
-    g, place_edges = get_networkx_graph(composite, node_labels)
+    remove_nodes = settings.pop('remove_nodes', [])
+    g, place_edges = get_networkx_graph(composite, node_labels, remove_nodes)
     settings['place_edges'] = place_edges
 
     # replace coordinate node labels
@@ -573,6 +611,7 @@ def merge_port_configs(topology_id):
             },
             'store_color': 'navy',
             'dashed_edges': True,
+            'remove_nodes': ['A\nBB']
         }
     else:
         raise ValueError(f'topology_id "{topology_id}" is invalid')
