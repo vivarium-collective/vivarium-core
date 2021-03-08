@@ -469,7 +469,7 @@ class Composer(metaclass=abc.ABCMeta):
         return composite.get_parameters()
 
 
-class Combinator(Composer):
+class MetaComposer(Composer):
 
     def __init__(
             self,
