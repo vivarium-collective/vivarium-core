@@ -1,6 +1,7 @@
 """Plot topologies using networkx and matplotlib."""
 
 import os
+import copy
 import argparse
 from typing import Any, cast, Dict, Optional
 
@@ -446,7 +447,7 @@ def plot_topology(
 ):
     """ Plot a composite's topology """
 
-    settings = settings or {}
+    settings = copy.deepcopy(settings) or {}
     if isinstance(composite, Composer):
         composite = composite.generate()
     assert isinstance(composite, Composite)
