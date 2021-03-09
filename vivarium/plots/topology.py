@@ -274,8 +274,7 @@ def graph_figure(
     xr = max(xs) - min(xs)
     yr = max(ys) - min(ys)
     fig = plt.figure(1, figsize=(
-        xr * node_distance + 2 * buffer,
-        yr * node_distance + 2 * buffer))
+        xr * node_distance, yr * node_distance))
 
     # get node colors
     process_color_list = [
@@ -613,7 +612,7 @@ def merge_port_configs(topology_id):
             },
             'store_color': 'navy',
             'dashed_edges': True,
-            'remove_nodes': ['A\nBB']
+            'remove_nodes': ['A\nBB', 'multiport1']
         }
     else:
         raise ValueError(f'topology_id "{topology_id}" is invalid')
@@ -686,7 +685,7 @@ def main():
             'graph_format': 'hierarchy',
             'store_color': 'navy',
             'dashed_edges': True,
-            'node_distance': 4.5,
+            'node_distance': 5,
             'node_labels': {
                 'agents\n1\nexpel-trigger': 'expel1',
                 'agents\n1\nengulf-trigger': 'engulf1',
