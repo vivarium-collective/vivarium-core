@@ -450,6 +450,7 @@ def plot_topology(
     if isinstance(composite, Composer):
         composite = composite.generate()
     assert isinstance(composite, Composite)
+
     # make networkx graph
     node_labels = settings.pop('node_labels', {})
     remove_nodes = settings.pop('remove_nodes', [])
@@ -457,9 +458,9 @@ def plot_topology(
     settings['place_edges'] = place_edges
 
     # replace coordinate node labels
-    if 'coordinates' in settings:
-        settings['coordinates'] = replace_node_labels(
-            node_labels, node_dict=settings['coordinates'])
+    # if 'coordinates' in settings:
+    #     settings['coordinates'] = replace_node_labels(
+    #         node_labels, node_dict=settings['coordinates'])
 
     # make graph figure
     fig = graph_figure(g, **settings)
@@ -675,11 +676,11 @@ def main():
                 'agents\n1': (1.75, level_2), 'agents\n2': (4.25, level_2),
                 # 3rd level stores
                 # agent 1
-                'agents\n1\nconcentrations': (1, level_3), 'agents\n1\nengulf-trigger': (1.5, level_3),
-                'agents\n1\nexpel-trigger': (2, level_3), 'agents\n1\nagents': (2.5, level_3),
+                'conc1': (1, level_3), 'engulf1': (1.5, level_3),
+                'expel1': (2, level_3), 'agents1': (2.5, level_3),
                 # agent 2
-                'agents\n2\nconcentrations': (3.5, level_3), 'agents\n2\nengulf-trigger': (4, level_3),
-                'agents\n2\nexpel-trigger': (4.5, level_3), 'agents\n2\nagents': (5, level_3),
+                'conc2': (3.5, level_3), 'engulf2': (4, level_3),
+                'expel2': (4.5, level_3), 'agents2': (5, level_3),
             },
             'graph_format': 'hierarchy',
             'store_color': 'navy',
