@@ -127,7 +127,7 @@ def plot_agents_multigen(
                 remove_paths.add(path)
     # remove the paths
     port_schema_paths -= remove_paths
-    top_ports = [path[0] for path in port_schema_paths]
+    top_ports = set([path[0] for path in port_schema_paths])
 
     # get the states for each port
     port_rows: Dict[Any, list] = {port_id: [] for port_id in top_ports}
@@ -164,7 +164,8 @@ def plot_agents_multigen(
             ordered_paths[port_id][target] = [row_idx, col_idx]
 
             # next column/row
-            if row_idx >= max_rows - 1:
+            if row_idx >= max_rows - 1 and not stack_column:
+                # wrap the port to the next column
                 row_idx = 0
                 col_idx += 1
             else:
