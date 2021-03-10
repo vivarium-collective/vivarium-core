@@ -24,7 +24,8 @@ def construct_storage_path() -> Path:
     # NOTE: After a MOVETO, we need to put the pen down for CLOSEPOLY to
     # complete a filled shape.
     _path_data = [
-        (Path.MOVETO, [-1.000, -0.800]),
+        # main shape
+        (Path.MOVETO, [-1.000, -0.800]),  # start at bottom left corner
         (Path.CURVE4, [-0.900, -1.000]),  # bottom curve
         (Path.CURVE4, [+0.900, -1.000]),
         (Path.CURVE4, [+1.000, -0.800]),
@@ -32,15 +33,21 @@ def construct_storage_path() -> Path:
         (Path.CURVE4, [+0.900, +1.000]),  # top back curve
         (Path.CURVE4, [-0.900, +1.000]),
         (Path.CURVE4, [-1.000, +0.800]),
+        (Path.LINETO, [-1.000, -0.800]),  # back to the bottom
+        (Path.CLOSEPOLY, [0.00, 0.00]),  # close a filled poly-line shape
+
+        # front edge 1
+        (Path.MOVETO, [-1.000, +0.800]),  # to the top left corner
         (Path.CURVE4, [-0.900, +0.600]),  # top front main curve
         (Path.CURVE4, [+0.900, +0.600]),
         (Path.CURVE4, [+1.000, +0.800]),
-        (Path.LINETO, [+1.000, +0.700]),  # upper left edge
-        (Path.CURVE4, [+0.900, +0.500]),  # top front second curve
+
+        # front edge 2
+        (Path.MOVETO, [-1.000, +0.700]),  # to the top left corner
         (Path.CURVE4, [-0.900, +0.500]),
-        (Path.CURVE4, [-1.000, +0.700]),
-        (Path.LINETO, [-1.000, +0.800]),  # left edge
-        (Path.CLOSEPOLY, [0.00, 0.00])]   # close a filled poly-line shape
+        (Path.CURVE4, [+0.900, +0.500]),  # top front second curve
+        (Path.CURVE4, [+1.000, +0.700]),
+    ]
     _path_codes, _path_vertices = zip(*_path_data)
     return Path(_path_vertices, _path_codes)
 
@@ -264,17 +271,19 @@ def graph_figure(
     if coordinates:
         pos_format = {
             node: np.array(coord)
-            for node, coord in coordinates.items()}
+            for node, coord in coordinates.items()
+            if node in process_nodes + store_nodes}
         pos = deep_merge(pos, pos_format)
 
-    # initialize figure based on position values
+    # initialize figure based on positions, nodes, and buffer
     pos_values = list(pos.values())
     xs = [p[0] for p in pos_values]
     ys = [p[1] for p in pos_values]
     xr = max(xs) - min(xs)
     yr = max(ys) - min(ys)
     fig = plt.figure(1, figsize=(
-        xr * node_distance, yr * node_distance))
+        xr * node_distance + 2 * buffer,
+        yr * node_distance + 2 * buffer))
 
     # get node colors
     process_color_list = [

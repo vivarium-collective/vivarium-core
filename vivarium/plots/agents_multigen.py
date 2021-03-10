@@ -151,10 +151,13 @@ def plot_agents_multigen(
     highest_row = 0
     row_idx = 0
     col_idx = 0
-    ordered_paths: Dict[Any, dict] = {port_id: {} for port_id in top_ports}
-    for port_id, path_list in port_rows.items():
+    ordered_paths: Dict[Any, dict] = {}
+    for port_id in top_ports:
+        ordered_paths[port_id] = {}
+        path_list = port_rows.get(port_id)
         if not path_list:
             continue
+
         # order target names and assign subplot location
         ordered_targets = order_list_of_paths(path_list)
         for target in ordered_targets:
@@ -217,10 +220,11 @@ def plot_agents_multigen(
             ax.yaxis.get_offset_text().set_fontsize(tick_label_size)
 
             # if last state in this column, add time ticks
-            if ((stack_column and row_idx >= highest_row - 1) or
-                    (not stack_column and
-                     (row_idx >= highest_row or
-                      path_idx >= len(ordered_paths[port_id]) - 1))):
+            if ((stack_column and row_idx >= highest_row - 1) or (
+                    not stack_column and (
+                    row_idx >= highest_row
+                    or path_idx >= len(ordered_paths[port_id]) - 1))
+            ):
                 set_axes(ax, True)
                 ax.set_xlabel('time (s)', fontsize=title_size)
                 ax.spines['bottom'].set_position(('axes', -0.2))
