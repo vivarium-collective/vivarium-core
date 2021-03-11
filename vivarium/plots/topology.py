@@ -236,6 +236,7 @@ def graph_figure(
     :param label_pos: position of the Port labels along their connection lines,
         (0=head, 0.5=center, 1=tail)
     """
+    node_labels = node_labels or {}
     process_colors = process_colors or {}
     store_colors = store_colors or {}
     place_edges = place_edges or []
