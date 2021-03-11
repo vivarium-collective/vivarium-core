@@ -115,27 +115,28 @@ def get_bigraph(composite):
     return process_nodes, store_nodes, edges, place_edges
 
 
-def replace_node_labels(
-        node_labels, node_list=None, node_dict=None, edge_list=None, edge_dict=None):
-    if node_list:
-        return [
-            node_labels.get(node_id, node_id)
-            for node_id in node_list]
-    elif node_dict:
-        return {
-            node_labels.get(node_id, node_id): value
-            for node_id, value in node_dict.items()}
-    elif edge_list:
-        return [(
-            node_labels.get(node_1, node_1),
-            node_labels.get(node_2, node_2)
-        ) for (node_1, node_2) in edge_list]
-    elif edge_dict:
-        return {(
-             node_labels.get(node_1, node_1),
-             node_labels.get(node_2, node_2)
-         ): edge_name for (node_1, node_2), edge_name in edge_dict.items()}
-    return None
+# def replace_node_labels(
+#         node_labels, node_list=None, node_dict=None, edge_list=None, edge_dict=None):
+#     if node_list:
+#         return [
+#             node_labels.get(node_id, node_id)
+#             for node_id in node_list]
+#     elif node_dict:
+#         return {
+#             node_labels.get(node_id, node_id): value
+#             for node_id, value in node_dict.items()}
+#     elif edge_list:
+#         return [(
+#             node_labels.get(node_1, node_1),
+#             node_labels.get(node_2, node_2)
+#         ) for (node_1, node_2) in edge_list]
+#     elif edge_dict:
+#         return {(
+#              node_labels.get(node_1, node_1),
+#              node_labels.get(node_2, node_2)
+#          ): edge_name for (node_1, node_2), edge_name in edge_dict.items()}
+#     return None
+
 
 def remove(
         remove_nodes, node_list=None, node_dict=None, edge_list=None, edge_dict=None):
@@ -162,9 +163,8 @@ def remove(
     return None
 
 
-def get_networkx_graph(composite, node_labels=None, remove_nodes=None):
+def get_networkx_graph(composite, remove_nodes=None):
     """ Make a networkX graph from a Vivarium topology """
-    node_labels = node_labels or {}
     remove_nodes = remove_nodes or []
 
     # get the nodes and edges from the composite
@@ -175,12 +175,6 @@ def get_networkx_graph(composite, node_labels=None, remove_nodes=None):
     store_nodes = remove(remove_nodes, node_list=store_nodes)
     edges = remove(remove_nodes, edge_dict=edges)
     place_edges = remove(remove_nodes, edge_list=place_edges)
-
-    # replace specified nodes labels
-    process_nodes = replace_node_labels(node_labels, node_list=process_nodes)
-    store_nodes = replace_node_labels(node_labels, node_list=store_nodes)
-    edges = replace_node_labels(node_labels, edge_dict=edges)
-    place_edges = replace_node_labels(node_labels, edge_list=place_edges)
 
     # make networkX graph
     g = nx.Graph()
@@ -200,6 +194,7 @@ def graph_figure(
         graph: nx.Graph,
         *,
         coordinates: Optional[Dict] = None,
+        node_labels: Optional[Dict] = None,
         graph_format: str = 'horizontal',
         place_edges: Optional[list] = None,
         show_ports: bool = True,
@@ -220,8 +215,9 @@ def graph_figure(
 ) -> Figure:
     """ Make a figure from a networkx graph.
 
-    :param graph: the networkx.Graph to plot
+    :param graph: the networkx. Graph to plot
     :param coordinates: (dict) a dictionary of locations for all nodes in the graph, with {'node_id': (x, y)}
+    :param node_labels: (dict) a dictionary of labels for all nodes in the graph, with {'node_id': 'node_label'}
     :param graph_format: 'horizontal', 'vertical', or 'hierarchy'
     :param store_color: default color for the Store nodes; any matplotlib color value
     :param process_color: default color for the Process nodes; any matplotlib color value
@@ -251,6 +247,11 @@ def graph_figure(
     store_nodes = [
         node_id for node_id, attributes in node_attributes.items()
         if attributes['type'] == 'Store']
+
+    # fill in all node labels
+    node_labels = {
+        node_id: node_labels.get(node_id, node_id)
+        for node_id in node_attributes.keys()}
 
     edge_list = list(graph.edges)
     edges = {}
@@ -330,10 +331,12 @@ def graph_figure(
 
     nx.draw_networkx_edges(graph, pos, **edge_args)
 
-    # edge labels
+    # node labels
     nx.draw_networkx_labels(graph, pos,
+                            labels=node_labels,
                             font_size=font_size)
     if show_ports:
+        # edge labels
         nx.draw_networkx_edge_labels(graph, pos,
                                      edge_labels=edges,
                                      font_size=font_size,
@@ -438,7 +441,6 @@ def graph_format_location(
     return pos
 
 
-
 def save_network(out_dir='out', filename='network'):
     os.makedirs(out_dir, exist_ok=True)
     fig_path = os.path.join(out_dir, filename)
@@ -461,15 +463,9 @@ def plot_topology(
     assert isinstance(composite, Composite)
 
     # make networkx graph
-    node_labels = settings.pop('node_labels', {})
     remove_nodes = settings.pop('remove_nodes', [])
-    g, place_edges = get_networkx_graph(composite, node_labels, remove_nodes)
+    g, place_edges = get_networkx_graph(composite, remove_nodes)
     settings['place_edges'] = place_edges
-
-    # replace coordinate node labels
-    # if 'coordinates' in settings:
-    #     settings['coordinates'] = replace_node_labels(
-    #         node_labels, node_dict=settings['coordinates'])
 
     # make graph figure
     fig = graph_figure(g, **settings)
@@ -685,25 +681,27 @@ def main():
                 'agents\n1': (1.75, level_2), 'agents\n2': (4.25, level_2),
                 # 3rd level stores
                 # agent 1
-                'conc1': (1, level_3), 'engulf1': (1.5, level_3),
-                'expel1': (2, level_3), 'agents1': (2.5, level_3),
+                'agents\n1\nconcentrations': (1, level_3), 'agents\n1\nengulf-trigger': (1.5, level_3),
+                'agents\n1\nexpel-trigger': (2, level_3), 'agents\n1\nagents': (2.5, level_3),
                 # agent 2
-                'conc2': (3.5, level_3), 'engulf2': (4, level_3),
-                'expel2': (4.5, level_3), 'agents2': (5, level_3),
+                'agents\n2\nconcentrations': (3.5, level_3), 'agents\n2\nengulf-trigger': (4, level_3),
+                'agents\n2\nexpel-trigger': (4.5, level_3), 'agents\n2\nagents': (5, level_3),
             },
             'graph_format': 'hierarchy',
             'store_color': 'navy',
             'dashed_edges': True,
             'node_distance': 5,
             'node_labels': {
-                'agents\n1\nexpel-trigger': 'expel1',
-                'agents\n1\nengulf-trigger': 'engulf1',
-                'agents\n1\nconcentrations': 'conc1',
-                'agents\n1\nagents': 'agents1',
-                'agents\n2\nexpel-trigger': 'expel2',
-                'agents\n2\nengulf-trigger': 'engulf2',
-                'agents\n2\nconcentrations': 'conc2',
-                'agents\n2\nagents': 'agents2',
+                'agents\n1': 'agent1',
+                'agents\n2': 'agent2',
+                'agents\n1\nexpel-trigger': 'expel',
+                'agents\n1\nengulf-trigger': 'engulf',
+                'agents\n1\nconcentrations': 'conc',
+                'agents\n1\nagents': 'agents',
+                'agents\n2\nexpel-trigger': 'expel',
+                'agents\n2\nengulf-trigger': 'engulf',
+                'agents\n2\nconcentrations': 'conc',
+                'agents\n2\nagents': 'agents',
             }
         }
         config = {
