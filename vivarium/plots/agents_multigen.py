@@ -127,7 +127,7 @@ def plot_agents_multigen(
                 remove_paths.add(path)
     # remove the paths
     port_schema_paths -= remove_paths
-    top_ports = set([path[0] for path in port_schema_paths])
+    top_ports = list(set([path[0] for path in port_schema_paths]))
 
     # get the states for each port
     port_rows: Dict[Any, list] = {port_id: [] for port_id in top_ports}
