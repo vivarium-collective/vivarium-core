@@ -232,7 +232,8 @@ def _get_composite_state(
                 topology=subtopology,
                 state_type=state_type,
                 path=subpath,
-                initial_state=initial_state
+                initial_state=initial_state,
+                config=config.get(key),
             )
         elif isinstance(node, Process):
             if state_type == 'initial':
