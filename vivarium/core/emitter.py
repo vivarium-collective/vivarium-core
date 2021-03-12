@@ -213,7 +213,7 @@ class DatabaseEmitter(Emitter):
         emit_data: dict = data['data']
         emit_data['experiment_id'] = self.experiment_id
         # TODO(jerry): Should this pop('table') from emit_data?
-        table = getattr(self.db, emit_data['table'])
+        table = getattr(self.db, data['table'])
         table.insert_one(emit_data)
 
     def get_data(self) -> dict:
