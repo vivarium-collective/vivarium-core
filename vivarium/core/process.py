@@ -18,7 +18,7 @@ from pint.errors import UndefinedUnitError
 
 from vivarium.library.datum import Datum
 from vivarium.library.topology import inverse_topology
-from vivarium.library.units import Quantity
+from vivarium.library.units import Quantity, Unit
 from vivarium.core.registry import serializer_registry
 from vivarium.library.dict_utils import deep_merge
 from vivarium.core.types import (
@@ -79,6 +79,9 @@ def serialize_value(value: Any) -> Any:
         return serializer_registry.access('numpy').serialize(value)
     if isinstance(value, Quantity):
         value = cast(Quantity, value)
+        return serializer_registry.access('units').serialize(value)
+    if isinstance(value, Unit):
+        value = cast(Unit, value)
         return serializer_registry.access('units').serialize(value)
     if callable(value):
         value = cast(Callable, value)
@@ -232,7 +235,8 @@ def _get_composite_state(
                 topology=subtopology,
                 state_type=state_type,
                 path=subpath,
-                initial_state=initial_state
+                initial_state=initial_state,
+                config=config.get(key),
             )
         elif isinstance(node, Process):
             if state_type == 'initial':
