@@ -566,9 +566,7 @@ class Process(Composer, metaclass=abc.ABCMeta):
             dict: Subclass implementations must return a dictionary
             mapping state paths to initial values.
         """
-        raise Exception(
-            '{} does not include an "initial_state" function'.format(
-                self.name))
+        return {}
 
     def generate_processes(
             self, config: Optional[dict] = None) -> Dict[str, Any]:
