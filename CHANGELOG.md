@@ -1,9 +1,13 @@
 # Changelog
 
 
+## v0.2.8
+
+* improved plot_topology
+
 ## v0.2.7
 
-* topology_plot includes new the `graph_options`: `horizontal` and `hierarchy`, and new  `process_colors` and `store_colors` for coloring individual nodes.
+* plot_topology includes new the `graph_options`: `horizontal` and `hierarchy`, and new  `process_colors` and `store_colors` for coloring individual nodes.
 
 ## v0.2.6
 
