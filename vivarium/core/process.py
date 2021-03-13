@@ -309,23 +309,23 @@ class Composite(Datum):
             composite: Optional['Composite'] = None,
             processes: Optional[Dict[str, 'Process']] = None,
             topology: Optional[Topology] = None,
+            path: Optional[HierarchyPath] = None,
             schema_override: Optional[Schema] = None,
     ) -> None:
         composite = composite or Composite({})
         processes = processes or {}
         topology = topology or {}
+        path = path or tuple()
         schema_override = schema_override or {}
 
         if composite:
             processes.update(composite['processes'])
             topology.update(composite['topology'])
 
-        # TODO -- processes can also be embedded in dicts
-        # for process in processes.values():
-        #     assert isinstance(process, Process)
-
-        self.processes = deep_merge(self.processes, processes)
-        self.topology = deep_merge(self.topology, topology)
+        processes = assoc_in({}, path, processes)
+        topology = assoc_in({}, path, topology)
+        deep_merge(self.processes, processes)
+        deep_merge(self.topology, topology)
         self._schema.update(schema_override)
         _override_schemas(self._schema, self.processes)
 
@@ -473,7 +473,7 @@ class Composer(metaclass=abc.ABCMeta):
         return composite.get_parameters()
 
 
-class AggregateComposer(Composer):
+class MetaComposer(Composer):
 
     def __init__(
             self,
@@ -566,9 +566,7 @@ class Process(Composer, metaclass=abc.ABCMeta):
             dict: Subclass implementations must return a dictionary
             mapping state paths to initial values.
         """
-        raise Exception(
-            '{} does not include an "initial_state" function'.format(
-                self.name))
+        return {}
 
     def generate_processes(
             self, config: Optional[dict] = None) -> Dict[str, Any]:
