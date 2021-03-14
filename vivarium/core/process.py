@@ -318,14 +318,20 @@ class Composite(Datum):
         path = path or tuple()
         schema_override = schema_override or {}
 
+        # get the processes and topology to merge
+        merge_processes = {}
+        merge_topology = {}
         if composite:
-            processes.update(composite['processes'])
-            topology.update(composite['topology'])
+            merge_processes.update(composite['processes'])
+            merge_topology.update(composite['topology'])
+        deep_merge(merge_processes, processes)
+        deep_merge(merge_topology, topology)
+        merge_processes = assoc_in({}, path, merge_processes)
+        merge_topology = assoc_in({}, path, merge_topology)
 
-        processes = assoc_in({}, path, processes)
-        topology = assoc_in({}, path, topology)
-        deep_merge(self.processes, processes)
-        deep_merge(self.topology, topology)
+        # merge with instance processes and topology
+        deep_merge(self.processes, merge_processes)
+        deep_merge(self.topology, merge_topology)
         self._schema.update(schema_override)
         _override_schemas(self._schema, self.processes)
 
