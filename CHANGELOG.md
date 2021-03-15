@@ -1,6 +1,10 @@
 # Changelog
 
 
+## v0.2.9
+
+* composite.merge() uses the provided topology to override merged composite topology
+
 ## v0.2.8
 
 * improved plot_topology
