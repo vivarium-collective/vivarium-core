@@ -45,19 +45,15 @@ class MetaDivision(Deriver):
         'initial_state': {},
         'daughter_ids_function': daughter_phylogeny_id}
 
-    def __init__(self, initial_parameters=None):
-        if initial_parameters is None:
-            initial_parameters = {}
+    def __init__(self, parameters=None):
+        super().__init__(parameters)
 
         self.division = 0
 
         # must provide a compartment to generate new daughters
-        self.agent_id = initial_parameters['agent_id']
-        self.composer = initial_parameters['composer']
-        self.daughter_ids_function = self.or_default(
-            initial_parameters, 'daughter_ids_function')
-
-        super(MetaDivision, self).__init__(initial_parameters)
+        self.agent_id = self.parameters['agent_id']
+        self.composer = self.parameters['composer']
+        self.daughter_ids_function = self.parameters['daughter_ids_function']
 
     def initial_state(self, config=None):
         return {}

@@ -52,11 +52,6 @@ class CountsToMolar(Deriver):
         if volume != 0:
             for molecule, count in counts.items():
                 concentrations[molecule] = count / mmol_to_counts
-
-            for molecule, concentration in concentrations.items():
-                assert concentration >= 0, (
-                    'derived {} concentration < 0'.format(molecule))
-
             return {
                 'concentrations': concentrations}
         print('volume is 0!')

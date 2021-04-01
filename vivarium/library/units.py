@@ -25,7 +25,7 @@ from typing import Any
 import pint
 # noinspection PyProtectedMember
 from pint.quantity import _Quantity as Quantity
-
+from pint.unit import Unit
 
 #: Units registry that stores the units used throughout Vivarium
 units = pint.UnitRegistry()

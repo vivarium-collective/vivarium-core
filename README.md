@@ -1,7 +1,6 @@
 # Vivarium-core
 
-Vivarium-core provides a process interface and simulation engine for composing and executing multi-scale 
-computational biology models.
+Vivarium-core provides a process interface and simulation engine for composing and executing integrative multi-scale models.
 
 ## Documentation and Tutorials
 Visit [Vivarium documentation](https://vivarium-core.readthedocs.io/).

@@ -1,6 +1,30 @@
 # Changelog
 
 
+## v0.2.9
+
+* composite.merge() uses the provided topology to override merged composite topology
+
+## v0.2.8
+
+* improved plot_topology
+
+## v0.2.7
+
+* plot_topology includes new the `graph_options`: `horizontal` and `hierarchy`, and new  `process_colors` and `store_colors` for coloring individual nodes.
+
+## v0.2.6
+
+* new Composite and AggregateComposer classes in core/process.py
+
+## v0.2.5
+
+* remove future annotations to continue support of python 3.6
+
+## v0.2.3
+
+* bring back compatibility for python 3.6
+
 ## v0.2.2
 
 * generalize mass_adaptors and molarity_derivers
