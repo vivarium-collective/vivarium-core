@@ -18,7 +18,7 @@ from pint.errors import UndefinedUnitError
 
 from vivarium.library.datum import Datum
 from vivarium.library.topology import (
-    inverse_topology, convert_topology_path)
+    inverse_topology, convert_path_style, convert_topology_path)
 from vivarium.library.units import Quantity, Unit
 from vivarium.core.registry import serializer_registry
 from vivarium.library.dict_utils import deep_merge
@@ -317,6 +317,7 @@ class Composite(Datum):
         processes = processes or {}
         topology = topology or {}
         path = path or tuple()
+        path = convert_path_style(path)
         schema_override = schema_override or {}
 
         # get the processes and topology to merge
@@ -421,7 +422,7 @@ class Composer(metaclass=abc.ABCMeta):
     def generate(
             self,
             config: Optional[dict] = None,
-            path: HierarchyPath = ()) -> Composite:
+            path: HierarchyPath = None) -> Composite:
         """Generate processes and topology dictionaries.
 
         Args:
@@ -437,6 +438,8 @@ class Composer(metaclass=abc.ABCMeta):
             constructor for
             :py:class:`vivarium.core.experiment.Experiment`.
         """
+        path = path or tuple()
+        path = convert_path_style(path)
         if config is None:
             config = self.config
         else:
