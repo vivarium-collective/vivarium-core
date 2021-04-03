@@ -588,7 +588,7 @@ def print_progress_bar(
 
 
 def make_proton(
-        parallel: Literal[True, False] = False
+        parallel: bool = False
 ) -> Dict[str, Any]:
     processes = {
         'proton': Proton({'_parallel': parallel}),
