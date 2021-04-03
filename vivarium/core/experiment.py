@@ -270,7 +270,7 @@ class Experiment:
             'description': self.description,
             'topology': self.topology,
             'processes': serialize_value(self.processes),
-            'state': self.state.get_config()
+            'state': serialize_value(self.state.get_config())
         }
         emit_config: Dict[str, Any] = {
             'table': 'configuration',

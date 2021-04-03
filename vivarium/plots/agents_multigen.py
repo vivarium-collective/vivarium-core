@@ -58,6 +58,8 @@ def plot_agents_multigen(
               that won't be plotted
             * **include_paths** (:py:class:`list`): list of full paths
               to include. Overridden by skip_paths.
+            * **store_order** (:py:class:`tuple`): ordered tuple of store names
+              declares the order in which stores are plotted.
             * **title_on_y_axis** :py:class:`bool`): if True, the plot titles
               will appear to the left of the y-axis
             * **title_size** (:py:class:`int`): font size of the subplots
@@ -81,11 +83,13 @@ def plot_agents_multigen(
     column_width = settings.get('column_width', 4)
     row_height = settings.get('row_height', column_width/2)
     title_on_y_axis = settings.get('title_on_y_axis', False)
+    linewidth = settings.get('linewidth', 3.0)
     stack_column = settings.get('stack_column', False)
     remove_zeros = settings.get('remove_zeros', False)
     remove_flat = settings.get('remove_flat', False)
     skip_paths = settings.get('skip_paths', [])
     include_paths = settings.get('include_paths', None)
+    store_order = settings.get('store_order', tuple())
     title_size = settings.get('title_size', 16)
     tick_label_size = settings.get('tick_label_size', 12)
     titles_map = settings.get('titles_map', dict())
@@ -123,7 +127,7 @@ def plot_agents_multigen(
                 remove_paths.add(path)
     # remove the paths
     port_schema_paths -= remove_paths
-    top_ports = {path[0] for path in port_schema_paths}
+    top_ports = list(set([path[0] for path in port_schema_paths]))
 
     # get the states for each port
     port_rows: Dict[Any, list] = {port_id: [] for port_id in top_ports}
@@ -139,20 +143,29 @@ def plot_agents_multigen(
         else:
             port_rows[port_id] = path_list
 
+    for store_idx, store in enumerate(store_order):
+        if store in top_ports:
+            top_ports.remove(store)
+            top_ports.insert(store_idx, store)
+
     highest_row = 0
     row_idx = 0
     col_idx = 0
-    ordered_paths: Dict[Any, dict] = {port_id: {} for port_id in top_ports}
-    for port_id, path_list in port_rows.items():
+    ordered_paths: Dict[Any, dict] = {}
+    for port_id in top_ports:
+        ordered_paths[port_id] = {}
+        path_list = port_rows.get(port_id)
         if not path_list:
             continue
+
         # order target names and assign subplot location
         ordered_targets = order_list_of_paths(path_list)
         for target in ordered_targets:
             ordered_paths[port_id][target] = [row_idx, col_idx]
 
             # next column/row
-            if row_idx >= max_rows - 1:
+            if row_idx >= max_rows - 1 and not stack_column:
+                # wrap the port to the next column
                 row_idx = 0
                 col_idx += 1
             else:
@@ -191,6 +204,7 @@ def plot_agents_multigen(
                 )
             state_title = titles_map.get(path, path)
             if isinstance(state_title, tuple):
+                state_title = tuple(str(s) for s in state_title)
                 # new line for each store
                 state_title = ' \n'.join(state_title)
             if not title_on_y_axis:
@@ -207,12 +221,14 @@ def plot_agents_multigen(
             ax.yaxis.get_offset_text().set_fontsize(tick_label_size)
 
             # if last state in this column, add time ticks
-            if ((stack_column and row_idx >= highest_row - 1) or
-                    (not stack_column and
-                     (row_idx >= highest_row or
-                      path_idx >= len(ordered_paths[port_id]) - 1))):
+            if ((stack_column and row_idx >= highest_row - 1) or (
+                    not stack_column and (
+                    row_idx >= highest_row
+                    or path_idx >= len(ordered_paths[port_id]) - 1))
+            ):
                 set_axes(ax, True)
                 ax.set_xlabel('time (s)', fontsize=title_size)
+                ax.spines['bottom'].set_position(('axes', -0.2))
             else:
                 set_axes(ax)
             ax.set_xlim([time_vec[0], time_vec[-1]])
@@ -241,7 +257,11 @@ def plot_agents_multigen(
                         plot_times = time_vec[time_idx:time_idx+n_times]
 
                         ax = port_axes[port_schema_path]
-                        ax.plot(plot_times, series, color=agent_colors.get(agent_id, None))
+                        ax.plot(
+                            plot_times,
+                            series,
+                            color=agent_colors.get(agent_id, None),
+                            linewidth=linewidth)
 
     plt.subplots_adjust(wspace=0.2, hspace=0.2)
     if out_dir:

@@ -95,7 +95,8 @@ class ToyAgent(Composer):
                 'inner': config['engulf']['inner_path'],
                 'outer': config['engulf']['outer_path']},
             'expel': {
-                'trigger': ('expel-trigger',),
+                'trigger': {
+                    '_path': ('expel-trigger',)},
                 'inner': config['engulf']['outer_path'],
                 'outer': config['engulf']['inner_path']}}
 
