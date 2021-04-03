@@ -23,7 +23,8 @@ from vivarium.library.units import Quantity, Unit
 from vivarium.core.registry import serializer_registry
 from vivarium.library.dict_utils import deep_merge
 from vivarium.core.types import (
-    HierarchyPath, TuplePath, Topology, Schema, State, Update)
+    HierarchyPath, TuplePath, Topology,
+    Schema, State, Update, Processes)
 
 DEFAULT_TIME_STEP = 1.0
 
