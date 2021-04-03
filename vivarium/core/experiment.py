@@ -12,7 +12,7 @@ import pprint
 import multiprocessing
 from multiprocessing import pool as multipool
 from typing import (
-    Any, Dict, Optional, Union, Literal, Tuple, Callable)
+    Any, Dict, Optional, Union, Tuple, Callable)
 import math
 import datetime
 import time as clock
