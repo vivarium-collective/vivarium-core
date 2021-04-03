@@ -16,18 +16,23 @@ from vivarium import divider_registry, serializer_registry, updater_registry
 from vivarium.core.process import Process
 from vivarium.library.dict_utils import deep_merge, MULTI_UPDATE_KEY
 from vivarium.library.topology import without, dict_to_paths
+from vivarium.core.types import Processes, Topology, State
 
 EMPTY_UPDATES = None, None, None
 
 
-def generate_state(processes, topology, initial_state):
-    state = Store({})
-    state.generate_paths(processes, topology)
-    state.apply_subschemas()
-    state.set_value(initial_state)
-    state.apply_defaults()
+def generate_state(
+        processes: Processes,
+        topology: Topology,
+        initial_state: State,
+) -> 'Store':
+    store = Store({})
+    store.generate_paths(processes, topology)
+    store.apply_subschemas()
+    store.set_value(initial_state)
+    store.apply_defaults()
 
-    return state
+    return store
 
 
 def key_for_value(d, looking):

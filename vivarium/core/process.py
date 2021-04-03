@@ -23,7 +23,8 @@ from vivarium.library.units import Quantity, Unit
 from vivarium.core.registry import serializer_registry
 from vivarium.library.dict_utils import deep_merge
 from vivarium.core.types import (
-    HierarchyPath, TuplePath, Topology, Schema, State, Update)
+    HierarchyPath, TuplePath, Topology,
+    Schema, State, Update, Processes)
 
 DEFAULT_TIME_STEP = 1.0
 
@@ -385,7 +386,7 @@ class Composer(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def generate_processes(
             self,
-            config: Optional[dict]) -> Dict[str, Any]:
+            config: Optional[dict]) -> Processes:
         """Generate processes dictionary.
 
         Every subclass must override this method.
@@ -561,6 +562,7 @@ class Process(Composer, metaclass=abc.ABCMeta):
         self.parameters = self.config
         self.parallel = self.config.pop('_parallel', False)
         self.parameters.setdefault('time_step', DEFAULT_TIME_STEP)
+        self.schema = self.get_schema()
 
     def initial_state(self, config: Optional[dict] = None) -> State:
         """Get initial state in embedded path dictionary.

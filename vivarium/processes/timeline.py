@@ -25,6 +25,7 @@ class TimelineProcess(Process):
     def __init__(self, parameters=None):
         super(TimelineProcess, self).__init__(parameters)
 
+    def initialize_timeline(self):
         # sort the timeline
         timeline = []
         for new_event in self.parameters['timeline']:
@@ -63,6 +64,7 @@ class TimelineProcess(Process):
                 self.timeline_ports = deep_merge_combine_lists(self.timeline_ports, port)
 
     def ports_schema(self):
+        self.initialize_timeline()
 
         schema = {
             port: {

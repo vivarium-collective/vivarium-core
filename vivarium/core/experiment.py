@@ -9,8 +9,10 @@ Experiment runs the simulation.
 import os
 import logging as log
 import pprint
-from multiprocessing import Pool
-from typing import Any, Dict
+import multiprocessing
+from multiprocessing import pool as multipool
+from typing import (
+    Any, Dict, Optional, Union, Tuple, Callable)
 import math
 import datetime
 import time as clock
@@ -22,8 +24,6 @@ from vivarium.composites.toys import Proton, Electron, Sine, PoQo
 from vivarium.core.store import hierarchy_depth, Store, generate_state
 from vivarium.core.emitter import get_emitter
 from vivarium.core.process import (
-    HierarchyPath,
-    Deriver,
     Process,
     ParallelProcess,
     serialize_value,
@@ -35,33 +35,41 @@ from vivarium.library.topology import (
     inverse_topology
 )
 from vivarium.library.units import units
+from vivarium.core.types import (
+    HierarchyPath, Topology, Schema, State, Update, Processes)
 
 pretty = pprint.PrettyPrinter(indent=2)
 
 
-def pp(x):
+def pp(x: Any) -> None:
     pretty.pprint(x)
 
 
-def pf(x):
+def pf(x: Any) -> str:
     return pretty.pformat(x)
 
 
 log.basicConfig(level=os.environ.get("LOGLEVEL", log.WARNING))
 
 
-def starts_with(a_list, sub):
+def starts_with(
+        a_list: HierarchyPath,
+        sub: HierarchyPath,
+) -> bool:
     return len(sub) <= len(a_list) and all(
         a_list[i] == el
         for i, el in enumerate(sub))
 
 
-def invert_topology(update, args):
+def invert_topology(
+        update: Update,
+        args: Tuple[HierarchyPath, Topology],
+) -> State:
     path, topology = args
     return inverse_topology(path[:-1], update, topology)
 
 
-def timestamp(dt=None):
+def timestamp(dt: Optional[Any] = None) -> str:
     if not dt:
         dt = datetime.datetime.now()
     return "%04d%02d%02d.%02d%02d%02d" % (
@@ -69,24 +77,38 @@ def timestamp(dt=None):
         dt.hour, dt.minute, dt.second)
 
 
-def invoke_process(process, interval, states):
+def invoke_process(
+        process: Process,
+        interval: float,
+        states: State,
+) -> Update:
     return process.next_update(interval, states)
 
 
 class Defer:
-    def __init__(self, defer, f, args):
+    def __init__(
+            self,
+            defer: Any,
+            f: Callable,
+            args: Tuple,
+    ) -> None:
         self.defer = defer
         self.f = f
         self.args = args
 
-    def get(self):
+    def get(self) -> Update:
         return self.f(
             self.defer.get(),
             self.args)
 
 
 class InvokeProcess:
-    def __init__(self, process, interval, states):
+    def __init__(
+            self,
+            process: Process,
+            interval: float,
+            states: State,
+    ) -> None:
         self.process = process
         self.interval = interval
         self.states = states
@@ -95,23 +117,30 @@ class InvokeProcess:
             self.interval,
             self.states)
 
-    def get(self):
+    def get(self) -> Update:
         return self.update
 
 
 class MultiInvoke:
-    def __init__(self, pool):
+    def __init__(
+            self,
+            pool: multipool.Pool
+    ) -> None:
         self.pool = pool
 
-    def invoke(self, process, interval, states):
+    def invoke(
+            self,
+            process: Process,
+            interval: float,
+            states: State,
+    ) -> Any:
         args = (process, interval, states)
         result = self.pool.apply_async(invoke_process, args)
         return result
 
 
 class Experiment:
-    def __init__(self, config):
-        # type: (Dict[str, Any]) -> None
+    def __init__(self, config: Dict[str, Any]) -> None:
         """Defines simulations
 
         Arguments:
@@ -155,7 +184,7 @@ class Experiment:
         self.processes = config['processes']
         self.topology = config['topology']
         self.initial_state = config.get('initial_state', {})
-        self.emit_step = config.get('emit_step')
+        self.emit_step = config.get('emit_step', 1.0)
 
         # display settings
         self.experiment_name = config.get(
@@ -173,7 +202,7 @@ class Experiment:
 
         # get a mapping of all paths to processes
         self.process_paths: Dict[HierarchyPath, Process] = {}
-        self.deriver_paths: Dict[HierarchyPath, Deriver] = {}
+        self.deriver_paths: Dict[HierarchyPath, Process] = {}
         self.find_process_paths(self.processes)
 
         # initialize the state
@@ -215,19 +244,26 @@ class Experiment:
         # log.info('\nCONFIG:')
         # log.info(pf(self.state.get_config(True)))
 
-    def add_process_path(self, process, path):
+    def add_process_path(
+            self,
+            process: Process,
+            path: HierarchyPath
+    ) -> None:
         if process.is_deriver():
             self.deriver_paths[path] = process
         else:
             self.process_paths[path] = process
 
-    def find_process_paths(self, processes):
+    def find_process_paths(
+            self,
+            processes: Processes
+    ) -> None:
         tree = hierarchy_depth(processes)
         for path, process in tree.items():
             self.add_process_path(process, path)
 
-    def emit_configuration(self):
-        data = {
+    def emit_configuration(self) -> None:
+        data: Dict[str, Any] = {
             'time_created': self.time_created,
             'experiment_id': self.experiment_id,
             'name': self.experiment_name,
@@ -236,7 +272,7 @@ class Experiment:
             'processes': serialize_value(self.processes),
             'state': serialize_value(self.state.get_config())
         }
-        emit_config = {
+        emit_config: Dict[str, Any] = {
             'table': 'configuration',
             'data': data}
         try:
@@ -248,7 +284,13 @@ class Experiment:
             del emit_config['data']['state']
             self.emitter.emit(emit_config)
 
-    def invoke_process(self, process, path, interval, states):
+    def invoke_process(
+            self,
+            process: Process,
+            path: HierarchyPath,
+            interval: float,
+            states: State,
+    ) -> Any:
         if process.parallel:
             # add parallel process if it doesn't exist
             if path not in self.parallel:
@@ -260,7 +302,14 @@ class Experiment:
         # if not parallel, perform a normal invocation
         return self.invoke(process, interval, states)
 
-    def process_update(self, path, process, store, states, interval):
+    def process_update(
+            self,
+            path: HierarchyPath,
+            process: Process,
+            store: Store,
+            states: State,
+            interval: float,
+    ) -> Tuple[Defer, Store]:
 
         update = self.invoke_process(
             process,
@@ -268,11 +317,18 @@ class Experiment:
             interval,
             states)
 
-        absolute = Defer(update, invert_topology, (path, store.topology))
+        absolute = Defer(
+            update,
+            invert_topology,
+            (path, store.topology))
 
         return absolute, store
 
-    def process_state(self, path, process):
+    def process_state(
+            self,
+            path: HierarchyPath,
+            process: Process,
+    ) -> Tuple[Store, State]:
         store = self.state.get_path(path)
 
         # translate the values from the tree structure into the form
@@ -281,11 +337,21 @@ class Experiment:
 
         return store, states
 
-    def calculate_update(self, path, process, interval):
+    def calculate_update(
+            self,
+            path: HierarchyPath,
+            process: Process,
+            interval: float
+    ) -> Tuple[Defer, Store]:
         store, states = self.process_state(path, process)
-        return self.process_update(path, process, store, states, interval)
+        return self.process_update(
+            path, process, store, states, interval)
 
-    def apply_update(self, update, state):
+    def apply_update(
+            self,
+            update: Update,
+            state: Store
+    ) -> None:
         topology_updates, process_updates, deletions = self.state.apply_update(
             update, state)
 
@@ -302,7 +368,10 @@ class Experiment:
             for deletion in deletions:
                 self.delete_path(deletion)
 
-    def delete_path(self, deletion):
+    def delete_path(
+            self,
+            deletion: HierarchyPath
+    ) -> None:
         delete_in(self.processes, deletion)
         delete_in(self.topology, deletion)
 
@@ -314,7 +383,7 @@ class Experiment:
             if starts_with(path, deletion):
                 del self.deriver_paths[path]
 
-    def run_derivers(self):
+    def run_derivers(self) -> None:
         paths = list(self.deriver_paths.keys())
         for path in paths:
             # deriver could have been deleted by another deriver
@@ -325,11 +394,11 @@ class Experiment:
                 #  generate_paths() add a schema attribute to the Deriver.
                 #  PyCharm's type check reports:
                 #    Type Process doesn't have expected attribute 'schema'
-                update, state = self.calculate_update(
+                update, store = self.calculate_update(
                     path, deriver, 0)
-                self.apply_update(update.get(), state)
+                self.apply_update(update.get(), store)
 
-    def emit_data(self):
+    def emit_data(self) -> None:
         data = self.state.emit_data()
         data.update({
             'time': self.experiment_time})
@@ -338,28 +407,34 @@ class Experiment:
             'data': serialize_value(data)}
         self.emitter.emit(emit_config)
 
-    def send_updates(self, update_tuples):
+    def send_updates(
+            self,
+            update_tuples: list
+    ) -> None:
         for update_tuple in update_tuples:
             update, state = update_tuple
             self.apply_update(update.get(), state)
 
         self.run_derivers()
 
-    def update(self, interval):
+    def update(
+            self,
+            interval: float
+    ) -> None:
         """ Run each process for the given interval and update the states.
         """
 
-        time = 0
+        time = 0.0
         emit_time = self.emit_step
         clock_start = clock.time()
 
-        def empty_front(t):
+        def empty_front(t: float) -> Dict[str, Union[float, dict]]:
             return {
                 'time': t,
                 'update': {}}
 
         # keep track of which processes have simulated until when
-        front = {}
+        front: Dict = {}
 
         while time < interval:
             full_step = math.inf
@@ -462,11 +537,11 @@ class Experiment:
         if self.display_info:
             self.print_summary(clock_finish)
 
-    def end(self):
+    def end(self) -> None:
         for parallel in self.parallel.values():
             parallel.end()
 
-    def print_display(self):
+    def print_display(self) -> None:
         date, time = self.time_created.split('.')
         print('\nExperiment ID: {}'.format(self.experiment_id))
         print('Created: {} at {}'.format(
@@ -477,7 +552,10 @@ class Experiment:
         if self.description:
             print('Description: {}'.format(self.description))
 
-    def print_summary(self, clock_finish):
+    def print_summary(
+            self,
+            clock_finish: float
+    ) -> None:
         if clock_finish < 1:
             print('Completed in {:.6f} seconds'.format(clock_finish))
         else:
@@ -485,11 +563,11 @@ class Experiment:
 
 
 def print_progress_bar(
-        iteration,
-        total,
-        decimals=1,
-        length=50,
-):
+        iteration: float,
+        total: float,
+        decimals: float = 1,
+        length: int = 50,
+) -> None:
     """ Call in a loop to create terminal progress bar
 
     Arguments:
@@ -498,8 +576,8 @@ def print_progress_bar(
         decimals:  (Optional) positive number of decimals in percent complete
         length:    (Optional) character length of bar
     """
-    progress = ("{0:." + str(decimals) + "f}").format(total - iteration)
-    filled_length = int(length * iteration // total)
+    progress: str = ("{0:." + str(decimals) + "f}").format(total - iteration)
+    filled_length: int = int(length * iteration // total)
     filled_bar = '█' * filled_length + '-' * (length - filled_length)
     print(
         f'\rProgress:|{filled_bar}| {progress}/{float(total)} '
@@ -509,7 +587,9 @@ def print_progress_bar(
         print()
 
 
-def make_proton(parallel=False):
+def make_proton(
+        parallel: bool = False
+) -> Dict[str, Any]:
     processes = {
         'proton': Proton({'_parallel': parallel}),
         'electrons': {
@@ -565,7 +645,7 @@ def make_proton(parallel=False):
         'initial_state': initial_state}
 
 
-def test_recursive_store():
+def test_recursive_store() -> None:
     environment_config = {
         'environment': {
             'temperature': {
@@ -643,7 +723,7 @@ def test_recursive_store():
     state.state_for(['environment'], ['temperature'])
 
 
-def test_topology_ports():
+def test_topology_ports() -> None:
     proton = make_proton()
 
     experiment = Experiment(proton)
@@ -656,24 +736,24 @@ def test_topology_ports():
     log.debug(pf(experiment.state.divide_value()))
 
 
-def test_timescales():
+def test_timescales() -> None:
     class Slow(Process):
         name = 'slow'
         defaults = {'timestep': 3.0}
 
-        def __init__(self, config=None):
+        def __init__(self, config: Optional[dict] = None) -> None:
             super().__init__(config)
 
-        def ports_schema(self):
+        def ports_schema(self) -> Schema:
             return {
                 'state': {
                     'base': {
                         '_default': 1.0}}}
 
-        def local_timestep(self):
-            return self.parameters['timestep']
-
-        def next_update(self, timestep, states):
+        def next_update(
+                self,
+                timestep: Union[float, int],
+                states: State) -> Update:
             base = states['state']['base']
             next_base = timestep * base * 0.1
 
@@ -684,10 +764,10 @@ def test_timescales():
         name = 'fast'
         defaults = {'timestep': 0.3}
 
-        def __init__(self, config=None):
+        def __init__(self, config: Optional[dict] = None) -> None:
             super().__init__(config)
 
-        def ports_schema(self):
+        def ports_schema(self) -> Schema:
             return {
                 'state': {
                     'base': {
@@ -695,10 +775,10 @@ def test_timescales():
                     'motion': {
                         '_default': 0.0}}}
 
-        def local_timestep(self):
-            return self.parameters['timestep']
-
-        def next_update(self, timestep, states):
+        def next_update(
+                self,
+                timestep: Union[float, int],
+                states: State) -> Update:
             base = states['state']['base']
             motion = timestep * base * 0.001
 
@@ -728,14 +808,14 @@ def test_timescales():
     experiment.update(10.0)
 
 
-def test_2_store_1_port():
+def test_2_store_1_port() -> None:
     """
     Split one port of a processes into two stores
     """
     class OnePort(Process):
         name = 'one_port'
 
-        def ports_schema(self):
+        def ports_schema(self) -> Schema:
             return {
                 'A': {
                     'a': {
@@ -747,7 +827,10 @@ def test_2_store_1_port():
                 }
             }
 
-        def next_update(self, timestep, states):
+        def next_update(
+                self,
+                timestep: Union[float, int],
+                states: State) -> Update:
             return {
                 'A': {
                     'a': 1,
@@ -757,11 +840,12 @@ def test_2_store_1_port():
         """splits OnePort's ports into two stores"""
         name = 'split_port_composer'
 
-        def generate_processes(self, config):
+        def generate_processes(
+                self, config: Optional[dict]) -> Dict[str, Any]:
             return {
                 'one_port': OnePort({})}
 
-        def generate_topology(self, config):
+        def generate_topology(self, config: Optional[dict]) -> Topology:
             return {
                 'one_port': {
                     'A': {
@@ -786,11 +870,11 @@ def test_2_store_1_port():
     assert output == expected_output
 
 
-def test_multi_port_merge():
+def test_multi_port_merge() -> None:
     class MultiPort(Process):
         name = 'multi_port'
 
-        def ports_schema(self):
+        def ports_schema(self) -> Schema:
             return {
                 'A': {
                     'a': {
@@ -805,7 +889,10 @@ def test_multi_port_merge():
                         '_default': 0,
                         '_emit': True}}}
 
-        def next_update(self, timestep, states):
+        def next_update(
+                self,
+                timestep: Union[float, int],
+                states: State) -> Update:
             return {
                 'A': {'a': 1},
                 'B': {'a': 1},
@@ -815,11 +902,12 @@ def test_multi_port_merge():
         """combines both of MultiPort's ports into one store"""
         name = 'multi_port_composer'
 
-        def generate_processes(self, config):
+        def generate_processes(
+                self, config: Optional[dict]) -> Dict[str, Any]:
             return {
                 'multi_port': MultiPort({})}
 
-        def generate_topology(self, config):
+        def generate_topology(self, config: Optional[dict]) -> Topology:
             return {
                 'multi_port': {
                     'A': ('aaa',),
@@ -842,7 +930,7 @@ def test_multi_port_merge():
     assert output == expected_output
 
 
-def test_complex_topology():
+def test_complex_topology() -> None:
 
     # make the experiment
     outer_path = ('universe', 'agent')
@@ -871,8 +959,8 @@ def test_complex_topology():
     assert agent_state['ccc']['a3'] == initial_agent_state['ccc']['a3'] + 1
 
 
-def test_multi():
-    with Pool(processes=4) as pool:
+def test_multi() -> None:
+    with multiprocessing.Pool(processes=4) as pool:
         multi = MultiInvoke(pool)
         proton = make_proton()
         experiment = Experiment({**proton, 'invoke': multi.invoke})
@@ -885,7 +973,7 @@ def test_multi():
         log.debug(pf(experiment.state.divide_value()))
 
 
-def test_parallel():
+def test_parallel() -> None:
     proton = make_proton(parallel=True)
     experiment = Experiment(proton)
 
@@ -899,7 +987,7 @@ def test_parallel():
     experiment.end()
 
 
-def test_depth():
+def test_depth() -> None:
     nested = {
         'A': {
             'AA': 5,
@@ -913,7 +1001,7 @@ def test_depth():
     assert dissected[('A', 'AB', 'ABC')] == 11
 
 
-def test_sine():
+def test_sine() -> None:
     sine = Sine()
     print(sine.next_update(0.25 / 440.0, {
         'frequency': 440.0,
@@ -921,11 +1009,11 @@ def test_sine():
         'phase': 1.5}))
 
 
-def test_units():
+def test_units() -> None:
     class UnitsMicrometer(Process):
         name = 'units_micrometer'
 
-        def ports_schema(self):
+        def ports_schema(self) -> Schema:
             return {
                 'A': {
                     'a': {
@@ -938,35 +1026,39 @@ def test_units():
                 }
             }
 
-        def next_update(self, timestep, states):
+        def next_update(
+                self, timestep: Union[float, int], states: State) -> Update:
             return {
                 'A': {'a': 1 * units.um}}
 
     class UnitsMillimeter(Process):
         name = 'units_millimeter'
 
-        def ports_schema(self):
+        def ports_schema(self) -> Schema:
             return {
                 'A': {
                     'a': {
                         # '_default': 0 * units.mm,
                         '_emit': True}}}
 
-        def next_update(self, timestep, states):
+        def next_update(
+                self, timestep: Union[float, int], states: State) -> Update:
             return {
                 'A': {'a': 1 * units.mm}}
 
     class MultiUnits(Composer):
         name = 'multi_units_composer'
 
-        def generate_processes(self, config):
+        def generate_processes(
+                self,
+                config: Optional[dict]) -> Dict[str, Any]:
             return {
                 'units_micrometer':
                     UnitsMicrometer({}),
                 'units_millimeter':
                     UnitsMillimeter({})}
 
-        def generate_topology(self, config):
+        def generate_topology(self, config: Optional[dict]) -> Topology:
             return {
                 'units_micrometer': {
                     'A': ('aaa',)},
