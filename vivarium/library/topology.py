@@ -161,13 +161,15 @@ def normalize_path(path):
 _PATH_ELEMENT = re.compile(r'[^>]+')
 
 def convert_path_to_tuple(path: HierarchyPath) -> TuplePath:
+    """ convert paths to tuple format """
     if isinstance(path, str):
         path = tuple(_PATH_ELEMENT.findall(path.replace('<', '>..>')))
     return path
 
 
-def convert_topology_path(topology):
-    converted_topology = {}
+def convert_topology_path(topology: Topology) -> Topology:
+    """ convert a topology's paths to tuple format """
+    converted_topology: Topology = {}
     for name, path in topology.items():
         if isinstance(path, dict):
             converted_topology[name] = convert_topology_path(path)
@@ -359,18 +361,19 @@ def test_path_declare():
     assert new_path_up == ('..', '..', 'store')
 
 def test_topology_paths():
+
+    # complex topology test
     topology = {
         'a': {
             '1': 'path>to>A',
             '2': 'path>to>B',
-            '3': '<<C'
-        },
+            '3': '<<C'},
         'b': {
             '1': 'path>to>B',
-            '2': ('path', 'to', 'A')
-        },
-    }
-
+            '2': 'path>to>A'},
+        'c': {
+            'cc': {
+                '1': '<<path>to>B'}}}
     new_topology = convert_topology_path(topology)
     assert new_topology == {
         'a': {
@@ -379,7 +382,20 @@ def test_topology_paths():
             '3': ('..', '..', 'C')},
         'b': {
             '1': ('path', 'to', 'B'),
-            '2': ('path', 'to', 'A')}}
+            '2': ('path', 'to', 'A')},
+        'c': {
+            'cc': {
+                '1': ('..', '..', 'path', 'to', 'B')}}}
+
+    # tuple test
+    topology = {'a': {'1': ('path', 'to', 'A')}}
+    new_topology = convert_topology_path(topology)
+    assert new_topology == {'a': {'1': ('path', 'to', 'A')}}
+
+    # boundary case test
+    topology = {'a': {'1': ''}}
+    new_topology = convert_topology_path(topology)
+    assert new_topology == {'a': {'1': ()}}
 
 
 if __name__ == '__main__':
