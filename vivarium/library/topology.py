@@ -158,7 +158,7 @@ def normalize_path(path):
     return tuple(progress)
 
 
-_PATH_ELEMENT = re.compile(r'[^(>|/)]+')
+_PATH_ELEMENT = re.compile(r'[^>/]+')
 
 def convert_path_to_tuple(path: HierarchyPath) -> TuplePath:
     """ convert paths to tuple format """
