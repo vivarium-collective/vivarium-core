@@ -211,6 +211,7 @@ def graph_figure(
         node_distance: float = 3.0,
         buffer: float = 0.5,
         border_width: float = 3,
+        custom_widths: Optional[Dict] = None,
         label_pos: float = 0.65,
 ) -> Figure:
     """ Make a figure from a networkx graph.
@@ -233,6 +234,7 @@ def graph_figure(
     :param node_distance: distance to spread out the nodes
     :param buffer: buffer space around the graph
     :param border_width: width of the border line around Store and Process nodes
+    :param custom_widths: (dict) changes the widths of specific Store and Process nodes (defaults to board_width)
     :param label_pos: position of the Port labels along their connection lines,
         (0=head, 0.5=center, 1=tail)
     """
@@ -240,6 +242,7 @@ def graph_figure(
     process_colors = process_colors or {}
     store_colors = store_colors or {}
     place_edges = place_edges or []
+    custom_widths = custom_widths or {}
 
     node_attributes = dict(graph.nodes.data())
     process_nodes = [
@@ -295,13 +298,22 @@ def graph_figure(
         store_colors.get(store_name, store_color)
         for store_name in store_nodes]
 
+    #get node widths
+    process_width_list = [
+        custom_widths.get(process_name, border_width)
+        for process_name in process_nodes]
+
+    store_width_list = [
+        custom_widths.get(store_name, border_width)
+        for store_name in store_nodes]
+
     # draw the process nodes
     nx.draw_networkx_nodes(graph, pos,
                            nodelist=process_nodes,
                            node_color=fill_color,
                            edgecolors=process_color_list,
                            node_size=node_size,
-                           linewidths=border_width,
+                           linewidths=process_width_list,
                            node_shape='s')
     # draw the store nodes
     nx.draw_networkx_nodes(graph, pos,
@@ -309,7 +321,7 @@ def graph_figure(
                            node_color=fill_color,
                            edgecolors=store_color_list,
                            node_size=node_size,
-                           linewidths=border_width,
+                           linewidths=store_width_list,
                            node_shape=cast(str, STORAGE_PATH))
 
     # edges
