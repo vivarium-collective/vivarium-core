@@ -1,6 +1,11 @@
 # Changelog
 
 
+## v0.2.10
+
+* string-based path declaration for topologies.
+* custom node border widths in plot_topology.
+
 ## v0.2.9
 
 * composite.merge() uses the provided topology to override merged composite topology
