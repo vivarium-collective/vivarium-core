@@ -562,7 +562,7 @@ class Process(Composer, metaclass=abc.ABCMeta):
         self.parameters = self.config
         self.parallel = self.config.pop('_parallel', False)
         self.parameters.setdefault('time_step', DEFAULT_TIME_STEP)
-        self.schema = self.get_schema()
+        self.schema = None
 
     def initial_state(self, config: Optional[dict] = None) -> State:
         """Get initial state in embedded path dictionary.
