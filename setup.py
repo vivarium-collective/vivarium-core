@@ -16,6 +16,7 @@ with open("README.md", 'r') as readme:
         r'](https://github.com/vivarium-collective/vivarium-core/blob/master/\1)',
         description2)
 
+
 setup(
     name='vivarium-core',
     version='0.2.9',
