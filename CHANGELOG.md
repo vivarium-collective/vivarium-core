@@ -1,6 +1,10 @@
 # Changelog
 
 
+## v0.2.11
+
+* process.schema = None in base class constructor
+
 ## v0.2.10
 
 * string-based path declaration for topologies.
