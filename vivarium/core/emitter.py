@@ -255,9 +255,8 @@ def data_from_database(experiment_id: str, client: Any) -> Tuple[dict, Any]:
     """Fetch something from a MongoDB."""
     # Retrieve environment config
     config_collection = client.configuration
-    environment_config = config_collection.find_one({
+    experiment_config = config_collection.find_one({
         'experiment_id': experiment_id,
-        'type': 'environment_config',
     })
 
     # Retrieve timepoint data
@@ -302,7 +301,7 @@ def data_from_database(experiment_id: str, client: Any) -> Tuple[dict, Any]:
         }
         for timepoint_dict in raw_data
     }
-    return data, environment_config
+    return data, experiment_config
 
 
 def data_to_database(
