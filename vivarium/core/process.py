@@ -13,8 +13,11 @@ from typing import (
     Any, Dict, Optional, Union, List)
 
 from vivarium.library.dict_utils import deep_merge
+from vivarium.library.topology import (
+    convert_topology_path, convert_path_to_tuple)
 from vivarium.core.types import (
-    HierarchyPath, Schema, State, Update)
+    HierarchyPath, Schema, State, Update,
+    Topology)
 
 DEFAULT_TIME_STEP = 1.0
 
@@ -90,10 +93,16 @@ class Process(metaclass=abc.ABCMeta):
                 ``_register`` key, the process will register itself in
                 the process registry.
         """
-        super().__init__(parameters)
+        parameters = parameters or {}
+        if 'name' in parameters:
+            self.name = parameters['name']
+        elif not hasattr(self, 'name'):
+            self.name = self.__class__.__name__
 
-        self.parameters = self.config
-        self.parallel = self.config.pop('_parallel', False)
+        self.parameters = copy.deepcopy(self.defaults)
+        self.parameters = deep_merge(self.parameters, parameters)
+        self.schema_override = self.parameters.pop('_schema', {})
+        self.parallel = self.parameters.pop('_parallel', False)
         self.parameters.setdefault('time_step', DEFAULT_TIME_STEP)
         self.schema = None
 
@@ -128,6 +137,27 @@ class Process(metaclass=abc.ABCMeta):
             name: {
                 port: override_topology.get(port, (port,))
                 for port in ports.keys()}}
+
+    def generate(
+            self,
+            config: Optional[dict] = None,
+            path: HierarchyPath = '') -> Dict:
+        if config is None:
+            config = self.parameters
+        else:
+            default = copy.deepcopy(self.parameters)
+            config = deep_merge(default, config)
+        path = convert_path_to_tuple(path)
+
+        processes = self.generate_processes(config)
+        topology = self.generate_topology(config)
+        topology = convert_topology_path(topology)
+        _override_schemas(self.schema_override, processes)
+
+        return {
+            'processes': assoc_in({}, path, processes),
+            'topology': assoc_in({}, path, topology),
+        }
 
     def get_schema(self, override: Optional[Schema] = None) -> dict:
         """Get the process's schema, optionally with a schema override.
