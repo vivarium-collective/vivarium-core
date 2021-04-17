@@ -17,7 +17,7 @@ from vivarium.library.dict_utils import (
     value_in_embedded_dict,
     make_path_dict,
 )
-from vivarium.core.process import deserialize_value
+from vivarium.core.serialize import deserialize_value
 
 HISTORY_INDEXES = [
     'time',

@@ -536,6 +536,142 @@ class Store:
             if self.value is None:
                 self.value = self.default
 
+    def add(self, added):
+        path = (added['key'],)
+        added_state = added['state']
+
+        target = self.establish_path(path, {})
+        self.apply_subschema_path(path)
+        target.apply_defaults()
+        target.set_value(added_state)
+
+    def move(self, move, process_store):
+        process_updates = []
+        topology_updates = []
+        deletions = []
+
+        # get the source node
+        source_key = move['source']
+        source_path = (source_key,)
+        source_node = self.get_path(source_path)
+
+        # move source node to target path
+        target_port = move['target']
+        target_topology = process_store.topology[target_port]
+        target_node = process_store.outer.get_path(target_topology)
+        target = target_node.add_node(source_path, source_node)
+        target_path = target.path_for() + source_path
+
+        # find the paths to all the processes
+        source_process_paths = source_node.depth(
+            filter_function=lambda x: isinstance(x.value, Process))
+
+        # find the process and topology updates
+        for path, process in source_process_paths:
+            process_updates.append((
+                target_path + path, process.value))
+            topology_updates.append((
+                target_path + path, process.topology))
+
+        self.delete_path(source_path)
+
+        here = self.path_for()
+        source_absolute = tuple(here + source_path)
+        deletions.append(source_absolute)
+
+        return process_updates, topology_updates, deletions
+
+    def insert(self, insertion):
+        process_updates = []
+        topology_updates = []
+
+        key = insertion.get('key')
+        path = (key,) if key else tuple()
+
+        here = self.path_for()
+
+        self.generate(
+            path,
+            insertion['processes'],
+            insertion['topology'],
+            insertion['initial_state'])
+
+        root = here + path
+        process_paths = dict_to_paths(root, insertion['processes'])
+        process_updates.extend(process_paths)
+
+        topology_paths = [
+            (root + (key,), topology)
+            for key, topology in insertion['topology'].items()]
+        topology_updates.extend(topology_paths)
+
+        self.apply_subschema_path(path)
+        self.get_path(path).apply_defaults()
+
+        return process_updates, topology_updates
+
+    def divide(self, divide):
+        process_updates = []
+        topology_updates = []
+        deletions = []
+
+        # use dividers to find initial states for daughters
+        mother = divide['mother']
+        daughters = divide['daughters']
+        initial_state = self.inner[mother].get_value(
+            condition=lambda child: not
+            (isinstance(child.value, Process)),
+            f=lambda child: copy.deepcopy(child))
+        daughter_states = self.inner[mother].divide_value()
+
+        here = self.path_for()
+
+        for daughter, daughter_state in \
+                zip(daughters, daughter_states):
+            # use initial state as default, merge in divided values
+            initial_state = deep_merge(
+                initial_state,
+                daughter_state)
+
+            daughter_key = daughter['key']
+            daughter_path = (daughter_key,)
+
+            self.generate(
+                daughter_path,
+                daughter['processes'],
+                daughter['topology'],
+                daughter['initial_state'])
+
+            root = here + daughter_path
+            process_paths = dict_to_paths(root, daughter['processes'])
+            process_updates.extend(process_paths)
+
+            topology_paths = [
+                (root + (key,), topology)
+                for key, topology in daughter['topology'].items()]
+            topology_updates.extend(topology_paths)
+
+            self.apply_subschema_path(daughter_path)
+            target = self.get_path(daughter_path)
+            target.apply_defaults()
+            target.set_value(initial_state)
+
+        mother_path = (mother,)
+        self.delete_path(mother_path)
+        deletions.append(tuple(here + mother_path))
+
+        return process_updates, topology_updates, deletions
+
+    def delete(self, key, here=None):
+        if here is None:
+            here = self.path_for()
+        deletions = []
+        path = (key,)
+        self.delete_path(path)
+        deletions.append(tuple(here + path))
+
+        return deletions
+
     def apply_update(self, update, state=None):
         """
         Given an arbitrary update, map all the values in that update
@@ -621,121 +757,31 @@ class Store:
             if add_entries is not None:
                 # add a list of sub-states
                 for added in add_entries:
-                    path = (added['key'],)
-                    added_state = added['state']
-
-                    target = self.establish_path(path, {})
-                    self.apply_subschema_path(path)
-                    target.apply_defaults()
-                    target.set_value(added_state)
+                    self.add(added)
 
             move_entries = update.pop('_move', None)
             if move_entries is not None:
                 # move nodes from source to target path
                 for move in move_entries:
-                    # get the source node
-                    source_key = move['source']
-                    source_path = (source_key,)
-                    source_node = self.get_path(source_path)
-
-                    # move source node to target path
-                    target_port = move['target']
-                    target_topology = state.topology[target_port]
-                    target_node = state.outer.get_path(target_topology)
-                    target = target_node.add_node(source_path, source_node)
-                    target_path = target.path_for() + source_path
-
-                    # find the paths to all the processes
-                    source_process_paths = source_node.depth(
-                        filter_function=lambda x: isinstance(x.value, Process))
-
-                    # find the process and topology updates
-                    for path, process in source_process_paths:
-                        process_updates.append((
-                            target_path + path, process.value))
-                        topology_updates.append((
-                            target_path + path, process.topology))
-
-                    self.delete_path(source_path)
-
-                    here = self.path_for()
-                    source_absolute = tuple(here + source_path)
-                    deletions.append(source_absolute)
+                    move_processes, move_topology, move_deletions = self.move(move, state)
+                    process_updates.extend(move_processes)
+                    topology_updates.extend(move_topology)
+                    deletions.extend(move_deletions)
 
             generate_entries = update.pop('_generate', None)
             if generate_entries is not None:
                 # generate a list of new processes
                 for generate in generate_entries:
-                    key = generate.get('key')
-                    path = (key,) if key else tuple()
-
-                    here = self.path_for()
-
-                    self.generate(
-                        path,
-                        generate['processes'],
-                        generate['topology'],
-                        generate['initial_state'])
-
-                    root = here + path
-                    process_paths = dict_to_paths(root, generate['processes'])
-                    process_updates.extend(process_paths)
-
-                    topology_paths = [
-                        (root + (key,), topology)
-                        for key, topology in generate['topology'].items()]
-                    topology_updates.extend(topology_paths)
-
-                    self.apply_subschema_path(path)
-                    self.get_path(path).apply_defaults()
+                    insert_processes, insert_topology = self.insert(generate)
+                    process_updates.extend(insert_processes)
+                    topology_updates.extend(insert_topology)
 
             divide = update.pop('_divide', None)
             if divide is not None:
-                # use dividers to find initial states for daughters
-                mother = divide['mother']
-                daughters = divide['daughters']
-                initial_state = self.inner[mother].get_value(
-                    condition=lambda child: not
-                    (isinstance(child.value, Process)),
-                    f=lambda child: copy.deepcopy(child))
-                daughter_states = self.inner[mother].divide_value()
-
-                here = self.path_for()
-
-                for daughter, daughter_state in \
-                        zip(daughters, daughter_states):
-
-                    # use initial state as default, merge in divided values
-                    initial_state = deep_merge(
-                        initial_state,
-                        daughter_state)
-
-                    daughter_key = daughter['key']
-                    daughter_path = (daughter_key,)
-
-                    self.generate(
-                        daughter_path,
-                        daughter['processes'],
-                        daughter['topology'],
-                        daughter['initial_state'])
-
-                    root = here + daughter_path
-                    process_paths = dict_to_paths(root, daughter['processes'])
-                    process_updates.extend(process_paths)
-
-                    topology_paths = [
-                        (root + (key,), topology)
-                        for key, topology in daughter['topology'].items()]
-                    topology_updates.extend(topology_paths)
-
-                    self.apply_subschema_path(daughter_path)
-                    target = self.get_path(daughter_path)
-                    target.apply_defaults()
-                    target.set_value(initial_state)
-
-                mother_path = (mother,)
-                self.delete_path(mother_path)
-                deletions.append(tuple(here + mother_path))
+                divide_processes, divide_topology, divide_deletions = self.divide(divide)
+                process_updates.extend(divide_processes)
+                topology_updates.extend(divide_topology)
+                deletions.extend(divide_deletions)
 
             delete_keys = update.pop('_delete', None)
 
@@ -759,9 +805,8 @@ class Store:
                 # delete a list of paths
                 here = self.path_for()
                 for key in delete_keys:
-                    path = (key,)
-                    self.delete_path(path)
-                    deletions.append(tuple(here + path))
+                    delete_deletions = self.delete(key, here)
+                    deletions.extend(delete_deletions)
 
             return topology_updates, process_updates, deletions
 

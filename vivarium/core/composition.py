@@ -15,7 +15,9 @@ from typing import (
 from vivarium.core.types import (
     Topology, HierarchyPath)
 
-from vivarium.core.process import Process, Composer, Composite
+from vivarium.core.process import Process
+from vivarium.core.composer import Composer
+from vivarium.core.composite import Composite
 from vivarium.core.experiment import Experiment
 from vivarium.library.dict_utils import (
     deep_merge,

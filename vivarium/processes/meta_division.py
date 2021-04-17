@@ -3,9 +3,9 @@ import uuid
 import logging as log
 
 from vivarium.core.process import (
-    Deriver,
-    Composer
+    Deriver
 )
+from vivarium.core.composer import Composer
 from vivarium.core.composition import (
     compose_experiment,
     COMPOSER_KEY,

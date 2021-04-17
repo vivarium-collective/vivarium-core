@@ -26,9 +26,9 @@ from vivarium.core.emitter import get_emitter
 from vivarium.core.process import (
     Process,
     ParallelProcess,
-    serialize_value,
-    Composer,
 )
+from vivarium.core.serialize import serialize_value
+from vivarium.core.composer import Composer
 from vivarium.library.topology import (
     delete_in,
     assoc_path,

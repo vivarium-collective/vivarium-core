@@ -6,7 +6,8 @@ import re
 import pint
 
 from vivarium.library.units import units
-from vivarium.core.process import Process, Composer
+from vivarium.core.process import Process
+from vivarium.core.composer import Composer
 
 
 def _json_serialize(elem):

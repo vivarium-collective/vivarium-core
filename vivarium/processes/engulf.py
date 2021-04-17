@@ -9,8 +9,8 @@ import os
 from vivarium.core.experiment import pp
 from vivarium.core.process import (
     Deriver,
-    Composer,
 )
+from vivarium.core.composer import Composer
 from vivarium.core.composition import (
     compose_experiment,
     COMPOSER_KEY,
