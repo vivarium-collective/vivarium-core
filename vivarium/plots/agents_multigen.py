@@ -3,6 +3,7 @@ from typing import Any, Dict, Optional
 
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.colors import hsv_to_rgb
 
 from vivarium.core.emitter import path_timeseries_from_data
 from vivarium.library.dict_utils import get_path_list_from_dict
@@ -46,9 +47,9 @@ def plot_agents_multigen(
               than this number of states get wrapped into a new column
             * **stack_column** (:py:class:`bool`): if True, the output
               of different ports will stacked in the same column
-            * **column_width** (:py:class:`float`): The width of a column 
+            * **column_width** (:py:class:`float`): The width of a column
               of subplots
-            * **row_height** (:py:class:`float`): The height of a row of 
+            * **row_height** (:py:class:`float`): The height of a row of
               subplots
             * **remove_zeros** (:py:class:`bool`): if True, timeseries
               with all zeros get removed
@@ -94,6 +95,7 @@ def plot_agents_multigen(
     tick_label_size = settings.get('tick_label_size', 12)
     titles_map = settings.get('titles_map', dict())
     ylabels_map = settings.get('ylabels_map', dict())
+    sci_notation = settings.get('sci_notation', False)
     time_vec = list(data.keys())
     timeseries = path_timeseries_from_data(data)
 
@@ -226,11 +228,11 @@ def plot_agents_multigen(
                     row_idx >= highest_row
                     or path_idx >= len(ordered_paths[port_id]) - 1))
             ):
-                set_axes(ax, True)
+                set_axes(ax, True, sci_notation=sci_notation)
                 ax.set_xlabel('time (s)', fontsize=title_size)
                 ax.spines['bottom'].set_position(('axes', -0.2))
             else:
-                set_axes(ax)
+                set_axes(ax, sci_notation=sci_notation)
             ax.set_xlim([time_vec[0], time_vec[-1]])
             # save axis
             port_axes[path] = ax
@@ -260,7 +262,7 @@ def plot_agents_multigen(
                         ax.plot(
                             plot_times,
                             series,
-                            color=agent_colors.get(agent_id, None),
+                            color=hsv_to_rgb(agent_colors[agent_id]) if agent_id in agent_colors else None,
                             linewidth=linewidth)
 
     plt.subplots_adjust(wspace=0.2, hspace=0.2)
