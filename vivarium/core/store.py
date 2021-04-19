@@ -8,6 +8,7 @@ The file system for storing and updating state variables during an experiment.
 
 import copy
 import logging as log
+from pprint import pformat
 
 import numpy as np
 from pint import Quantity
@@ -780,6 +781,12 @@ class Store:
                 self.schema_keys and set(update.keys()):
             if '_updater' in update:
                 update = update.get('_value', self.default)
+
+        if updater is None:
+            raise Exception(
+                f"updater is absent at path {self.path_for()} "
+                f"with value {self.value} for {pformat(update)}"
+            )
 
         self.value = updater(self.value, update)
 
