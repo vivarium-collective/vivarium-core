@@ -1,6 +1,12 @@
 # Changelog
 
 
+## v0.2.12
+
+* plotting tweaks. 
+* provide information about update failure.
+* improve data_from_database to return experiment config.
+
 ## v0.2.11
 
 * process.schema = None in base class constructor
