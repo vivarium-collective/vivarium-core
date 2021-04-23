@@ -456,11 +456,7 @@ class Composer(metaclass=abc.ABCMeta):
             'topology': assoc_in({}, path, topology),
         })
 
-    def initial_state(
-            self,
-            config: Optional[dict] = None,
-            path: HierarchyPath = ()
-    ) -> Optional[State]:
+    def initial_state(self, config: Optional[dict] = None) -> Optional[State]:
         """ Merge all processes' initial states
 
         Every subclass may override this method.
@@ -474,7 +470,7 @@ class Composer(metaclass=abc.ABCMeta):
             dict: Subclass implementations must return a dictionary
             mapping state paths to initial values.
         """
-        composite = self.generate(config, path)
+        composite = self.generate(config)
         return composite.initial_state(config)
 
     def get_parameters(self) -> dict:
