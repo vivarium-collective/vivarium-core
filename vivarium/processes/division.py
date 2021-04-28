@@ -1,4 +1,3 @@
-import uuid
 from typing import Any, Dict
 import logging as log
 
@@ -59,8 +58,8 @@ class Division(Deriver):
                     'initial_state': {}})
 
             log.info(
-                'DIVIDE! \n--> MOTHER: {} \n--> DAUGHTERS: {}'.format(
-                    self.agent_id, daughter_ids))
+                'DIVIDE! \n--> MOTHER: %s \n--> DAUGHTERS: %s',
+                    str(self.agent_id), str(daughter_ids))
 
             # initial state will be provided by division in the tree
             return {
@@ -68,5 +67,4 @@ class Division(Deriver):
                     '_divide': {
                         'mother': self.agent_id,
                         'daughters': daughter_updates}}}
-        else:
-            return {}
+        return {}
