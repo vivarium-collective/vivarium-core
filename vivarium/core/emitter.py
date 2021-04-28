@@ -212,7 +212,6 @@ class DatabaseEmitter(Emitter):
     def emit(self, data: Dict[str, Any]) -> None:
         emit_data: dict = data['data']
         emit_data['experiment_id'] = self.experiment_id
-        # TODO(jerry): Should this pop('table') from emit_data?
         table = getattr(self.db, data['table'])
         table.insert_one(emit_data)
 

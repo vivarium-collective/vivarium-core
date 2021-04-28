@@ -6,8 +6,10 @@ Experiment
 Experiment runs the simulation.
 """
 
+import sys
 import os
 import logging as log
+import warnings
 import pprint
 import multiprocessing
 from multiprocessing import pool as multipool
@@ -275,13 +277,16 @@ class Experiment:
         emit_config: Dict[str, Any] = {
             'table': 'configuration',
             'data': data}
-        try:
+
+        # get size of data for emit
+        data_bytes = sys.getsizeof(str(emit_config))
+        if data_bytes < 26000000:  # pymongo document size limit
             self.emitter.emit(emit_config)
-        except PyMongoError:
-            log.exception("emitter.emit", exc_info=True, stack_info=True)
-            # TODO -- handle large parameter sets to meet mongoDB limit
-            del emit_config['data']['processes']
-            del emit_config['data']['state']
+        else:
+            warnings.warn('configuration size is too big for the emitter, '
+                          'discarding process parameters')
+            for process_id, parameters in emit_config['data']['processes'].items():
+                emit_config['data']['processes'][process_id] = None
             self.emitter.emit(emit_config)
 
     def invoke_process(

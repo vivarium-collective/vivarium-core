@@ -54,8 +54,8 @@ class ManyParametersComposite(Composer):
 def test_large_initial_emit():
 
     config = {
-        'number_of_processes': 100,
-        'number_of_parameters': 100}
+        'number_of_processes': 1000,
+        'number_of_parameters': 1000}
 
     composer = ManyParametersComposite(config)
     composite = composer.generate()
