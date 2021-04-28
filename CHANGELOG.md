@@ -1,6 +1,10 @@
 # Changelog
 
 
+## v0.2.13
+
+* handle large emit_configuration to database emitter by checking the size of the packet, and removing process parameters if necessary.
+
 ## v0.2.12
 
 * plotting tweaks. 
