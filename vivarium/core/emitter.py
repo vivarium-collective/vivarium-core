@@ -222,7 +222,7 @@ class DatabaseEmitter(Emitter):
 def get_experiment_database(
         port: Any = 27017,
         database_name: str = 'simulations'
-):
+) -> Any:
     config = {
         'host': '{}:{}'.format('localhost', port),
         'database': database_name}

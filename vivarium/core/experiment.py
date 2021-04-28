@@ -20,8 +20,6 @@ import datetime
 import time as clock
 import uuid
 
-from pymongo.errors import PyMongoError
-
 from vivarium.composites.toys import Proton, Electron, Sine, PoQo
 from vivarium.core.store import hierarchy_depth, Store, generate_state
 from vivarium.core.emitter import get_emitter
@@ -285,7 +283,7 @@ class Experiment:
         else:
             warnings.warn('configuration size is too big for the emitter, '
                           'discarding process parameters')
-            for process_id, parameters in emit_config['data']['processes'].items():
+            for process_id in emit_config['data']['processes'].keys():
                 emit_config['data']['processes'][process_id] = None
             self.emitter.emit(emit_config)
 

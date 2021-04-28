@@ -74,6 +74,9 @@ def test_large_initial_emit():
     db = get_experiment_database()
     data, experiment_config = data_from_database(experiment_id, db)
 
+    assert 'processes' in experiment_config
+    assert 0.0 in data
+
     # delete the experiment
     delete_experiment_from_database(experiment_id)
 
