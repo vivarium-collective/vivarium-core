@@ -220,6 +220,29 @@ class DatabaseEmitter(Emitter):
         return get_history_data_db(self.history, self.experiment_id)
 
 
+def get_experiment_database(
+        port: Any = 27017,
+        database_name: str = 'simulations'
+):
+    config = {
+        'host': '{}:{}'.format('localhost', port),
+        'database': database_name}
+    emitter = DatabaseEmitter(config)
+    db = emitter.db
+    return db
+
+
+def delete_experiment_from_database(
+        experiment_id: str,
+        port: Any = 27017,
+        database_name: str = 'simulations'
+) -> None:
+    db = get_experiment_database(port, database_name)
+    query = {'experiment_id': experiment_id}
+    db.history.delete_many(query)
+    db.configuration.delete_many(query)
+
+
 def get_history_data_db(
         history_collection: Any, experiment_id: Any) -> Dict[float, dict]:
     """Query MongoDB for history data."""
