@@ -51,7 +51,7 @@ class ManyParametersComposite(Composer):
             process_id: {'port': ('store',)}
             for process_id in self.process_ids}
 
-def test_large_initial_emit():
+def run_large_initial_emit():
 
     config = {
         'number_of_processes': 1000,
@@ -82,4 +82,4 @@ def test_large_initial_emit():
 
 
 if __name__ == '__main__':
-    test_large_initial_emit()
+    run_large_initial_emit()
