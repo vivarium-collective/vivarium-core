@@ -9,6 +9,7 @@ def daughter_phylogeny_id(mother_id):
         str(mother_id) + '0',
         str(mother_id) + '1']
 
+
 def pass_threshold(value, config):
     threshold = config['threshold']
     if value >= threshold:
@@ -31,7 +32,7 @@ class Division(Deriver):
         self.condition_function = self.parameters['condition_function']
         self.condition_config = self.parameters['condition_config']
 
-        # must provide a compartment to generate new daughters
+        # must provide a composer to generate new daughters
         self.agent_id = self.parameters['agent_id']
         self.composer = self.parameters['composer']
         self.daughter_ids_function = self.parameters['daughter_ids_function']
@@ -59,7 +60,7 @@ class Division(Deriver):
 
             log.info(
                 'DIVIDE! \n--> MOTHER: %s \n--> DAUGHTERS: %s',
-                    str(self.agent_id), str(daughter_ids))
+                str(self.agent_id), str(daughter_ids))
 
             # initial state will be provided by division in the tree
             return {
