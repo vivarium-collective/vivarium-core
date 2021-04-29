@@ -761,6 +761,79 @@ def test_aggregate_composer() -> None:
     assert len(composite1['processes']) < len(composite2['processes'])
     assert len(composite2['processes']) < len(composite3['processes'])
 
+
+def set_value_divider(mother_value, state):
+    return [state, state]
+
+class ToyDividerProcess(Process):
+    defaults = {
+        'x_default': 2,
+        'x_division_threshold': 4,
+
+    }
+    def __init__(self, parameters = None):
+        super().__init__(parameters)
+        self.agent_id = self.parameters['agent_id']
+        self.composer = self.parameters['composer']
+
+    def ports_schema(self):
+        return {
+            'variable': {
+                'x': {
+                    '_default': self.parameters['x_default'],
+                    '_divider': {
+                        'divider': set_value_divider,
+                        'state': {'set_value'}
+                    }
+                }
+            },
+            'agents': {'*': {}}
+        }
+    def next_update(self, timestep, states):
+        x = states['variable']['x']
+
+        if x > self.parameters['x_division_threshold']:
+            daughter_ids = [
+                str(self.agent_id) + '0',
+                str(self.agent_id) + '1']
+            daughter_updates = []
+
+            for daughter_id in daughter_ids:
+                composer = self.composer.generate({
+                    'agent_id': daughter_id})
+                daughter_updates.append({
+                    'key': daughter_id,
+                    'processes': composer['processes'],
+                    'topology': composer['topology'],
+                    'initial_state': {}})
+
+            import ipdb;
+            ipdb.set_trace()
+            return {
+                'agents': {
+                    '_divide': {
+                        'mother': self.agent_id,
+                        'daughters': daughter_updates}}}
+        return {
+            'variable': {'x': 1}
+        }
+
+class ToyDivider(Composer):
+    def generate_processes(self, config):
+        return {
+            'divider': ToyDividerProcess({
+                'composer': self,
+                **config['divider']
+            })
+        }
+    def generate_topology(self, config):
+        return {
+            'divider': {
+                'variable': ('variable',),
+                'agents': (),
+            }
+        }
+
 if __name__ == '__main__':
     test_composite_initial_state()  # pragma: no cover
     test_composite_parameters()  # pragma: no cover
