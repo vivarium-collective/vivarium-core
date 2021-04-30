@@ -1093,7 +1093,7 @@ def test_units() -> None:
     pp(data_unitless)
 
 
-def test_custom_divider():
+def test_custom_divider() -> None:
     agent_id = '1'
     composer = ToyDivider({
         'agent_id': agent_id,
@@ -1111,7 +1111,7 @@ def test_custom_divider():
 
     experiment.update(80)
     data = experiment.emitter.get_data()
-    print(pp(data))
+    print(pf(data))
 
 
 if __name__ == '__main__':
@@ -1126,4 +1126,3 @@ if __name__ == '__main__':
     # test_2_store_1_port()
     # test_units()
     test_custom_divider()
-

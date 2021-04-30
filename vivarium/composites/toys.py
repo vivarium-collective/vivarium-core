@@ -6,6 +6,7 @@ import numpy as np
 from vivarium.core.process import (
     Process, Deriver, Composer, Composite, MetaComposer)
 from vivarium.core.types import State, Schema, Update, Topology
+from vivarium.processes.division import get_divide_update
 
 quark_colors = ['green', 'red', 'blue']
 quark_spins = ['up', 'down']
@@ -763,7 +764,7 @@ def test_aggregate_composer() -> None:
 
 
 
-def set_random_int_divider(mother_value, config):
+def set_random_int_divider(_, config):
     return [
         np.random.randint(0, high=config['max']),
         np.random.randint(0, high=config['max'])]
@@ -789,37 +790,24 @@ class ToyDividerProcess(Process):
                         'config': {
                             'max': self.parameters['x_initial_max']}
                     }
-                }
-            },
-            'agents': {'*': {}}
-        }
+                }},
+            'agents': {'*': {}}}
     def next_update(self, timestep, states):
         x = states['variable']['x']
-
         if x > self.parameters['x_division_threshold']:
             daughter_ids = [
                 str(self.agent_id) + '0',
                 str(self.agent_id) + '1']
-            daughter_updates = []
-
-            for daughter_id in daughter_ids:
-                composer = self.composer.generate({
-                    'agent_id': daughter_id})
-                daughter_updates.append({
-                    'key': daughter_id,
-                    'processes': composer['processes'],
-                    'topology': composer['topology'],
-                    'initial_state': {}})
-            return {
-                'agents': {
-                    '_divide': {
-                        'mother': self.agent_id,
-                        'daughters': daughter_updates}}}
-
+            divide_update = get_divide_update(
+                self.composer,
+                self.agent_id,
+                daughter_ids)
+            return {'agents': divide_update}
         return {'variable': {'x': 1}}
 
+
 class ToyDivider(Composer):
-    defaults = {'divider': {}}
+    defaults: Dict[str, Any] = {'divider': {}}
     def __init__(self, config):
         super().__init__(config)
     def generate_processes(self, config):
