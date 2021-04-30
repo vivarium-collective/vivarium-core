@@ -6,8 +6,10 @@ Experiment
 Experiment runs the simulation.
 """
 
+import sys
 import os
 import logging as log
+import warnings
 import pprint
 import multiprocessing
 from multiprocessing import pool as multipool
@@ -18,9 +20,7 @@ import datetime
 import time as clock
 import uuid
 
-from pymongo.errors import PyMongoError
-
-from vivarium.composites.toys import Proton, Electron, Sine, PoQo
+from vivarium.composites.toys import Proton, Electron, Sine, PoQo, ToyDivider
 from vivarium.core.store import hierarchy_depth, Store, generate_state
 from vivarium.core.emitter import get_emitter
 from vivarium.core.process import (
@@ -275,13 +275,16 @@ class Experiment:
         emit_config: Dict[str, Any] = {
             'table': 'configuration',
             'data': data}
-        try:
+
+        # get size of data for emit
+        data_bytes = sys.getsizeof(str(emit_config))
+        if data_bytes < 26000000:  # pymongo document size limit
             self.emitter.emit(emit_config)
-        except PyMongoError:
-            log.exception("emitter.emit", exc_info=True, stack_info=True)
-            # TODO -- handle large parameter sets to meet mongoDB limit
-            del emit_config['data']['processes']
-            del emit_config['data']['state']
+        else:
+            warnings.warn('configuration size is too big for the emitter, '
+                          'discarding process parameters')
+            for process_id in emit_config['data']['processes'].keys():
+                emit_config['data']['processes'][process_id] = None
             self.emitter.emit(emit_config)
 
     def invoke_process(
@@ -1090,6 +1093,27 @@ def test_units() -> None:
     pp(data_unitless)
 
 
+def test_custom_divider() -> None:
+    agent_id = '1'
+    composer = ToyDivider({
+        'agent_id': agent_id,
+        'divider': {
+            'x_default': 3,
+            'x_division_threshold': 25,
+        }
+    })
+    composite = composer.generate(path=('agents', agent_id))
+
+    experiment = Experiment({
+        'processes': composite.processes,
+        'topology': composite.topology,
+    })
+
+    experiment.update(80)
+    data = experiment.emitter.get_data()
+    print(pf(data))
+
+
 if __name__ == '__main__':
     # test_recursive_store()
     # test_timescales()
@@ -1097,7 +1121,8 @@ if __name__ == '__main__':
     # test_multi()
     # test_sine()
     # test_parallel()
-    test_complex_topology()
+    # test_complex_topology()
     # test_multi_port_merge()
     # test_2_store_1_port()
     # test_units()
+    test_custom_divider()

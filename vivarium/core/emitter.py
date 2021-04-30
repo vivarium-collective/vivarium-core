@@ -212,12 +212,34 @@ class DatabaseEmitter(Emitter):
     def emit(self, data: Dict[str, Any]) -> None:
         emit_data: dict = data['data']
         emit_data['experiment_id'] = self.experiment_id
-        # TODO(jerry): Should this pop('table') from emit_data?
         table = getattr(self.db, data['table'])
         table.insert_one(emit_data)
 
     def get_data(self) -> dict:
         return get_history_data_db(self.history, self.experiment_id)
+
+
+def get_experiment_database(
+        port: Any = 27017,
+        database_name: str = 'simulations'
+) -> Any:
+    config = {
+        'host': '{}:{}'.format('localhost', port),
+        'database': database_name}
+    emitter = DatabaseEmitter(config)
+    db = emitter.db
+    return db
+
+
+def delete_experiment_from_database(
+        experiment_id: str,
+        port: Any = 27017,
+        database_name: str = 'simulations'
+) -> None:
+    db = get_experiment_database(port, database_name)
+    query = {'experiment_id': experiment_id}
+    db.history.delete_many(query)
+    db.configuration.delete_many(query)
 
 
 def get_history_data_db(
@@ -255,9 +277,8 @@ def data_from_database(experiment_id: str, client: Any) -> Tuple[dict, Any]:
     """Fetch something from a MongoDB."""
     # Retrieve environment config
     config_collection = client.configuration
-    environment_config = config_collection.find_one({
+    experiment_config = config_collection.find_one({
         'experiment_id': experiment_id,
-        'type': 'environment_config',
     })
 
     # Retrieve timepoint data
@@ -302,7 +323,7 @@ def data_from_database(experiment_id: str, client: Any) -> Tuple[dict, Any]:
         }
         for timepoint_dict in raw_data
     }
-    return data, environment_config
+    return data, experiment_config
 
 
 def data_to_database(

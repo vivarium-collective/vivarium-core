@@ -37,6 +37,7 @@ from vivarium.core.registry import (
     update_accumulate, update_set, update_merge, update_null,
     update_nonnegative_accumulate, divide_set, divide_split,
     divide_split_dict, divide_zero, assert_no_divide, divide_binomial,
+    divide_set_value,
     NumpySerializer, NumpyScalarSerializer, UnitsSerializer,
     ProcessSerializer, ComposerSerializer, FunctionSerializer,
 )
@@ -76,6 +77,7 @@ divider_registry.register('split', divide_split)
 divider_registry.register('split_dict', divide_split_dict)
 divider_registry.register('zero', divide_zero)
 divider_registry.register('no_divide', assert_no_divide)
+divider_registry.register('set_value', divide_set_value)
 
 # register serializers
 serializer_registry.register('numpy', NumpySerializer())

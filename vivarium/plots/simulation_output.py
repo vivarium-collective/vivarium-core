@@ -8,15 +8,31 @@ import matplotlib.pyplot as plt
 from vivarium.core.emitter import path_timeseries_from_embedded_timeseries
 
 
-def set_axes(ax, show_xaxis=False):
-    # ax.ticklabel_format(style='sci', axis='y', scilimits=(-5, 5))
+def set_axes(
+        ax,
+        show_xaxis=False,
+        sci_notation=False,
+        y_offset=0.0):
+    if sci_notation:
+        scilimits = 4
+        if isinstance(sci_notation, int):
+            scilimits = sci_notation
+        ax.ticklabel_format(
+            style='sci',
+            axis='y',
+            scilimits=(-scilimits, scilimits),
+            useOffset=True)
+    else:
+        ax.ticklabel_format(
+            style='plain',
+            axis='y')
     ax.spines['right'].set_visible(False)
     ax.spines['top'].set_visible(False)
     ax.tick_params(right=False, top=False)
 
     # move offset axis text (typically scientific notation)
     t = ax.yaxis.get_offset_text()
-    t.set_x(-0.4)
+    t.set_x(-y_offset)
     if not show_xaxis:
         ax.spines['bottom'].set_visible(False)
         ax.tick_params(bottom=False, labelbottom=False)
@@ -203,6 +219,7 @@ def plot_variables(
         row_height=1.2,
         row_padding=0.8,
         linewidth=3.0,
+        sci_notation=False,
         default_color='tab:blue',
         out_dir=None,
         filename='variables'
@@ -232,12 +249,11 @@ def plot_variables(
 
         # x-axis only at bottom row
         if row_idx == n_rows - 1:
-            set_axes(ax, show_xaxis=True)
+            set_axes(ax, show_xaxis=True, sci_notation=sci_notation)
             ax.set_xlabel('time (s)')
             ax.spines['bottom'].set_position(('axes', -0.2))
         else:
-            set_axes(ax)
-        ax.ticklabel_format(style='plain', axis='y', scilimits=(-5, 5))
+            set_axes(ax, sci_notation=sci_notation)
 
     fig.subplots_adjust(hspace=row_padding)
     if out_dir:
@@ -259,4 +275,3 @@ if __name__ == '__main__':
         output=data,
         variables=['x', 'y'],
         out_dir='out')
-
