@@ -478,12 +478,18 @@ class Store:
         """
 
         if self.divider:
-            # divider is either a function or a dict with topology
+            # divider is either a function or a dict with topology and/or config
             if isinstance(self.divider, dict):
                 divider = self.divider['divider']
-                topology = self.divider['topology']
-                state = self.outer.get_values(topology)
-                return divider(self.get_value(), state)
+                state = {}
+                if 'topology' in self.divider:
+                    topology = self.divider['topology']
+                    state.update({'state': self.outer.get_values(topology)})
+                if 'config' in self.divider:
+                    config = self.divider['config']
+                    state.update({'config': config})
+
+                return divider(self.get_value(), **state)
             return self.divider(self.get_value())
         if self.inner:
             daughters = [{}, {}]

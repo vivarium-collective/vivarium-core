@@ -17,6 +17,22 @@ def pass_threshold(value, config):
     return False
 
 
+def get_divide_update(daughter_composer, mother_id, daughter_ids):
+    daughter_updates = []
+    for daughter_id in daughter_ids:
+        composer = daughter_composer.generate({
+            'agent_id': daughter_id})
+        daughter_updates.append({
+            'key': daughter_id,
+            'processes': composer['processes'],
+            'topology': composer['topology'],
+            'initial_state': {}})
+    return {
+        '_divide': {
+            'mother': mother_id,
+            'daughters': daughter_updates}}
+
+
 class Division(Deriver):
     """ Division Process """
     defaults: Dict[str, Any] = {
@@ -47,25 +63,10 @@ class Division(Deriver):
         variable = states['variable']
         if self.condition_function(variable, self.condition_config):
             daughter_ids = self.daughter_ids_function(self.agent_id)
-            daughter_updates = []
-
-            for daughter_id in daughter_ids:
-                composer = self.composer.generate({
-                    'agent_id': daughter_id})
-                daughter_updates.append({
-                    'key': daughter_id,
-                    'processes': composer['processes'],
-                    'topology': composer['topology'],
-                    'initial_state': {}})
-
+            divide_update = get_divide_update(
+                self.composer, self.agent_id, daughter_ids)
             log.info(
                 'DIVIDE! \n--> MOTHER: %s \n--> DAUGHTERS: %s',
                 str(self.agent_id), str(daughter_ids))
-
-            # initial state will be provided by division in the tree
-            return {
-                'agents': {
-                    '_divide': {
-                        'mother': self.agent_id,
-                        'daughters': daughter_updates}}}
+            return {'agents': divide_update}
         return {}
