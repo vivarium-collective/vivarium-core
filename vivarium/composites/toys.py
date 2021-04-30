@@ -763,10 +763,10 @@ def test_aggregate_composer() -> None:
 
 
 
-def set_random_int_divider(mother_value, state):
+def set_random_int_divider(mother_value, config):
     return [
-        np.random.randint(0, high=state['max']),
-        np.random.randint(0, high=state['max'])]
+        np.random.randint(0, high=config['max']),
+        np.random.randint(0, high=config['max'])]
 
 
 class ToyDividerProcess(Process):
@@ -786,7 +786,7 @@ class ToyDividerProcess(Process):
                     '_emit': True,
                     '_divider': {
                         'divider': set_random_int_divider,
-                        'state': {
+                        'config': {
                             'max': self.parameters['x_initial_max']}
                     }
                 }

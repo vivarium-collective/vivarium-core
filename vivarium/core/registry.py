@@ -174,13 +174,14 @@ def divide_set(state):
     return [state, state]
 
 
-def divide_set_value(state, value):
+def divide_set_value(state, config):
     """Set Value Divider
     Args:
         'state': value
     Returns:
         A list ``[value, value]``. No copying is performed.
     """
+    value = config['value']
     return [value, value]
 
 

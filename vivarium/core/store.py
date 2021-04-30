@@ -478,17 +478,18 @@ class Store:
         """
 
         if self.divider:
-            # divider is either a function or a dict with topology
+            # divider is either a function or a dict with topology and/or config
             if isinstance(self.divider, dict):
                 divider = self.divider['divider']
+                state = {}
                 if 'topology' in self.divider:
                     topology = self.divider['topology']
-                    state = self.outer.get_values(topology)
-                elif 'state' in self.divider:
-                    state = self.divider['state']
-                else:
-                    state = None
-                return divider(self.get_value(), state)
+                    state.update({'state': self.outer.get_values(topology)})
+                if 'config' in self.divider:
+                    config = self.divider['config']
+                    state.update({'config': config})
+
+                return divider(self.get_value(), **state)
             return self.divider(self.get_value())
         if self.inner:
             daughters = [{}, {}]
@@ -700,13 +701,10 @@ class Store:
                 # use dividers to find initial states for daughters
                 mother = divide['mother']
                 daughters = divide['daughters']
-                try:
-                    initial_state = self.inner[mother].get_value(
-                        condition=lambda child: not
-                        (isinstance(child.value, Process)),
-                        f=lambda child: copy.deepcopy(child))
-                except:
-                    import ipdb; ipdb.set_trace()
+                initial_state = self.inner[mother].get_value(
+                    condition=lambda child: not
+                    (isinstance(child.value, Process)),
+                    f=lambda child: copy.deepcopy(child))
                 daughter_states = self.inner[mother].divide_value()
 
                 here = self.path_for()
