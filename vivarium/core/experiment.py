@@ -1094,20 +1094,24 @@ def test_units() -> None:
 
 
 def test_custom_divider():
-    composer = ToyDivider({'divider': {'agent_id': '1'}})
-    composite = composer.generate()
+    agent_id = '1'
+    composer = ToyDivider({
+        'agent_id': agent_id,
+        'divider': {
+            'x_default': 3,
+            'x_division_threshold': 25,
+        }
+    })
+    composite = composer.generate(path=('agents', agent_id))
 
     experiment = Experiment({
         'processes': composite.processes,
         'topology': composite.topology,
     })
 
-    experiment.update(10)
-
+    experiment.update(80)
     data = experiment.emitter.get_data()
-
     print(pp(data))
-    # import ipdb; ipdb.set_trace()
 
 
 if __name__ == '__main__':

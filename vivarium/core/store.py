@@ -481,8 +481,13 @@ class Store:
             # divider is either a function or a dict with topology
             if isinstance(self.divider, dict):
                 divider = self.divider['divider']
-                topology = self.divider['topology']
-                state = self.outer.get_values(topology)
+                if 'topology' in self.divider:
+                    topology = self.divider['topology']
+                    state = self.outer.get_values(topology)
+                elif 'state' in self.divider:
+                    state = self.divider['state']
+                else:
+                    state = None
                 return divider(self.get_value(), state)
             return self.divider(self.get_value())
         if self.inner:
@@ -695,10 +700,13 @@ class Store:
                 # use dividers to find initial states for daughters
                 mother = divide['mother']
                 daughters = divide['daughters']
-                initial_state = self.inner[mother].get_value(
-                    condition=lambda child: not
-                    (isinstance(child.value, Process)),
-                    f=lambda child: copy.deepcopy(child))
+                try:
+                    initial_state = self.inner[mother].get_value(
+                        condition=lambda child: not
+                        (isinstance(child.value, Process)),
+                        f=lambda child: copy.deepcopy(child))
+                except:
+                    import ipdb; ipdb.set_trace()
                 daughter_states = self.inner[mother].divide_value()
 
                 here = self.path_for()

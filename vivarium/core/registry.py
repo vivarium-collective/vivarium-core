@@ -174,6 +174,16 @@ def divide_set(state):
     return [state, state]
 
 
+def divide_set_value(state, value):
+    """Set Value Divider
+    Args:
+        'state': value
+    Returns:
+        A list ``[value, value]``. No copying is performed.
+    """
+    return [value, value]
+
+
 def divide_split(state):
     """Split Divider
 
