@@ -788,7 +788,10 @@ class Store:
                 f"with value {self.value} for {pformat(update)}"
             )
 
-        self.value = updater(self.value, update)
+        try:
+            self.value = updater(self.value, update)
+        except ValueError:
+            print(f'failed update at path {self.path_for}, for received update {update}')
 
         return EMPTY_UPDATES
 
