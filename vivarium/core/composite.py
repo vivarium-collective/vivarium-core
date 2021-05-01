@@ -28,7 +28,8 @@ class Composite(Datum):
         super().__init__(config)
         _override_schemas(self._schema, self.processes)
 
-    def generate_store(self, config):
+    def generate_store(self, config=None):
+        config = config or {}
         initial_state = self.initial_state(config)
         return generate_state(
             self.processes,

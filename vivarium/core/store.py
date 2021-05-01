@@ -123,6 +123,18 @@ class Store:
 
         self.apply_config(config, source)
 
+    # TODO: figure out how indexing into stores works
+
+    # def __index__(self, index):
+    #     if self.inner:
+    #         return inner.get(index)
+    #     elif isinstance(self.value, Process):
+    #         path = self.topology.get(index)
+    #         return self.get_path(path)
+
+    # def __assign__(self, store):
+    #     pass
+
     def check_default(self, new_default):
         defaults_equal = False
         if self.default is not None:
@@ -383,6 +395,22 @@ class Store:
         if self.subschema:
             return {}
         return self.value
+
+    def get_topology(self):
+        """
+        Get the topology for all processes in this store.
+        """
+
+        if self.inner:
+            inner_topology = {}
+            for key, child in self.inner.items():
+                topology = child.get_topology()
+                if topology:
+                    inner_topology[key] = topology
+            if inner_topology:
+                return inner_topology
+        elif self.topology:
+            return self.topology
 
     def get_path(self, path):
         """
