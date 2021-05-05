@@ -125,14 +125,16 @@ class Store:
         self.apply_config(config, source)
 
     def check_default(self, new_default):
-        defaults_equal = False
+        defaults_conflict = False
         if self.default is not None:
-            if isinstance(self.default, np.ndarray):
+            self_default_comp = self.default
+            new_default_comp = new_default
+            if isinstance(self_default_comp, np.ndarray):
                 self_default_comp = self.default.tolist()
-            if isinstance(new_default, np.ndarray):
+            if isinstance(new_default_comp, np.ndarray):
                 new_default_comp = new_default.tolist()
-            defaults_equal = self_default_comp == new_default_comp
-        if not defaults_equal:
+            defaults_conflict != (self_default_comp == new_default_comp)
+        if defaults_conflict:
             if (
                 not isinstance(new_default, np.ndarray)
                 and not isinstance(self.default, np.ndarray)
