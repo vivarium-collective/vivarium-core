@@ -269,8 +269,9 @@ class Composite(Datum):
 
     def __init__(
             self,
-            config: Dict[str, Any]
+            config: Optional[Dict[str, Any]] = None
     ) -> None:
+        config = config or {}
         super().__init__(config)
         _override_schemas(self._schema, self.processes)
 
