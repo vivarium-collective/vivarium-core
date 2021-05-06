@@ -44,11 +44,11 @@ def get_emitter(config: Optional[Dict[str, str]]) -> 'Emitter':
     * ``timeseries``: :py:class:`TimeSeriesEmitter`
 
     Arguments:
-        config (dict): Required keys:
-            * 'type': The emitter type name (e.g. 'database').
+        config: Must comtain the ``type`` key, which specifies the emitter
+            type name (e.g. ``database``).
 
     Returns:
-        Emitter: A new Emitter instance.
+        A new Emitter instance.
     """
 
     if config is None:
@@ -68,13 +68,13 @@ def get_emitter(config: Optional[Dict[str, str]]) -> 'Emitter':
 
 
 def path_timeseries_from_data(data: dict) -> dict:
-    """Does something with timeseries data."""
+    """Convert from :term:`raw data` to a :term:`path timeseries`."""
     embedded_timeseries = timeseries_from_data(data)
     return path_timeseries_from_embedded_timeseries(embedded_timeseries)
 
 
 def path_timeseries_from_embedded_timeseries(embedded_timeseries: dict) -> dict:
-    """Does something with timeseries data."""
+    """Convert an :term:`embedded timeseries` to a :term:`path timeseries`."""
     times_vector = embedded_timeseries['time']
     path_timeseries = make_path_dict(
         {key: val for key, val in embedded_timeseries.items() if key != 'time'})
@@ -82,20 +82,8 @@ def path_timeseries_from_embedded_timeseries(embedded_timeseries: dict) -> dict:
     return path_timeseries
 
 
-def time_indexed_timeseries_from_data(data: Dict[float, Any]) -> dict:
-    """Does something with timeseries data."""
-    times_vector = list(data.keys())
-    embedded_timeseries: dict = {}
-    for time_index, value in enumerate(data.values()):
-        if isinstance(value, dict):
-            embedded_timeseries = value_in_embedded_dict(
-                value, embedded_timeseries, time_index)
-    embedded_timeseries['time'] = times_vector
-    return embedded_timeseries
-
-
 def timeseries_from_data(data: dict) -> dict:
-    """Does something with timeseries data."""
+    """Convert :term:`raw data` to an :term:`embedded timeseries`."""
     times_vector = list(data.keys())
     embedded_timeseries: dict = {}
     for value in data.values():
@@ -108,28 +96,71 @@ def timeseries_from_data(data: dict) -> dict:
 
 
 class Emitter:
-    """
-    Emit data to stdout
-    """
     def __init__(self, config: Dict[str, str]) -> None:
+        """Base class for emitters.
+
+        This emitter simply emits to STDOUT.
+
+        Args:
+            config: Emitter configuration.
+        """
         self.config = config
 
     def emit(self, data: Dict[str, Any]) -> None:
+        """Emit data.
+
+        Args:
+            data: The data to emit. This gets called by the Vivarium
+                engine with a snapshot of the simulation state.
+        """
         print(data)
 
     def get_data(self) -> dict:
+        """Get the emitted data.
+
+        Returns:
+            The data that has been emitted to the database in the
+            :term:`raw data` format. For this particular class, an empty
+            dictionary is returned.
+        """
         return {}
 
     def get_data_deserialized(self) -> Any:
+        """Get the emitted data with variable values deserialized.
+
+        Returns:
+            The data that has been emitted to the database in the
+            :term:`raw data` format. Before being returned, serialized
+            values in the data are deserialized.
+        """
         return deserialize_value(self.get_data())
 
     def get_data_unitless(self) -> Any:
+        """Get the emitted data with units stripped from variable values.
+
+        Returns:
+            The data that has been emitted to the database in the
+            :term:`raw data` format. Before being returned, units are
+            stripped from values.
+        """
         return remove_units(self.get_data_deserialized())
 
     def get_path_timeseries(self) -> dict:
+        """Get the deserialized data as a :term:`path timeseries`.
+
+        Returns:
+            The deserialized emitted data, formatted as a
+            :term:`path timeseries`.
+        """
         return path_timeseries_from_data(self.get_data_deserialized())
 
     def get_timeseries(self) -> dict:
+        """Get the deserialized data as an :term:`embedded timeseries`.
+
+        Returns:
+            The deserialized emitted data, formatted as an
+            :term:`embedded timeseries`.
+        """
         return timeseries_from_data(self.get_data_deserialized())
 
 
@@ -153,9 +184,9 @@ class TimeSeriesEmitter(Emitter):
 
     def emit(self, data: Dict[str, Any]) -> None:
         """
-        Emit the timeseries history portion of `data`, which is
-        `data['data'] if data['table'] == 'history'` and put it at
-        `data['data']['time']` in the history.
+        Emit the timeseries history portion of ``data``, which is
+        ``data['data'] if data['table'] == 'history'`` and put it at
+        ``data['data']['time']`` in the history.
         """
         if data['table'] == 'history':
             emit_data = data['data']
@@ -223,6 +254,17 @@ def get_experiment_database(
         port: Any = 27017,
         database_name: str = 'simulations'
 ) -> Any:
+    """Get a database object.
+
+    Args:
+        port: Port number of database. This can usually be left as the
+            default.
+        database_name: Name of the database table. This can usually be
+            left as the default.
+
+    Returns:
+        The database object.
+    """
     config = {
         'host': '{}:{}'.format('localhost', port),
         'database': database_name}
@@ -236,6 +278,15 @@ def delete_experiment_from_database(
         port: Any = 27017,
         database_name: str = 'simulations'
 ) -> None:
+    """Delete an experiment's data from a database.
+
+    Args:
+        experiment_id: Identifier of experiment.
+        port: Port number of database. This can usually be left as the
+            default.
+        database_name: Name of the database table. This can usually be
+            left as the default.
+    """
     db = get_experiment_database(port, database_name)
     query = {'experiment_id': experiment_id}
     db.history.delete_many(query)
