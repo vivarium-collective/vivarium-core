@@ -30,9 +30,13 @@ class Datum(dict):
     defaults: Dict[str, Any] = {}
 
     def __init__(self, config):
-        super().__init__(self.defaults)
+        defaults = {
+            key: value() if callable(value) else value
+            for key, value in self.defaults.items()}
+
+        super().__init__(defaults)
         self.update(config)
-        self.__dict__ = self  # TODO(jerry): Instead define `def __getattr__(self, item): return self[item]`?
+        self.__dict__ = self
 
         for schema, realize in self.schema.items():
             if schema in self:
