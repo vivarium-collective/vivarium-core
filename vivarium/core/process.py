@@ -259,6 +259,9 @@ class Composite(Datum):
 
     Contains keys for processes and topology
     """
+    processes: Dict[str, Any] = {}
+    topology: Dict[str, Any] = {}
+    _schema: Dict[str, Any] = {}
     defaults: Dict[str, Any] = {
         'processes': dict,
         'topology': dict,
