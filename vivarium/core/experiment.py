@@ -11,8 +11,6 @@ import os
 import logging as log
 import warnings
 import pprint
-import multiprocessing
-from multiprocessing import pool as multipool
 from typing import (
     Any, Dict, Optional, Union, Tuple, Callable)
 import math

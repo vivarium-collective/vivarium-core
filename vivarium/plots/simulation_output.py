@@ -1,3 +1,9 @@
+'''
+===========================
+Simulation Output Utilities
+===========================
+'''
+
 import os
 from typing import Any, Dict, Optional
 
@@ -6,6 +12,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from vivarium.core.emitter import path_timeseries_from_embedded_timeseries
+from vivarium.library.dict_utils import get_value_from_path
 
 
 def set_axes(
@@ -13,6 +20,17 @@ def set_axes(
         show_xaxis=False,
         sci_notation=False,
         y_offset=0.0):
+    '''Set up plot axes.
+
+    Args:
+        ax: The axes to set up.
+        show_xaxis: Whether to show the x axis.
+        sci_notation: Either ``False`` to not use scientific notation or
+            an integer :math:`x` such that scientific notation will be
+            used outside the range :math:`[10^{-x}, 10^x]`.
+        y_offset: Horizontal distance between axis offset text
+            (typically for scientific notation) and the y-axis.
+    '''
     if sci_notation:
         scilimits = 4
         if isinstance(sci_notation, int):
@@ -38,7 +56,7 @@ def set_axes(
         ax.tick_params(bottom=False, labelbottom=False)
 
 
-def save_fig_to_dir(
+def _save_fig_to_dir(
         fig,
         filename,
         out_dir='out/',
@@ -194,12 +212,20 @@ def plot_simulation_output(
 
     if out_dir:
         plt.subplots_adjust(wspace=column_width/3, hspace=column_width/3)
-        save_fig_to_dir(fig, filename, out_dir)
+        _save_fig_to_dir(fig, filename, out_dir)
     return fig
 
 
-# simple plotting function
 def get_variable_title(path):
+    '''Get figure title from a variable path.
+
+    Args:
+        path: Path to the variable.
+
+    Returns:
+        String representation of the variable suitable for a figure
+        title.
+    '''
     var = path[-1]
     separator = '>'
     connect_path = separator.join(path[:-1])
@@ -209,7 +235,6 @@ def get_variable_title(path):
         title = f'{connect_path}: {var}'
     return title
 
-from vivarium.library.dict_utils import get_value_from_path
 
 # simple plotting function
 def plot_variables(
@@ -224,6 +249,33 @@ def plot_variables(
         out_dir=None,
         filename='variables'
 ):
+    '''Create a simple figure with a timeseries for every variable.
+
+    Args:
+        output: Simulation output as a map from variable names or paths
+            to timeseries data. Should contain a ``time`` key whose
+            value is a list of time points.
+        variables: The variables to plot. May be a list of variable
+            names (if simulation output keys are just variable names) or
+            a dictionary with keys ``variable`` (for the variable path),
+            ``color`` (for the color to use for the plot), and
+            ``display`` (the variable name to display). If ``display``
+            is not provided, the result of calling
+            :py:func:`get_variable_title` on the variable path is used.
+        column_width: Figure width.
+        row_height: Height of each row. Each variable gets one row.
+        row_padding: Space between rows.
+        linewidth: Width of timeseries lines.
+        sci_notation: Either ``False`` for no scientific notation or an
+            integer :math:`x` such that scientific notation will be used
+            for values outside the range :math:`[10^{-x}, 10^x]`.
+        default_color: Default timeseries color.
+        out_dir: Output directory.
+        filename: Output filename.
+
+    Returns:
+        The figure.
+    '''
     n_rows = len(variables)
     fig = plt.figure(figsize=(column_width, n_rows * row_height))
     grid = plt.GridSpec(n_rows, 1)
@@ -257,7 +309,7 @@ def plot_variables(
 
     fig.subplots_adjust(hspace=row_padding)
     if out_dir:
-        save_fig_to_dir(fig, filename, out_dir)
+        _save_fig_to_dir(fig, filename, out_dir)
     return fig
 
 

@@ -256,7 +256,7 @@ how to use a process.
 If you are writing your own process, please include these examples!
 Also, executing the process class Python file should execute one of
 these examples and save the output as demonstrated in
-:py:mod:`vivarium.processes.glucose_phosphorylation`. Lastly, any
+``vivarium.processes.glucose_phosphorylation``. Lastly, any
 top-level functions you include that are prefixed with ``test_`` will be
 executed by ``pytest``. Please add these tests to help future developers
 make sure they haven't broken your process!

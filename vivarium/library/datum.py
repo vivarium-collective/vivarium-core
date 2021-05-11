@@ -1,14 +1,10 @@
+'''
+=====
+Datum
+=====
+'''
+
 from typing import Any, Callable, Dict, List
-
-
-def first(a_list: List):
-    if a_list:
-        return a_list[0]
-
-
-def first_value(d: Dict):
-    if d:
-        return d[list(d.keys())[0]]  # TODO(jerry): iter(d.values()).__next__() would be faster
 
 
 class Datum(dict):
@@ -46,9 +42,11 @@ class Datum(dict):
                 self[schema] = value
 
     def to_dict(self):
+        '''Convert the datum to a dictionary.'''
         return self
 
     def fields(self):
+        '''Get the keys in the datum.'''
         return list(self.defaults.keys())
 
     def __repr__(self):

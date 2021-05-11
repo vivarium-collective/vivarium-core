@@ -64,6 +64,7 @@ disable=print-statement,
         too-many-locals,
         too-many-branches,
         too-few-public-methods,
+        too-many-lines,
         no-self-use,
         fixme,
         unsupported-assignment-operation,  # Buggy with NewType objects

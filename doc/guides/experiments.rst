@@ -20,7 +20,7 @@ To create an experiment, you need only instantiate the
 reproduce your experiment, create a file in the
 ``vivarium-core/experiments`` directory that defines a function that
 generates your experiment. For example, here is the function from
-:py:mod:`vivarium.experiments.glucose_phosphorylation` to create a toy
+``vivarium.experiments.glucose_phosphorylation`` to create a toy
 experiment that simulates the phosphorylation of injected glucose:
 
 .. code-block:: python
