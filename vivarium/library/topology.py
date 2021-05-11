@@ -26,7 +26,7 @@ def get_in(d, path, default=None):
     if path:
         head = path[0]
         if head in d:
-            return get_in(d[head], path[1:])
+            return get_in(d[head], path[1:], default)
         return default
     return d
 
