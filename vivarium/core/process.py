@@ -263,14 +263,15 @@ class Composite(Datum):
     topology: Dict[str, Any] = {}
     _schema: Dict[str, Any] = {}
     defaults: Dict[str, Any] = {
-        'processes': processes,
-        'topology': topology,
-        '_schema': _schema}
+        'processes': dict,
+        'topology': dict,
+        '_schema': dict}
 
     def __init__(
             self,
-            config: Dict[str, Any]
+            config: Optional[Dict[str, Any]] = None
     ) -> None:
+        config = config or {}
         super().__init__(config)
         _override_schemas(self._schema, self.processes)
 

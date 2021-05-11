@@ -18,7 +18,7 @@ import datetime
 import time as clock
 import uuid
 
-from vivarium.composites.toys import Proton, Electron, Sine, PoQo
+from vivarium.composites.toys import Proton, Electron, Sine, PoQo, ToyDivider
 from vivarium.core.store import hierarchy_depth, Store, generate_state
 from vivarium.core.emitter import get_emitter
 from vivarium.core.process import (
@@ -1237,6 +1237,27 @@ def test_units() -> None:
     pp(data_unitless)
 
 
+def test_custom_divider() -> None:
+    agent_id = '1'
+    composer = ToyDivider({
+        'agent_id': agent_id,
+        'divider': {
+            'x_default': 3,
+            'x_division_threshold': 25,
+        }
+    })
+    composite = composer.generate(path=('agents', agent_id))
+
+    experiment = Experiment({
+        'processes': composite.processes,
+        'topology': composite.topology,
+    })
+
+    experiment.update(80)
+    data = experiment.emitter.get_data()
+    print(pf(data))
+
+
 if __name__ == '__main__':
     # test_recursive_store()
     # test_timescales()
@@ -1244,7 +1265,8 @@ if __name__ == '__main__':
     # test_multi()
     # test_sine()
     # test_parallel()
-    test_complex_topology()
+    # test_complex_topology()
     # test_multi_port_merge()
     # test_2_store_1_port()
     # test_units()
+    test_custom_divider()

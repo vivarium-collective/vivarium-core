@@ -155,16 +155,16 @@ class Store:
         Returns:
             The new default value.
         """
-        defaults_equal = False
+        defaults_conflict = False
         if self.default is not None:
             self_default_comp = self.default
             new_default_comp = new_default
             if isinstance(self_default_comp, np.ndarray):
                 self_default_comp = self.default.tolist()
             if isinstance(new_default_comp, np.ndarray):
-                new_default_comp = self.default.tolist()
-            defaults_equal = self_default_comp == new_default_comp
-        if defaults_equal:
+                new_default_comp = new_default.tolist()
+            defaults_conflict != (self_default_comp == new_default_comp)
+        if defaults_conflict:
             if (
                 not isinstance(new_default, np.ndarray)
                 and not isinstance(self.default, np.ndarray)
@@ -559,12 +559,18 @@ class Store:
         """
 
         if self.divider:
-            # divider is either a function or a dict with topology
+            # divider is either a function or a dict with topology and/or config
             if isinstance(self.divider, dict):
                 divider = self.divider['divider']
-                topology = self.divider['topology']
-                state = self.outer.get_values(topology)
-                return divider(self.get_value(), state)
+                state = {}
+                if 'topology' in self.divider:
+                    topology = self.divider['topology']
+                    state.update({'state': self.outer.get_values(topology)})
+                if 'config' in self.divider:
+                    config = self.divider['config']
+                    state.update({'config': config})
+
+                return divider(self.get_value(), **state)
             return self.divider(self.get_value())
         if self.inner:
             daughters = [{}, {}]
