@@ -20,7 +20,6 @@ def get_in(d, path, default=None):
     >>> get_in(d, ('a', 'b'))
     'c'
     >>> get_in(d, ('a', 'z'))
-    None
     >>> get_in(d, ('a', 'z'), 'y')
     'y'
     '''
@@ -134,11 +133,11 @@ def dict_to_paths(root, d):
     >>> d = {
     ...     'a': {
     ...         'b': 'c',
-    ...         'd': 'e',
     ...     },
+    ...     'd': 'e',
     ... }
     >>> dict_to_paths(root, d)
-    [('root', 'subroot', 'a', 'b'), ('root', 'subroot', 'a', d')]
+    [(('root', 'subroot', 'a', 'b'), 'c'), (('root', 'subroot', 'd'), 'e')]
     """
     if isinstance(d, dict):
         deeper = []
