@@ -15,11 +15,12 @@ environments, within which they can grow, divide, and thrive.
    :maxdepth: 2
    :hidden:
 
-   getting_started.rst
-   getting_started_dev.rst
-   guides/index.rst
-   tutorials/index.rst
-   reference/index.rst
+   getting_started
+   use_cases
+   getting_started_dev
+   guides/index
+   tutorials/index
+   reference/index
 
 .. todo:: Maybe use :ref:`genindex`
 
