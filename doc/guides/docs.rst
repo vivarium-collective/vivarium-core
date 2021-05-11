@@ -163,7 +163,7 @@ reference. Sphinx includes docstrings in this reference as follows:
 * Tests (any members whose names start with ``test_``) are not included,
   even if they have docstrings.
 * Private members (members that start with ``_``) are not included, even
-  if they have dcostrings.
+  if they have docstrings.
 
 
 .. _building-docs:
