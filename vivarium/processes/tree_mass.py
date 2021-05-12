@@ -164,7 +164,7 @@ def test_tree_mass():
     return output
 
 
-def run_tree_mass():
+def _run_tree_mass():
     out_dir = os.path.join(PROCESS_OUT_DIR, NAME)
     os.makedirs(out_dir, exist_ok=True)
     output = test_tree_mass()
@@ -172,4 +172,4 @@ def run_tree_mass():
 
 
 if __name__ == '__main__':
-    run_tree_mass()
+    _run_tree_mass()

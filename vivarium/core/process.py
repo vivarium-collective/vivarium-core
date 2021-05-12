@@ -491,7 +491,16 @@ class MetaComposer(Composer):
             self,
             composers: Iterable[Any] = tuple(),
             config: Optional[dict] = None,
-    ) -> None:
+            ) -> None:
+        """A collection of :py:class:`Composer` objects.
+
+        The MetaComposer can be used to create composites that combine
+        all the composers in the collection.
+
+        Args:
+            composers: Initial collection of composers.
+            config: Initial configuration.
+        """
         super().__init__(config)
         self.composers: List = list(composers)
 
@@ -499,6 +508,7 @@ class MetaComposer(Composer):
             self,
             config: Optional[dict] = None
     ) -> Dict[str, Any]:
+        """Do not override this method."""
         # TODO(Eran)-- override composite.config with config
         processes: Dict = {}
         for composer in self.composers:
@@ -514,6 +524,7 @@ class MetaComposer(Composer):
             self,
             config: Optional[dict] = None
     ) -> Topology:
+        """Do not override this method."""
         topology: Topology = {}
         for composer in self.composers:
             new_topology = composer.generate_topology(composer.config)
@@ -529,6 +540,13 @@ class MetaComposer(Composer):
             composer: Composer,
             config: Optional[Dict] = None,
     ) -> None:
+        """Add a composer to the collection of stored composers.
+
+        Args:
+            composer: The composer to add.
+            config: The composer's configuration, which will be merged
+                with the stored config.
+        """
         if config:
             self.config.update(config)
         self.composers.append(composer)
@@ -538,6 +556,13 @@ class MetaComposer(Composer):
             composers: List,
             config: Optional[Dict] = None,
     ) -> None:
+        """Add multiple composers to the collection of stored composers.
+
+        Args:
+            composers: The composers to add.
+            config: Configuration for the composers, which will be
+                merged with the stored config.
+        """
         if config:
             self.config.update(config)
         self.composers.extend(composers)
@@ -583,11 +608,13 @@ class Process(Composer, metaclass=abc.ABCMeta):
 
     def generate_processes(
             self, config: Optional[dict] = None) -> Dict[str, Any]:
+        """Do not override this method."""
         config = config or {}
         name = config.get('name', self.name)
         return {name: self}
 
     def generate_topology(self, config: Optional[dict] = None) -> Topology:
+        """Do not override this method."""
         config = config or {}
         name = config.get('name', self.name)
         override_topology = config.get('topology', {})
@@ -732,6 +759,11 @@ class Process(Composer, metaclass=abc.ABCMeta):
 class Deriver(Process, metaclass=abc.ABCMeta):
     """Base class for :term:`derivers`."""
     def initial_state(self, config: Optional[dict] = None) -> State:
+        """Subclasses should override this method.
+
+        Given a config, this method should return the Deriver's initial
+        state.
+        """
         return {}
 
     def is_deriver(self) -> bool:

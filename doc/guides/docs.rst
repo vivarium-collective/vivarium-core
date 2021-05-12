@@ -144,6 +144,27 @@ documentation:
   conventions. It also runs the ``proselint`` and ``write-good``
   linters, which check for generally good style.
 
+What APIs to Document
+=====================
+
+A standard convention in software development is that documented APIs
+(e.g. functions, methods, classes, and constants) are supported, so
+other users can count on them to work. Any changes to the
+inputs these APIs accept or their behavior constitutes an API change,
+and any changes that are not backward-compatible are breaking API
+changes that require a new major version release according to Semantic
+Versioning.
+
+For Vivarium, being "documented" means appearing in the compiled API
+reference. Sphinx includes docstrings in this reference as follows:
+
+* By default, everything appears in the reference, even if it doesn't
+  have a docstring.
+* Tests (any members whose names start with ``test_``) are not included,
+  even if they have docstrings.
+* Private members (members that start with ``_``) are not included, even
+  if they have docstrings.
+
 
 .. _building-docs:
 
