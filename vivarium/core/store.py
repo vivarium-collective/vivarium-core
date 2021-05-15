@@ -131,15 +131,66 @@ class Store:
     def __setitem__(self, key, value):
         if not isinstance(key, tuple):
             key = (key,)
+        store_value = isinstance(value, Store)
+        if self.leaf:
+            if isinstance(self.value, Process):
+                if store_value:
+                    pass
+                else:
+                    target = self.get_path(key)
+                    if target.leaf:
+                        target.value = value
+                    else:
+                        raise ValueError(f"setting {key} on store {self.path_for()} to {value} failed as target is not a leaf")
+            else:
+                raise ValueError(f"setting {key} on store {self.path_for()} to {value} failed as this store is already a leaf")
+        else:
+            head = key[0]
+            tail = key[1:]
+            if head in self.inner:
+                target = self.inner[head]
+            else:
+                target = self.establish_path((head,), {})
+            if tail:
+                target[tail] = value
+
+
+
+        # store = self.get_path(key)
+        # up = store.outer
+        # if store.leaf:
+        #     if isinstance(value, Store):
+        #         store.value = value.value
+        #     else:
+        #         store.value = value
+        # elif up.leaf and isinstance(up.value, Process):
+            
+
+
+
+
+
+        path = tuple(key[:-1])
+        item = key[-1]
 
         # store = self[key]
         import ipdb; ipdb.set_trace()
 
         return None
 
-    def path_to(self, store):
-        """return a path from self to the store"""
-        path = tuple()
+    def path_to(self, to):
+        """return a path from self to the given Store"""
+
+        self_path = self.path_for()
+        to_path = to.path_for()
+        while len(self_path) > 0 and len(to_path) > 0 and self_path[0] == to_path[0]:
+            self_path = self_path[1:]
+            to_path = to_path[1:]
+
+        path = [
+            '..'
+            for _ in self_path]
+        path.extend(to_path)
         return path
 
     def check_default(self, new_default):
