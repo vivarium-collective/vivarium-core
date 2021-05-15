@@ -1,47 +1,64 @@
-from vivarium.composites.toys import ToyProcess, ToyComposer
+from vivarium.composites.toys import Qo, ToyProcess, ToyComposer
+from vivarium.core.store import Store
 
-def test_store_insert():
-    composer = ToyComposer()
+
+def test_store1():
+    composer = ToyComposer({
+        'A':  {'name': 'process1'},
+        'B': {'name': 'process2'}})
     composite = composer.generate()
-    process = ToyProcess({'name': 'C'})
+    process = ToyProcess({'name': 'process3'})
 
     store = composite.generate_store()
     store.insert({
         'key': tuple(),
-        'processes': {'C': process},
+        'processes': {'process3': process},
         'topology': {
-            'C': {
+            'process3': {
                 'A': ('ccc',),
                 'B': ('aaa',)
             }
         },
         'initial_state': {}})
 
-    # store.insert({
-    #     'key': tuple(),
-    #     'processes': {'C': process},
-    #     'topology': {
-    #         'C[A]': 'B[B]',
-    #         'C[B]': 'A[A]',
-    #     },
-    #     'initial_state': {}})
 
-    # store['C'] = process
-    # store.get(('C', 'A', 'b')) # --> store node whose value maybe a process
+    # connect process1's port A to the store at process3's port A
+    store['process1']['A'] = store['process3']['A']
+    # store['process1','A'] = store['process3','A']
 
-    # store['C']
-    # store['C']['A'] # store that holds process A, not process A
-    # store['C']['A'] = store['B']['B']
-    # store['C']['A']['b'] = store['B']['B']['a']
-    # store['C']['B'] = store['A']['A']
+    # connect process2's port B to store ccc
+    store['process2']['B'] = store['ccc']
 
-    # store['agents']['1'].divide()
+    # replace a process
+    store['process4'] = ToyProcess({'name': 'process4'})
+    # store['process4']['A'] = Store()  # TODO: this should give an error
 
-    topology = store.get_topology()
-    assert 'C' in topology
-    
-    import ipdb; ipdb.set_trace()
+    # connect port A to a new store ddd
+    """
+    topology before: 
+    process4: {
+        'A': ('aaa',),
+        'B': ('bbb',),}
+        
+    topology after:
+    process4: {
+        'A': ('ddd',),
+        'B': ('bbb',),}
+    """
+
+    store['ddd'] = Store({})
+    store['process4']['A'] = store['ddd']
+
+    # set a value through a port
+    store['process1']['A']['a'] = 2
+
+    # replace a process with different ports entirely
+    store['process1'] = Qo({})
+
+    # replace a process with a subset of the same ports
+
+
 
 
 if __name__ == '__main__':
-    test_store_insert()
+    test_store1()

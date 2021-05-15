@@ -15,7 +15,7 @@ from pint import Quantity
 from vivarium import divider_registry, serializer_registry, updater_registry
 from vivarium.core.process import Process
 from vivarium.library.dict_utils import deep_merge, MULTI_UPDATE_KEY
-from vivarium.library.topology import without, dict_to_paths
+from vivarium.library.topology import without, dict_to_paths, get_in
 from vivarium.core.types import Processes, Topology, State
 
 EMPTY_UPDATES = None, None, None
@@ -123,17 +123,24 @@ class Store:
 
         self.apply_config(config, source)
 
-    # TODO: figure out how indexing into stores works
+    def __getitem__(self, key):
+        if not isinstance(key, tuple):
+            key = (key,)
+        return self.get_path(key)
 
-    # def __index__(self, index):
-    #     if self.inner:
-    #         return inner.get(index)
-    #     elif isinstance(self.value, Process):
-    #         path = self.topology.get(index)
-    #         return self.get_path(path)
+    def __setitem__(self, key, value):
+        if not isinstance(key, tuple):
+            key = (key,)
 
-    # def __assign__(self, store):
-    #     pass
+        # store = self[key]
+        import ipdb; ipdb.set_trace()
+
+        return None
+
+    def path_to(self, store):
+        """return a path from self to the store"""
+        path = tuple()
+        return path
 
     def check_default(self, new_default):
         defaults_equal = False
@@ -426,8 +433,11 @@ class Store:
 
             if child:
                 return child.get_path(path[1:])
-            # TODO: more handling for bad paths?
-            # TODO: check deleted?
+            elif isinstance(self.value, Process):
+                target = get_in(self.topology, path)
+                return self.outer.get_path(target)
+            # elif self.leaf:
+            #     return self.value
             return None
         return self
 
