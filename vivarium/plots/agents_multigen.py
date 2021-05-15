@@ -96,6 +96,7 @@ def plot_agents_multigen(
     titles_map = settings.get('titles_map', dict())
     ylabels_map = settings.get('ylabels_map', dict())
     sci_notation = settings.get('sci_notation', False)
+    time_display = settings.get('time_display', '(s)')
     time_vec = list(data.keys())
     timeseries = path_timeseries_from_data(data)
 
@@ -229,7 +230,7 @@ def plot_agents_multigen(
                     or path_idx >= len(ordered_paths[port_id]) - 1))
             ):
                 set_axes(ax, True, sci_notation=sci_notation)
-                ax.set_xlabel('time (s)', fontsize=title_size)
+                ax.set_xlabel(f'time {time_display}', fontsize=title_size)
                 ax.spines['bottom'].set_position(('axes', -0.2))
             else:
                 set_axes(ax, sci_notation=sci_notation)
