@@ -1,5 +1,5 @@
 from vivarium.composites.toys import Qo, ToyProcess, ToyComposer
-from vivarium.core.store import Store
+from vivarium.core.store import Store, topology_path
 
 
 def test_store1():
@@ -15,12 +15,15 @@ def test_store1():
         'processes': {'process3': process},
         'topology': {
             'process3': {
-                'A': ('ccc',),
+                'A': {'_path': ('ccc',), 'a': ('d',)},
                 'B': ('aaa',)
             }
         },
         'initial_state': {}})
 
+    path, remaining = topology_path(store.get_topology(), ('process1', 'A', 'b'))
+
+    import ipdb; ipdb.set_trace()
 
     # connect process1's port A to the store at process3's port A
     store['process1']['A'] = store['process3']['A']

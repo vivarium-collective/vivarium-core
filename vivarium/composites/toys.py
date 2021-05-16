@@ -451,17 +451,17 @@ class PoQo(Composer):
         return {
             'po': {
                 'A': {
-                    '_path': 'aaa',
-                    'a2': 'x',
-                    'a3': '<ccc>a3'},
-                'B': 'bbb',
+                    '_path': ('aaa',),
+                    'a2': ('x',),
+                    'a3': ('..', 'ccc', 'a3')},
+                'B': ('bbb',),
             },
             'qo': {
                 'D': {
-                    '_path': '',
-                    'd1': 'aaa>d1',
-                    'd2': 'aaa>d2',
-                    'd3': 'ccc>d3'},
+                    '_path': (),
+                    'd1': ('aaa', 'd1'),
+                    'd2': ('aaa', 'd2'),
+                    'd3': ('ccc', 'd3')},
                 'E': {
                     '_path': '',
                     'e1': 'aaa>x',

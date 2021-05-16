@@ -70,6 +70,32 @@ def identity(y):
     return y
 
 
+def topology_path(topology, path):
+    '''
+    get the subtopology at the path inside the given topology.
+    '''
+
+    if not path:
+        topology, path
+    else:
+        head = path[0]
+        tail = path[1:]
+        if head in topology:
+            towards = topology[head]
+            if isinstance(towards, tuple):
+                return towards, tail
+            elif isinstance(towards, dict):
+                if '_path' in towards:
+                    if tail and tail[0] in towards:
+                        down = topology_path(towards, tail)
+                        if down:
+                            return towards['_path'] + down[0], down[1]
+                    else:
+                        return towards['_path'], tail
+                else:
+                    return topology_path(towards, tail)
+
+
 class Store:
     """Holds a subset of the overall model state
 
@@ -129,9 +155,11 @@ class Store:
         return self.get_path(key)
 
     def __setitem__(self, key, value):
+        original_key = key
         if not isinstance(key, tuple):
             key = (key,)
         store_value = isinstance(value, Store)
+
         if self.leaf:
             if isinstance(self.value, Process):
                 if store_value:
@@ -143,18 +171,38 @@ class Store:
                     else:
                         raise ValueError(f"setting {key} on store {self.path_for()} to {value} failed as target is not a leaf")
             else:
-                raise ValueError(f"setting {key} on store {self.path_for()} to {value} failed as this store is already a leaf")
+                # we assume the value itself can be indexed
+                if store_value:
+                    self.value[original_key] = value.value
+                else:
+                    self.value[original_key] = value
         else:
             head = key[0]
             tail = key[1:]
-            if head in self.inner:
-                target = self.inner[head]
+
+            if tail:
+                if head not in self.inner:
+                    self.establish_path((head,), {})
+                self.inner[head][tail] = value
+            elif store_value:
+                self.inner[head] = value
+                value.outer = self
             else:
                 target = self.establish_path((head,), {})
-            if tail:
-                target[tail] = value
+                target.value = value
 
 
+            # if head in self.inner:
+            #     target = self.inner[head]
+            # else:
+            #     target = self.establish_path((head,), {})
+
+            # if tail:
+            #     target[tail] = value
+            # elif store_value:
+            #     target.value = value.value
+            # else:
+            #     target.value = value
 
         # store = self.get_path(key)
         # up = store.outer
@@ -164,20 +212,8 @@ class Store:
         #     else:
         #         store.value = value
         # elif up.leaf and isinstance(up.value, Process):
+
             
-
-
-
-
-
-        path = tuple(key[:-1])
-        item = key[-1]
-
-        # store = self[key]
-        import ipdb; ipdb.set_trace()
-
-        return None
-
     def path_to(self, to):
         """return a path from self to the given Store"""
 
@@ -485,10 +521,10 @@ class Store:
             if child:
                 return child.get_path(path[1:])
             elif isinstance(self.value, Process):
-                target = get_in(self.topology, path)
-                return self.outer.get_path(target)
-            # elif self.leaf:
-            #     return self.value
+                towards = topology_path(self.topology, path)
+                if towards:
+                    target = self.outer.get_path(towards[0])
+                    return target.get_path(towards[1])
             return None
         return self
 
