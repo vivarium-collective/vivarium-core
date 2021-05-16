@@ -34,9 +34,10 @@ def test_insert_process():
     assert isinstance(store['process3'].value, Process), 'process3 not inserted successfully'
     return store
 
-def test_insert_process():
+
+def test_rewire_ports():
     """connect a process' ports to different store"""
-    store = get_toy_store()
+    store = test_insert_process()
 
     # connect process1's port A to the store at process3's port A
     store['process1']['A'] = store['process3']['A']
