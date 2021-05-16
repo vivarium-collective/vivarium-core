@@ -149,70 +149,28 @@ class Store:
 
         self.apply_config(config, source)
 
-    def __getitem__(self, key):
-        if not isinstance(key, tuple):
-            key = (key,)
-        return self.get_path(key)
+    def __getitem__(self, path):
+        if not isinstance(path, tuple):
+            path = (path,)
+        return self.get_path(path)
 
-    def __setitem__(self, key, value):
-        original_key = key
-        if not isinstance(key, tuple):
-            key = (key,)
-        store_value = isinstance(value, Store)
+    def __setitem__(self, path, value):
+        if not isinstance(path, tuple):
+            path = (path,)
+        self.set_path(path, value)
 
-        if self.leaf:
-            if isinstance(self.value, Process):
-                if store_value:
-                    pass
-                else:
-                    target = self.get_path(key)
-                    if target.leaf:
-                        target.value = value
-                    else:
-                        raise ValueError(f"setting {key} on store {self.path_for()} to {value} failed as target is not a leaf")
-            else:
-                # we assume the value itself can be indexed
-                if store_value:
-                    self.value[original_key] = value.value
-                else:
-                    self.value[original_key] = value
+    def set_path(self, path, value, context=None):
+        if isinstance(value, Store):
+            # place the store at this point in the tree
+            penultimate = path[:-1]
+            final = path[-1]
+            target = self.establish_path(penultimate, {})
+            target.inner[final] = value
+            value.outer = target
         else:
-            head = key[0]
-            tail = key[1:]
-
-            if tail:
-                if head not in self.inner:
-                    self.establish_path((head,), {})
-                self.inner[head][tail] = value
-            elif store_value:
-                self.inner[head] = value
-                value.outer = self
-            else:
-                target = self.establish_path((head,), {})
-                target.value = value
-
-
-            # if head in self.inner:
-            #     target = self.inner[head]
-            # else:
-            #     target = self.establish_path((head,), {})
-
-            # if tail:
-            #     target[tail] = value
-            # elif store_value:
-            #     target.value = value.value
-            # else:
-            #     target.value = value
-
-        # store = self.get_path(key)
-        # up = store.outer
-        # if store.leaf:
-        #     if isinstance(value, Store):
-        #         store.value = value.value
-        #     else:
-        #         store.value = value
-        # elif up.leaf and isinstance(up.value, Process):
-
+            # create the path there and store the value
+            store = self.establish_path(path, {})
+            store.value = value
             
     def path_to(self, to):
         """return a path from self to the given Store"""
@@ -1140,16 +1098,23 @@ class Store:
                     remaining,
                     config,
                     source=source)
-            if path_step not in self.inner:
-                self.inner[path_step] = Store(
-                    {}, outer=self, source=source)
+            elif isinstance(self.value, Process):
+                towards = topology_path(self.topology, path)
+                if towards:
+                    target = self.outer.establish_path(towards[0], config, source=source)
+                    return target.establish_path(towards[1], config, source=source)
+            else:
+                if path_step not in self.inner:
+                    self.inner[path_step] = Store(
+                        {}, outer=self, source=source)
 
-            return self.inner[path_step].establish_path(
-                remaining,
-                config,
-                source=source)
-        self.apply_config(config, source=source)
-        return self
+                return self.inner[path_step].establish_path(
+                    remaining,
+                    config,
+                    source=source)
+        else:
+            self.apply_config(config, source=source)
+            return self
 
     def add_node(self, path, node):
         """ Add a node instance at the provided path """
