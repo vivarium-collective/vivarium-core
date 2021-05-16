@@ -12,8 +12,7 @@ from matplotlib.figure import Figure
 import networkx as nx
 
 from vivarium.core.process import Process
-from vivarium.core.composer import Composer
-from vivarium.core.composite import Composite
+from vivarium.core.composer import Composer, Composite
 from vivarium.core.store import generate_state
 from vivarium.library.topology import normalize_path
 from vivarium.library.dict_utils import deep_merge
