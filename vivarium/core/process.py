@@ -124,11 +124,13 @@ class Process(metaclass=abc.ABCMeta):
 
     def generate_processes(
             self, config: Optional[dict] = None) -> Dict[str, Any]:
+        """Do not override this method."""
         config = config or {}
         name = config.get('name', self.name)
         return {name: self}
 
     def generate_topology(self, config: Optional[dict] = None) -> Topology:
+        """Do not override this method."""
         config = config or {}
         name = config.get('name', self.name)
         override_topology = config.get('topology', {})
@@ -294,6 +296,11 @@ class Process(metaclass=abc.ABCMeta):
 class Deriver(Process, metaclass=abc.ABCMeta):
     """Base class for :term:`derivers`."""
     def initial_state(self, config: Optional[dict] = None) -> State:
+        """Subclasses should override this method.
+
+         Given a config, this method should return the Deriver's initial
+         state.
+         """
         return {}
 
     def is_deriver(self) -> bool:

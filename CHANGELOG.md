@@ -1,6 +1,23 @@
 # Changelog
 
 
+## v0.2.14
+
+* fix bug to clear Composite of processes and topology instance variables
+* more general divider declaration
+* add time_display arg to agents_multigen
+* update docs
+
+## v0.2.13
+
+* handle large emit_configuration to database emitter by checking the size of the packet, and removing process parameters if necessary.
+
+## v0.2.12
+
+* plotting tweaks. 
+* provide information about update failure.
+* improve data_from_database to return experiment config.
+
 ## v0.2.11
 
 * process.schema = None in base class constructor

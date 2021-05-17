@@ -3,7 +3,7 @@
 Composition
 ===========
 
-Helper function for initializing and running experiments.
+Helper functions for initializing and running experiments.
 """
 
 import os
@@ -183,11 +183,11 @@ def add_timeline(
 ) -> None:
     """Add a timeline process to a composite
 
-        Args:
-            processes (dict): with {`process_name`: Process}
-            topology (dict): with {`process_name`: topology mapping}
-            timeline (dict): with `timeline` key. An optional `paths` key
-                overrides the topology mapping from (port: path).
+    Args:
+        processes: with ``{'process_name': Process}``
+        topology (dict): with ``{'process_name': topology mapping}``
+        timeline (dict): with ``timeline`` key. An optional ``paths``
+            key overrides the topology mapping from (port: path).
     """
     timeline_paths = timeline.get('paths', {})
     timeline_process = TimelineProcess(timeline)
@@ -208,11 +208,11 @@ def add_environment(
 ) -> None:
     """Add a NonSpatialEnvironment to a composite
 
-        Args:
-            processes (dict): with {`process_name`: Process}
-            topology (dict): with {`process_name`: topology mapping}
-            environment (dict): with `environment` key. An optional `paths` key
-                overrides the topology mapping from (port: path).
+    Args:
+        processes: with ``{'process_name': Process}``
+        topology: with ``{'process_name': topology mapping}``
+        environment: with ``environment`` key. An optional ``paths`` key
+            overrides the topology mapping from (port: path).
     """
 
     overide_topology = environment.get('paths', {})
@@ -235,17 +235,17 @@ def process_in_experiment(
         settings: Dict[str, Any] = None,
         initial_state: Dict[str, Any] = None,
 ) -> Experiment:
-    """put a Process in an Experiment
+    """Put a Process in an Experiment
 
     Args:
-        process (Process): the Process to put into the Experiment
-        settings (dict): a dictionary of optional configuration options,
+        process: the Process to put into the Experiment
+        settings: a dictionary of optional configuration options,
             keywords include timeline, environment, and topology that
             add to or modify the Process.
-        initial_state (dict): initial state to overrides the defaults.
+        initial_state: initial state to overrides the defaults.
 
     Returns:
-        an **Experiment**
+        an :term:`Experiment`.
     """
     settings = settings or {}
     initial_state = initial_state or {}
@@ -273,17 +273,17 @@ def composite_in_experiment(
         settings: Dict[str, Any] = None,
         initial_state: Dict[str, Any] = None,
 ) -> Experiment:
-    """put a Composite in an Experiment
+    """Put a Composite in an Experiment
 
     Args:
         composite: the :term:`Composite` object.
-        settings (dict): a dictionary of options, including composite_config
+        settings: a dictionary of options, including composite_config
             for configuring the composite. Additional  keywords include
             timeline, environment, and outer_path.
-        initial_state (dict): initial state to overrides the defaults.
+        initial_state: initial state to overrides the defaults.
 
     Returns:
-        an :term:`Experiment`
+        an :term:`Experiment`.
     """
     settings = settings or {}
     initial_state = initial_state or {}
@@ -319,14 +319,14 @@ def composer_in_experiment(
         config: Dict[str, Any] = None,
         outer_path: HierarchyPath = (),
 ) -> Experiment:
-    """generate a Composite in an Experiment
+    """Generate a Composite in an Experiment
 
     Args:
         composer: a :term:`Composer` object.
-        settings (dict): a dictionary of options, including composite_config
+        settings: a dictionary of options, including composite_config
             for configuring the composite. Additional  keywords include
             timeline, environment, and outer_path.
-        initial_state (dict): initial state to overrides the defaults.
+        initial_state: initial state to overrides the defaults.
         config: updates values in composer's config
         outer_path: path to the processes and topology
 
@@ -385,14 +385,14 @@ def simulate_experiment(
         experiment: Experiment,
         settings: Optional[Dict[str, Any]] = None
 ) -> Dict:
-    """Simulate an term:`Experiment`
+    """Simulate an :term:`Experiment`.
 
-        Args:
-        - a configured experiment
+    Args:
+        experiment: a configured experiment
 
-        Returns:
-            - a timeseries of variables from all ports.
-            - if 'return_raw_data' is True, it returns the raw data instead
+    Returns:
+        A timeseries of variables from all ports. If ``return_raw_data``
+        is True, return the raw data instead.
     """
     settings = settings or {}
     total_time = settings.get('total_time', 10)

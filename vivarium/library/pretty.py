@@ -1,3 +1,9 @@
+'''
+===============================
+Utilities for Formatting Output
+===============================
+'''
+
 import inspect
 import json
 import numpy as np

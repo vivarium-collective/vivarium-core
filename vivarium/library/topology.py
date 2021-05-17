@@ -1,22 +1,41 @@
+'''
+==================
+Topology Utilities
+==================
+'''
+
 import copy
 import re
 
-from vivarium.library.dict_utils import (
-    deep_merge, deep_merge_multi_update)
-from vivarium.core.types import (
-    HierarchyPath, TuplePath, Topology)
+from vivarium.library.dict_utils import deep_merge, deep_merge_multi_update
 
 
 def get_in(d, path, default=None):
+    '''Get the value from a dictionary by its path.
+
+    >>> d = {'a': {'b': 'c', 'd': 'e'}}
+    >>> get_in(d, ('a', 'b'))
+    'c'
+    >>> get_in(d, ('a', 'z'))
+    >>> get_in(d, ('a', 'z'), 'y')
+    'y'
+    '''
     if path:
         head = path[0]
         if head in d:
-            return get_in(d[head], path[1:])
+            return get_in(d[head], path[1:], default)
         return default
     return d
 
 
 def delete_in(d, path):
+    '''Delete an item from a dictionary by its path.
+
+    >>> d = {'a': {'b': 'c', 'd': 'e'}}
+    >>> delete_in(d, ('a', 'b'))
+    >>> d
+    {'a': {'d': 'e'}}
+    '''
     if len(path) > 0:
         head = path[0]
         if len(path) == 1:
@@ -29,6 +48,16 @@ def delete_in(d, path):
 
 
 def assoc_path(d, path, value):
+    '''Insert ``value`` into the dictionary ``d`` at ``path``.
+
+    >>> d = {'a': {'b': 'c'}}
+    >>> assoc_path(d, ('a', 'd'), 'e')
+    >>> d
+    {'a': {'b': 'c', 'd': 'e'}}
+
+    Create new dictionaries recursively as needed.
+    '''
+
     if path:
         head = path[0]
         if len(path) == 1:
@@ -42,6 +71,7 @@ def assoc_path(d, path, value):
 
 
 def without(d, removing):
+    '''Get a copy of ``d`` without the keys in ``removing``.'''
     return {
         key: value
         for key, value in d.items()
@@ -49,6 +79,21 @@ def without(d, removing):
 
 
 def update_in(d, path, f):
+    '''Update every value in a dictionary based on ``f``.
+
+    Args:
+        d: The dictionary ``path`` applies to. This object is not
+            modified.
+        path: Path to the sub-dictionary within ``d`` that should be
+            updated.
+        f: Function to call on every value in the dictionary to update.
+            The updated dictionary's values will be return values from
+            ``f``.
+
+    Returns:
+        A copy of ``d`` with all the values under ``path`` updated to
+        the value returned when ``f`` is called on the original value.
+    '''
     if path:
         head = path[0]
         d.setdefault(head, {})
@@ -59,6 +104,17 @@ def update_in(d, path, f):
 
 
 def paths_to_dict(path_list, f=lambda x: x):
+    '''Create a new dictionary that has the paths in ``path_list``.
+
+    Args:
+        path_list: A list of tuples ``(path, value)``.
+        f: A function to apply to each value before inserting it into
+            the dictionary.
+
+    Returns:
+        A new dictionary with the specified values (after being passed
+        through ``f``) at each associated path.
+    '''
     d = {}
     for path, node in path_list:
         assoc_path(d, path, f(node))
@@ -66,6 +122,20 @@ def paths_to_dict(path_list, f=lambda x: x):
 
 
 def dict_to_paths(root, d):
+    """Get all the paths in a dictionary.
+
+    For example:
+
+    >>> root = ('root', 'subroot')
+    >>> d = {
+    ...     'a': {
+    ...         'b': 'c',
+    ...     },
+    ...     'd': 'e',
+    ... }
+    >>> dict_to_paths(root, d)
+    [(('root', 'subroot', 'a', 'b'), 'c'), (('root', 'subroot', 'd'), 'e')]
+    """
     if isinstance(d, dict):
         deeper = []
         for key, down in d.items():
@@ -74,7 +144,7 @@ def dict_to_paths(root, d):
         return deeper
     else:
         return [(root, d)]
-        
+
 
 def inverse_topology(outer, update, topology, inverse=None):
     '''
@@ -149,6 +219,7 @@ def inverse_topology(outer, update, topology, inverse=None):
 
 
 def normalize_path(path):
+    """Make a path absolute by resolving ``..`` elements."""
     progress = []
     for step in path:
         if step == '..' and len(progress) > 0:
@@ -158,24 +229,12 @@ def normalize_path(path):
     return tuple(progress)
 
 
-_PATH_ELEMENT = re.compile(r'[^>/]+')
-
-def convert_path_to_tuple(path: HierarchyPath) -> TuplePath:
-    """ convert paths to tuple format """
+def convert_path_style(path):
     if isinstance(path, str):
-        path = tuple(_PATH_ELEMENT.findall(path.replace('<', '>..>')))
+        path = re.sub(r'<', '..<', path)
+        path = tuple(re.split('<|>', path))
+
     return path
-
-
-def convert_topology_path(topology: Topology) -> Topology:
-    """ convert a topology's paths to tuple format """
-    converted_topology: Topology = {}
-    for name, path in topology.items():
-        if isinstance(path, dict):
-            converted_topology[name] = convert_topology_path(path)
-        else:
-            converted_topology[name] = convert_path_to_tuple(path)
-    return converted_topology
 
 
 class TestUpdateIn:
@@ -353,56 +412,13 @@ def test_in():
 def test_path_declare():
 
     path_down = 'path>to>store'
-    new_path_down = convert_path_to_tuple(path_down)
+    new_path_down = convert_path_style(path_down)
     assert new_path_down == ('path', 'to', 'store')
 
     path_up = '<<store'
-    new_path_up = convert_path_to_tuple(path_up)
+    new_path_up = convert_path_style(path_up)
     assert new_path_up == ('..', '..', 'store')
-
-def test_topology_paths():
-
-    # complex topology test
-    topology = {
-        'a': {
-            '1': 'path>to>A',
-            '2': 'path>to>B',
-            '3': '<<C'},
-        'b': {
-            '1': 'path>to>B',
-            '2': 'path>to>A'},
-        'c': {
-            'cc': {
-                '1': '<<path>to>B'}}}
-    new_topology = convert_topology_path(topology)
-    assert new_topology == {
-        'a': {
-            '1': ('path', 'to', 'A'),
-            '2': ('path', 'to', 'B'),
-            '3': ('..', '..', 'C')},
-        'b': {
-            '1': ('path', 'to', 'B'),
-            '2': ('path', 'to', 'A')},
-        'c': {
-            'cc': {
-                '1': ('..', '..', 'path', 'to', 'B')}}}
-
-    # slash test
-    topology = {'a': {'1': '../../path/to/A'}}
-    new_topology = convert_topology_path(topology)
-    assert new_topology == {'a': {'1': ('..', '..', 'path', 'to', 'A')}}
-
-    # tuple test
-    topology = {'a': {'1': ('path', 'to', 'A')}}
-    new_topology = convert_topology_path(topology)
-    assert new_topology == {'a': {'1': ('path', 'to', 'A')}}
-
-    # boundary case test
-    topology = {'a': {'1': ''}}
-    new_topology = convert_topology_path(topology)
-    assert new_topology == {'a': {'1': ()}}
 
 
 if __name__ == '__main__':
     test_path_declare()
-    test_topology_paths()

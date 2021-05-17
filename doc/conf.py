@@ -10,6 +10,7 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
+from datetime import datetime
 import os
 import shutil
 import sys
@@ -20,15 +21,19 @@ from sphinx.addnodes import pending_xref
 from sphinx.ext import apidoc
 from sphinx.ext.intersphinx import missing_reference
 
+from setup import VERSION
+
 
 # -- Project information -----------------------------------------------------
 
 project = 'Vivarium Core'
-copyright = '2018-2020, The Vivarium Core Authors'
+copyright = '2018-{}, The Vivarium Core Authors'.format(
+    datetime.now().year)
 author = 'The Vivarium Core Authors'
 
 # The full version, including alpha/beta/rc tags
-release = 'v0.0.12'
+release = 'v{}'.format(VERSION)
+version = release
 
 
 # -- General configuration ---------------------------------------------------
@@ -64,6 +69,9 @@ nitpicky = True
 # a list of builtin themes.
 #
 html_theme = 'sphinx_rtd_theme'
+html_theme_options = {
+    'display_version': True,
+}
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
@@ -108,6 +116,10 @@ autodoc_mock_imports = [
 # Concatenate class and __init__ docstrings
 autoclass_content = 'both'
 
+def autodoc_skip_member_handler(app, what, name, obj, skip, options):
+    if name.startswith('test_'):
+        return True
+    return None
 
 # -- Custom Extensions -------------------------------------------------
 
@@ -144,16 +156,6 @@ def resolve_intersphinx_aliases(app, env, node, contnode):
     return None
 
 
-def run_apidoc(_):
-    cur_dir = os.path.abspath(os.path.dirname(__file__))
-    module = os.path.join(cur_dir, '..', 'vivarium')
-    apidoc_dir = os.path.join(cur_dir, 'reference', 'api')
-    if os.path.exists(apidoc_dir):
-        shutil.rmtree(apidoc_dir)
-    os.mkdir(apidoc_dir)
-    apidoc.main(['-f', '-e', '-o', apidoc_dir, module])
-
-
 # This function is adapted from a StackOverflow answer by Oleg Höfling
 # at https://stackoverflow.com/a/62301461. Per StackOverflow's licensing
 # terms, it is available under a CC-BY-SA 4.0 license
@@ -161,4 +163,4 @@ def run_apidoc(_):
 def setup(app):
     app.connect('doctree-read', resolve_internal_aliases)
     app.connect('missing-reference', resolve_intersphinx_aliases)
-    app.connect('builder-inited', run_apidoc)
+    app.connect('autodoc-skip-member', autodoc_skip_member_handler)

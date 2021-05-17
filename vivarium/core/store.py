@@ -8,6 +8,7 @@ The file system for storing and updating state variables during an experiment.
 
 import copy
 import logging as log
+from pprint import pformat
 
 import numpy as np
 from pint import Quantity
@@ -26,6 +27,17 @@ def generate_state(
         topology: Topology,
         initial_state: State,
 ) -> 'Store':
+    """Initialize a simulation's state.
+
+    Args:
+        processes: Simulation processes.
+        topology: Topology linking process ports to stores.
+        initial_state: Initial simulation state. Omitted variables will
+            be assigned values based on schema defaults.
+
+    Returns:
+        Initialized state.
+    """
     store = Store({})
     store.generate_paths(processes, topology)
     store.apply_subschemas()
@@ -36,6 +48,17 @@ def generate_state(
 
 
 def key_for_value(d, looking):
+    """Get the key associated with a value in a dictionary.
+
+    Only top-level keys are searched.
+
+    Args:
+        d: The dictionary.
+        looking: The value to look for.
+
+    Returns:
+        The associated key, or None if no key found.
+    """
     found = None
     for key, value in d.items():
         if looking == value:
@@ -62,11 +85,11 @@ def hierarchy_depth(hierarchy, path=()):
     return base
 
 
-def always_true(_):
+def _always_true(_):
     return True
 
 
-def identity(y):
+def _identity(y):
     return y
 
 
@@ -188,16 +211,24 @@ class Store:
         return path
 
     def check_default(self, new_default):
-        defaults_equal = False
+        """Check a new default value.
+
+        Compare a new default value to the existing default. If they
+        conflict, decide which to rely on and log a warning.
+
+        Returns:
+            The new default value.
+        """
+        defaults_conflict = False
         if self.default is not None:
             self_default_comp = self.default
             new_default_comp = new_default
             if isinstance(self_default_comp, np.ndarray):
                 self_default_comp = self.default.tolist()
             if isinstance(new_default_comp, np.ndarray):
-                new_default_comp = self.default.tolist()
-            defaults_equal = self_default_comp == new_default_comp
-        if defaults_equal:
+                new_default_comp = new_default.tolist()
+            defaults_conflict != (self_default_comp == new_default_comp)
+        if defaults_conflict:
             if (
                 not isinstance(new_default, np.ndarray)
                 and not isinstance(self.default, np.ndarray)
@@ -214,6 +245,18 @@ class Store:
         return new_default
 
     def check_value(self, new_value):
+        """Check a new schema value.
+
+        Args:
+            new_value: The new value.
+
+        Returns:
+            The new value.
+
+        Raises:
+            Exception: If the store already has a value and the new
+                value is different from the existing one.
+        """
         if self.value is not None and new_value != self.value:
             raise Exception(
                 '_value schema conflict: {} and {}'.format(
@@ -221,9 +264,11 @@ class Store:
         return new_value
 
     def merge_subtopology(self, subtopology):
+        """Merge a new subtopology with the store's existing one."""
         self.subtopology = deep_merge(self.subtopology, subtopology)
 
     def apply_subschema_config(self, subschema):
+        """Merge a new subschema config with the current subschema."""
         self.subschema = deep_merge(
             self.subschema,
             subschema)
@@ -360,6 +405,16 @@ class Store:
                     self.inner[key].apply_config(child, source=source)
 
     def get_updater(self, update):
+        """Get the updater to use for an update applied to this store.
+
+        Args:
+            update: The update.
+
+        Returns:
+            If available, the updater specified in the update. If no
+            such updater is specified, return this store's default
+            updater. If necessary, retrieves updater from the registry.
+        """
         updater = self.updater
         if isinstance(update, dict) and '_updater' in update:
             updater = update['_updater']
@@ -435,10 +490,10 @@ class Store:
 
         if self.inner:
             if condition is None:
-                condition = always_true
+                condition = _always_true
 
             if f is None:
-                f = identity
+                f = _identity
 
             return {
                 key: f(child.get_value(condition, f))
@@ -487,16 +542,35 @@ class Store:
         return self
 
     def get_paths(self, paths):
+        """Get the nodes at each of the specified paths.
+
+        Args:
+            paths: Map from keys to paths.
+
+        Returns:
+            A dictionary with the same keys as ``paths``. Each key is
+            mapped to the Store object at the associated path.
+        """
         return {
             key: self.get_path(path)
             for key, path in paths.items()}
 
     def get_values(self, paths):
+        """Get the values at each of the provided paths.
+
+        Args:
+            paths: Map from keys to paths.
+
+        Returns:
+            A dictionary with the same keys as ``paths``. Each key is
+            mapped to the value at the associated path.
+        """
         return {
             key: self.get_in(path)
             for key, path in paths.items()}
 
     def get_in(self, path):
+        """Get the value at ``path`` relative to this store."""
         return self.get_path(path).get_value()
 
     def get_template(self, template):
@@ -515,6 +589,14 @@ class Store:
         return state
 
     def emit_data(self):
+        """Emit the value at this Store.
+
+        Obeys the schema (namely emits only if ``_emit`` is true). Also
+        applies serializers and converts units as necessary.
+
+        Returns:
+            The value to emit, or None if nothing should be emitted.
+        """
         data = {}
         if self.inner:
             for key, child in self.inner.items():
@@ -560,12 +642,18 @@ class Store:
         """
 
         if self.divider:
-            # divider is either a function or a dict with topology
+            # divider is either a function or a dict with topology and/or config
             if isinstance(self.divider, dict):
                 divider = self.divider['divider']
-                topology = self.divider['topology']
-                state = self.outer.get_values(topology)
-                return divider(self.get_value(), state)
+                state = {}
+                if 'topology' in self.divider:
+                    topology = self.divider['topology']
+                    state.update({'state': self.outer.get_values(topology)})
+                if 'config' in self.divider:
+                    config = self.divider['config']
+                    state.update({'config': config})
+
+                return divider(self.get_value(), **state)
             return self.divider(self.get_value())
         if self.inner:
             daughters = [{}, {}]
@@ -909,6 +997,12 @@ class Store:
             if '_updater' in update:
                 update = update.get('_value', self.default)
 
+        if updater is None:
+            raise Exception(
+                f"updater is absent at path {self.path_for()} "
+                f"with value {self.value} for {pformat(update)}"
+            )
+
         self.value = updater(self.value, update)
 
         return EMPTY_UPDATES
@@ -1022,6 +1116,7 @@ class Store:
         return base
 
     def apply_subschema_path(self, path):
+        """Apply ``self.subschema`` at ``path``."""
         if path:
             inner = self.inner[path[0]]
             if self.subschema:
@@ -1204,6 +1299,15 @@ class Store:
                         source=source)
 
     def generate_paths(self, processes, topology):
+        """Set up state hierarchy with stores.
+
+        Recursively creates the entire state hierarchy rooted at
+        ``self``.
+
+        Args:
+            processes: Map from process names to process objects.
+            topology: The topology.
+        """
         for key, subprocess in processes.items():
             subtopology = topology[key]
             if isinstance(subprocess, Process):

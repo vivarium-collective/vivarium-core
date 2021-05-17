@@ -283,6 +283,15 @@ class MetaComposer(Composer):
             composers: Iterable[Any] = tuple(),
             config: Optional[dict] = None,
     ) -> None:
+        """A collection of :py:class:`Composer` objects.
+
+        The MetaComposer can be used to create composites that combine
+        all the composers in the collection.
+
+        Args:
+            composers: Initial collection of composers.
+            config: Initial configuration.
+        """
         super().__init__(config)
         self.composers: List = list(composers)
 
@@ -305,6 +314,7 @@ class MetaComposer(Composer):
             self,
             config: Optional[dict] = None
     ) -> Topology:
+        """Do not override this method."""
         topology: Topology = {}
         for composer in self.composers:
             new_topology = composer.generate_topology(composer.config)
@@ -320,6 +330,13 @@ class MetaComposer(Composer):
             composer: Composer,
             config: Optional[Dict] = None,
     ) -> None:
+        """Add a composer to the collection of stored composers.
+
+        Args:
+             composer: The composer to add.
+             config: The composer's configuration, which will be merged
+                 with the stored config.
+        """
         if config:
             self.config.update(config)
         self.composers.append(composer)
@@ -329,6 +346,13 @@ class MetaComposer(Composer):
             composers: List,
             config: Optional[Dict] = None,
     ) -> None:
+        """Add multiple composers to the collection of stored composers.
+
+        Args:
+            composers: The composers to add.
+            config: Configuration for the composers, which will be
+                merged with the stored config.
+        """
         if config:
             self.config.update(config)
         self.composers.extend(composers)

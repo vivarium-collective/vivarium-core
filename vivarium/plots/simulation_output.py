@@ -1,3 +1,9 @@
+'''
+===========================
+Simulation Output Utilities
+===========================
+'''
+
 import os
 from typing import Any, Dict, Optional
 
@@ -6,23 +12,51 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from vivarium.core.emitter import path_timeseries_from_embedded_timeseries
+from vivarium.library.dict_utils import get_value_from_path
 
 
-def set_axes(ax, show_xaxis=False):
-    # ax.ticklabel_format(style='sci', axis='y', scilimits=(-5, 5))
+def set_axes(
+        ax,
+        show_xaxis=False,
+        sci_notation=False,
+        y_offset=0.0):
+    '''Set up plot axes.
+
+    Args:
+        ax: The axes to set up.
+        show_xaxis: Whether to show the x axis.
+        sci_notation: Either ``False`` to not use scientific notation or
+            an integer :math:`x` such that scientific notation will be
+            used outside the range :math:`[10^{-x}, 10^x]`.
+        y_offset: Horizontal distance between axis offset text
+            (typically for scientific notation) and the y-axis.
+    '''
+    if sci_notation:
+        scilimits = 4
+        if isinstance(sci_notation, int):
+            scilimits = sci_notation
+        ax.ticklabel_format(
+            style='sci',
+            axis='y',
+            scilimits=(-scilimits, scilimits),
+            useOffset=True)
+    else:
+        ax.ticklabel_format(
+            style='plain',
+            axis='y')
     ax.spines['right'].set_visible(False)
     ax.spines['top'].set_visible(False)
     ax.tick_params(right=False, top=False)
 
     # move offset axis text (typically scientific notation)
     t = ax.yaxis.get_offset_text()
-    t.set_x(-0.4)
+    t.set_x(-y_offset)
     if not show_xaxis:
         ax.spines['bottom'].set_visible(False)
         ax.tick_params(bottom=False, labelbottom=False)
 
 
-def save_fig_to_dir(
+def _save_fig_to_dir(
         fig,
         filename,
         out_dir='out/',
@@ -178,12 +212,20 @@ def plot_simulation_output(
 
     if out_dir:
         plt.subplots_adjust(wspace=column_width/3, hspace=column_width/3)
-        save_fig_to_dir(fig, filename, out_dir)
+        _save_fig_to_dir(fig, filename, out_dir)
     return fig
 
 
-# simple plotting function
 def get_variable_title(path):
+    '''Get figure title from a variable path.
+
+    Args:
+        path: Path to the variable.
+
+    Returns:
+        String representation of the variable suitable for a figure
+        title.
+    '''
     var = path[-1]
     separator = '>'
     connect_path = separator.join(path[:-1])
@@ -193,7 +235,6 @@ def get_variable_title(path):
         title = f'{connect_path}: {var}'
     return title
 
-from vivarium.library.dict_utils import get_value_from_path
 
 # simple plotting function
 def plot_variables(
@@ -203,10 +244,38 @@ def plot_variables(
         row_height=1.2,
         row_padding=0.8,
         linewidth=3.0,
+        sci_notation=False,
         default_color='tab:blue',
         out_dir=None,
         filename='variables'
 ):
+    '''Create a simple figure with a timeseries for every variable.
+
+    Args:
+        output: Simulation output as a map from variable names or paths
+            to timeseries data. Should contain a ``time`` key whose
+            value is a list of time points.
+        variables: The variables to plot. May be a list of variable
+            names (if simulation output keys are just variable names) or
+            a dictionary with keys ``variable`` (for the variable path),
+            ``color`` (for the color to use for the plot), and
+            ``display`` (the variable name to display). If ``display``
+            is not provided, the result of calling
+            :py:func:`get_variable_title` on the variable path is used.
+        column_width: Figure width.
+        row_height: Height of each row. Each variable gets one row.
+        row_padding: Space between rows.
+        linewidth: Width of timeseries lines.
+        sci_notation: Either ``False`` for no scientific notation or an
+            integer :math:`x` such that scientific notation will be used
+            for values outside the range :math:`[10^{-x}, 10^x]`.
+        default_color: Default timeseries color.
+        out_dir: Output directory.
+        filename: Output filename.
+
+    Returns:
+        The figure.
+    '''
     n_rows = len(variables)
     fig = plt.figure(figsize=(column_width, n_rows * row_height))
     grid = plt.GridSpec(n_rows, 1)
@@ -232,16 +301,15 @@ def plot_variables(
 
         # x-axis only at bottom row
         if row_idx == n_rows - 1:
-            set_axes(ax, show_xaxis=True)
+            set_axes(ax, show_xaxis=True, sci_notation=sci_notation)
             ax.set_xlabel('time (s)')
             ax.spines['bottom'].set_position(('axes', -0.2))
         else:
-            set_axes(ax)
-        ax.ticklabel_format(style='plain', axis='y', scilimits=(-5, 5))
+            set_axes(ax, sci_notation=sci_notation)
 
     fig.subplots_adjust(hspace=row_padding)
     if out_dir:
-        save_fig_to_dir(fig, filename, out_dir)
+        _save_fig_to_dir(fig, filename, out_dir)
     return fig
 
 
@@ -259,4 +327,3 @@ if __name__ == '__main__':
         output=data,
         variables=['x', 'y'],
         out_dir='out')
-

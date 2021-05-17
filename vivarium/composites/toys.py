@@ -7,6 +7,7 @@ from vivarium.core.process import (
     Process, Deriver)
 from vivarium.core.composer import Composer, MetaComposer, Composite
 from vivarium.core.types import State, Schema, Update, Topology
+from vivarium.processes.division import get_divide_update
 
 quark_colors = ['green', 'red', 'blue']
 quark_spins = ['up', 'down']
@@ -144,17 +145,17 @@ class ToyCompartment(Composer):
     def generate_topology(self, config):
         return{
             'metabolism': {
-                'pool': 'cytoplasm'},
+                'pool': ('cytoplasm',)},
             'transport': {
-                'external': 'periplasm',
-                'internal': 'cytoplasm'},
+                'external': ('periplasm',),
+                'internal': ('cytoplasm',)},
             'death': {
-                'global': '',
-                'compartment': 'cytoplasm'},
+                'global': tuple(),
+                'compartment': ('cytoplasm',)},
             'external_volume': {
-                'compartment': 'periplasm'},
+                'compartment': ('periplasm',)},
             'internal_volume': {
-                'compartment': 'cytoplasm'}}
+                'compartment': ('cytoplasm',)}}
 
 
 class ToyMetabolism(Process):
@@ -462,9 +463,9 @@ class PoQo(Composer):
                     'd2': ('aaa', 'd2'),
                     'd3': ('ccc', 'd3')},
                 'E': {
-                    '_path': '',
-                    'e1': 'aaa>x',
-                    'e2': 'bbb>e2'}
+                    '_path': (),
+                    'e1': ('aaa', 'x'),
+                    'e2': ('bbb', 'e2')}
             },
         }
 
@@ -761,6 +762,69 @@ def test_aggregate_composer() -> None:
         for item in composite2['topology'].keys())
     assert len(composite1['processes']) < len(composite2['processes'])
     assert len(composite2['processes']) < len(composite3['processes'])
+
+
+
+def set_random_int_divider(_, config):
+    return [
+        np.random.randint(0, high=config['max']),
+        np.random.randint(0, high=config['max'])]
+
+
+class ToyDividerProcess(Process):
+    defaults = {
+        'x_initial_max': 5,
+        'x_division_threshold': 10}
+    def __init__(self, parameters = None):
+        super().__init__(parameters)
+        self.agent_id = self.parameters['agent_id']
+        self.composer = self.parameters['composer']
+
+    def ports_schema(self):
+        return {
+            'variable': {
+                'x': {
+                    '_default': 0,
+                    '_emit': True,
+                    '_divider': {
+                        'divider': set_random_int_divider,
+                        'config': {
+                            'max': self.parameters['x_initial_max']}
+                    }
+                }},
+            'agents': {'*': {}}}
+    def next_update(self, timestep, states):
+        x = states['variable']['x']
+        if x > self.parameters['x_division_threshold']:
+            daughter_ids = [
+                str(self.agent_id) + '0',
+                str(self.agent_id) + '1']
+            divide_update = get_divide_update(
+                self.composer,
+                self.agent_id,
+                daughter_ids)
+            return {'agents': divide_update}
+        return {'variable': {'x': 1}}
+
+
+class ToyDivider(Composer):
+    defaults: Dict[str, Any] = {'divider': {}}
+    def __init__(self, config):
+        super().__init__(config)
+    def generate_processes(self, config):
+        agent_id = config['agent_id']
+        division_config = dict(
+            config['divider'],
+            agent_id=agent_id,
+            composer=self)
+        return {
+            'divider': ToyDividerProcess(division_config)}
+    def generate_topology(self, config):
+        return {
+            'divider': {
+                'variable': ('variable',),
+                'agents': ('..', '..', 'agents')}}
+
 
 if __name__ == '__main__':
     test_composite_initial_state()  # pragma: no cover

@@ -69,9 +69,16 @@ from vivarium.library.units import Quantity, units
 
 class Registry(object):
     def __init__(self):
+        """A Registry holds a collection of functions or objects."""
         self.registry = {}
 
     def register(self, key, item):
+        """Add an item to the registry.
+
+        Args:
+            key: Item key.
+            item: The item to add.
+        """
         if key in self.registry:
             if item != self.registry[key]:
                 raise Exception('registry already contains an entry for {}: {} --> {}'.format(
@@ -80,6 +87,7 @@ class Registry(object):
             self.registry[key] = item
 
     def access(self, key):
+        """Get an item by key from the registry."""
         return self.registry.get(key)
 
 
@@ -174,6 +182,17 @@ def divide_set(state):
     return [state, state]
 
 
+def divide_set_value(state, config):
+    """Set Value Divider
+    Args:
+        'state': value
+    Returns:
+        A list ``[value, value]``. No copying is performed.
+    """
+    value = config['value']
+    return [value, value]
+
+
 def divide_split(state):
     """Split Divider
 
@@ -255,23 +274,53 @@ def assert_no_divide(state):
 
 # Serializers
 class Serializer(object):
+    """Base serializer class."""
     def serialize(self, data):
+        """Serialize some data.
+
+        Subclasses should override this function, which currently
+        returns the data unaltered.
+
+        Args:
+            data: Data to serialize.
+
+        Returns:
+            The serialized data.
+        """
         return data
 
     def deserialize(self, data):
+        """Deserialize some data.
+
+        Subclasses should override this function, which currently
+        returns the data unaltered.
+
+        Args:
+            data: Serialized data to deserialize.
+
+        Returns:
+            The deserialized data.
+        """
         return data
 
 
 class NumpySerializer(Serializer):
+    """Serializer for Numpy arrays."""
+
     def serialize(self, data):
+        """Returns ``data.tolist()``."""
         return data.tolist()
 
     def deserialize(self, data):
+        """Passes ``data`` to ``np.array``."""
         return np.array(data)
 
 
 class NumpyScalarSerializer(Serializer):
+    """Serializer for Numpy scalars."""
+
     def serialize(self, data):
+        """Convert scalar to :py:class:`int` or :py:class:`float`."""
         if isinstance(data, (int, np.integer)):
             return int(data)
         if isinstance(data, (float, np.floating)):
@@ -283,6 +332,7 @@ class NumpyScalarSerializer(Serializer):
         )
 
     def deserialize(self, data):
+        """Convert to ``np.int64`` or ``np.float64``."""
         if isinstance(data, int):
             return np.int64(data)
         if isinstance(data, float):
@@ -295,7 +345,22 @@ class NumpyScalarSerializer(Serializer):
 
 
 class UnitsSerializer(Serializer):
+    """Serializer for data with units."""
+
     def serialize(self, data, unit=None):
+        """Serialize data with units into a human-readable string.
+
+        Args:
+            data: The data to serialize. Should be a Pint object or a
+                list of such objects.
+            unit: The units to convert ``data`` to before serializing.
+                Optional. If omitted, no conversion occurs.
+
+        Returns:
+            The string representation of ``data`` if ``data`` is a
+            single Pint object. Otherwise, a list of string
+            representations.
+        """
         if isinstance(data, list):
             if unit is not None:
                 data = [d.to(unit) for d in data]
@@ -306,6 +371,17 @@ class UnitsSerializer(Serializer):
             return str(data)
 
     def deserialize(self, data, unit=None):
+        """Deserialize data with units from a human-readable string.
+
+        Args:
+            data: The data to deserialize.
+            unit: The units to convert ``data`` to after deserializing.
+                If omitted, no conversion occurs.
+
+        Returns:
+            A single deserialized object or, if ``data`` is a list, a
+            list of deserialized objects.
+        """
         if isinstance(data, list):
             unit_data = [units(d) for d in data]
             if unit is not None:
@@ -318,15 +394,35 @@ class UnitsSerializer(Serializer):
 
 
 class ProcessSerializer(Serializer):
+    """Serializer for processes.
+
+    Currently only supports serialization (for emtting simulation
+    configs).
+    """
     def serialize(self, data):
+        """Create a dictionary of process name and parameters."""
         return dict(data.parameters, _name=data.name)
 
 
 class ComposerSerializer(Serializer):
+    """Serializer for composers.
+
+    Currently only supports serialization (for emtting simulation
+    configs).
+    """
+
     def serialize(self, data):
+        """Create a dictionary of composer name and parameters."""
         return dict(data.config, _name=str(type(data)))
 
 
 class FunctionSerializer(Serializer):
+    """Serializer for functions.
+
+    Currently only supports serialization (for emtting simulation
+    configs).
+    """
+
     def serialize(self, data):
+        """Call ``data.__str__()``."""
         return str(data)

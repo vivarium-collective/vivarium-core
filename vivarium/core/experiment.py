@@ -6,11 +6,11 @@ Experiment
 Experiment runs the simulation.
 """
 
+import sys
 import os
 import logging as log
+import warnings
 import pprint
-import multiprocessing
-from multiprocessing import pool as multipool
 from typing import (
     Any, Dict, Optional, Union, Tuple, Callable)
 import math
@@ -18,9 +18,7 @@ import datetime
 import time as clock
 import uuid
 
-from pymongo.errors import PyMongoError
-
-from vivarium.composites.toys import Proton, Electron, Sine, PoQo
+from vivarium.composites.toys import Proton, Electron, Sine, PoQo, ToyDivider
 from vivarium.core.store import hierarchy_depth, Store, generate_state
 from vivarium.core.emitter import get_emitter
 from vivarium.core.process import (
@@ -42,10 +40,12 @@ pretty = pprint.PrettyPrinter(indent=2)
 
 
 def pp(x: Any) -> None:
+    """Print ``x`` in a pretty format."""
     pretty.pprint(x)
 
 
 def pf(x: Any) -> str:
+    """Format ``x`` for display."""
     return pretty.pformat(x)
 
 
@@ -56,6 +56,15 @@ def starts_with(
         a_list: HierarchyPath,
         sub: HierarchyPath,
 ) -> bool:
+    """Check whether one path is a prefix of another.
+
+    Args:
+        a_list: Path to look for prefix in.
+        sub: Prefix.
+
+    Returns:
+        True if ``sub`` is a prefix of ``a_list``; False otherwise.
+    """
     return len(sub) <= len(a_list) and all(
         a_list[i] == el
         for i, el in enumerate(sub))
@@ -65,11 +74,36 @@ def invert_topology(
         update: Update,
         args: Tuple[HierarchyPath, Topology],
 ) -> State:
+    """Wrapper function around ``inverse_topology``.
+
+    Wraps :py:func:`vivarium.library.topology.inverse_topology`.
+
+    Updates are produced relative to the process that produced them. To
+    transform them such that they are relative to the root of the
+    simulation hierarchy, this function "inverts" a topology.
+
+    Args:
+        update: The update.
+        args: Tuple of the path to which the update is relative and the
+            topology.
+
+    Returns:
+        The update, relative to the root of ``path``.
+    """
     path, topology = args
     return inverse_topology(path[:-1], update, topology)
 
 
 def timestamp(dt: Optional[Any] = None) -> str:
+    """Get a timestamp of the form ``YYYYMMDD.HHMMSS``.
+
+    Args:
+        dt: Datetime object to generate timestamp from. If not
+            specified, the current time will be used.
+
+    Returns:
+        Timestamp.
+    """
     if not dt:
         dt = datetime.datetime.now()
     return "%04d%02d%02d.%02d%02d%02d" % (
@@ -82,6 +116,12 @@ def invoke_process(
         interval: float,
         states: State,
 ) -> Update:
+    """Compute a process's next update.
+
+    Call the process's
+    :py:meth:`vivarium.core.process.Process.next_update` function with
+    ``interval`` and ``states``.
+    """
     return process.next_update(interval, states)
 
 
@@ -92,11 +132,32 @@ class Defer:
             f: Callable,
             args: Tuple,
     ) -> None:
+        """Allows for delayed application of a function to an update.
+
+        The object simply holds the provided arguments until it's time
+        for the computation to be performed. Then, the function is
+        called.
+
+        Args:
+            defer: An object with a ``.get()`` method whose output will
+                be passed to the function. For example, the object could
+                be an :py:class:`InvokeProcess` object whose ``.get()``
+                method will return the process update.
+            function: The function. For example,
+                :py:func:`invert_topology` to transform the returned
+                update.
+            args: Passed as the second argument to the function.
+        """
         self.defer = defer
         self.f = f
         self.args = args
 
     def get(self) -> Update:
+        """Perform the deferred computation.
+
+        Returns:
+            The result of calling the function.
+        """
         return self.f(
             self.defer.get(),
             self.args)
@@ -109,6 +170,18 @@ class InvokeProcess:
             interval: float,
             states: State,
     ) -> None:
+        """A wrapper object that computes an update.
+
+        This class holds the update of a process that is not running in
+        parallel. When instantiated, it immediately computes the
+        process's next update.
+
+        Args:
+            process: The process that will calculate the update.
+            interval: The timestep for the update.
+            states: The simulation state to pass to the process's
+                ``next_update`` function.
+        """
         self.process = process
         self.interval = interval
         self.states = states
@@ -118,25 +191,14 @@ class InvokeProcess:
             self.states)
 
     def get(self) -> Update:
+        """Return the computed update.
+
+        This method is analogous to the ``.get()`` method in
+        :py:class:`vivarium.core.process.ParallelProcess` so that
+        parallel and non-parallel updates can be intermixed in the
+        simulation engine.
+        """
         return self.update
-
-
-class MultiInvoke:
-    def __init__(
-            self,
-            pool: multipool.Pool
-    ) -> None:
-        self.pool = pool
-
-    def invoke(
-            self,
-            process: Process,
-            interval: float,
-            states: State,
-    ) -> Any:
-        args = (process, interval, states)
-        result = self.pool.apply_async(invoke_process, args)
-        return result
 
 
 class Experiment:
@@ -203,7 +265,7 @@ class Experiment:
         # get a mapping of all paths to processes
         self.process_paths: Dict[HierarchyPath, Process] = {}
         self.deriver_paths: Dict[HierarchyPath, Process] = {}
-        self.find_process_paths(self.processes)
+        self._find_process_paths(self.processes)
 
         # initialize the state
         self.state = generate_state(
@@ -244,7 +306,7 @@ class Experiment:
         # log.info('\nCONFIG:')
         # log.info(pf(self.state.get_config(True)))
 
-    def add_process_path(
+    def _add_process_path(
             self,
             process: Process,
             path: HierarchyPath
@@ -254,15 +316,16 @@ class Experiment:
         else:
             self.process_paths[path] = process
 
-    def find_process_paths(
+    def _find_process_paths(
             self,
             processes: Processes
     ) -> None:
         tree = hierarchy_depth(processes)
         for path, process in tree.items():
-            self.add_process_path(process, path)
+            self._add_process_path(process, path)
 
     def emit_configuration(self) -> None:
+        """Emit configuration information to the emitter."""
         data: Dict[str, Any] = {
             'time_created': self.time_created,
             'experiment_id': self.experiment_id,
@@ -275,22 +338,44 @@ class Experiment:
         emit_config: Dict[str, Any] = {
             'table': 'configuration',
             'data': data}
-        try:
+
+        # get size of data for emit
+        data_bytes = sys.getsizeof(str(emit_config))
+        if data_bytes < 26000000:  # pymongo document size limit
             self.emitter.emit(emit_config)
-        except PyMongoError:
-            log.exception("emitter.emit", exc_info=True, stack_info=True)
-            # TODO -- handle large parameter sets to meet mongoDB limit
-            del emit_config['data']['processes']
-            del emit_config['data']['state']
+        else:
+            warnings.warn('configuration size is too big for the emitter, '
+                          'discarding process parameters')
+            for process_id in emit_config['data']['processes'].keys():
+                emit_config['data']['processes'][process_id] = None
             self.emitter.emit(emit_config)
 
-    def invoke_process(
+    def _invoke_process(
             self,
             process: Process,
             path: HierarchyPath,
             interval: float,
             states: State,
     ) -> Any:
+        """Trigger computation of a process's update.
+
+        To allow processes to run in parallel, this function only
+        triggers update computation. When the function exits,
+        computation may not be complete.
+
+        Args:
+            process: The process.
+            path: The path at which the process resides. This is used to
+                track parallel processes in ``self.parallel``.
+            interval: The timestep for which to compute the update.
+            states: The simulation state to pass to
+                :py:meth:`vivarium.core.process.Process.next_update`.
+
+        Returns:
+            The deferred simulation update, for example a
+            :py:class:`vivarium.core.process.ParallelProcess` or an
+            :py:class:`InvokeProcess` object.
+        """
         if process.parallel:
             # add parallel process if it doesn't exist
             if path not in self.parallel:
@@ -302,7 +387,7 @@ class Experiment:
         # if not parallel, perform a normal invocation
         return self.invoke(process, interval, states)
 
-    def process_update(
+    def _process_update(
             self,
             path: HierarchyPath,
             process: Process,
@@ -310,8 +395,28 @@ class Experiment:
             states: State,
             interval: float,
     ) -> Tuple[Defer, Store]:
+        """Start generating a process's update.
 
-        update = self.invoke_process(
+        This function is similar to :py:meth:`_invoke_process` except in
+        addition to triggering the computation of the process's update
+        (by calling ``_invoke_process``), it also generates a
+        :py:class:`Defer` object to transform the update into absolute
+        terms.
+
+        Args:
+            path: Path to process.
+            process: The process.
+            store: The store at ``path``.
+            states: Simulation state to pass to process's
+                ``next_update`` method.
+            interval: Timestep for which to compute the update.
+
+        Returns:
+            Tuple of the deferred update (in absolute terms) and
+            ``store``.
+        """
+
+        update = self._invoke_process(
             process,
             path,
             interval,
@@ -329,6 +434,19 @@ class Experiment:
             path: HierarchyPath,
             process: Process,
     ) -> Tuple[Store, State]:
+        """Get the simulation state for a process's ``next_update``.
+
+        Before computing an update, we have to collect the simulation
+        variables the processes expects.
+
+        Args:
+            path: Path to the process.
+            process: The process.
+
+        Returns:
+            Tuple of the store at ``path`` and a collection of state
+            variables in the form the process expects.
+        """
         store = self.state.get_path(path)
 
         # translate the values from the tree structure into the form
@@ -343,8 +461,19 @@ class Experiment:
             process: Process,
             interval: float
     ) -> Tuple[Defer, Store]:
+        """Calculate a process's update.
+
+        Args:
+            path: Path to process.
+            process: The process.
+            interval: Timestep to compute update for.
+
+        Returns:
+            Tuple of the deferred update (relative to the root of
+            ``path``) and the store at ``path``.
+        """
         store, states = self.process_state(path, process)
-        return self.process_update(
+        return self._process_update(
             path, process, store, states, interval)
 
     def apply_update(
@@ -352,6 +481,14 @@ class Experiment:
             update: Update,
             state: Store
     ) -> None:
+        """Apply an update to the simulation state.
+
+        Args:
+            update: The update to apply. Must be relative to ``state``.
+            state: The store to which the update is relative (usually
+                root of simulation state. We need this so to preserve
+                the "perspective" from which the update was generated.
+        """
         topology_updates, process_updates, deletions = self.state.apply_update(
             update, state)
 
@@ -362,7 +499,7 @@ class Experiment:
         if process_updates:
             for path, process in process_updates:
                 assoc_path(self.processes, path, process)
-                self.add_process_path(process, path)
+                self._add_process_path(process, path)
 
         if deletions:
             for deletion in deletions:
@@ -372,6 +509,11 @@ class Experiment:
             self,
             deletion: HierarchyPath
     ) -> None:
+        """Delete a store from the state.
+
+        Args:
+            deletion: Path to store to delete.
+        """
         delete_in(self.processes, deletion)
         delete_in(self.topology, deletion)
 
@@ -384,6 +526,7 @@ class Experiment:
                 del self.deriver_paths[path]
 
     def run_derivers(self) -> None:
+        """Run all the derivers in the simulation."""
         paths = list(self.deriver_paths.keys())
         for path in paths:
             # deriver could have been deleted by another deriver
@@ -399,6 +542,10 @@ class Experiment:
                 self.apply_update(update.get(), store)
 
     def emit_data(self) -> None:
+        """Emit the current simulation state.
+
+        Only variables with ``_emit=True`` are emitted.
+        """
         data = self.state.emit_data()
         data.update({
             'time': self.experiment_time})
@@ -411,6 +558,13 @@ class Experiment:
             self,
             update_tuples: list
     ) -> None:
+        """Apply updates and run derivers.
+
+        Args:
+            update_tuples: List of tuples ``(update, state)`` where
+                ``state`` is the store from whose perspective the update
+                was generated.
+        """
         for update_tuple in update_tuples:
             update, state = update_tuple
             self.apply_update(update.get(), state)
@@ -421,7 +575,7 @@ class Experiment:
             self,
             interval: float
     ) -> None:
-        """ Run each process for the given interval and update the states.
+        """Run each process for the given interval and update the states.
         """
 
         time = 0.0
@@ -474,7 +628,7 @@ class Experiment:
                     #    Type Process doesn't have expected attribute 'schema'
                     # TODO(chris): Is there any reason to generate a process's
                     #  schema dynamically like this?
-                    update = self.process_update(
+                    update = self._process_update(
                         path, process, store, states, process_timestep)
 
                     # store the update to apply at its projected time
@@ -538,10 +692,16 @@ class Experiment:
             self.print_summary(clock_finish)
 
     def end(self) -> None:
+        """Terminate all processes running in parallel.
+
+        This MUST be called at the end of any simulation with parallel
+        processes.
+        """
         for parallel in self.parallel.values():
             parallel.end()
 
     def print_display(self) -> None:
+        """Print simulation metadata."""
         date, time = self.time_created.split('.')
         print('\nExperiment ID: {}'.format(self.experiment_id))
         print('Created: {} at {}'.format(
@@ -556,6 +716,7 @@ class Experiment:
             self,
             clock_finish: float
     ) -> None:
+        """Print summary of simulation runtime."""
         if clock_finish < 1:
             print('Completed in {:.6f} seconds'.format(clock_finish))
         else:
@@ -568,13 +729,13 @@ def print_progress_bar(
         decimals: float = 1,
         length: int = 50,
 ) -> None:
-    """ Call in a loop to create terminal progress bar
+    """Call in a loop to create terminal progress bar
 
-    Arguments:
-        iteration: (Required) current iteration
-        total:     (Required) total iterations
-        decimals:  (Optional) positive number of decimals in percent complete
-        length:    (Optional) character length of bar
+    Args:
+        iteration: Current iteration
+        total: Total iterations
+        decimals: Positive number of decimals in percent complete
+        length: Character length of bar
     """
     progress: str = ("{0:." + str(decimals) + "f}").format(total - iteration)
     filled_length: int = int(length * iteration // total)
@@ -587,7 +748,7 @@ def print_progress_bar(
         print()
 
 
-def make_proton(
+def _make_proton(
         parallel: bool = False
 ) -> Dict[str, Any]:
     processes = {
@@ -724,7 +885,7 @@ def test_recursive_store() -> None:
 
 
 def test_topology_ports() -> None:
-    proton = make_proton()
+    proton = _make_proton()
 
     experiment = Experiment(proton)
 
@@ -959,22 +1120,8 @@ def test_complex_topology() -> None:
     assert agent_state['ccc']['a3'] == initial_agent_state['ccc']['a3'] + 1
 
 
-def test_multi() -> None:
-    with multiprocessing.Pool(processes=4) as pool:
-        multi = MultiInvoke(pool)
-        proton = make_proton()
-        experiment = Experiment({**proton, 'invoke': multi.invoke})
-
-        log.debug(pf(experiment.state.get_config(True)))
-
-        experiment.update(10.0)
-
-        log.debug(pf(experiment.state.get_config(True)))
-        log.debug(pf(experiment.state.divide_value()))
-
-
 def test_parallel() -> None:
-    proton = make_proton(parallel=True)
+    proton = _make_proton(parallel=True)
     experiment = Experiment(proton)
 
     log.debug(pf(experiment.state.get_config(True)))
@@ -1090,6 +1237,27 @@ def test_units() -> None:
     pp(data_unitless)
 
 
+def test_custom_divider() -> None:
+    agent_id = '1'
+    composer = ToyDivider({
+        'agent_id': agent_id,
+        'divider': {
+            'x_default': 3,
+            'x_division_threshold': 25,
+        }
+    })
+    composite = composer.generate(path=('agents', agent_id))
+
+    experiment = Experiment({
+        'processes': composite.processes,
+        'topology': composite.topology,
+    })
+
+    experiment.update(80)
+    data = experiment.emitter.get_data()
+    print(pf(data))
+
+
 if __name__ == '__main__':
     # test_recursive_store()
     # test_timescales()
@@ -1097,7 +1265,8 @@ if __name__ == '__main__':
     # test_multi()
     # test_sine()
     # test_parallel()
-    test_complex_topology()
+    # test_complex_topology()
     # test_multi_port_merge()
     # test_2_store_1_port()
     # test_units()
+    test_custom_divider()
