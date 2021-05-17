@@ -237,17 +237,6 @@ def convert_path_style(path):
     return path
 
 
-def convert_topology_path(topology):
-    converted_topology = {}
-    for name, path in topology.items():
-        converted_topology[name] = {}
-        if isinstance(path, dict):
-            converted_topology[name] = convert_topology_path(path)
-        else:
-            converted_topology[name] = convert_path_style(path)
-    return converted_topology
-
-
 class TestUpdateIn:
     d = {
         'foo': {
@@ -430,30 +419,6 @@ def test_path_declare():
     new_path_up = convert_path_style(path_up)
     assert new_path_up == ('..', '..', 'store')
 
-def test_topology_paths():
-    topology = {
-        'a': {
-            '1': 'path>to>A',
-            '2': 'path>to>B',
-            '3': '<<C'
-        },
-        'b': {
-            '1': 'path>to>B',
-            '2': ('path', 'to', 'A')
-        },
-    }
-
-    new_topology = convert_topology_path(topology)
-    assert new_topology == {
-        'a': {
-            '1': ('path', 'to', 'A'),
-            '2': ('path', 'to', 'B'),
-            '3': ('..', '..', 'C')},
-        'b': {
-            '1': ('path', 'to', 'B'),
-            '2': ('path', 'to', 'A')}}
-
 
 if __name__ == '__main__':
     test_path_declare()
-    test_topology_paths()

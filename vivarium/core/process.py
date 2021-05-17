@@ -17,8 +17,7 @@ import numpy as np
 from pint.errors import UndefinedUnitError
 
 from vivarium.library.datum import Datum
-from vivarium.library.topology import (
-    inverse_topology, convert_topology_path)
+from vivarium.library.topology import inverse_topology
 from vivarium.library.units import Quantity, Unit
 from vivarium.core.registry import serializer_registry
 from vivarium.library.dict_utils import deep_merge
@@ -446,7 +445,6 @@ class Composer(metaclass=abc.ABCMeta):
 
         processes = self.generate_processes(config)
         topology = self.generate_topology(config)
-        topology = convert_topology_path(topology)
         _override_schemas(self.schema_override, processes)
 
         return Composite({
