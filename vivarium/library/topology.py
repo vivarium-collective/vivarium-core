@@ -9,8 +9,7 @@ import re
 
 from vivarium.library.dict_utils import (
     deep_merge, deep_merge_multi_update)
-from vivarium.core.types import (
-    HierarchyPath, TuplePath, Topology)
+from vivarium.core.types import HierarchyPath
 
 
 def get_in(d, path, default=None):
@@ -232,21 +231,22 @@ def normalize_path(path):
     return tuple(progress)
 
 
-_PATH_ELEMENT = re.compile(r'[^>]+')
-
-def convert_path_to_tuple(path: HierarchyPath) -> TuplePath:
+def convert_path_style(path) -> HierarchyPath:
     if isinstance(path, str):
-        path = tuple(_PATH_ELEMENT.findall(path.replace('<', '>..>')))
+        path = re.sub(r'<', '..<', path)
+        path = tuple(re.split('<|>', path))
+
     return path
 
 
 def convert_topology_path(topology):
     converted_topology = {}
     for name, path in topology.items():
+        converted_topology[name] = {}
         if isinstance(path, dict):
             converted_topology[name] = convert_topology_path(path)
         else:
-            converted_topology[name] = convert_path_to_tuple(path)
+            converted_topology[name] = convert_path_style(path)
     return converted_topology
 
 
@@ -425,11 +425,11 @@ def test_in():
 def test_path_declare():
 
     path_down = 'path>to>store'
-    new_path_down = convert_path_to_tuple(path_down)
+    new_path_down = convert_path_style(path_down)
     assert new_path_down == ('path', 'to', 'store')
 
     path_up = '<<store'
-    new_path_up = convert_path_to_tuple(path_up)
+    new_path_up = convert_path_style(path_up)
     assert new_path_up == ('..', '..', 'store')
 
 def test_topology_paths():
