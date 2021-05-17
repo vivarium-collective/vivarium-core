@@ -232,7 +232,7 @@ def normalize_path(path):
     return tuple(progress)
 
 
-_PATH_ELEMENT = re.compile(r'[^>/]+')
+_PATH_ELEMENT = re.compile(r'[^>]+')
 
 def convert_path_to_tuple(path: HierarchyPath) -> TuplePath:
     """Convert paths to tuple format."""
@@ -460,11 +460,6 @@ def test_topology_paths():
         'c': {
             'cc': {
                 '1': ('..', '..', 'path', 'to', 'B')}}}
-
-    # slash test
-    topology = {'a': {'1': '../../path/to/A'}}
-    new_topology = convert_topology_path(topology)
-    assert new_topology == {'a': {'1': ('..', '..', 'path', 'to', 'A')}}
 
     # tuple test
     topology = {'a': {'1': ('path', 'to', 'A')}}
