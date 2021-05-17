@@ -70,6 +70,32 @@ def identity(y):
     return y
 
 
+def topology_path(topology, path):
+    '''
+    get the subtopology at the path inside the given topology.
+    '''
+
+    if not path:
+        topology, path
+    else:
+        head = path[0]
+        tail = path[1:]
+        if head in topology:
+            towards = topology[head]
+            if isinstance(towards, tuple):
+                return towards, tail
+            elif isinstance(towards, dict):
+                if '_path' in towards:
+                    if tail and tail[0] in towards:
+                        down = topology_path(towards, tail)
+                        if down:
+                            return towards['_path'] + down[0], down[1]
+                    else:
+                        return towards['_path'], tail
+                else:
+                    return topology_path(towards, tail)
+
+
 class Store:
     """Holds a subset of the overall model state
 
@@ -123,23 +149,42 @@ class Store:
 
         self.apply_config(config, source)
 
-    def __getitem__(self, key):
-        if not isinstance(key, tuple):
-            key = (key,)
-        return self.get_path(key)
+    def __getitem__(self, path):
+        if not isinstance(path, tuple):
+            path = (path,)
+        return self.get_path(path)
 
-    def __setitem__(self, key, value):
-        if not isinstance(key, tuple):
-            key = (key,)
+    def __setitem__(self, path, value):
+        if not isinstance(path, tuple):
+            path = (path,)
+        self.set_path(path, value)
 
-        # store = self[key]
-        import ipdb; ipdb.set_trace()
+    def set_path(self, path, value, context=None):
+        if isinstance(value, Store):
+            # place the store at this point in the tree
+            penultimate = path[:-1]
+            final = path[-1]
+            target = self.establish_path(penultimate, {})
+            target.inner[final] = value
+            value.outer = target
+        else:
+            # create the path there and store the value
+            store = self.establish_path(path, {})
+            store.value = value
+            
+    def path_to(self, to):
+        """return a path from self to the given Store"""
 
-        return None
+        self_path = self.path_for()
+        to_path = to.path_for()
+        while len(self_path) > 0 and len(to_path) > 0 and self_path[0] == to_path[0]:
+            self_path = self_path[1:]
+            to_path = to_path[1:]
 
-    def path_to(self, store):
-        """return a path from self to the store"""
-        path = tuple()
+        path = [
+            '..'
+            for _ in self_path]
+        path.extend(to_path)
         return path
 
     def check_default(self, new_default):
@@ -434,10 +479,10 @@ class Store:
             if child:
                 return child.get_path(path[1:])
             elif isinstance(self.value, Process):
-                target = get_in(self.topology, path)
-                return self.outer.get_path(target)
-            # elif self.leaf:
-            #     return self.value
+                towards = topology_path(self.topology, path)
+                if towards:
+                    target = self.outer.get_path(towards[0])
+                    return target.get_path(towards[1])
             return None
         return self
 
@@ -1053,16 +1098,23 @@ class Store:
                     remaining,
                     config,
                     source=source)
-            if path_step not in self.inner:
-                self.inner[path_step] = Store(
-                    {}, outer=self, source=source)
+            elif isinstance(self.value, Process):
+                towards = topology_path(self.topology, path)
+                if towards:
+                    target = self.outer.establish_path(towards[0], config, source=source)
+                    return target.establish_path(towards[1], config, source=source)
+            else:
+                if path_step not in self.inner:
+                    self.inner[path_step] = Store(
+                        {}, outer=self, source=source)
 
-            return self.inner[path_step].establish_path(
-                remaining,
-                config,
-                source=source)
-        self.apply_config(config, source=source)
-        return self
+                return self.inner[path_step].establish_path(
+                    remaining,
+                    config,
+                    source=source)
+        else:
+            self.apply_config(config, source=source)
+            return self
 
     def add_node(self, path, node):
         """ Add a node instance at the provided path """

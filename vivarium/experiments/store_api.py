@@ -2,6 +2,7 @@ from vivarium.composites.toys import Qo, ToyProcess, ToyComposer
 from vivarium.core.store import Store
 from vivarium.core.process import Process
 from vivarium.core.experiment import Experiment
+from vivarium.core.store import Store, topology_path
 
 
 def get_toy_store():
@@ -27,9 +28,11 @@ def test_insert_process():
         'processes': {'process3': process},
         'topology': {
             'process3': {
-                'A': ('ccc',),
+                'A': {'_path': ('ccc',), 'a': ('d',)},
                 'B': ('aaa',)}},
         'initial_state': {}})
+
+    path, remaining = topology_path(store.get_topology(), ('process1', 'A', 'b'))
 
     assert isinstance(store['process3'].value, Process), 'process3 not inserted successfully'
     return store
