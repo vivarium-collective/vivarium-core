@@ -7,9 +7,7 @@ Topology Utilities
 import copy
 import re
 
-from vivarium.library.dict_utils import (
-    deep_merge, deep_merge_multi_update)
-from vivarium.core.types import HierarchyPath
+from vivarium.library.dict_utils import deep_merge, deep_merge_multi_update
 
 
 def get_in(d, path, default=None):
@@ -231,7 +229,7 @@ def normalize_path(path):
     return tuple(progress)
 
 
-def convert_path_style(path) -> HierarchyPath:
+def convert_path_style(path):
     if isinstance(path, str):
         path = re.sub(r'<', '..<', path)
         path = tuple(re.split('<|>', path))
