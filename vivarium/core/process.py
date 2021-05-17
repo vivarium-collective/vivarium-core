@@ -13,8 +13,6 @@ from typing import (
     Any, Dict, Optional, Union, List)
 
 from vivarium.library.dict_utils import deep_merge
-from vivarium.library.topology import (
-    convert_topology_path, convert_path_to_tuple)
 from vivarium.core.types import (
     HierarchyPath, Schema, State, Update,
     Topology)
@@ -149,11 +147,9 @@ class Process(metaclass=abc.ABCMeta):
         else:
             default = copy.deepcopy(self.parameters)
             config = deep_merge(default, config)
-        path = convert_path_to_tuple(path)
 
         processes = self.generate_processes(config)
         topology = self.generate_topology(config)
-        topology = convert_topology_path(topology)
         _override_schemas(self.schema_override, processes)
 
         return {

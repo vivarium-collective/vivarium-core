@@ -4,17 +4,17 @@ from typing import Dict, Any, Optional, Iterable, List
 
 from vivarium.core.process import _override_schemas, assoc_in, _get_parameters, Process
 from vivarium.core.store import generate_state
-from vivarium.core.types import Processes, Topology, HierarchyPath, State, Schema, TuplePath
+from vivarium.core.types import Processes, Topology, HierarchyPath, State, Schema
 from vivarium.library.datum import Datum
 from vivarium.library.dict_utils import deep_merge
-from vivarium.library.topology import convert_path_to_tuple, convert_topology_path, inverse_topology
+from vivarium.library.topology import inverse_topology
 
 
 def _get_composite_state(
         processes: Dict[str, 'Process'],
         topology: Any,
         state_type: Optional[str] = 'initial',
-        path: Optional[TuplePath] = None,
+        path: Optional[HierarchyPath] = None,
         initial_state: Optional[State] = None,
         config: Optional[dict] = None,
 ) -> Optional[State]:
@@ -59,14 +59,15 @@ class Composite(Datum):
     topology: Dict[str, Any] = {}
     _schema: Dict[str, Any] = {}
     defaults: Dict[str, Any] = {
-        'processes': processes,
-        'topology': topology,
-        '_schema': _schema}
+        'processes': dict,
+        'topology': dict,
+        '_schema': dict}
 
     def __init__(
             self,
-            config: Dict[str, Any]
+            config: Optional[Dict[str, Any]] = None
     ) -> None:
+        config = config or {}
         super().__init__(config)
         _override_schemas(self._schema, self.processes)
 
@@ -123,7 +124,6 @@ class Composite(Datum):
         processes = processes or {}
         topology = topology or {}
         path = path or tuple()
-        path = convert_path_to_tuple(path)
         schema_override = schema_override or {}
 
         # get the processes and topology to merge
@@ -236,11 +236,9 @@ class Composer(metaclass=abc.ABCMeta):
         else:
             default = copy.deepcopy(self.config)
             config = deep_merge(default, config)
-        path = convert_path_to_tuple(path)
 
         processes = self.generate_processes(config)
         topology = self.generate_topology(config)
-        topology = convert_topology_path(topology)
         _override_schemas(self.schema_override, processes)
 
         return Composite({

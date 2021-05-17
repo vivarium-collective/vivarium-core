@@ -1,6 +1,7 @@
 import random
 from vivarium.core.experiment import Experiment
-from vivarium.core.process import Process, Composer
+from vivarium.core.process import Process
+from vivarium.core.composer import Composer
 from vivarium.core.emitter import (
     get_experiment_database,
     data_from_database,
