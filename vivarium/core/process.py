@@ -17,14 +17,12 @@ import numpy as np
 from pint.errors import UndefinedUnitError
 
 from vivarium.library.datum import Datum
-from vivarium.library.topology import (
-    inverse_topology, convert_path_to_tuple, convert_topology_path)
+from vivarium.library.topology import inverse_topology
 from vivarium.library.units import Quantity, Unit
 from vivarium.core.registry import serializer_registry
 from vivarium.library.dict_utils import deep_merge
 from vivarium.core.types import (
-    HierarchyPath, TuplePath, Topology,
-    Schema, State, Update, Processes)
+    HierarchyPath, Topology, Schema, State, Update, Processes)
 
 DEFAULT_TIME_STEP = 1.0
 
@@ -218,7 +216,7 @@ def _get_composite_state(
         processes: Dict[str, 'Process'],
         topology: Any,
         state_type: Optional[str] = 'initial',
-        path: Optional[TuplePath] = None,
+        path: Optional[HierarchyPath] = None,
         initial_state: Optional[State] = None,
         config: Optional[dict] = None,
 ) -> Optional[State]:
@@ -319,7 +317,6 @@ class Composite(Datum):
         processes = processes or {}
         topology = topology or {}
         path = path or tuple()
-        path = convert_path_to_tuple(path)
         schema_override = schema_override or {}
 
         # get the processes and topology to merge
@@ -424,7 +421,7 @@ class Composer(metaclass=abc.ABCMeta):
     def generate(
             self,
             config: Optional[dict] = None,
-            path: HierarchyPath = '') -> Composite:
+            path: HierarchyPath = ()) -> Composite:
         """Generate processes and topology dictionaries.
 
         Args:
@@ -445,11 +442,9 @@ class Composer(metaclass=abc.ABCMeta):
         else:
             default = copy.deepcopy(self.config)
             config = deep_merge(default, config)
-        path = convert_path_to_tuple(path)
 
         processes = self.generate_processes(config)
         topology = self.generate_topology(config)
-        topology = convert_topology_path(topology)
         _override_schemas(self.schema_override, processes)
 
         return Composite({

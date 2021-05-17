@@ -7,10 +7,7 @@ Topology Utilities
 import copy
 import re
 
-from vivarium.library.dict_utils import (
-    deep_merge, deep_merge_multi_update)
-from vivarium.core.types import (
-    HierarchyPath, TuplePath, Topology)
+from vivarium.library.dict_utils import deep_merge, deep_merge_multi_update
 
 
 def get_in(d, path, default=None):
@@ -232,24 +229,12 @@ def normalize_path(path):
     return tuple(progress)
 
 
-_PATH_ELEMENT = re.compile(r'[^>/]+')
-
-def convert_path_to_tuple(path: HierarchyPath) -> TuplePath:
-    """Convert paths to tuple format."""
+def convert_path_style(path):
     if isinstance(path, str):
-        path = tuple(_PATH_ELEMENT.findall(path.replace('<', '>..>')))
+        path = re.sub(r'<', '..<', path)
+        path = tuple(re.split('<|>', path))
+
     return path
-
-
-def convert_topology_path(topology: Topology) -> Topology:
-    """Convert a topology's paths to tuple format."""
-    converted_topology: Topology = {}
-    for name, path in topology.items():
-        if isinstance(path, dict):
-            converted_topology[name] = convert_topology_path(path)
-        else:
-            converted_topology[name] = convert_path_to_tuple(path)
-    return converted_topology
 
 
 class TestUpdateIn:
@@ -427,56 +412,13 @@ def test_in():
 def test_path_declare():
 
     path_down = 'path>to>store'
-    new_path_down = convert_path_to_tuple(path_down)
+    new_path_down = convert_path_style(path_down)
     assert new_path_down == ('path', 'to', 'store')
 
     path_up = '<<store'
-    new_path_up = convert_path_to_tuple(path_up)
+    new_path_up = convert_path_style(path_up)
     assert new_path_up == ('..', '..', 'store')
-
-def test_topology_paths():
-
-    # complex topology test
-    topology = {
-        'a': {
-            '1': 'path>to>A',
-            '2': 'path>to>B',
-            '3': '<<C'},
-        'b': {
-            '1': 'path>to>B',
-            '2': 'path>to>A'},
-        'c': {
-            'cc': {
-                '1': '<<path>to>B'}}}
-    new_topology = convert_topology_path(topology)
-    assert new_topology == {
-        'a': {
-            '1': ('path', 'to', 'A'),
-            '2': ('path', 'to', 'B'),
-            '3': ('..', '..', 'C')},
-        'b': {
-            '1': ('path', 'to', 'B'),
-            '2': ('path', 'to', 'A')},
-        'c': {
-            'cc': {
-                '1': ('..', '..', 'path', 'to', 'B')}}}
-
-    # slash test
-    topology = {'a': {'1': '../../path/to/A'}}
-    new_topology = convert_topology_path(topology)
-    assert new_topology == {'a': {'1': ('..', '..', 'path', 'to', 'A')}}
-
-    # tuple test
-    topology = {'a': {'1': ('path', 'to', 'A')}}
-    new_topology = convert_topology_path(topology)
-    assert new_topology == {'a': {'1': ('path', 'to', 'A')}}
-
-    # boundary case test
-    topology = {'a': {'1': ''}}
-    new_topology = convert_topology_path(topology)
-    assert new_topology == {'a': {'1': ()}}
 
 
 if __name__ == '__main__':
     test_path_declare()
-    test_topology_paths()

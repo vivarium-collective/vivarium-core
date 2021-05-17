@@ -9,8 +9,7 @@ from typing import Tuple, Dict, Any, Union
 
 #: Relative path between nodes in the :term:`hierarchy`. Like Unix file
 #: paths, ".." refers to the parent directory.
-TuplePath = Tuple[str, ...]
-HierarchyPath = Union[str, TuplePath]
+HierarchyPath = Tuple[str, ...]
 
 #: Mapping from :term:`ports` to paths that specify which node in the
 #: :term:`hierarchy` should be wired to each port.
