@@ -6,7 +6,7 @@ The Vivarium Core library provides the Vivarium interface and engine
 for composing and simulating integrative, multiscale models.
 
 .. image:: ./_static/hierarchy.png
-    :width: 60%
+    :width: 90%
     :align: center
 
 .. toctree::
