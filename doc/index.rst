@@ -39,7 +39,7 @@ can therefore implement any type of model module they prefer -- whether it
 is a custom module of a specific biophysical system, a configurable model
 with its own standard format, or a wrapper for an off-the-shelf library. The
 multiscale engine supports complex agents operating at multiple timescales,
-and facilitates parallelization across multiple CPUs.
+and facilitates parallel computation across multiple CPUs.
 
 
 .. todo:: Use cases
