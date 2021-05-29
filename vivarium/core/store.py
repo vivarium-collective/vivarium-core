@@ -172,6 +172,7 @@ class Store:
 
         self.apply_config(config, source)
 
+    # TODO: add __getitem__ and __setitem__ to Process to follow topology
     def __getitem__(self, path):
         if not isinstance(path, tuple):
             path = (path,)
@@ -190,6 +191,24 @@ class Store:
             target = self.establish_path(penultimate, {})
             target.inner[final] = value
             value.outer = target
+        # elif isinstance(value, Composer):
+        #     penultimate = path[:-1]
+        #     final = path[-1]
+        #     target = self.establish_path(penultimate, {})
+        #     target.insert({
+        #         'key': final,
+        #         'processes': value.generate_processes(),
+        #         'topology': value.generate_topology(),
+        #         'initial_state': value.initial_state()})
+        elif isinstance(value, Process):
+            penultimate = path[:-1]
+            final = path[-1]
+            target = self.establish_path(penultimate, {})
+            target.insert({
+                'key': None,
+                'processes': value.generate_processes({'name': final}),
+                'topology': value.generate_topology({'name': final}),
+                'initial_state': value.initial_state()})
         else:
             # create the path there and store the value
             store = self.establish_path(path, {})
@@ -538,7 +557,9 @@ class Store:
                 if towards:
                     target = self.outer.get_path(towards[0])
                     return target.get_path(towards[1])
-            return None
+            else:
+                # self.establish_path(path, {})
+                raise Exception(f"there is no path from leaf node {self.path_for()} to {path}")
         return self
 
     def get_paths(self, paths):
@@ -683,6 +704,9 @@ class Store:
         """
 
         if self.inner or self.subschema:
+            if not isinstance(value, dict):
+                raise Exception(f"trying to set branch {self.path_for()} to value {value}")
+
             for child, inner_value in value.items():
                 if child not in self.inner:
                     if self.subschema:
@@ -695,6 +719,29 @@ class Store:
                     self.inner[child].set_value(inner_value)
         else:
             self.value = value
+
+    def generate_value(self, value):
+        """
+        generate the structure for this value that don't exist, 
+        but don't overwrite any existing values. 
+        """
+
+        if self.inner or self.subschema:
+            if not isinstance(value, dict):
+                raise Exception(f"trying to set branch {self.path_for()} to value {value}")
+
+            for child, inner_value in value.items():
+                if child not in self.inner:
+                    if self.subschema:
+                        self.inner[child] = Store(self.subschema, self)
+                    else:
+                        self.establish_path((child,), {})
+
+                if child in self.inner:
+                    self.inner[child].generate_value(inner_value)
+        else:
+            if self.value is None:
+                self.value = value
 
     def apply_defaults(self):
         """
@@ -1340,6 +1387,7 @@ class Store:
 
         target = self.establish_path(path, {})
         target.generate_paths(processes, topology)
-        target.set_value(initial_state)
+        target.generate_value(initial_state)
+        # target.set_value(initial_state)
         target.apply_subschemas()
         target.apply_defaults()

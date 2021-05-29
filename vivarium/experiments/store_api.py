@@ -45,16 +45,17 @@ def test_rewire_ports():
     # connect process1's port A to the store at process3's port A
     store['process1']['A'] = store['process3']['A']
     assert store['process1']['A'] == store['process3']['A']
-    import ipdb; ipdb.set_trace()
-
 
     # this should give the same result
     store = get_toy_store()
     store['process1', 'A'] = store['process3', 'A']
     assert store['process1']['A'] == store['process3']['A']
 
+    import ipdb; ipdb.set_trace()
+
     # connect process2's port B to store aaa
     store['process2']['B'] = store['ccc']
+    assert store['process2', 'B', 'a'] == store['ccc', 'd']
 
 
 def test_replace_process():
@@ -65,6 +66,13 @@ def test_replace_process():
 
     # replace a process with different ports entirely
     store['process1'] = Qo({})
+
+    import ipdb; ipdb.set_trace()
+
+    store['process1', 'D', 'd1'] = store['ccc', 'a']
+
+    store['process1'].topology = {
+        'D': {'_path': ('ccc',)}}
 
     # replace a process with a subset of the same ports
 
@@ -104,6 +112,6 @@ def test_run_store_in_experiment():
 
 if __name__ == '__main__':
     test_insert_process()
-    test_rewire_ports()
-    # test_replace_process()
+    # test_rewire_ports()
+    test_replace_process()
     # test_connect_to_new_store()
