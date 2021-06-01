@@ -95,8 +95,8 @@ class Control:
     def run_experiment(self, experiment_id: str) -> OutputDict:
         experiment = self.experiments_library[experiment_id]
         if isinstance(experiment, dict):
-            kwargs = experiment.get('kwargs', {})
-            return experiment['experiment'](**kwargs)
+            experiment_function = experiment.pop('experiment')
+            return experiment_function(**experiment)
         return experiment()
 
     def run_one_plot(
@@ -109,12 +109,11 @@ class Control:
         plot_spec = self.plots_library[plot_id]
         if isinstance(plot_spec, dict):
             # retrieve plot and config from dictionary
-            config = plot_spec.get('config', {})
-            plot = plot_spec['plot']
-            plot(
+            plot_function = plot_spec.pop('plot')
+            plot_function(
                 data=data_copy,
-                config=config,
-                out_dir=out_dir)
+                out_dir=out_dir,
+                **plot_spec)
 
         elif callable(plot_spec):
             # call plot directly
