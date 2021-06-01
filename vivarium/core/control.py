@@ -92,12 +92,16 @@ class Control:
         )
         return parser.parse_args(args)
 
-    def run_experiment(self, experiment_id: str) -> OutputDict:
-        experiment = self.experiments_library[experiment_id]
-        if isinstance(experiment, dict):
-            experiment_function = experiment.pop('experiment')
-            return experiment_function(**experiment)
-        return experiment()
+    def run_experiment(self, experiment_config: Union[str, dict]) -> OutputDict:
+        if isinstance(experiment_config, dict):
+            experiment_id = experiment_config.pop('experiment_id')
+            experiment = self.experiments_library[experiment_id]
+            return experiment(**experiment_config)
+        elif isinstance(experiment_config, str):
+            experiment = self.experiments_library[experiment_config]
+            return experiment()
+        else:
+            raise Exception(f'invalid experiment config: {experiment_config}')
 
     def run_one_plot(
             self,
