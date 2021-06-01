@@ -98,12 +98,17 @@ class Control:
     ) -> OutputDict:
 
         if isinstance(experiment_config, dict):
-            experiment_id = experiment_config.pop('experiment_id')
-            experiment = self.experiments_library[experiment_id]
+            if 'name' in experiment_config:
+                name = experiment_config.pop('name')
+                experiment = self.experiments_library[name]
+            else:
+                experiment = experiment_config.pop('experiment')
             return experiment(**experiment_config)
 
         elif isinstance(experiment_config, str):
             experiment = self.experiments_library[experiment_config]
+            if isinstance(experiment, dict):
+                experiment = experiment.pop('experiment')
             return experiment()
 
         else:
@@ -117,9 +122,15 @@ class Control:
     ) -> None:
         data_copy = copy.deepcopy(data)
 
+        if isinstance(plot_config, str):
+            plot_config = self.plots_library[plot_config]
+
         if isinstance(plot_config, dict):
-            plot_id = plot_config.pop('plot_id')
-            plot = self.plots_library[plot_id]
+            if 'name' in plot_config:
+                name = plot_config.pop('name')
+                plot = self.plots_library[name]
+            else:
+                plot = plot_config.pop('plot')
             plot(
                 data=data_copy,
                 out_dir=out_dir,
