@@ -1,3 +1,5 @@
+import argparse
+
 from vivarium.composites.toys import Qo, ToyProcess, ToyComposer
 from vivarium.core.store import Store
 from vivarium.core.process import Process
@@ -111,7 +113,17 @@ def test_run_store_in_experiment():
 
 
 if __name__ == '__main__':
-    test_insert_process()
-    # test_rewire_ports()
-    test_replace_process()
-    # test_connect_to_new_store()
+    parser = argparse.ArgumentParser(description='store API')
+    parser.add_argument('--number', '-n', default=[], nargs='+', help='test ids to run')
+    args = parser.parse_args()
+    run_all = not args.number
+
+    if '1' in args.number or run_all:
+        test_insert_process()
+    if '2' in args.number or run_all:
+        test_rewire_ports()
+    if '3' in args.number or run_all:
+        test_replace_process()
+    if '4' in args.number or run_all:
+        test_connect_to_new_store()
+
