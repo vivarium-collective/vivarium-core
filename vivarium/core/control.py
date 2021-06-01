@@ -92,38 +92,46 @@ class Control:
         )
         return parser.parse_args(args)
 
-    def run_experiment(self, experiment_config: Union[str, dict]) -> OutputDict:
+    def run_experiment(
+            self,
+            experiment_config: Union[str, dict]
+    ) -> OutputDict:
+
         if isinstance(experiment_config, dict):
             experiment_id = experiment_config.pop('experiment_id')
             experiment = self.experiments_library[experiment_id]
             return experiment(**experiment_config)
+
         elif isinstance(experiment_config, str):
             experiment = self.experiments_library[experiment_config]
             return experiment()
+
         else:
             raise Exception(f'invalid experiment config: {experiment_config}')
 
     def run_one_plot(
             self,
-            plot_id: str,
+            plot_config: Union[str, dict],
             data: OutputDict,
             out_dir: Optional[str] = None,
     ) -> None:
         data_copy = copy.deepcopy(data)
-        plot_spec = self.plots_library[plot_id]
-        if isinstance(plot_spec, dict):
-            # retrieve plot and config from dictionary
-            plot_function = plot_spec.pop('plot')
-            plot_function(
+
+        if isinstance(plot_config, dict):
+            plot_id = plot_config.pop('plot_id')
+            plot = self.plots_library[plot_id]
+            plot(
                 data=data_copy,
                 out_dir=out_dir,
-                **plot_spec)
+                **plot_config)
 
-        elif callable(plot_spec):
+        elif callable(plot_config):
             # call plot directly
-            plot_spec(
+            plot_config(
                 data=data_copy,
                 out_dir=out_dir)
+        else:
+            raise Exception(f'invalid plot config: {plot_config}')
 
     def run_plots(
             self,
