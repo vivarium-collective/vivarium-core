@@ -53,8 +53,6 @@ def test_rewire_ports():
     store['process1', 'A'] = store['process3', 'A']
     assert store['process1']['A'] == store['process3']['A']
 
-    import ipdb; ipdb.set_trace()
-
     # connect process2's port B to store aaa
     store['process2']['B'] = store['ccc']
     assert store['process2', 'B', 'a'] == store['ccc', 'd']
@@ -99,9 +97,10 @@ def test_connect_to_new_store():
 
 
 def test_set_value():
+    """set a value through a port"""
     store = get_toy_store()
-    # set a value through a port
-    store['process1']['A']['a'] = 2
+    store['process1']['A']['a'] = 5
+    assert store['process1']['A']['a'].value == 5
 
 
 def test_run_store_in_experiment():
@@ -126,4 +125,8 @@ if __name__ == '__main__':
         test_replace_process()
     if '4' in args.number or run_all:
         test_connect_to_new_store()
+    if '5' in args.number or run_all:
+        test_set_value()
+    if '6' in args.number or run_all:
+        test_run_store_in_experiment()
 
