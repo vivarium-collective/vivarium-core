@@ -1,6 +1,10 @@
 # Changelog
 
 
+## v0.2.15
+
+* make `Experiment`'s `invoke_process` method public again
+
 ## v0.2.14
 
 * fix bug to clear Composite of processes and topology instance variables

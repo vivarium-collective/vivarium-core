@@ -2,15 +2,12 @@
 Welcome to the documentation for Vivarium Core!
 ===============================================
 
-Vivarium is a multiscale platform for simulating cells in dynamic
-environments, within which they can grow, divide, and thrive.
+The Vivarium Core library provides the Vivarium interface and engine
+for composing and simulating integrative, multiscale models.
 
-.. image:: ./_static/vivarium_lacy.png
-    :width: 60%
+.. image:: ./_static/hierarchy.png
+    :width: 90%
     :align: center
-    :alt: A sequence of six frames showing simulated *E. coli* colony
-        growth. The colony grows from a single cell in the leftmost
-        frame to around 100 in the rightmost.
 
 .. toctree::
    :maxdepth: 2
@@ -33,24 +30,17 @@ Introduction
 A vivarium, literally a "place of life," is a controlled environment in
 which organisms can be studied. You might have encountered examples of
 vivaria like an aquarium or a terrarium. The Vivarium project provides a
-framework for creating a computational vivarium which can simulate
-colonies of cells in shared, dynamic environments.
+framework for building biological systems in-silico.
 
-The platform's framework is a novel synthesis of several modeling
-methodologies:
+Vivarium does not include any specific modeling frameworks, but instead
+focuses on the interface between such frameworks, and provides a powerful
+multiscale simulation engine that combines and runs them. Users of Vivarium
+can therefore implement any type of model module they prefer -- whether it
+is a custom module of a specific biophysical system, a configurable model
+with its own standard format, or a wrapper for an off-the-shelf library. The
+multiscale engine supports complex agents operating at multiple timescales,
+and facilitates parallel computation across multiple CPUs.
 
-1. Whole-cell modeling, to simulate hybrid models of cells with complex
-   internal organization.
-2. Agent-based modeling, to simulate the interactions of many cells in a
-   shared environment.
-3. Multiscale simulation, to solve problems with multiple scales of time
-   and space.
-4. Wirable model modules, to streamline model development by decomposing
-   computational representations into modules that can be reconfigured
-   and recombined.
-
-This project, Vivarium Core, is the core engine that can simulate models
-built using the Vivarium interface.
 
 .. todo:: Use cases
 

@@ -350,7 +350,7 @@ class Experiment:
                 emit_config['data']['processes'][process_id] = None
             self.emitter.emit(emit_config)
 
-    def _invoke_process(
+    def invoke_process(
             self,
             process: Process,
             path: HierarchyPath,
@@ -397,9 +397,9 @@ class Experiment:
     ) -> Tuple[Defer, Store]:
         """Start generating a process's update.
 
-        This function is similar to :py:meth:`_invoke_process` except in
+        This function is similar to :py:meth:`invoke_process` except in
         addition to triggering the computation of the process's update
-        (by calling ``_invoke_process``), it also generates a
+        (by calling ``invoke_process``), it also generates a
         :py:class:`Defer` object to transform the update into absolute
         terms.
 
@@ -416,7 +416,7 @@ class Experiment:
             ``store``.
         """
 
-        update = self._invoke_process(
+        update = self.invoke_process(
             process,
             path,
             interval,
