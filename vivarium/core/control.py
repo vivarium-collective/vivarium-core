@@ -105,14 +105,13 @@ class Control:
                 experiment = experiment_config.pop('experiment')
             return experiment(**experiment_config)
 
-        elif isinstance(experiment_config, str):
+        if isinstance(experiment_config, str):
             experiment = self.experiments_library[experiment_config]
             if isinstance(experiment, dict):
                 experiment = experiment.pop('experiment')
             return experiment()
 
-        else:
-            raise Exception(f'invalid experiment config: {experiment_config}')
+        raise Exception(f'invalid experiment config: {experiment_config}')
 
     def run_one_plot(
             self,
