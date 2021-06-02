@@ -104,19 +104,44 @@ def topology_path(topology, path):
         head = path[0]
         tail = path[1:]
         if head in topology:
-            towards = topology[head]
-            if isinstance(towards, tuple):
-                return towards, tail
-            elif isinstance(towards, dict):
-                if '_path' in towards:
-                    if tail and tail[0] in towards:
-                        down = topology_path(towards, tail)
+            subtopology = topology[head]
+            if isinstance(subtopology, tuple):
+                return subtopology, tail
+            elif isinstance(subtopology, dict):
+                if '_path' in subtopology:
+                    if tail and tail[0] in subtopology:
+                        down = topology_path(subtopology, tail)
                         if down:
-                            return towards['_path'] + down[0], down[1]
+                            return subtopology['_path'] + down[0], down[1]
                     else:
-                        return towards['_path'], tail
+                        return subtopology['_path'], tail
                 else:
-                    return topology_path(towards, tail)
+                    return topology_path(subtopology, tail)
+
+def insert_topology(topology, port_path, target_path):
+    assert isinstance(port_path, tuple)
+    assert len(port_path) > 0
+    head = port_path[0]
+    tail = port_path[1:]
+
+    if not tail:
+        topology[head] = target_path
+    else:
+        subtopology = topology[head]
+        if isinstance(subtopology, tuple):
+            new_topology = {
+                '_path': subtopology,
+                head: insert_topology({}, tail, target_path)}
+            topology[head] = new_topology
+
+        elif isinstance(subtopology, dict):
+            topology[head] = insert_topology(subtopology, tail, target_path)
+
+        else:
+            raise Exception(f'invalid topology {topology} at key {head}')
+
+    return topology
+
 
 
 class Store:
@@ -184,7 +209,10 @@ class Store:
         self.set_path(path, value)
 
     def set_path(self, path, value, context=None):
-        if isinstance(value, Store):
+        if isinstance(self.value, Process) and isinstance(value, Store):
+            self.update_topology(path, value)
+
+        elif isinstance(value, Store):
             # place the store at this point in the tree
             penultimate = path[:-1]
             final = path[-1]
@@ -205,7 +233,6 @@ class Store:
             final = path[-1]
             target = self.establish_path(penultimate, {})
             target.insert({
-                'key': None,
                 'processes': value.generate_processes({'name': final}),
                 'topology': value.generate_topology({'name': final}),
                 'initial_state': value.initial_state()})
@@ -213,7 +240,15 @@ class Store:
             # create the path there and store the value
             store = self.establish_path(path, {})
             store.value = value
-            
+
+    def update_topology(self, port_path, target_store):
+        assert isinstance(self.value, Process), \
+            f'assigning topology from {port_path} to {target_store.path_for()} ' \
+            f'at {self.path_for()} is invalid, not a process'
+        topology = copy.deepcopy(self.topology)
+        self.topology = insert_topology(
+            topology, port_path, self.outer.path_to(target_store))
+
     def path_to(self, to):
         """return a path from self to the given Store"""
 
@@ -227,7 +262,7 @@ class Store:
             '..'
             for _ in self_path]
         path.extend(to_path)
-        return path
+        return tuple(path)
 
     def check_default(self, new_default):
         """Check a new default value.

@@ -1,4 +1,5 @@
 import argparse
+import pytest
 
 from vivarium.composites.toys import Qo, ToyProcess, ToyComposer
 from vivarium.core.store import Store
@@ -26,7 +27,6 @@ def test_insert_process():
     store = get_toy_store()
     process = ToyProcess({'name': 'process3'})
     store.insert({
-        'key': tuple(),
         'processes': {'process3': process},
         'topology': {
             'process3': {
@@ -48,52 +48,68 @@ def test_rewire_ports():
     store['process1']['A'] = store['process3']['A']
     assert store['process1']['A'] == store['process3']['A']
 
+    # assert store['process3']['A'].path_for() ==
+
     # this should give the same result
-    store = get_toy_store()
+    store = test_insert_process()
     store['process1', 'A'] = store['process3', 'A']
     assert store['process1']['A'] == store['process3']['A']
 
     # connect process2's port B to store aaa
-    store['process2']['B'] = store['ccc']
-    assert store['process2', 'B', 'a'] == store['ccc', 'd']
+    store = test_insert_process()
+    store['process2']['B'] = store['aaa']
+    assert store['process2', 'B', 'a'] == store['aaa', 'a']
+
+    # turn variable 'a' into 'd'
+    store = test_insert_process()
+    store['process2']['B', 'a'] = store['aaa', 'b']
+    assert store['process2', 'B', 'a'] == store['aaa', 'b']
+
+    import ipdb;
+    ipdb.set_trace()
 
 
 def test_replace_process():
     """replace a process"""
     store = get_toy_store()
     store['process4'] = ToyProcess({'name': 'process4'})
-    # store['process4']['A'] = Store()  # TODO: this should give an error
 
     # replace a process with different ports entirely
     store['process1'] = Qo({})
 
-    import ipdb; ipdb.set_trace()
-
-    store['process1', 'D', 'd1'] = store['ccc', 'a']
-
-    store['process1'].topology = {
-        'D': {'_path': ('ccc',)}}
-
-    # replace a process with a subset of the same ports
+    # test if initial values are kept the same, and are not overwritten
+    store['A', 'a'] = 1
+    store['process1'] = ToyProcess({})
+    assert store['A', 'a'].value == 1
 
 
-def test_connect_to_new_store():
-    """
-    topology before: 
-    process3: {
-        'A': ('aaa',),
-        'B': ('bbb',),}
-        
-    topology after:
-    process3: {
-        'A': ('ddd',),
-        'B': ('bbb',),}
-    """
+def test_disconnected_store_failure():
     store = get_toy_store()
+    with pytest.raises(Exception):
+        store['process1']['A'] = Store()  # TODO: this should give an error
 
-    # connect port A to a new store ddd
-    store['ddd'] = Store({})
-    store['process3']['A'] = store['ddd']
+
+# def test_connect_to_new_store():
+#     """
+#     topology before:
+#     process3: {
+#         'A': ('aaa',),
+#         'B': ('bbb',),}
+#
+#     topology after:
+#     process3: {
+#         'A': ('ddd',),
+#         'B': ('bbb',),}
+#     """
+#     store = get_toy_store()
+#
+#     # connect a new store to the tree
+#     store['ddd'] = Store({})
+#
+#     store.inspect()
+#
+#     # connect port A to the new store ddd
+#     store['process3']['A'] = store['ddd']
 
 
 def test_set_value():
@@ -123,8 +139,8 @@ if __name__ == '__main__':
         test_rewire_ports()
     if '3' in args.number or run_all:
         test_replace_process()
-    if '4' in args.number or run_all:
-        test_connect_to_new_store()
+    # if '4' in args.number or run_all:
+    #     test_connect_to_new_store()
     if '5' in args.number or run_all:
         test_set_value()
     if '6' in args.number or run_all:
