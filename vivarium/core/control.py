@@ -98,9 +98,9 @@ class Control:
     ) -> OutputDict:
 
         if isinstance(experiment_config, dict):
-            if 'name' in experiment_config:
-                name = experiment_config.pop('name')
-                experiment = self.experiments_library[name]
+            if 'experiment_id' in experiment_config:
+                experiment_id = experiment_config.pop('experiment_id')
+                experiment = self.experiments_library[experiment_id]
             else:
                 experiment = experiment_config.pop('experiment')
             return experiment(**experiment_config)
@@ -125,9 +125,9 @@ class Control:
             plot_config = self.plots_library[plot_config]
 
         if isinstance(plot_config, dict):
-            if 'name' in plot_config:
-                name = plot_config.pop('name')
-                plot = self.plots_library[name]
+            if 'plot_id' in plot_config:
+                plot_id = plot_config.pop('plot_id')
+                plot = self.plots_library[plot_id]
             else:
                 plot = plot_config.pop('plot')
             plot(
