@@ -92,35 +92,56 @@ class Control:
         )
         return parser.parse_args(args)
 
-    def run_experiment(self, experiment_id: str) -> OutputDict:
-        experiment = self.experiments_library[experiment_id]
-        if isinstance(experiment, dict):
-            kwargs = experiment.get('kwargs', {})
-            return experiment['experiment'](**kwargs)
-        return experiment()
+    def run_experiment(
+            self,
+            experiment_config: Union[str, dict]
+    ) -> OutputDict:
+
+        if isinstance(experiment_config, dict):
+            if 'experiment_id' in experiment_config:
+                experiment_id = experiment_config.pop('experiment_id')
+                experiment = self.experiments_library[experiment_id]
+            else:
+                experiment = experiment_config.pop('experiment')
+            return experiment(**experiment_config)
+
+        if isinstance(experiment_config, str):
+            experiment = self.experiments_library[experiment_config]
+            if isinstance(experiment, dict):
+                experiment = experiment.pop('experiment')
+            return experiment()
+
+        raise Exception(f'invalid experiment config: {experiment_config}')
 
     def run_one_plot(
             self,
-            plot_id: str,
+            plot_config: Union[str, dict],
             data: OutputDict,
             out_dir: Optional[str] = None,
     ) -> None:
         data_copy = copy.deepcopy(data)
-        plot_spec = self.plots_library[plot_id]
-        if isinstance(plot_spec, dict):
-            # retrieve plot and config from dictionary
-            config = plot_spec.get('config', {})
-            plot = plot_spec['plot']
+
+        if isinstance(plot_config, str):
+            plot_config = self.plots_library[plot_config]
+
+        if isinstance(plot_config, dict):
+            if 'plot_id' in plot_config:
+                plot_id = plot_config.pop('plot_id')
+                plot = self.plots_library[plot_id]
+            else:
+                plot = plot_config.pop('plot')
             plot(
                 data=data_copy,
-                config=config,
-                out_dir=out_dir)
+                out_dir=out_dir,
+                **plot_config)
 
-        elif callable(plot_spec):
+        elif callable(plot_config):
             # call plot directly
-            plot_spec(
+            plot_config(
                 data=data_copy,
                 out_dir=out_dir)
+        else:
+            raise Exception(f'invalid plot config: {plot_config}')
 
     def run_plots(
             self,
