@@ -1,3 +1,7 @@
+"""
+Experiment to test maximum BSON document size with MongoDB emitter
+"""
+
 import random
 from vivarium.core.experiment import Experiment
 from vivarium.core.process import Process, Composer

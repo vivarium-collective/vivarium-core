@@ -325,7 +325,7 @@ class Experiment:
             self._add_process_path(process, path)
 
     def emit_configuration(self) -> None:
-        """Emit configuration information to the emitter."""
+        """Send experiment configuration to the emitter."""
         data: Dict[str, Any] = {
             'time_created': self.time_created,
             'experiment_id': self.experiment_id,
@@ -335,20 +335,30 @@ class Experiment:
             'processes': serialize_value(self.processes),
             'state': serialize_value(self.state.get_config())
         }
-        emit_config: Dict[str, Any] = {
-            'table': 'configuration',
-            'data': data}
+        self.emit_send(data, table='configuration')
 
-        # get size of data for emit
-        data_bytes = sys.getsizeof(str(emit_config))
-        if data_bytes < 26000000:  # pymongo document size limit
+    def emit_data(self) -> None:
+        """Emit the current simulation state.
+
+        Only variables with ``_emit=True`` are emitted.
+        """
+        data = self.state.emit_data()
+        data.update({
+            'time': self.experiment_time})
+        self.emit_send(serialize_value(data), table='history')
+
+    def emit_send(self, data, table):
+        """Break the emit into small chunks and send them to the emitter"""
+        emit_limit = 26000000
+        data_bytes = sys.getsizeof(str(data))
+        if data_bytes < emit_limit:
+            emit_config: Dict[str, Any] = {
+                'table': table,
+                'data': data}
             self.emitter.emit(emit_config)
         else:
-            warnings.warn('configuration size is too big for the emitter, '
-                          'discarding process parameters')
-            for process_id in emit_config['data']['processes'].keys():
-                emit_config['data']['processes'][process_id] = None
-            self.emitter.emit(emit_config)
+            # TODO -- break data up into smaller chunks
+            warnings.warn('data is too big for the emitter')
 
     def invoke_process(
             self,
@@ -541,18 +551,6 @@ class Experiment:
                     path, deriver, 0)
                 self.apply_update(update.get(), store)
 
-    def emit_data(self) -> None:
-        """Emit the current simulation state.
-
-        Only variables with ``_emit=True`` are emitted.
-        """
-        data = self.state.emit_data()
-        data.update({
-            'time': self.experiment_time})
-        emit_config = {
-            'table': 'history',
-            'data': serialize_value(data)}
-        self.emitter.emit(emit_config)
 
     def send_updates(
             self,
