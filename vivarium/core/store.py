@@ -869,13 +869,18 @@ class Store:
             if '_updater' in update:
                 update = update.get('_value', self.default)
 
-        if updater is None:
-            raise Exception(
-                f"updater is absent at path {self.path_for()} "
-                f"with value {self.value} for {pformat(update)}"
-            )
-
-        self.value = updater(self.value, update)
+        try:
+            self.value = updater(self.value, update)
+        except:
+            # provide error messages
+            if updater is None:
+                raise Exception(
+                    f"updater is absent at path {self.path_for()} "
+                    f"with value {self.value} for update {pformat(update)}")
+            else:
+                raise Exception(
+                    f"failed update at path {self.path_for} "
+                    f"with value {self.value} for update {pformat(update)}")
 
         return EMPTY_UPDATES
 

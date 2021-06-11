@@ -144,17 +144,17 @@ class ToyCompartment(Composer):
     def generate_topology(self, config):
         return{
             'metabolism': {
-                'pool': 'cytoplasm'},
+                'pool': ('cytoplasm',)},
             'transport': {
-                'external': 'periplasm',
-                'internal': 'cytoplasm'},
+                'external': ('periplasm',),
+                'internal': ('cytoplasm',)},
             'death': {
-                'global': '',
-                'compartment': 'cytoplasm'},
+                'global': tuple(),
+                'compartment': ('cytoplasm',)},
             'external_volume': {
-                'compartment': 'periplasm'},
+                'compartment': ('periplasm',)},
             'internal_volume': {
-                'compartment': 'cytoplasm'}}
+                'compartment': ('cytoplasm',)}}
 
 
 class ToyMetabolism(Process):
@@ -450,21 +450,21 @@ class PoQo(Composer):
         return {
             'po': {
                 'A': {
-                    '_path': 'aaa',
-                    'a2': 'x',
-                    'a3': '<ccc>a3'},
-                'B': 'bbb',
+                    '_path': ('aaa',),
+                    'a2': ('x',),
+                    'a3': ('..', 'ccc', 'a3')},
+                'B': ('bbb',),
             },
             'qo': {
                 'D': {
-                    '_path': '',
-                    'd1': 'aaa>d1',
-                    'd2': 'aaa>d2',
-                    'd3': 'ccc>d3'},
+                    '_path': (),
+                    'd1': ('aaa', 'd1'),
+                    'd2': ('aaa', 'd2'),
+                    'd3': ('ccc', 'd3')},
                 'E': {
-                    '_path': '',
-                    'e1': 'aaa>x',
-                    'e2': 'bbb>e2'}
+                    '_path': (),
+                    'e1': ('aaa', 'x'),
+                    'e2': ('bbb', 'e2')}
             },
         }
 
