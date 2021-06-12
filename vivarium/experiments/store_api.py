@@ -66,6 +66,24 @@ def test_rewire_ports():
     assert store['process2', 'B', 'a'] == store['aaa', 'b']
 
 
+def test_embedded_rewire_ports():
+    """rewire process ports embedded down in the hierarchy"""
+    composer = ToyComposer({
+        'A':  {'name': 'process1'},
+        'B': {'name': 'process2'}})
+
+    # embed further down a path
+    composite = composer.generate(path=('down1', 'down2'))
+    store = composite.generate_store()
+
+    # assert process2 is still connected to ccc
+    assert store['down1', 'down2', 'process2', 'B'] == store['down1', 'down2', 'ccc']
+
+    # rewire process2 port B to aaa, and assert change of wiring
+    store['down1', 'down2', 'process2', 'B'] = store['down1', 'down2', 'aaa']
+    assert store['down1', 'down2', 'process2', 'B', 'a'] == store['down1', 'down2', 'aaa', 'a']
+
+
 def test_replace_process():
     """replace a process"""
     store = get_toy_store()
@@ -75,38 +93,39 @@ def test_replace_process():
     store['process1'] = Qo({})
 
     # test if initial values are kept the same, and are not overwritten
-    store['A', 'a'] = 1
+    store['A', 'a'] = 11
     store['process1'] = ToyProcess({})
-    assert store['A', 'a'].value == 1
+    assert store['A', 'a'].value == 11
 
 
-def test_disconnected_store_failure():
-    store = get_toy_store()
-    with pytest.raises(Exception):
-        store['process1']['A'] = Store()  # TODO: this should give an error
-
-
-# def test_connect_to_new_store():
-#     """
-#     topology before:
-#     process3: {
-#         'A': ('aaa',),
-#         'B': ('bbb',),}
-#
-#     topology after:
-#     process3: {
-#         'A': ('ddd',),
-#         'B': ('bbb',),}
-#     """
+# def test_disconnected_store_failure():
 #     store = get_toy_store()
-#
-#     # connect a new store to the tree
-#     store['ddd'] = Store({})
-#
-#     store.inspect()
-#
-#     # connect port A to the new store ddd
-#     store['process3']['A'] = store['ddd']
+#     with pytest.raises(Exception):
+#         store['process1']['A'] = Store()
+
+
+def test_connect_to_new_store():
+    """
+    topology before:
+    process3: {
+        'A': ('aaa',),
+        'B': ('bbb',),}
+
+    topology after:
+    process3: {
+        'A': ('ddd',),
+        'B': ('bbb',),}
+    """
+    store = get_toy_store()
+
+    # connect a new store to the tree
+    store['ddd'] = Store({})
+
+    # connect port A to the new store ddd
+    store['process2']['A'] = store['ddd']
+
+    assert store['process2'].topology == {'A': ('ddd',), 'B': ('ccc',)}
+    assert store['ddd']['a'] == 0, "store 'ddd' variable 'a' is not being initialized to the default value of 0"
 
 
 def test_set_value():
@@ -123,23 +142,26 @@ def test_run_store_in_experiment():
     experiment.update(10)
 
 
+test_library = {
+    '1': test_insert_process,
+    '2': test_rewire_ports,
+    '3': test_embedded_rewire_ports,
+    '4': test_replace_process,
+    # '5': test_disconnected_store_failure,
+    '6': test_connect_to_new_store,
+    '7': test_set_value,
+    '8': test_run_store_in_experiment,
+}
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='store API')
-    parser.add_argument('--number', '-n', default=[], nargs='+', help='test ids to run')
+    parser.add_argument('--name', '-n', default=[], nargs='+', help='test ids to run')
     args = parser.parse_args()
-    run_all = not args.number
+    run_all = not args.name
 
-    if '1' in args.number or run_all:
-        test_insert_process()
-    if '2' in args.number or run_all:
-        test_rewire_ports()
-    if '3' in args.number or run_all:
-        test_replace_process()
-    # if '4' in args.number or run_all:
-    #     test_connect_to_new_store()
-    if '5' in args.number or run_all:
-        test_set_value()
-    if '6' in args.number or run_all:
-        test_run_store_in_experiment()
-
+    for name in args.name:
+        test_library[name]()
+    if run_all:
+        for name, test in test_library.items():
+            test()
