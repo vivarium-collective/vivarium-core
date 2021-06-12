@@ -57,16 +57,13 @@ def test_rewire_ports():
 
     # connect process2's port B to store aaa
     store = test_insert_process()
-    store['process2']['B'] = store['aaa']
+    store['process2', 'B'] = store['aaa']
     assert store['process2', 'B', 'a'] == store['aaa', 'a']
 
     # turn variable 'a' into 'd'
     store = test_insert_process()
-    store['process2']['B', 'a'] = store['aaa', 'b']
+    store['process2', 'B', 'a'] = store['aaa', 'b']
     assert store['process2', 'B', 'a'] == store['aaa', 'b']
-
-    import ipdb;
-    ipdb.set_trace()
 
 
 def test_replace_process():

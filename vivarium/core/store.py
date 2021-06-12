@@ -118,6 +118,9 @@ def topology_path(topology, path):
                 else:
                     return topology_path(subtopology, tail)
 
+def topology_length(topology):
+    pass
+
 def insert_topology(topology, port_path, target_path):
     assert isinstance(port_path, tuple)
     assert len(port_path) > 0
@@ -129,9 +132,11 @@ def insert_topology(topology, port_path, target_path):
     else:
         subtopology = topology[head]
         if isinstance(subtopology, tuple):
-            new_topology = {
-                '_path': subtopology,
-                head: insert_topology({}, tail, target_path)}
+            relative_path = tuple(['..' for _ in subtopology]) + target_path
+            new_topology = insert_topology(
+                {'_path': subtopology},
+                tail,
+                relative_path)
             topology[head] = new_topology
 
         elif isinstance(subtopology, dict):
@@ -208,46 +213,69 @@ class Store:
             path = (path,)
         self.set_path(path, value)
 
-    def set_path(self, path, value, context=None):
+    def set_path(self, path, value):
         if isinstance(self.value, Process) and isinstance(value, Store):
             self.update_topology(path, value)
 
-        elif isinstance(value, Store):
-            # place the store at this point in the tree
-            penultimate = path[:-1]
-            final = path[-1]
-            target = self.establish_path(penultimate, {})
-            target.inner[final] = value
-            value.outer = target
-        # elif isinstance(value, Composer):
-        #     penultimate = path[:-1]
-        #     final = path[-1]
-        #     target = self.establish_path(penultimate, {})
-        #     target.insert({
-        #         'key': final,
-        #         'processes': value.generate_processes(),
-        #         'topology': value.generate_topology(),
-        #         'initial_state': value.initial_state()})
-        elif isinstance(value, Process):
-            penultimate = path[:-1]
-            final = path[-1]
-            target = self.establish_path(penultimate, {})
-            target.insert({
-                'processes': value.generate_processes({'name': final}),
-                'topology': value.generate_topology({'name': final}),
-                'initial_state': value.initial_state()})
+        # this case only when called directly
+        elif len(path) == 0:
+            if isinstance(value, Store):
+                self.value = value.value
+            else:
+                self.value = value
+
+        elif len(path) == 1:
+            final = path[0]
+            if isinstance(value, Store):
+                if value.outer:
+                    raise Exception(f"the store being inserted at {path} is already in a tree at {value.path_for()}: {value.get_value()}")
+                else:
+                    # place the store at this point in the tree
+                    self.inner[final] = value
+                    value.outer = self
+
+            elif isinstance(value, Process):
+                self.insert({
+                    'processes': value.generate_processes(), # {'name': final}),
+                    'topology': value.generate_topology(), # {'name': final}),
+                    'initial_state': value.initial_state()})
+
+            else:
+                # create the path there and store the value
+                down = self.establish_path((final,), {})
+                down.value = value
+
+        elif len(path) > 1:
+            if isinstance(self.value, Process):
+                down = self.establish_path(path, {})
+                down.set_path((), value)
+            else:
+                head = path[0]
+                tail = path[1:]
+                down = self.establish_path((head,), {})
+                down.set_path(tail, value)
+
         else:
-            # create the path there and store the value
-            store = self.establish_path(path, {})
-            store.value = value
+            raise Exception("this should never happen")
 
     def update_topology(self, port_path, target_store):
+        """
+        Can only be at a process node
+        """
+
         assert isinstance(self.value, Process), \
             f'assigning topology from {port_path} to {target_store.path_for()} ' \
             f'at {self.path_for()} is invalid, not a process'
+
         topology = copy.deepcopy(self.topology)
         self.topology = insert_topology(
             topology, port_path, self.outer.path_to(target_store))
+
+        self.value.schema = self.value.get_schema()
+        self.outer.topology_ports(
+            self.value.schema,
+            self.topology,
+            source=self.path_for())
 
     def path_to(self, to):
         """return a path from self to the given Store"""
@@ -1358,9 +1386,9 @@ class Store:
                     subschema_config = {
                         '_subschema': subschema}
                     if isinstance(path, dict):
-                        node, path = self.outer_path(
+                        node, subpath = self.outer_path(
                             path, source=source)
-                        node.merge_subtopology(path)
+                        node.merge_subtopology(subpath)
                         node.apply_config(subschema_config)
                     else:
                         node = self.establish_path(
@@ -1371,12 +1399,12 @@ class Store:
                     node.apply_defaults()
 
                 elif isinstance(path, dict):
-                    node, path = self.outer_path(
+                    node, subpath = self.outer_path(
                         path, source=source)
 
                     node.topology_ports(
                         subschema,
-                        path,
+                        subpath,
                         source=source)
 
                 else:
