@@ -6,7 +6,7 @@ Engulf Process
 
 import os
 
-from vivarium.core.experiment import pp
+from vivarium.core.engine import pp
 from vivarium.core.process import (
     Deriver,
 )

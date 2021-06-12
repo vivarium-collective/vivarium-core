@@ -4,7 +4,7 @@ import pytest
 from vivarium.composites.toys import Qo, ToyProcess, ToyComposer
 from vivarium.core.store import Store
 from vivarium.core.process import Process
-from vivarium.core.experiment import Experiment
+from vivarium.core.engine import Engine
 from vivarium.core.store import Store, topology_path
 
 
@@ -138,7 +138,7 @@ def test_set_value():
 def test_run_store_in_experiment():
     """put a store in an experiment and run it"""
     store = get_toy_store()
-    experiment = Experiment(store)
+    experiment = Engine(store)
     experiment.update(10)
 
 

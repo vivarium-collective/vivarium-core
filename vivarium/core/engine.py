@@ -1,9 +1,9 @@
 """
 ==========
-Experiment
+Engine
 ==========
 
-Experiment runs the simulation.
+Engine runs the simulation.
 """
 
 import sys
@@ -201,7 +201,7 @@ class InvokeProcess:
         return self.update
 
 
-class Experiment:
+class Engine:
     def __init__(self, config: Dict[str, Any]) -> None:
         """Defines simulations
 
@@ -703,7 +703,7 @@ class Experiment:
     def print_display(self) -> None:
         """Print simulation metadata."""
         date, time = self.time_created.split('.')
-        print('\nExperiment ID: {}'.format(self.experiment_id))
+        print('\nSimulation ID: {}'.format(self.experiment_id))
         print('Created: {} at {}'.format(
             date[4:6] + '/' + date[6:8] + '/' + date[0:4],
             time[0:2] + ':' + time[2:4] + ':' + time[4:6]))
@@ -887,7 +887,7 @@ def test_recursive_store() -> None:
 def test_topology_ports() -> None:
     proton = _make_proton()
 
-    experiment = Experiment(proton)
+    experiment = Engine(proton)
 
     log.debug(pf(experiment.state.get_config(True)))
 
@@ -960,7 +960,7 @@ def test_timescales() -> None:
         'fast': {'state': ('state',)}}
 
     emitter = {'type': 'null'}
-    experiment = Experiment({
+    experiment = Engine({
         'processes': processes,
         'topology': topology,
         'emitter': emitter,
@@ -1018,7 +1018,7 @@ def test_2_store_1_port() -> None:
     # run experiment
     split_port = SplitPort({})
     network = split_port.generate()
-    exp = Experiment({
+    exp = Engine({
         'processes': network['processes'],
         'topology': network['topology']})
 
@@ -1078,7 +1078,7 @@ def test_multi_port_merge() -> None:
     # run experiment
     merge_port = MergePort({})
     network = merge_port.generate()
-    exp = Experiment({
+    exp = Engine({
         'processes': network['processes'],
         'topology': network['topology']})
 
@@ -1097,7 +1097,7 @@ def test_complex_topology() -> None:
     outer_path = ('universe', 'agent')
     pq = PoQo({})
     pq_composite = pq.generate(path=outer_path)
-    experiment = Experiment(pq_composite)
+    experiment = Engine(pq_composite)
 
     # get the initial state
     initial_state = experiment.state.get_value()
@@ -1122,7 +1122,7 @@ def test_complex_topology() -> None:
 
 def test_parallel() -> None:
     proton = _make_proton(parallel=True)
-    experiment = Experiment(proton)
+    experiment = Engine(proton)
 
     log.debug(pf(experiment.state.get_config(True)))
 
@@ -1215,7 +1215,7 @@ def test_units() -> None:
     # run experiment
     multi_unit = MultiUnits({})
     network = multi_unit.generate()
-    exp = Experiment({
+    exp = Engine({
         'processes': network['processes'],
         'topology': network['topology']})
 
@@ -1248,7 +1248,7 @@ def test_custom_divider() -> None:
     })
     composite = composer.generate(path=('agents', agent_id))
 
-    experiment = Experiment({
+    experiment = Engine({
         'processes': composite.processes,
         'topology': composite.topology,
     })

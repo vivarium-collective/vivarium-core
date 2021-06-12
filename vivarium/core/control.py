@@ -15,7 +15,7 @@ from typing import (
     Any, Dict, Optional, Union, Sequence)
 from vivarium.core.types import OutputDict
 
-from vivarium.core.experiment import timestamp
+from vivarium.core.engine import timestamp
 from vivarium.core.composition import (
     test_composer,
     BASE_OUT_DIR,

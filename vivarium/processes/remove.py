@@ -7,7 +7,7 @@ Remove Process
 import os
 from typing import Any, Dict
 
-from vivarium.core.experiment import pp
+from vivarium.core.engine import pp
 from vivarium.core.process import (
     Deriver,
 )

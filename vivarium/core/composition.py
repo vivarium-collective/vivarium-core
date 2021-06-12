@@ -17,7 +17,7 @@ from vivarium.core.types import (
 
 from vivarium.core.process import Process
 from vivarium.core.composer import Composer, Composite
-from vivarium.core.experiment import Experiment
+from vivarium.core.engine import Engine
 from vivarium.library.dict_utils import (
     deep_merge,
     deep_merge_check,
@@ -141,7 +141,7 @@ def compose_experiment(
         hierarchy: Dict[str, Any],
         settings: Optional[Dict[str, Any]] = None,
         initial_state: Optional[Dict[str, Any]] = None,
-) -> Experiment:
+) -> Engine:
     """Make an experiment with arbitrarily embedded compartments.
 
     Args:
@@ -172,7 +172,7 @@ def compose_experiment(
     for key, setting in settings.items():
         if key in experiment_config_keys:
             experiment_config[key] = setting
-    return Experiment(experiment_config)
+    return Engine(experiment_config)
 
 
 # experiment loading functions
@@ -234,18 +234,18 @@ def process_in_experiment(
         process: Process,
         settings: Dict[str, Any] = None,
         initial_state: Dict[str, Any] = None,
-) -> Experiment:
-    """Put a Process in an Experiment
+) -> Engine:
+    """Put a Process in an Engine
 
     Args:
-        process: the Process to put into the Experiment
+        process: the Process to put into the Engine
         settings: a dictionary of optional configuration options,
             keywords include timeline, environment, and topology that
             add to or modify the Process.
         initial_state: initial state to overrides the defaults.
 
     Returns:
-        an :term:`Experiment`.
+        an :term:`Engine`.
     """
     settings = settings or {}
     initial_state = initial_state or {}
@@ -272,8 +272,8 @@ def composite_in_experiment(
         composite: Composite,
         settings: Dict[str, Any] = None,
         initial_state: Dict[str, Any] = None,
-) -> Experiment:
-    """Put a Composite in an Experiment
+) -> Engine:
+    """Put a Composite in an Engine
 
     Args:
         composite: the :term:`Composite` object.
@@ -283,7 +283,7 @@ def composite_in_experiment(
         initial_state: initial state to overrides the defaults.
 
     Returns:
-        an :term:`Experiment`.
+        an :term:`Engine`.
     """
     settings = settings or {}
     initial_state = initial_state or {}
@@ -309,7 +309,7 @@ def composite_in_experiment(
     for key, setting in settings.items():
         if key in experiment_config_keys:
             experiment_config[key] = setting
-    return Experiment(experiment_config)
+    return Engine(experiment_config)
 
 
 def composer_in_experiment(
@@ -318,8 +318,8 @@ def composer_in_experiment(
         initial_state: Dict[str, Any] = None,
         config: Dict[str, Any] = None,
         outer_path: HierarchyPath = (),
-) -> Experiment:
-    """Generate a Composite in an Experiment
+) -> Engine:
+    """Generate a Composite in an Engine
 
     Args:
         composer: a :term:`Composer` object.
@@ -331,7 +331,7 @@ def composer_in_experiment(
         outer_path: path to the processes and topology
 
     Returns:
-        an :term:`Experiment`
+        an :term:`Engine`
     """
     composite = composer.generate(config, outer_path)
     return composite_in_experiment(
@@ -347,7 +347,7 @@ def simulate_process(
         process: Process,
         settings: Optional[Dict[str, Any]] = None
 ) -> Dict:
-    """Put a :term:`Process` in an :term:`Experiment` and simulate it"""
+    """Put a :term:`Process` in an :term:`Engine` and simulate it"""
     settings = settings or {}
     experiment = process_in_experiment(process, settings)
     return simulate_experiment(experiment, settings)
@@ -357,7 +357,7 @@ def simulate_composite(
         composite: Composite,
         settings: Optional[Dict[str, Any]] = None
 ) -> Dict:
-    """Put a :term:`Composite` in an :term:`Experiment` and simulate it"""
+    """Put a :term:`Composite` in an :term:`Engine` and simulate it"""
     settings = settings or {}
     experiment = composite_in_experiment(composite, settings)
     return simulate_experiment(experiment, settings)
@@ -368,7 +368,7 @@ def simulate_composer(
         settings: Optional[Dict[str, Any]] = None,
         config: Optional[Dict[str, Any]] = None,
 ) -> Dict:
-    """Initialize a :term:`Composer` in an :term:`Experiment` and simulate it"""
+    """Initialize a :term:`Composer` in an :term:`Engine` and simulate it"""
     settings = settings or {}
     config = config or {}
     outer_path = settings.get('outer_path', tuple())
@@ -382,10 +382,10 @@ def simulate_composer(
 
 
 def simulate_experiment(
-        experiment: Experiment,
+        experiment: Engine,
         settings: Optional[Dict[str, Any]] = None
 ) -> Dict:
-    """Simulate an :term:`Experiment`.
+    """Simulate an :term:`Engine`.
 
     Args:
         experiment: a configured experiment

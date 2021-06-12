@@ -229,7 +229,7 @@ class Composer(metaclass=abc.ABCMeta):
             processes dictionary, and ``topology``, which has a value of
             a topology dictionary. Both are suitable to be passed to the
             constructor for
-            :py:class:`vivarium.core.experiment.Experiment`.
+            :py:class:`vivarium.core.engine.Engine`.
         """
         if config is None:
             config = self.config

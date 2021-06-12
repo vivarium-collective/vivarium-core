@@ -11,7 +11,7 @@ from vivarium.core.composition import (
     COMPOSER_KEY,
     PROCESS_OUT_DIR,
 )
-from vivarium.core.experiment import (
+from vivarium.core.engine import (
     pp
 )
 
