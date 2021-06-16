@@ -249,23 +249,28 @@ class Engine:
         self.initial_state = config.get('initial_state', {})
         self.emit_step = config.get('emit_step', 1.0)
 
-        # get proceses, topology, and store
-        self.state: Store = config.get('store')
-        self.processes: Processes = config.get('processes')
-        self.topology: Topology = config.get('topology')
+        # get the processes, topology, and store
+        if 'processes' in config \
+                and 'topology' in config \
+                and 'state' not in config:
+            self.processes: Processes = config['processes']
+            self.topology: Topology = config['topology']
 
-        if self.processes and self.topology and not self.state:
             # initialize the store
-            self.state = generate_state(
+            self.state: Store = generate_state(
                 self.processes,
                 self.topology,
                 self.initial_state)
-        elif self.state:
+
+        elif 'state' in config:
+            self.state = config['store']
+
             # get processes and topology from the store
             self.processes = self.state.get_processes()
             self.topology = self.state.get_topology()
         else:
-            raise Exception('load either store or (processes and topology) into Engine')
+            raise Exception(
+                'load either store or (processes and topology) into Engine')
 
         # display settings
         self.experiment_name = config.get(

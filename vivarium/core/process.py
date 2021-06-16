@@ -118,6 +118,7 @@ class Process(metaclass=abc.ABCMeta):
             dict: Subclass implementations must return a dictionary
             mapping state paths to initial values.
         """
+        _ = config
         return {}
 
     def generate_processes(
@@ -141,7 +142,7 @@ class Process(metaclass=abc.ABCMeta):
     def generate(
             self,
             config: Optional[dict] = None,
-            path: HierarchyPath = '') -> Dict:
+            path: HierarchyPath = ()) -> Dict:
         if config is None:
             config = self.parameters
         else:

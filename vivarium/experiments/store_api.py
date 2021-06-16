@@ -2,10 +2,9 @@ import argparse
 import pytest
 
 from vivarium.composites.toys import Qo, ToyProcess, ToyComposer
-from vivarium.core.store import Store
 from vivarium.core.process import Process
 from vivarium.core.engine import Engine
-from vivarium.core.store import Store, topology_path
+from vivarium.core.store import Store
 
 
 def get_toy_store() -> Store:
@@ -34,9 +33,9 @@ def test_insert_process() -> Store:
                 'B': ('aaa',)}},
         'initial_state': {}})
 
-    path, remaining = topology_path(store.get_topology(), ('process1', 'A', 'b'))
-
-    assert isinstance(store['process3'].value, Process), 'process3 not inserted successfully'
+    assert isinstance(
+        store['process3'].value, Process), \
+        'process3 not inserted successfully'
     return store
 
 
@@ -75,11 +74,14 @@ def test_embedded_rewire_ports() -> None:
     store = composite.generate_store()
 
     # assert process2 is still connected to ccc
-    assert store['down1', 'down2', 'process2', 'B'] == store['down1', 'down2', 'ccc']
+    assert store['down1', 'down2', 'process2', 'B'] == \
+           store['down1', 'down2', 'ccc']
 
     # rewire process2 port B to aaa, and assert change of wiring
-    store['down1', 'down2', 'process2', 'B'] = store['down1', 'down2', 'aaa']
-    assert store['down1', 'down2', 'process2', 'B', 'a'] == store['down1', 'down2', 'aaa', 'a']
+    store['down1', 'down2', 'process2', 'B'] = \
+        store['down1', 'down2', 'aaa']
+    assert store['down1', 'down2', 'process2', 'B', 'a'] == \
+           store['down1', 'down2', 'aaa', 'a']
 
 
 def test_replace_process() -> None:
@@ -129,7 +131,7 @@ def test_disconnected_store_failure() -> None:
 #     store['process2']['A'] = Store({})
 #
 #     assert store['process2'].topology == {'A': ('ddd',), 'B': ('ccc',)}
-#     assert store['ddd']['a'] == 0, "store 'ddd' variable 'a' is not being initialized to the default value of 0"
+#     assert store['ddd']['a'] == 0
 
 
 def test_set_value() -> None:
@@ -167,7 +169,8 @@ test_library = {
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='store API')
-    parser.add_argument('--name', '-n', default=[], nargs='+', help='test ids to run')
+    parser.add_argument(
+        '--name', '-n', default=[], nargs='+', help='test ids to run')
     args = parser.parse_args()
     run_all = not args.name
 

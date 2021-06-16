@@ -2,9 +2,12 @@ import abc
 import copy
 from typing import Dict, Any, Optional, Iterable, List
 
-from vivarium.core.process import _override_schemas, assoc_in, _get_parameters, Process
-from vivarium.core.store import Store, generate_state
-from vivarium.core.types import Processes, Topology, HierarchyPath, State, Schema
+from vivarium.core.process import (
+    _override_schemas, assoc_in, _get_parameters, Process)
+from vivarium.core.store import (
+    Store, generate_state)
+from vivarium.core.types import (
+    Processes, Topology, HierarchyPath, State, Schema)
 from vivarium.library.datum import Datum
 from vivarium.library.dict_utils import deep_merge
 from vivarium.library.topology import inverse_topology
@@ -71,7 +74,7 @@ class Composite(Datum):
         super().__init__(config)
         _override_schemas(self._schema, self.processes)
 
-    def generate_store(self, config: Optional[dict] = None) -> 'Store':
+    def generate_store(self, config: Optional[dict] = None) -> Store:
         config = config or {}
         initial_state = self.initial_state(config)
         return generate_state(
@@ -302,7 +305,8 @@ class MetaComposer(Composer):
             new_processes = composer.generate_processes(composer.config)
             if set(processes.keys()) & set(new_processes.keys()):
                 raise ValueError(
-                    f"{set(processes.keys())} and {set(new_processes.keys())} "
+                    f"{set(processes.keys())} and "
+                    f"{set(new_processes.keys())} "
                     f"in contain overlapping keys")
             processes.update(new_processes)
         return processes
