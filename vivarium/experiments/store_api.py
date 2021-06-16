@@ -50,12 +50,12 @@ def test_rewire_ports() -> None:
     store['process1', 'port1'] = store['process3', 'port1']
     assert store['process1']['port1'] == store['process3']['port1']
 
-    # connect process2's port B to store aaa
+    # connect process2's port2 to store store_A
     store = test_insert_process()
     store['process2', 'port2'] = store['store_A']
     assert store['process2', 'port2', 'var_a'] == store['store_A', 'var_a']
 
-    # turn variable 'a' into 'd'
+    # turn variable 'var_a' into 'var_b'
     store = test_insert_process()
     store['process2', 'port2', 'var_a'] = store['store_A', 'var_b']
     assert store['process2', 'port2', 'var_a'] == store['store_A', 'var_b']
@@ -69,11 +69,11 @@ def test_embedded_rewire_ports() -> None:
     composite = composer.generate(path=('down1', 'down2'))
     store = composite.generate_store()
 
-    # assert process2 is still connected to ccc
+    # assert process2 is still connected to store_C
     assert store['down1', 'down2', 'process2', 'port2'] == \
            store['down1', 'down2', 'store_C']
 
-    # rewire process2 port B to aaa, and assert change of wiring
+    # rewire process2 port2 to store_A, and assert change of wiring
     store['down1', 'down2', 'process2', 'port2'] = \
         store['down1', 'down2', 'store_A']
     assert store['down1', 'down2', 'process2', 'port2', 'var_a'] == \
@@ -100,10 +100,10 @@ def test_disconnected_store_failure() -> None:
 
     with pytest.raises(Exception):
         store['ddd'] = Store({})
-        store['process1', 'A'] = store['ddd']
+        store['process1', 'port1'] = store['store_D']
 
     with pytest.raises(Exception):
-        store['process1', 'A'] = Store({'_value': 'NEW STORE'})
+        store['process1', 'port1'] = Store({'_value': 'NEW STORE'})
 
 
 # def test_connect_to_new_store() -> None:
