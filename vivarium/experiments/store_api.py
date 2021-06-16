@@ -48,8 +48,6 @@ def test_rewire_ports():
     store['process1']['A'] = store['process3']['A']
     assert store['process1']['A'] == store['process3']['A']
 
-    # assert store['process3']['A'].path_for() ==
-
     # this should give the same result
     store = test_insert_process()
     store['process1', 'A'] = store['process3', 'A']
@@ -98,34 +96,40 @@ def test_replace_process():
     assert store['A', 'a'].value == 11
 
 
-# def test_disconnected_store_failure():
-#     store = get_toy_store()
-#     with pytest.raises(Exception):
-#         store['process1']['A'] = Store()
-
-
-def test_connect_to_new_store():
-    """
-    topology before:
-    process3: {
-        'A': ('aaa',),
-        'B': ('bbb',),}
-
-    topology after:
-    process3: {
-        'A': ('ddd',),
-        'B': ('bbb',),}
-    """
+def test_disconnected_store_failure():
+    """Test that inserting a Store into the tree results in an exception"""
     store = get_toy_store()
 
-    # connect a new store to the tree
-    store['ddd'] = Store({})
+    with pytest.raises(Exception):
+        store['ddd'] = Store({})
+        store['process1', 'A'] = store['ddd']
 
-    # connect port A to the new store ddd
-    store['process2']['A'] = store['ddd']
+    with pytest.raises(Exception):
+        store['process1', 'A'] = Store({'_value': 'NEW STORE'})
 
-    assert store['process2'].topology == {'A': ('ddd',), 'B': ('ccc',)}
-    assert store['ddd']['a'] == 0, "store 'ddd' variable 'a' is not being initialized to the default value of 0"
+
+# def test_connect_to_new_store():
+#     """
+#     topology before:
+#     process3: {
+#         'A': ('aaa',),
+#         'B': ('bbb',),}
+#
+#     topology after:
+#     process3: {
+#         'A': ('ddd',),
+#         'B': ('bbb',),}
+#     """
+#     store = get_toy_store()
+#
+#     # connect a new store to the tree
+#     store['ddd'] = Store({})
+#
+#     # connect port A to the new store ddd
+#     store['process2']['A'] = Store({})
+#
+#     assert store['process2'].topology == {'A': ('ddd',), 'B': ('ccc',)}
+#     assert store['ddd']['a'] == 0, "store 'ddd' variable 'a' is not being initialized to the default value of 0"
 
 
 def test_set_value():
@@ -138,8 +142,15 @@ def test_set_value():
 def test_run_store_in_experiment():
     """put a store in an experiment and run it"""
     store = get_toy_store()
-    experiment = Engine(store)
+    experiment = Engine({'store': store})
     experiment.update(10)
+    data = experiment.emitter.get_data()
+
+    assert experiment.processes['process1'] == store['process1'].value
+    assert experiment.processes['process2'] == store['process2'].value
+    assert data[10.0] != data[0.0]
+
+    print(data)
 
 
 test_library = {
@@ -147,8 +158,8 @@ test_library = {
     '2': test_rewire_ports,
     '3': test_embedded_rewire_ports,
     '4': test_replace_process,
-    # '5': test_disconnected_store_failure,
-    '6': test_connect_to_new_store,
+    '5': test_disconnected_store_failure,
+    # '6': test_connect_to_new_store,
     '7': test_set_value,
     '8': test_run_store_in_experiment,
 }

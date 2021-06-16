@@ -202,7 +202,10 @@ class InvokeProcess:
 
 
 class Engine:
-    def __init__(self, config: Dict[str, Any]) -> None:
+    def __init__(
+            self,
+            config: Dict[str, Any]
+    ) -> None:
         """Defines simulations
 
         Arguments:
@@ -243,10 +246,24 @@ class Engine:
         self.config = config
         self.experiment_id = config.get(
             'experiment_id', str(uuid.uuid1()))
-        self.processes = config['processes']
-        self.topology = config['topology']
+        self.state = config.get('store')
+        self.processes = config.get('processes')
+        self.topology = config.get('topology')
         self.initial_state = config.get('initial_state', {})
         self.emit_step = config.get('emit_step', 1.0)
+
+        if self.processes and self.topology and not self.state:
+            # initialize the store
+            self.state = generate_state(
+                self.processes,
+                self.topology,
+                self.initial_state)
+        elif self.state:
+            # get processes and topology from the store
+            self.processes = self.state.get_processes()
+            self.topology = self.state.get_topology()
+        else:
+            raise Exception('load either store or (processes and topology) into Engine')
 
         # display settings
         self.experiment_name = config.get(
@@ -266,12 +283,6 @@ class Engine:
         self.process_paths: Dict[HierarchyPath, Process] = {}
         self.deriver_paths: Dict[HierarchyPath, Process] = {}
         self._find_process_paths(self.processes)
-
-        # initialize the state
-        self.state = generate_state(
-            self.processes,
-            self.topology,
-            self.initial_state)
 
         # emitter settings
         emitter_config = config.get('emitter', 'timeseries')
@@ -300,11 +311,6 @@ class Engine:
         log.info('\nTOPOLOGY:')
         log.info(pf(self.topology))
 
-        # log.info('\nSTATE:')
-        # log.info(pf(self.state.get_value()))
-        #
-        # log.info('\nCONFIG:')
-        # log.info(pf(self.state.get_config(True)))
 
     def _add_process_path(
             self,

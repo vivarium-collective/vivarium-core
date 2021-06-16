@@ -215,6 +215,10 @@ class Store:
 
     def set_path(self, path, value):
         if isinstance(self.value, Process) and isinstance(value, Store):
+            if self.independent_store(value):
+                raise Exception(
+                    f"the store being inserted at {path} is from a different tree "
+                    f"at {value.path_for()}: {value.get_value()}")
             self.update_topology(path, value)
 
         # this case only when called directly
@@ -227,12 +231,18 @@ class Store:
         elif len(path) == 1:
             final = path[0]
             if isinstance(value, Store):
-                if value.outer:
-                    raise Exception(f"the store being inserted at {path} is already in a tree at {value.path_for()}: {value.get_value()}")
-                else:
-                    # place the store at this point in the tree
-                    self.inner[final] = value
-                    value.outer = self
+                raise Exception(
+                    f"the store being inserted at {path} is already in a tree "
+                    f"at {value.path_for()}: {value.get_value()}")
+
+                # TODO: make it so a Store can be added here if it has no outer
+                # if value.outer:
+                #     raise Exception(f"the store being inserted at {path} is already in a tree
+                #     at {value.path_for()}: {value.get_value()}")
+                # else:
+                #     # place the store at this point in the tree
+                #     self.inner[final] = value
+                #     value.outer = self
 
             elif isinstance(value, Process):
                 self.insert({
@@ -276,6 +286,9 @@ class Store:
             self.value.schema,
             self.topology,
             source=self.path_for())
+
+    def independent_store(self, store):
+        return self.top() != store.top()
 
     def path_to(self, to):
         """return a path from self to the given Store"""
@@ -584,6 +597,21 @@ class Store:
         if self.subschema:
             return {}
         return self.value
+
+    def get_processes(self):
+        """
+        Get all processes in this store.
+        """
+
+        if self.inner:
+            inner_processes = {}
+            for key, child in self.inner.items():
+                if isinstance(child.value, Process):
+                    inner_processes[key] = child.value
+            if inner_processes:
+                return inner_processes
+        elif isinstance(self.value, Process):
+            return self.value
 
     def get_topology(self):
         """

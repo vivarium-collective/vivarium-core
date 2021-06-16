@@ -533,11 +533,11 @@ class ToyProcess(Process):
     def ports_schema(self) -> Schema:
         return {
             'A': {
-                'a': {'_default': 0},
-                'b': {'_default': 0}},
+                'a': {'_default': 0, '_emit': True},
+                'b': {'_default': 0, '_emit': True}},
             'B': {
-                'a': {'_default': 0},
-                'b': {'_default': 0}}}
+                'a': {'_default': 0, '_emit': True},
+                'b': {'_default': 0, '_emit': True}}}
 
     def next_update(
             self, timestep: Union[float, int], states: State) -> Update:
