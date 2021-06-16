@@ -12,6 +12,7 @@ from pprint import pformat
 
 import numpy as np
 from pint import Quantity
+from typing import Optional
 
 from vivarium import divider_registry, serializer_registry, updater_registry
 from vivarium.core.process import Process
@@ -25,7 +26,7 @@ EMPTY_UPDATES = None, None, None
 def generate_state(
         processes: Processes,
         topology: Topology,
-        initial_state: State,
+        initial_state: Optional[State],
 ) -> 'Store':
     """Initialize a simulation's state.
 

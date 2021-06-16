@@ -246,11 +246,13 @@ class Engine:
         self.config = config
         self.experiment_id = config.get(
             'experiment_id', str(uuid.uuid1()))
-        self.state = config.get('store')
-        self.processes = config.get('processes')
-        self.topology = config.get('topology')
         self.initial_state = config.get('initial_state', {})
         self.emit_step = config.get('emit_step', 1.0)
+
+        # get proceses, topology, and store
+        self.state: Store = config.get('store')
+        self.processes: Processes = config.get('processes')
+        self.topology: Topology = config.get('topology')
 
         if self.processes and self.topology and not self.state:
             # initialize the store

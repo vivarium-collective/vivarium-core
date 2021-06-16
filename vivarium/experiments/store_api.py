@@ -8,7 +8,7 @@ from vivarium.core.engine import Engine
 from vivarium.core.store import Store, topology_path
 
 
-def get_toy_store():
+def get_toy_store() -> Store:
     """get a store to test the api with"""
     composer = ToyComposer({
         'A':  {'name': 'process1'},
@@ -18,7 +18,7 @@ def get_toy_store():
     return store
 
 
-def test_insert_process():
+def test_insert_process() -> Store:
     """Test Store.insert by adding a new process
 
     Return:
@@ -40,7 +40,7 @@ def test_insert_process():
     return store
 
 
-def test_rewire_ports():
+def test_rewire_ports() -> None:
     """connect a process' ports to different store"""
     store = test_insert_process()
 
@@ -64,7 +64,7 @@ def test_rewire_ports():
     assert store['process2', 'B', 'a'] == store['aaa', 'b']
 
 
-def test_embedded_rewire_ports():
+def test_embedded_rewire_ports() -> None:
     """rewire process ports embedded down in the hierarchy"""
     composer = ToyComposer({
         'A':  {'name': 'process1'},
@@ -82,7 +82,7 @@ def test_embedded_rewire_ports():
     assert store['down1', 'down2', 'process2', 'B', 'a'] == store['down1', 'down2', 'aaa', 'a']
 
 
-def test_replace_process():
+def test_replace_process() -> None:
     """replace a process"""
     store = get_toy_store()
     store['process4'] = ToyProcess({'name': 'process4'})
@@ -96,7 +96,7 @@ def test_replace_process():
     assert store['A', 'a'].value == 11
 
 
-def test_disconnected_store_failure():
+def test_disconnected_store_failure() -> None:
     """Test that inserting a Store into the tree results in an exception"""
     store = get_toy_store()
 
@@ -108,7 +108,7 @@ def test_disconnected_store_failure():
         store['process1', 'A'] = Store({'_value': 'NEW STORE'})
 
 
-# def test_connect_to_new_store():
+# def test_connect_to_new_store() -> None:
 #     """
 #     topology before:
 #     process3: {
@@ -132,14 +132,14 @@ def test_disconnected_store_failure():
 #     assert store['ddd']['a'] == 0, "store 'ddd' variable 'a' is not being initialized to the default value of 0"
 
 
-def test_set_value():
+def test_set_value() -> None:
     """set a value through a port"""
     store = get_toy_store()
     store['process1']['A']['a'] = 5
     assert store['process1']['A']['a'].value == 5
 
 
-def test_run_store_in_experiment():
+def test_run_store_in_experiment() -> None:
     """put a store in an experiment and run it"""
     store = get_toy_store()
     experiment = Engine({'store': store})
