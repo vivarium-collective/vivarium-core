@@ -216,7 +216,7 @@ class Engine:
                     maps :term:`process` names to process objects. You
                     will usually get this from the ``processes``
                     attribute of the dictionary from
-                    :py:meth:`vivarium.core.process.Composer.generate`.
+                    :py:meth:`vivarium.core.composer.Composer.generate`.
                 * **topology** (:py:class:`dict`): A dictionary that
                     maps process names to sub-dictionaries. These
                     sub-dictionaries map the process's port names to

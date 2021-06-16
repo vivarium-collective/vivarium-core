@@ -1,3 +1,9 @@
+"""
+==============================================
+Composite, Composer, and MetaComposer Classes
+==============================================
+"""
+
 import abc
 import copy
 from typing import Dict, Any, Optional, Iterable, List

@@ -16,7 +16,7 @@ Defining Experiments
 --------------------
 
 To create an experiment, you need only instantiate the
-:py:class:`vivarium.core.experiment.Experiment` class. To help others
+:py:class:`vivarium.core.engine.Engine` class. To help others
 reproduce your experiment, create a file in the
 ``vivarium-core/experiments`` directory that defines a function that
 generates your experiment. For example, here is the function from
@@ -54,7 +54,7 @@ steps are:
 #. Instantiate the compartment that your experiment will simulate.
 #. Generate the processes and topology dictionaries that describe the
    compartment using
-   :py:meth:`vivarium.core.process.Composer.generate`.
+   :py:meth:`vivarium.core.composer.Composer.generate`.
 #. Instantiate the experiment, passing along the processes and topology
    dictionaries. We also specify the :term:`emitter` the experiment
    should send data to and the initial state of the model. If we don't
