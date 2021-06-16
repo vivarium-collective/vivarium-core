@@ -532,28 +532,28 @@ class ToyProcess(Process):
 
     def ports_schema(self) -> Schema:
         return {
-            'A': {
-                'a': {'_default': 0, '_emit': True},
-                'b': {'_default': 0, '_emit': True}},
-            'B': {
-                'a': {'_default': 0, '_emit': True},
-                'b': {'_default': 0, '_emit': True}}}
+            'port1': {
+                'var_a': {'_default': 0, '_emit': True},
+                'var_b': {'_default': 0, '_emit': True}},
+            'port2': {
+                'var_a': {'_default': 0, '_emit': True},
+                'var_b': {'_default': 0, '_emit': True}}}
 
     def next_update(
             self, timestep: Union[float, int], states: State) -> Update:
         return {
-            'A': {
-                'a': 1,
-                'b': states['A']['a']},
-            'B': {
-                'a': states['A']['b'],
-                'b': states['B']['a']}}
+            'port1': {
+                'var_a': 1,
+                'var_b': states['port1']['var_a']},
+            'port2': {
+                'var_a': states['port1']['var_b'],
+                'var_b': states['port2']['var_a']}}
 
 
 class ToyComposer(Composer):
     defaults = {
-        'A':  {'name': 'A'},
-        'B': {'name': 'B'}}
+        'process1':  {'name': 'process1'},
+        'process2': {'name': 'process2'}}
 
     def generate_processes(
             self,
@@ -561,26 +561,26 @@ class ToyComposer(Composer):
     ) -> Dict[str, ToyProcess]:
         assert config is not None
         config = config or self.defaults
-        a = ToyProcess(config['A'])
-        b = ToyProcess(config['B'])
+        process1 = ToyProcess(config['process1'])
+        process2 = ToyProcess(config['process2'])
         return {
-            a.name: a,
-            b.name: b}
+            process1.name: process1,
+            process2.name: process2}
 
     def generate_topology(
             self,
             config: Optional[dict] = None
     ) -> Topology:
         config = config or self.defaults
-        a_name = config['A']['name']
-        b_name = config['B']['name']
+        a_name = config['process1']['name']
+        b_name = config['process2']['name']
         return {
             a_name: {
-                'A': ('aaa',),
-                'B': ('bbb',)},
+                'port1': ('store_A',),
+                'port2': ('store_B',)},
             b_name: {
-                'A': ('bbb',),
-                'B': ('ccc',)}}
+                'port1': ('store_B',),
+                'port2': ('store_C',)}}
 
 
 def test_override() -> None:
@@ -651,71 +651,71 @@ def test_composite_merge() -> None:
     composite = composer.generate()
 
     expected_initial_topology = {
-        'A': {
-            'A': ('aaa',),
-            'B': ('bbb',),
+        'process1': {
+            'port1': ('store_A',),
+            'port2': ('store_B',),
         },
-        'B': {
-            'A': ('bbb',),
-            'B': ('ccc',),
+        'process2': {
+            'port1': ('store_B',),
+            'port2': ('store_C',),
         },
     }
     assert composite['topology'] == expected_initial_topology
 
-    for key in ('A', 'B'):
+    for key in ('process1', 'process2'):
         assert key in composite['processes']
         assert isinstance(composite['processes'][key], ToyProcess)
 
     # merge
     merge_processes: Dict[str, Process] = {
-        'C': ToyProcess({'name': 'C'})}
+        'process3': ToyProcess({'name': 'process3'})}
     merge_topology: Topology = {
-        'C': {
-            'A': ('aaa',),
-            'B': ('bbb',)}}
+        'process3': {
+            'port1': ('store_A',),
+            'port2': ('store_B',)}}
     composite.merge(
         processes=merge_processes,
         topology=merge_topology)
 
     expected_merged_topology = {
-        'A': {
-            'A': ('aaa',),
-            'B': ('bbb',),
+        'process1': {
+            'port1': ('store_A',),
+            'port2': ('store_B',),
         },
-        'B': {
-            'A': ('bbb',),
-            'B': ('ccc',),
+        'process2': {
+            'port1': ('store_B',),
+            'port2': ('store_C',),
         },
-        'C': {
-            'A': ('aaa',),
-            'B': ('bbb',),
+        'process3': {
+            'port1': ('store_A',),
+            'port2': ('store_B',),
         },
     }
     assert composite['topology'] == expected_merged_topology
 
-    for key in ('A', 'B', 'C'):
+    for key in ('process1', 'process2', 'process3'):
         assert key in composite['processes']
         assert isinstance(composite['processes'][key], ToyProcess)
 
 
 def test_get_composite() -> None:
-    a = ToyProcess({'name': 'a'})
+    process1 = ToyProcess({'name': 'process1'})
 
     composite = Composite(dict(
-        processes={'b': ToyProcess()},
-        topology={'b': {'A': ('A',), 'B': ('B',)}}
+        processes={'process2': ToyProcess()},
+        topology={'process2': {'port1': ('store_A',), 'port2': ('store_B',)}}
     ))
     composite.merge(
-        processes={a.name: a},
-        topology=a.generate_topology())
+        processes={process1.name: process1},
+        topology={process1.name: {'port1': ('store_A',), 'port2': ('store_B',)}})
 
     expected_topology = {
-        'a': {
-            'A': ('A',),
-            'B': ('B',)},
-        'b': {
-            'A': ('A',),
-            'B': ('B',)}}
+        'process1': {
+            'port1': ('store_A',),
+            'port2': ('store_B',)},
+        'process2': {
+            'port1': ('store_A',),
+            'port2': ('store_B',)}}
 
     assert composite['topology'] == expected_topology
 
@@ -729,8 +729,8 @@ def test_aggregate_composer() -> None:
     # add composers (list)
     config2 = {
         'name': 'two',
-        'A':  {'name': 'AA'},
-        'B': {'name': 'BB'},
+        'process1':  {'name': 'process3'},
+        'process2': {'name': 'process4'},
     }
     aggregate.add_composers(
         composers=[ToyComposer(config2)],
@@ -740,8 +740,8 @@ def test_aggregate_composer() -> None:
     # add composer (single)
     config3 = {
         'name': 'three',
-        'A':  {'name': 'AAA'},
-        'B': {'name': 'BBB'},
+        'process1':  {'name': 'process5'},
+        'process2': {'name': 'process6'},
     }
     aggregate.add_composer(
         composer=ToyComposer(config3),

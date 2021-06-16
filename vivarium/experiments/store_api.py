@@ -9,9 +9,7 @@ from vivarium.core.store import Store
 
 def get_toy_store() -> Store:
     """get a store to test the api with"""
-    composer = ToyComposer({
-        'A':  {'name': 'process1'},
-        'B': {'name': 'process2'}})
+    composer = ToyComposer({})
     composite = composer.generate()
     store = composite.generate_store()
     return store
@@ -29,8 +27,8 @@ def test_insert_process() -> Store:
         'processes': {'process3': process},
         'topology': {
             'process3': {
-                'A': {'_path': ('ccc',), 'a': ('d',)},
-                'B': ('aaa',)}},
+                'port1': {'_path': ('store_C',), 'var_a': ('var_d',)},
+                'port2': ('store_A',)}},
         'initial_state': {}})
 
     assert isinstance(
@@ -43,45 +41,43 @@ def test_rewire_ports() -> None:
     """connect a process' ports to different store"""
     store = test_insert_process()
 
-    # connect process1's port A to the store at process3's port A
-    store['process1']['A'] = store['process3']['A']
-    assert store['process1']['A'] == store['process3']['A']
+    # connect process1's port1 to the store at process3's port1
+    store['process1']['port1'] = store['process3']['port1']
+    assert store['process1']['port1'] == store['process3']['port1']
 
     # this should give the same result
     store = test_insert_process()
-    store['process1', 'A'] = store['process3', 'A']
-    assert store['process1']['A'] == store['process3']['A']
+    store['process1', 'port1'] = store['process3', 'port1']
+    assert store['process1']['port1'] == store['process3']['port1']
 
     # connect process2's port B to store aaa
     store = test_insert_process()
-    store['process2', 'B'] = store['aaa']
-    assert store['process2', 'B', 'a'] == store['aaa', 'a']
+    store['process2', 'port2'] = store['store_A']
+    assert store['process2', 'port2', 'var_a'] == store['store_A', 'var_a']
 
     # turn variable 'a' into 'd'
     store = test_insert_process()
-    store['process2', 'B', 'a'] = store['aaa', 'b']
-    assert store['process2', 'B', 'a'] == store['aaa', 'b']
+    store['process2', 'port2', 'var_a'] = store['store_A', 'var_b']
+    assert store['process2', 'port2', 'var_a'] == store['store_A', 'var_b']
 
 
 def test_embedded_rewire_ports() -> None:
     """rewire process ports embedded down in the hierarchy"""
-    composer = ToyComposer({
-        'A':  {'name': 'process1'},
-        'B': {'name': 'process2'}})
+    composer = ToyComposer({})
 
     # embed further down a path
     composite = composer.generate(path=('down1', 'down2'))
     store = composite.generate_store()
 
     # assert process2 is still connected to ccc
-    assert store['down1', 'down2', 'process2', 'B'] == \
-           store['down1', 'down2', 'ccc']
+    assert store['down1', 'down2', 'process2', 'port2'] == \
+           store['down1', 'down2', 'store_C']
 
     # rewire process2 port B to aaa, and assert change of wiring
-    store['down1', 'down2', 'process2', 'B'] = \
-        store['down1', 'down2', 'aaa']
-    assert store['down1', 'down2', 'process2', 'B', 'a'] == \
-           store['down1', 'down2', 'aaa', 'a']
+    store['down1', 'down2', 'process2', 'port2'] = \
+        store['down1', 'down2', 'store_A']
+    assert store['down1', 'down2', 'process2', 'port2', 'var_a'] == \
+           store['down1', 'down2', 'store_A', 'var_a']
 
 
 def test_replace_process() -> None:
@@ -137,8 +133,8 @@ def test_disconnected_store_failure() -> None:
 def test_set_value() -> None:
     """set a value through a port"""
     store = get_toy_store()
-    store['process1']['A']['a'] = 5
-    assert store['process1']['A']['a'].value == 5
+    store['process1']['port1']['var_a'] = 5
+    assert store['process1']['port1']['var_a'].value == 5
 
 
 def test_run_store_in_experiment() -> None:
