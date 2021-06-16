@@ -252,7 +252,7 @@ class Engine:
         # get the processes, topology, and store
         if 'processes' in config \
                 and 'topology' in config \
-                and 'state' not in config:
+                and 'store' not in config:
             self.processes: Processes = config['processes']
             self.topology: Topology = config['topology']
 
@@ -262,7 +262,7 @@ class Engine:
                 self.topology,
                 self.initial_state)
 
-        elif 'state' in config:
+        elif 'store' in config:
             self.state = config['store']
 
             # get processes and topology from the store
