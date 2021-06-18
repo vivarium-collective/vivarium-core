@@ -246,6 +246,14 @@ class DatabaseEmitter(Emitter):
         table = getattr(self.db, data['table'])
         table.insert_one(emit_data)
 
+    def write_emit(self):
+        # TODO pass chunks
+        pass
+
+    def read_emit(self):
+        # re-assemble
+        pass
+
     def get_data(self) -> dict:
         return get_history_data_db(self.history, self.experiment_id)
 

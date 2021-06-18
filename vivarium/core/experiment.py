@@ -349,6 +349,8 @@ class Experiment:
 
     def emit_send(self, data, table):
         """Break the emit into small chunks and send them to the emitter"""
+
+        # TODO -- this is mongo specific. This should be done in in mongo emitter
         emit_limit = 26000000
         data_bytes = sys.getsizeof(str(data))
         if data_bytes < emit_limit:
