@@ -83,7 +83,9 @@ def test_embedded_rewire_ports() -> None:
 def test_replace_process() -> None:
     """replace a process"""
     store = get_toy_store()
-    store['process4'] = ToyProcess({'name': 'process4'})
+    process4 = ToyProcess()  # {'name': 'process4'}
+    store['process4'] = process4
+    assert store['process4'].value == process4
 
     # replace a process with different ports entirely
     store['process1'] = Qo({})
