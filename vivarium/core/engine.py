@@ -1,9 +1,9 @@
 """
 ==========
-Experiment
+Engine
 ==========
 
-Experiment runs the simulation.
+Engine runs the simulation.
 """
 
 import sys
@@ -24,9 +24,9 @@ from vivarium.core.emitter import get_emitter
 from vivarium.core.process import (
     Process,
     ParallelProcess,
-    serialize_value,
-    Composer,
 )
+from vivarium.core.serialize import serialize_value
+from vivarium.core.composer import Composer
 from vivarium.library.topology import (
     delete_in,
     assoc_path,
@@ -203,8 +203,11 @@ class InvokeProcess:
         return self.update
 
 
-class Experiment:
-    def __init__(self, config: Dict[str, Any]) -> None:
+class Engine:
+    def __init__(
+            self,
+            config: Dict[str, Any]
+    ) -> None:
         """Defines simulations
 
         Arguments:
@@ -215,7 +218,7 @@ class Experiment:
                     maps :term:`process` names to process objects. You
                     will usually get this from the ``processes``
                     attribute of the dictionary from
-                    :py:meth:`vivarium.core.process.Composer.generate`.
+                    :py:meth:`vivarium.core.composer.Composer.generate`.
                 * **topology** (:py:class:`dict`): A dictionary that
                     maps process names to sub-dictionaries. These
                     sub-dictionaries map the process's port names to
@@ -245,10 +248,31 @@ class Experiment:
         self.config = config
         self.experiment_id = config.get(
             'experiment_id', str(uuid.uuid1()))
-        self.processes = config['processes']
-        self.topology = config['topology']
         self.initial_state = config.get('initial_state', {})
         self.emit_step = config.get('emit_step', 1.0)
+
+        # get the processes, topology, and store
+        if 'processes' in config \
+                and 'topology' in config \
+                and 'store' not in config:
+            self.processes: Processes = config['processes']
+            self.topology: Topology = config['topology']
+
+            # initialize the store
+            self.state: Store = generate_state(
+                self.processes,
+                self.topology,
+                self.initial_state)
+
+        elif 'store' in config:
+            self.state = config['store']
+
+            # get processes and topology from the store
+            self.processes = self.state.get_processes()
+            self.topology = self.state.get_topology()
+        else:
+            raise Exception(
+                'load either store or (processes and topology) into Engine')
 
         # display settings
         self.experiment_name = config.get(
@@ -268,12 +292,6 @@ class Experiment:
         self.process_paths: Dict[HierarchyPath, Process] = {}
         self.deriver_paths: Dict[HierarchyPath, Process] = {}
         self._find_process_paths(self.processes)
-
-        # initialize the state
-        self.state = generate_state(
-            self.processes,
-            self.topology,
-            self.initial_state)
 
         # emitter settings
         emitter_config = config.get('emitter', 'timeseries')
@@ -302,11 +320,6 @@ class Experiment:
         log.info('\nTOPOLOGY:')
         log.info(pf(self.topology))
 
-        # log.info('\nSTATE:')
-        # log.info(pf(self.state.get_value()))
-        #
-        # log.info('\nCONFIG:')
-        # log.info(pf(self.state.get_config(True)))
 
     def _add_process_path(
             self,
@@ -705,7 +718,7 @@ class Experiment:
     def print_display(self) -> None:
         """Print simulation metadata."""
         date, time = self.time_created.split('.')
-        print('\nExperiment ID: {}'.format(self.experiment_id))
+        print('\nSimulation ID: {}'.format(self.experiment_id))
         print('Created: {} at {}'.format(
             date[4:6] + '/' + date[6:8] + '/' + date[0:4],
             time[0:2] + ':' + time[2:4] + ':' + time[4:6]))
@@ -889,7 +902,7 @@ def test_recursive_store() -> None:
 def test_topology_ports() -> None:
     proton = _make_proton()
 
-    experiment = Experiment(proton)
+    experiment = Engine(proton)
 
     log.debug(pf(experiment.state.get_config(True)))
 
@@ -962,7 +975,7 @@ def test_timescales() -> None:
         'fast': {'state': ('state',)}}
 
     emitter = {'type': 'null'}
-    experiment = Experiment({
+    experiment = Engine({
         'processes': processes,
         'topology': topology,
         'emitter': emitter,
@@ -1020,7 +1033,7 @@ def test_2_store_1_port() -> None:
     # run experiment
     split_port = SplitPort({})
     network = split_port.generate()
-    exp = Experiment({
+    exp = Engine({
         'processes': network['processes'],
         'topology': network['topology']})
 
@@ -1080,7 +1093,7 @@ def test_multi_port_merge() -> None:
     # run experiment
     merge_port = MergePort({})
     network = merge_port.generate()
-    exp = Experiment({
+    exp = Engine({
         'processes': network['processes'],
         'topology': network['topology']})
 
@@ -1099,7 +1112,7 @@ def test_complex_topology() -> None:
     outer_path = ('universe', 'agent')
     pq = PoQo({})
     pq_composite = pq.generate(path=outer_path)
-    experiment = Experiment(pq_composite)
+    experiment = Engine(pq_composite)
 
     # get the initial state
     initial_state = experiment.state.get_value()
@@ -1124,7 +1137,7 @@ def test_complex_topology() -> None:
 
 def test_parallel() -> None:
     proton = _make_proton(parallel=True)
-    experiment = Experiment(proton)
+    experiment = Engine(proton)
 
     log.debug(pf(experiment.state.get_config(True)))
 
@@ -1217,7 +1230,7 @@ def test_units() -> None:
     # run experiment
     multi_unit = MultiUnits({})
     network = multi_unit.generate()
-    exp = Experiment({
+    exp = Engine({
         'processes': network['processes'],
         'topology': network['topology']})
 
@@ -1250,7 +1263,7 @@ def test_custom_divider() -> None:
     })
     composite = composer.generate(path=('agents', agent_id))
 
-    experiment = Experiment({
+    experiment = Engine({
         'processes': composite.processes,
         'topology': composite.topology,
     })

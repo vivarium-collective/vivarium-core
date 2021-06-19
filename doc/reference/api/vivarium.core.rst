@@ -7,8 +7,9 @@ Core Vivarium Package
    vivarium.core.composition
    vivarium.core.control
    vivarium.core.emitter
-   vivarium.core.experiment
+   vivarium.core.engine
    vivarium.core.process
+   vivarium.core.composer
    vivarium.core.registry
    vivarium.core.store
    vivarium.core.types
