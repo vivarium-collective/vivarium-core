@@ -750,7 +750,6 @@ class Process(Composer, metaclass=abc.ABCMeta):
         """
         return {}  # pragma: no cover
 
-    @abc.abstractmethod
     def update_condition(
             self, timestep: Union[float, int], states: State) -> bool:
         """Determine whether this process runs.
