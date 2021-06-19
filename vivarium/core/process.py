@@ -289,6 +289,22 @@ class Process(metaclass=abc.ABCMeta):
         """
         return {}  # pragma: no cover
 
+    def update_condition(
+            self, timestep: Union[float, int], states: State) -> bool:
+        """Determine whether this process runs.
+
+        Args:
+            timestep: The duration for which an update.
+            states: The pre-update simulation state.
+
+        Returns:
+            Boolean for whether this process runs. True by default.
+        """
+        _ = timestep
+        _ = states
+        return True
+
+
 
 class Deriver(Process, metaclass=abc.ABCMeta):
     """Base class for :term:`derivers`."""

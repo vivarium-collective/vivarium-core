@@ -122,7 +122,9 @@ def invoke_process(
     :py:meth:`vivarium.core.process.Process.next_update` function with
     ``interval`` and ``states``.
     """
-    return process.next_update(interval, states)
+    if process.update_condition(interval, states):
+        return process.next_update(interval, states)
+    return {}
 
 
 class Defer:
