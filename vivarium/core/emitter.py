@@ -6,7 +6,9 @@ Emitters
 Emitters log configuration data and time-series data somewhere.
 """
 
+import sys
 import json
+import uuid
 from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import quote_plus
 
@@ -226,6 +228,7 @@ class DatabaseEmitter(Emitter):
         #  don't already exist?
         super().__init__(config)
         self.experiment_id = config.get('experiment_id')
+        self.emit_limit = config.get('emit_limit', 26000000)
 
         # create singleton instance of mongo client
         if DatabaseEmitter.client is None:
@@ -244,11 +247,31 @@ class DatabaseEmitter(Emitter):
         emit_data: dict = data['data']
         emit_data['experiment_id'] = self.experiment_id
         table = getattr(self.db, data['table'])
-        table.insert_one(emit_data)
+        self.write_emit(table, emit_data)
 
-    def write_emit(self):
-        # TODO pass chunks
-        pass
+    def write_emit(self, table, emit_data):
+        """Check that data size is less than emit limit.
+
+        Break up large emits into smaller pieces and emit them individually
+        """
+        data_bytes = sys.getsizeof(str(emit_data))
+        if data_bytes > self.emit_limit:
+
+            # TODO -- save key with parent so they know how to find child.
+            mother_data = {}
+
+            # break up by keys, and emit each individually
+            for key, child_data in emit_data.items():
+                child_key = str(uuid.uuid1())
+                mother_data[key] = child_key
+                child_data['_child_key'] = child_key
+
+                import ipdb; ipdb.set_trace()
+
+                self.write_emit(table, child_data)
+            self.write_emit(table, mother_data)
+        else:
+            table.insert_one(emit_data)
 
     def read_emit(self):
         # re-assemble

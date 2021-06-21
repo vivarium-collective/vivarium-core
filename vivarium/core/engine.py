@@ -6,7 +6,6 @@ Engine
 Engine runs the simulation.
 """
 
-import sys
 import os
 import logging as log
 import warnings
@@ -340,7 +339,7 @@ class Engine:
             self._add_process_path(process, path)
 
     def emit_configuration(self) -> None:
-        """Send experiment configuration to the emitter."""
+        """Emit experiment configuration."""
         data: Dict[str, Any] = {
             'time_created': self.time_created,
             'experiment_id': self.experiment_id,
@@ -348,34 +347,23 @@ class Engine:
             'description': self.description,
             'topology': self.topology,
             'processes': serialize_value(self.processes),
-            'state': serialize_value(self.state.get_config())
-        }
-        self.emit_send(data, table='configuration')
+            'state': serialize_value(self.state.get_config())}
+        emit_config: Dict[str, Any] = {
+            'table': 'configuration',
+            'data': data}
+        self.emitter.emit(emit_config)
 
     def emit_data(self) -> None:
         """Emit the current simulation state.
-
         Only variables with ``_emit=True`` are emitted.
         """
         data = self.state.emit_data()
         data.update({
             'time': self.experiment_time})
-        self.emit_send(serialize_value(data), table='history')
-
-    def emit_send(self, data, table):
-        """Break the emit into small chunks and send them to the emitter"""
-
-        # TODO -- this is mongo specific. This should be done in in mongo emitter
-        emit_limit = 26000000
-        data_bytes = sys.getsizeof(str(data))
-        if data_bytes < emit_limit:
-            emit_config: Dict[str, Any] = {
-                'table': table,
-                'data': data}
-            self.emitter.emit(emit_config)
-        else:
-            # TODO -- break data up into smaller chunks
-            warnings.warn('data is too big for the emitter')
+        emit_config = {
+            'table': 'history',
+            'data': serialize_value(data)}
+        self.emitter.emit(emit_config)
 
     def invoke_process(
             self,
