@@ -42,7 +42,8 @@ In the example below, we print out the full hierarchy as a dictionary.
 >>> from vivarium.experiments.glucose_phosphorylation import (
 ...     glucose_phosphorylation_experiment,
 ... )
->>> from vivarium.core.experiment import Compartment, Experimentfrom vivarium.core.process import Compartment
+>>> from vivarium.core.engine import Engine
+>>> from vivarium.core.composer import Composer
 >>> from vivarium.library.pretty import format_dict
 >>>
 >>>

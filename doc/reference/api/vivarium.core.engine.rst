@@ -1,4 +1,4 @@
-.. automodule:: vivarium.core.experiment
+.. automodule:: vivarium.core.engine
    :members:
    :undoc-members:
    :show-inheritance:

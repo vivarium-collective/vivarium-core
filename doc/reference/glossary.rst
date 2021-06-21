@@ -107,15 +107,17 @@ Glossary
         The flux between a cell and its environment. This is stored in a
         :term:`boundary store`.
 
+    Engine
+    engine
     Experiment
     experiment
     Experiments
     experiments
         Vivarium defines simulations using
-        :py:class:`vivarium.core.experiment.Experiment` objects. These
+        :py:class:`vivarium.core.engine.Engine` objects. These
         simulations can contain arbitrarily nested :term:`compartments`,
         and you can run them to simulate your model over time. See the
-        documentation for the ``Experiment`` class and our :doc:`guide
+        documentation for the ``Engine`` class and our :doc:`guide
         to experiments </guides/experiments>` for more details.
 
     Inner
@@ -369,7 +371,7 @@ Glossary
         :term:`ports`. This tells Vivarium which store to pass to each
         port of each process during the simulation. See the constructor
         documentation for
-        :py:class:`vivarium.core.experiment.Experiment` for a more
+        :py:class:`vivarium.core.engine.Engine` for a more
         detailed specification of the form of a topology.
 
     Hierarchy
