@@ -256,19 +256,17 @@ class DatabaseEmitter(Emitter):
         """
         data_bytes = sys.getsizeof(str(emit_data))
         if data_bytes > self.emit_limit:
-
-            # TODO -- save key with parent so they know how to find child.
             mother_data = {}
 
             # break up by keys, and emit each individually
             for key, child_data in emit_data.items():
                 child_key = str(uuid.uuid1())
-                mother_data[key] = child_key
-                child_data['_child_key'] = child_key
+                mother_data[key] = {'_child_emit': child_key}
+                child_emit = {child_key: child_data}
 
                 import ipdb; ipdb.set_trace()
 
-                self.write_emit(table, child_data)
+                self.write_emit(table, child_emit)
             self.write_emit(table, mother_data)
         else:
             table.insert_one(emit_data)

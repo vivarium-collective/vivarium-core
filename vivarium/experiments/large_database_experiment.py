@@ -66,6 +66,7 @@ def run_large_initial_emit():
     composite = composer.generate()
 
     settings = {
+        'experiment_name': 'large database experiment',
         'emitter': 'database'
     }
 
@@ -78,6 +79,7 @@ def run_large_initial_emit():
     experiment_id = experiment.experiment_id
     db = get_experiment_database()
     data, experiment_config = data_from_database(experiment_id, db)
+    # TODO -- data_from_database needs to know about assemble method!
 
     assert 'processes' in experiment_config
     assert 0.0 in data
