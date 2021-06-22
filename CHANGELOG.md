@@ -2,11 +2,14 @@
 
 
 
+## v0.3.1
+
+* Fix `plot_topology` to use `Process.generate()` now that `Process` no longer inherits from `Composer`
+
 ## v0.3.0
 
 * Store API supports simplified scripting of a bigraph
 * Breaking import changes: `Composite` and `Composer` are now under `vivarium.core.composer`, and `Experiment` has been renamed `Engine` under `vivarium.core.engine`.
-
 
 ## v0.2.16
 

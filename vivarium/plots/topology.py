@@ -474,7 +474,9 @@ def plot_topology(
     settings = copy.deepcopy(settings) or {}
     if isinstance(composite, Composer):
         composite = composite.generate()
-    assert isinstance(composite, Composite)
+    elif isinstance(composite, Process):
+        composite = composite.generate()
+    assert 'processes' in composite and 'topology' in composite
 
     # make networkx graph
     remove_nodes = settings.pop('remove_nodes', [])
