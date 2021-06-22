@@ -26,7 +26,7 @@ class ManyParametersProcess(Process):
         super().__init__(random_parameters)
 
     def ports_schema(self):
-        return {'port': {'variable': {'_default': 0}}}
+        return {'port': {'variable': {'_default': 0, '_emit': True}}}
     def next_update(self, timestep, states):
         return {}
 
@@ -83,6 +83,14 @@ def run_large_initial_emit():
 
     assert 'processes' in experiment_config
     assert 0.0 in data
+
+    # run the experiment
+    experiment.update(10)
+
+    # retrieve the data
+    data = experiment.emitter.get_data()
+
+    import ipdb; ipdb.set_trace()
 
     # delete the experiment
     delete_experiment_from_database(experiment_id)

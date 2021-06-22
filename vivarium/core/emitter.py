@@ -25,12 +25,18 @@ HISTORY_INDEXES = [
     'time',
     'type',
     'simulation_id',
-    'experiment_id']
+    'experiment_id',
+    '_child_id',
+    '_data_id',
+]
 
 CONFIGURATION_INDEXES = [
     'type',
     'simulation_id',
-    'experiment_id']
+    'experiment_id',
+    '_child_id',
+    '_data_id',
+]
 
 SECRETS_PATH = 'secrets.json'
 
@@ -256,27 +262,44 @@ class DatabaseEmitter(Emitter):
         """
         data_bytes = sys.getsizeof(str(emit_data))
         if data_bytes > self.emit_limit:
-            mother_data = {}
 
-            # break up by keys, and emit each individually
-            for key, child_data in emit_data.items():
-                child_key = str(uuid.uuid1())
-                mother_data[key] = {'_child_emit': child_key}
-                child_emit = {child_key: child_data}
+            # break up by keys, and emit large values separately
+            if isinstance(emit_data, dict):
+                mother_emit = {
+                    'experiment_id': self.experiment_id}
+                for key, child_data in emit_data.items():
+                    if key not in [
+                        'experiment_id', 'time_created', 'name',
+                        'description', '_child_id', '_data_id'
+                    ]:
+                        data_id = str(uuid.uuid1())
+                        mother_emit[key] = {
+                            '_child_id': data_id}
+                        child_emit = {
+                            '_data_id': data_id,
+                            '_data': child_data,
+                            'experiment_id': self.experiment_id}
+                        self.write_emit(table, child_emit)
 
-                import ipdb; ipdb.set_trace()
+                        import ipdb;
+                        ipdb.set_trace()
 
-                self.write_emit(table, child_emit)
-            self.write_emit(table, mother_data)
+                    else:
+                        mother_emit[key] = child_data
+
+                self.write_emit(table, mother_emit)
         else:
             table.insert_one(emit_data)
 
-    def read_emit(self):
+    def read_emit(self, data):
         # re-assemble
-        pass
+        import ipdb; ipdb.set_trace()
+
+        return {}
 
     def get_data(self) -> dict:
-        return get_history_data_db(self.history, self.experiment_id)
+        data = get_history_data_db(self.history, self.experiment_id)
+        return self.read_emit(data)
 
 
 def get_experiment_database(
