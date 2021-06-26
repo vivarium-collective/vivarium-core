@@ -946,11 +946,15 @@ class Store:
             daughter_key = daughter['key']
             daughter_path = (daughter_key,)
 
+            processes = daughter.get('processes', copy.deepcopy(self.get_path(here).get_processes()))
+            topology = daughter.get('topology', copy.deepcopy(self.get_path(here).get_topology()))
+            initial_state = daughter.get('initial_state', {})
+
             self.generate(
                 daughter_path,
-                daughter['processes'],
-                daughter['topology'],
-                daughter['initial_state'])
+                processes,
+                topology,
+                initial_state)
 
             root = here + daughter_path
             process_paths = dict_to_paths(root, daughter['processes'])
