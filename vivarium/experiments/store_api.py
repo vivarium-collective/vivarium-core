@@ -153,6 +153,28 @@ def test_run_store_in_experiment() -> None:
     print(data)
 
 
+def test_divide_store():
+    pass
+
+
+def test_port_connect():
+    store = Store({})  # create the root
+    store['top', 'process1'] = ToyProcess({})  # create a process at a path
+    store['top', 'store1'] = Store({})  # create a new store at a path
+    store['top', 'process1'].connect_port('port1', ('top', 'store1'))  # connect a port
+
+    # divide store1 into two daughters
+    store['top'].divide({
+        'mother': 'store1',
+        'daughters': [
+            {'key': 'store2'},
+            {'key': 'store3'}
+        ]})
+
+
+    import ipdb; ipdb.set_trace()
+
+
 test_library = {
     '1': test_insert_process,
     '2': test_rewire_ports,
@@ -162,6 +184,7 @@ test_library = {
     # '6': test_connect_to_new_store,
     '7': test_set_value,
     '8': test_run_store_in_experiment,
+    '9': test_port_connect,
 }
 
 

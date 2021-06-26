@@ -214,6 +214,10 @@ class Store:
             path = (path,)
         self.set_path(path, value)
 
+    def connect_port(self, port, path):
+        assert port in self.topology, f'there is no port {port} in topology {self.topology}'
+        self.topology[port] = path
+
     def set_path(self, path, value):
         if isinstance(self.value, Process) and isinstance(value, Store):
             if self.independent_store(value):
