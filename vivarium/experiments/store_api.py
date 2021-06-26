@@ -154,14 +154,10 @@ def test_run_store_in_experiment() -> None:
 
 
 def test_divide_store():
-    pass
-
-
-def test_port_connect():
     store = Store({})  # create the root
     store['top', 'process1'] = ToyProcess({})  # create a process at a path
     store['top', 'store1'] = Store({})  # create a new store at a path
-    store['top', 'process1'].connect_port('port1', ('top', 'store1'))  # connect a port
+    store['top', 'process1'].connect_port('port1', 'store1')  # connect a port
 
     # divide store1 into two daughters
     store['top'].divide({
@@ -171,7 +167,29 @@ def test_port_connect():
             {'key': 'store3'}
         ]})
 
+def test_update_schema():
+    store = Store({})  # create the root
+    store['top', 'process1'] = ToyProcess({})  # create a process at a path
+    store['top', 'store1'] = Store({'_updater': 'set'})  # create a new store at a path
 
+    # TODO -- assert set updater
+
+    store['top', 'store1'].updater = 'accumulate'
+
+    # TODO -- assert accumulate updater
+
+
+
+def test_port_connect():
+    store = Store({})  # create the root
+    store['top', 'process1'] = ToyProcess({})  # create a process at a path
+    store['top', 'store1'] = Store({})  # create a new store at a path
+
+    # TODO -- test all of these port-connection methods
+    store['top', 'process1'].connect_port('port1', absolute=('top', 'store1'))  # connect a port using absolute path
+    store['top', 'process1'].connect_port('port1', relative='store1')  # connect a port using relative path
+    store['top', 'process1'].connect_port('port1',
+                                          store=store['top', 'process2', 'port1'])  # connect a port using store target
     import ipdb; ipdb.set_trace()
 
 
