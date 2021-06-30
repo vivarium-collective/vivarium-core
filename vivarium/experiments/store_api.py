@@ -42,22 +42,19 @@ def test_rewire_ports() -> None:
     store = test_insert_process()
 
     # connect process1's port1 to the store at process3's port1
-    store['process1']['port1'] = store['process3']['port1']
-    assert store['process1']['port1'] == store['process3']['port1']
-
-    # this should give the same result
     store = test_insert_process()
-    store['process1', 'port1'] = store['process3', 'port1']
+    store['process1'].connect('port1', store['process3']['port1'])
     assert store['process1']['port1'] == store['process3']['port1']
 
     # connect process2's port2 to store store_A
     store = test_insert_process()
-    store['process2', 'port2'] = store['store_A']
+    store['process2'].connect('port2', store['store_A'])
     assert store['process2', 'port2', 'var_a'] == store['store_A', 'var_a']
 
     # turn variable 'var_a' into 'var_b'
     store = test_insert_process()
-    store['process2', 'port2', 'var_a'] = store['store_A', 'var_b']
+    store['process2'].connect(['port2', 'var_a'], store['store_A', 'var_b'])
+    # store['process2', 'port2', 'var_a'] = store['store_A', 'var_b']
     assert store['process2', 'port2', 'var_a'] == store['store_A', 'var_b']
 
 
@@ -74,8 +71,8 @@ def test_embedded_rewire_ports() -> None:
            store['down1', 'down2', 'store_C']
 
     # rewire process2 port2 to store_A, and assert change of wiring
-    store['down1', 'down2', 'process2', 'port2'] = \
-        store['down1', 'down2', 'store_A']
+    store['down1', 'down2', 'process2'].connect(
+        'port2', store['down1', 'down2', 'store_A'])
     assert store['down1', 'down2', 'process2', 'port2', 'var_a'] == \
            store['down1', 'down2', 'store_A', 'var_a']
 
@@ -83,7 +80,7 @@ def test_embedded_rewire_ports() -> None:
 def test_replace_process() -> None:
     """replace a process"""
     store = get_toy_store()
-    process4 = ToyProcess()  # {'name': 'process4'}
+    process4 = ToyProcess()
     store['process4'] = process4
     assert store['process4'].value == process4
 
@@ -91,7 +88,7 @@ def test_replace_process() -> None:
     store['process1'] = Qo({})
 
     # test if initial values are kept the same, and are not overwritten
-    store['A', 'a'] = 11
+    store.create(['A', 'a'], 11)
     store['process1'] = ToyProcess({})
     assert store['A', 'a'].value == 11
 
@@ -155,9 +152,10 @@ def test_run_store_in_experiment() -> None:
 
 def test_divide_store():
     store = Store({})  # create the root
-    store['top', 'process1'] = ToyProcess({})  # create a process at a path
-    store['top', 'store1'] = Store({})  # create a new store at a path
-    store['top', 'process1'].connect_port('port1', 'store1')  # connect a port
+
+    store.create(['top', 'process1'], ToyProcess({}))  # create a process at a path
+    store.create(['top', 'store1'], _subschema={})  # create a new store at a path
+    store['top', 'process1'].connect('port1', 'store1')  # connect a port
 
     # divide store1 into two daughters
     store['top'].divide({
@@ -170,43 +168,24 @@ def test_divide_store():
 
 def test_update_schema():
     store = Store({})  # create the root
-    store['top', 'process1'] = ToyProcess({})  # create a process at a path
-    store['top', 'store1'] = Store({'_updater': 'set'})  # create a new store at a path
+    store.create(['top', 'process1'], ToyProcess({}))  # create a process at a path
+    store.create(['top', 'store1'], _updater='set')  # create a new store at a path
+    assert store['top', 'store1'].updater == 'set', 'updater is not set correctly'
 
-    # TODO -- assert set updater
-
-    store['top', 'store1'].updater = 'accumulate'
-
-    # TODO -- assert accumulate updater
 
 
 def test_port_connect():
     store = Store({})  # create the root
-    store.create(['top', 'process1'], ToyProcess({})) # create a process at a path
+    store.create(['top', 'process1'], ToyProcess({}))  # create a process at a path
+    store.create(['top', 'process2'], ToyProcess({}))  # create another process at a path
+    store['top'].create('store2')  # create a new store at a path
 
+    # connect some ports
+    store['top', 'process2'].connect('port1', 'store2')  # connect using a relative path
+    store['top', 'process1'].connect('port1', store['top', 'process2', 'port1'])  # connect using store target through a different port
+    store['top', 'process1'].connect('port2', ('top', 'store2'), absolute=True)  # connect using absolute path
 
-    # store['top'].create('process1', value=ToyProcess({}), topology={})
-
-
-    store['top', 'process1', 'port1'] = store['top', 'process2', 'port2']
-
-
-    store['top', 'store1'] = 1
-    store['top'].create('store1', _default=1)
-
-    store['top'].create('store2', _updater='set') #= Store({'_subschema': {}})  # create a new store at a path
-
-
-    # These two should be the same
-    # store.connect(['top', 'process1', 'port1'], store=store['top', 'process2', 'port1'])
-    store['top', 'process1'].connect('port1', store=store['top', 'process2', 'port1'])  # connect a port using store target
-
-
-    # more ways to connect
-    store['top', 'process1'].connect('port1', absolute=('top', 'store1'))  # connect a port using absolute path
-    store['top', 'process1'].connect('port1', 'store1')  # connect a port using relative path
-
-    import ipdb; ipdb.set_trace()
+    # TODO -- add asserts
 
 
 test_library = {
@@ -218,7 +197,9 @@ test_library = {
     # '6': test_connect_to_new_store,
     '7': test_set_value,
     '8': test_run_store_in_experiment,
-    '9': test_port_connect,
+    '9': test_divide_store,
+    '10': test_update_schema,
+    '11': test_port_connect,
 }
 
 

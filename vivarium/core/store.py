@@ -148,7 +148,12 @@ def insert_topology(topology, port_path, target_path):
 
     return topology
 
-
+def convert_path(path):
+    if isinstance(path, list):
+        path = tuple(path)
+    elif not isinstance(path, tuple):
+        path = (path,)
+    return path
 
 class Store:
     """Holds a subset of the overall model state
@@ -204,20 +209,15 @@ class Store:
         self.apply_config(config, source)
 
     def __getitem__(self, path):
-        if not isinstance(path, tuple):
-            path = (path,)
+        path = convert_path(path)
         return self.get_path(path)
 
     def __setitem__(self, path, value):
-        if not isinstance(path, tuple):
-            path = (path,)
+        path = convert_path(path)
         self.set_path(path, value)
 
-    def connect_port(self, port, path):
-        assert port in self.topology, f'there is no port {port} in topology {self.topology}'
-        self.topology[port] = path
-
     def create(self, path, value=None, absolute=False, **kwargs):
+        path = convert_path(path)
         if value:
             kwargs['_value'] = value
         if '_default' not in kwargs:
@@ -235,25 +235,26 @@ class Store:
         return store
 
     def connect(self, path, value, absolute=False):
+        path = convert_path(path)
         assert isinstance(self.value, Process), \
             f'cannot connect non-process {self.value} at {self.path_for()} to {path}'
 
         if isinstance(value, Store):
-            store = value
-            assert isinstance(store, Store)
-            if self.independent_store(store):
+            target_store = value
+            assert isinstance(target_store, Store)
+            if self.independent_store(target_store):
                 raise Exception(
                     f"the store being inserted at {path} is from a different tree "
-                    f"at {store.path_for()}: {store.get_value()}")
+                    f"at {target_store.path_for()}: {target_store.get_value()}")
         else:
-            store_path = tuple(value)
+            store_path = convert_path(value)
             if absolute:
-                store = self.top().get_path(store_path)
+                target_store = self.top().get_path(store_path)
             else:
-                store = self.outer.get_path(store_path)
+                target_store = self.outer.get_path(store_path)
 
         # update the topology
-        self.update_topology(path, store)
+        self.update_topology(path, target_store)
 
 
     def set_path(self, path, value):
