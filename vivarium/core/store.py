@@ -965,6 +965,7 @@ class Store:
 
         # use dividers to find initial states for daughters
         mother = divide['mother']
+        mother_path = (mother,)
         daughters = divide['daughters']
         initial_state = self.inner[mother].get_value(
             condition=lambda child: not
@@ -986,11 +987,9 @@ class Store:
 
             # if no processes or topology provided, copy the mother's processes and topology
             processes = daughter.get(
-                'processes', copy.deepcopy(self.get_path(tuple(mother)).get_processes()))
+                'processes', copy.deepcopy(self.get_path(mother_path).get_processes()))
             topology = daughter.get(
-                'topology', copy.deepcopy(self.get_path(tuple(mother)).get_topology()))
-            initial_state = daughter.get(
-                'initial_state', {})
+                'topology', copy.deepcopy(self.get_path(mother_path).get_topology()))
 
             self.generate(
                 daughter_path,
@@ -1012,7 +1011,7 @@ class Store:
             target.apply_defaults()
             target.set_value(initial_state)
 
-        mother_path = (mother,)
+
         self.delete_path(mother_path)
         deletions.append(tuple(here + mother_path))
 
