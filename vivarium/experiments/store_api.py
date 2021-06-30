@@ -167,6 +167,7 @@ def test_divide_store():
             {'key': 'store3'}
         ]})
 
+
 def test_update_schema():
     store = Store({})  # create the root
     store['top', 'process1'] = ToyProcess({})  # create a process at a path
@@ -179,17 +180,32 @@ def test_update_schema():
     # TODO -- assert accumulate updater
 
 
-
 def test_port_connect():
     store = Store({})  # create the root
-    store['top', 'process1'] = ToyProcess({})  # create a process at a path
-    store['top', 'store1'] = Store({})  # create a new store at a path
+    store.create(['top', 'process1'], ToyProcess({})) # create a process at a path
 
-    # TODO -- test all of these port-connection methods
-    store['top', 'process1'].connect_port('port1', absolute=('top', 'store1'))  # connect a port using absolute path
-    store['top', 'process1'].connect_port('port1', relative='store1')  # connect a port using relative path
-    store['top', 'process1'].connect_port('port1',
-                                          store=store['top', 'process2', 'port1'])  # connect a port using store target
+
+    # store['top'].create('process1', value=ToyProcess({}), topology={})
+
+
+    store['top', 'process1', 'port1'] = store['top', 'process2', 'port2']
+
+
+    store['top', 'store1'] = 1
+    store['top'].create('store1', _default=1)
+
+    store['top'].create('store2', _updater='set') #= Store({'_subschema': {}})  # create a new store at a path
+
+
+    # These two should be the same
+    # store.connect(['top', 'process1', 'port1'], store=store['top', 'process2', 'port1'])
+    store['top', 'process1'].connect('port1', store=store['top', 'process2', 'port1'])  # connect a port using store target
+
+
+    # more ways to connect
+    store['top', 'process1'].connect('port1', absolute=('top', 'store1'))  # connect a port using absolute path
+    store['top', 'process1'].connect('port1', 'store1')  # connect a port using relative path
+
     import ipdb; ipdb.set_trace()
 
 

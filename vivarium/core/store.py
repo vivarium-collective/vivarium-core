@@ -203,7 +203,6 @@ class Store:
 
         self.apply_config(config, source)
 
-    # TODO: add __getitem__ and __setitem__ to Process to follow topology
     def __getitem__(self, path):
         if not isinstance(path, tuple):
             path = (path,)
@@ -218,16 +217,49 @@ class Store:
         assert port in self.topology, f'there is no port {port} in topology {self.topology}'
         self.topology[port] = path
 
-    def set_path(self, path, value):
-        if isinstance(self.value, Process) and isinstance(value, Store):
-            if self.independent_store(value):
+    def create(self, path, value=None, absolute=False, **kwargs):
+        if value:
+            kwargs['_value'] = value
+        if '_default' not in kwargs:
+            kwargs['_default'] = kwargs.get('_value')
+
+        if absolute:
+            top = self.top()
+            store = top.establish_path(path, config=kwargs)
+            top.apply_subschema_path(path)
+        else:
+            store = self.establish_path(path, config=kwargs)
+            self.apply_subschema_path(path)
+
+        store.apply_defaults()
+        return store
+
+    def connect(self, path, value, absolute=False):
+        assert isinstance(self.value, Process), \
+            f'cannot connect non-process {self.value} at {self.path_for()} to {path}'
+
+        if isinstance(value, Store):
+            store = value
+            assert isinstance(store, Store)
+            if self.independent_store(store):
                 raise Exception(
                     f"the store being inserted at {path} is from a different tree "
-                    f"at {value.path_for()}: {value.get_value()}")
-            self.update_topology(path, value)
+                    f"at {store.path_for()}: {store.get_value()}")
+        else:
+            store_path = tuple(value)
+            if absolute:
+                store = self.top().get_path(store_path)
+            else:
+                store = self.outer.get_path(store_path)
+
+        # update the topology
+        self.update_topology(path, store)
+
+
+    def set_path(self, path, value):
 
         # this case only when called directly
-        elif len(path) == 0:
+        if len(path) == 0:
             if isinstance(value, Store):
                 self.value = value.value
             else:
@@ -256,19 +288,22 @@ class Store:
                     'initial_state': value.initial_state()})
 
             else:
-                # create the path there and store the value
-                down = self.establish_path((final,), {})
-                down.value = value
+                down = self.get_path((final,))
+                if down:
+                    if not down.leaf:
+                        Exception(f'trying to set the value {value} of a branch at {down.path_for()}')
+                    down.value = value
+                else:
+                    Exception(f'trying to set the value {value} at a path that does not exist {final} at {self.path_for()}')
 
         elif len(path) > 1:
-            if isinstance(self.value, Process):
-                down = self.establish_path(path, {})
-                down.set_path((), value)
-            else:
-                head = path[0]
-                tail = path[1:]
-                down = self.establish_path((head,), {})
+            head = path[0]
+            tail = path[1:]
+            down = self.get_path((head,))
+            if down:
                 down.set_path(tail, value)
+            else:
+                Exception(f'trying to set the value {value} at a path that does not exist {path} at {self.path_for()}')
 
         else:
             raise Exception("this should never happen")
@@ -654,7 +689,6 @@ class Store:
                     target = self.outer.get_path(towards[0])
                     return target.get_path(towards[1])
             else:
-                # self.establish_path(path, {})
                 raise Exception(f"there is no path from leaf node {self.path_for()} to {path}")
         return self
 
@@ -950,9 +984,13 @@ class Store:
             daughter_key = daughter['key']
             daughter_path = (daughter_key,)
 
-            processes = daughter.get('processes', copy.deepcopy(self.get_path(here).get_processes()))
-            topology = daughter.get('topology', copy.deepcopy(self.get_path(here).get_topology()))
-            initial_state = daughter.get('initial_state', {})
+            # if no processes or topology provided, copy the mother's processes and topology
+            processes = daughter.get(
+                'processes', copy.deepcopy(self.get_path(tuple(mother)).get_processes()))
+            topology = daughter.get(
+                'topology', copy.deepcopy(self.get_path(tuple(mother)).get_topology()))
+            initial_state = daughter.get(
+                'initial_state', {})
 
             self.generate(
                 daughter_path,
