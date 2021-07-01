@@ -647,7 +647,11 @@ class Store:
         if self.inner:
             inner_processes = {}
             for key, child in self.inner.items():
-                if isinstance(child.value, Process):
+                if child.inner:
+                    child_processes = child.get_processes()
+                    if child_processes:
+                        inner_processes[key] = child_processes
+                elif isinstance(child.value, Process):
                     inner_processes[key] = child.value
             if inner_processes:
                 return inner_processes
@@ -662,9 +666,9 @@ class Store:
         if self.inner:
             inner_topology = {}
             for key, child in self.inner.items():
-                topology = child.get_topology()
-                if topology:
-                    inner_topology[key] = topology
+                child_topology = child.get_topology()
+                if child_topology:
+                    inner_topology[key] = child_topology
             if inner_topology:
                 return inner_topology
         elif self.topology:

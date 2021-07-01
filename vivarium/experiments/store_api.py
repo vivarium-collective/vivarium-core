@@ -139,6 +139,12 @@ def test_set_value() -> None:
 def test_run_store_in_experiment() -> None:
     """put a store in an experiment and run it"""
     store = get_toy_store()
+
+    # retrieve the processes and topology
+    processes = store.get_processes()
+    topology = store.get_topology()
+
+    # run the experiment with a topology
     experiment = Engine({'store': store})
     experiment.update(10)
     data = experiment.emitter.get_data()
