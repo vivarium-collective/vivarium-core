@@ -143,6 +143,8 @@ def test_run_store_in_experiment() -> None:
     # retrieve the processes and topology
     processes = store.get_processes()
     topology = store.get_topology()
+    _ = processes  # set to _ to pass lint test
+    _ = topology
 
     # run the experiment with a topology
     experiment = Engine({'store': store})
