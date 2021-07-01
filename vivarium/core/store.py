@@ -528,11 +528,11 @@ class Store:
 
         else:
             if self.leaf and config:
-                raise Exception(
-                    'trying to assign create inner for leaf node: {}'.format(
-                        self.path_for()))
-
-            # self.value = None
+                if self.value:
+                    raise Exception(
+                        f'trying to assign create inner for leaf node: '
+                        f'{self.path_for()} with value {self.value}')
+                self.leaf = False
 
             for key, child in config.items():
                 if key not in self.inner:
@@ -991,6 +991,8 @@ class Store:
                 'processes', copy.deepcopy(self.get_path(mother_path).get_processes()))
             topology = daughter.get(
                 'topology', copy.deepcopy(self.get_path(mother_path).get_topology()))
+            processes = processes or {}
+            topology = topology or {}
 
             self.generate(
                 daughter_path,
@@ -999,12 +1001,12 @@ class Store:
                 initial_state)
 
             root = here + daughter_path
-            process_paths = dict_to_paths(root, daughter['processes'])
+            process_paths = dict_to_paths(root, processes)
             process_updates.extend(process_paths)
 
             topology_paths = [
-                (root + (key,), topology)
-                for key, topology in daughter['topology'].items()]
+                (root + (key,), ports)
+                for key, ports in topology.items()]
             topology_updates.extend(topology_paths)
 
             self.apply_subschema_path(daughter_path)

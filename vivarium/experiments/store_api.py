@@ -154,7 +154,7 @@ def test_divide_store():
     store = Store({})  # create the root
 
     store.create(['top', 'process1'], ToyProcess({}))  # create a process at a path
-    store.create(['top', 'store1'], _subschema={})  # create a new store at a path
+    store.create(['top', 'store1', 'X'])  # create a new store at a path
     store['top', 'process1'].connect('port1', 'store1')  # connect a port
 
     # divide store1 into two daughters
@@ -165,13 +165,17 @@ def test_divide_store():
             {'key': 'store3'}
         ]})
 
+    final_state = store.get_value()
+    assert 'store2' in final_state['top']
+    assert 'store3' in final_state['top']
+    assert 'store1' not in final_state['top']
+
 
 def test_update_schema():
     store = Store({})  # create the root
     store.create(['top', 'process1'], ToyProcess({}))  # create a process at a path
     store.create(['top', 'store1'], _updater='set')  # create a new store at a path
     assert store['top', 'store1'].updater == 'set', 'updater is not set correctly'
-
 
 
 def test_port_connect():
@@ -181,11 +185,15 @@ def test_port_connect():
     store['top'].create('store2')  # create a new store at a path
 
     # connect some ports
-    store['top', 'process2'].connect('port1', 'store2')  # connect using a relative path
-    store['top', 'process1'].connect('port1', store['top', 'process2', 'port1'])  # connect using store target through a different port
-    store['top', 'process1'].connect('port2', ('top', 'store2'), absolute=True)  # connect using absolute path
+    store['top', 'process2'].connect(
+        'port1', 'store2')  # connect using a relative path
+    store['top', 'process1'].connect(
+        'port1', store['top', 'process2', 'port1'])  # connect using store target through a different port
+    store['top', 'process1'].connect(
+        'port2', ('top', 'store2'), absolute=True)  # connect using absolute path
 
-    # TODO -- add asserts
+    assert store['top', 'process2'].topology == {'port1': ('store2',)}
+    assert store['top', 'process1'].topology == {'port1': ('store2',), 'port2': ('store2',)}
 
 
 test_library = {
