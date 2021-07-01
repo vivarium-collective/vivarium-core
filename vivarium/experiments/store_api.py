@@ -182,26 +182,25 @@ def test_port_connect() -> None:
     # create the root
     store = Store({})
 
+    # create a new store at a path
+    store.create(['top', 'store1'])
+    store.create(['top', 'store2'])
+
     # create a process at a path
     store.create(['top', 'process1'], ToyProcess({}))
-
-    # create a new store at a path
-    store.create(['top', 'store1', 'X'])
-
-    # connect a port
-    store['top', 'process1'].connect('port1', 'store1')
+    store.create(['top', 'process2'], ToyProcess({}))
 
     # connect port using a relative path
-    store['top', 'process2'].connect('port1', 'store2')
+    store['top', 'process1'].connect('port1', 'store1')
 
     # connect using store target through a different port
-    store['top', 'process1'].connect('port1', store['top', 'process2', 'port1'])
+    store['top', 'process1'].connect('port2', store['top', 'process1', 'port1'])
 
     # connect using absolute path
     store['top', 'process1'].connect('port2', ('top', 'store2'), absolute=True)
 
-    assert store['top', 'process2'].topology == {'port1': ('store2',)}
-    assert store['top', 'process1'].topology == {'port1': ('store2',), 'port2': ('store2',)}
+    assert store['top', 'process1'].topology == {
+        'port1': ('store1',), 'port2': ('store2',)}
 
 
 test_library = {
