@@ -267,20 +267,19 @@ class DatabaseEmitter(Emitter):
             if isinstance(emit_data, dict):
                 mother_emit = {
                     'experiment_id': self.experiment_id}
+
                 for key, child_data in emit_data.items():
                     if key not in [
                         'experiment_id', 'time_created', 'name',
                         'description', '_child_id', '_data_id'
                     ]:
-                        data_id = str(uuid.uuid1())
-                        mother_emit[key] = {
-                            '_child_id': data_id}
                         child_emit = {
-                            '_data_id': data_id,
                             '_data': child_data,
                             'experiment_id': self.experiment_id}
-                        self.write_emit(table, child_emit)
+                        inserted_id = self.write_emit(table, child_emit)
 
+                        mother_emit[key] = {
+                            '_child_id': inserted_id}
                         import ipdb;
                         ipdb.set_trace()
 
@@ -289,7 +288,8 @@ class DatabaseEmitter(Emitter):
 
                 self.write_emit(table, mother_emit)
         else:
-            table.insert_one(emit_data)
+            result = table.insert_one(emit_data)
+            return result.inserted_id
 
     def read_emit(self, data):
         # re-assemble
@@ -350,6 +350,9 @@ def get_history_data_db(
     """Query MongoDB for history data."""
     query = {'experiment_id': experiment_id}
     raw_data = list(history_collection.find(query))
+
+    # TODO -- this is where data needs to be re-assembled
+
     data = {}
     for datum in raw_data:
         time = datum['time']
