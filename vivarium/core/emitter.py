@@ -64,7 +64,7 @@ def breakdown_data(limit, data, path=(), size=None):
             remaining = total
             index = 0
             large_keys = []
-            while remaining > limit or index >= len(order):
+            while remaining > limit and index < len(order):
                 key, subsize = order[index]
                 large_keys.append(key)
                 remaining -= subsize
