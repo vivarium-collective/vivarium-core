@@ -41,6 +41,76 @@ CONFIGURATION_INDEXES = [
 SECRETS_PATH = 'secrets.json'
 
 
+def size_of(emit_data):
+    return sys.getsizeof(str(emit_data))
+
+
+def breakdown_data(limit, data, path=(), size=None):
+    size = size or size_of(data)
+    if size > limit:
+        if isinstance(data, dict):
+            output = []
+            subsizes = {}
+            total = 0
+            for key, subdata in data.items():
+                subsizes[key] = size_of(subdata)
+                total += subsizes[key]
+
+            order = sorted(
+                subsizes.items(),
+                key=lambda item: item[1],
+                reverse=True)
+
+            remaining = total
+            index = 0
+            large_keys = []
+            while remaining > limit or index >= len(order):
+                key, subsize = order[index]
+                large_keys.append(key)
+                remaining -= subsize
+                index += 1
+
+            for large_key in large_keys:
+                subdata = breakdown_data(
+                    limit,
+                    data[large_key],
+                    path=path + (large_key,),
+                    size=subsizes[large_key])
+                output.extend(subdata)
+
+            pruned = {
+                key: value
+                for key, value in data.items()
+                if key not in large_keys}
+            output.append((path, pruned))
+            return output
+
+        else:
+            print(f'value is too large to store, ignoring {data}')
+    else:
+        return [(path, data)]
+
+
+def test_breakdown():
+    input = {
+        'a': [1, 2, 3],
+        'b': {
+            'X': [1, 2, 3, 4, 5],
+            'Y': [1, 2, 3, 4, 5, 6],
+            'Z': [5]}}
+
+    output = breakdown_data(70, input)
+
+    import ipdb; ipdb.set_trace()
+
+    assert output == [
+        (('b', 'Y'), [1, 2, 3, 4, 5, 6]),
+        (('b', 'X'), [1, 2, 3, 4, 5]),
+        (('b',), {'Z': [5]}
+        ((), {'a': [1, 2, 3]}),
+    ]
+
+
 def get_emitter(config: Optional[Dict[str, str]]) -> 'Emitter':
     """Construct an Emitter using the provided config.
 
@@ -260,7 +330,7 @@ class DatabaseEmitter(Emitter):
 
         Break up large emits into smaller pieces and emit them individually
         """
-        data_bytes = sys.getsizeof(str(emit_data))
+        data_bytes = size_of(emit_data)
         if data_bytes > self.emit_limit:
 
             # break up by keys, and emit large values separately
@@ -482,3 +552,7 @@ def emit_environment_config(
         'data': config,
         'table': 'configuration',
     })
+
+
+if __name__ == '__main__':
+    test_breakdown()
