@@ -9,7 +9,8 @@ general stochastic transcription.
 import os
 import numpy as np
 
-from vivarium.core.process import Process, Composer
+from vivarium.core.process import Process
+from vivarium.core.composer import Composer
 from vivarium.core.composition import (
     process_in_experiment,
     composite_in_experiment,

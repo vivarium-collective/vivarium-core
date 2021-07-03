@@ -8,7 +8,7 @@ import os
 
 from scipy import constants
 
-from vivarium.core.experiment import pp
+from vivarium.core.engine import pp
 from vivarium.core.process import Deriver
 from vivarium.library.units import units
 from vivarium.core.composition import (

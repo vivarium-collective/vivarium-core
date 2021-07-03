@@ -12,11 +12,12 @@ from pprint import pformat
 
 import numpy as np
 from pint import Quantity
+from typing import Optional
 
 from vivarium import divider_registry, serializer_registry, updater_registry
 from vivarium.core.process import Process
 from vivarium.library.dict_utils import deep_merge, MULTI_UPDATE_KEY
-from vivarium.library.topology import without, dict_to_paths
+from vivarium.library.topology import without, dict_to_paths, get_in
 from vivarium.core.types import Processes, Topology, State
 
 EMPTY_UPDATES = None, None, None
@@ -25,7 +26,7 @@ EMPTY_UPDATES = None, None, None
 def generate_state(
         processes: Processes,
         topology: Topology,
-        initial_state: State,
+        initial_state: Optional[State],
 ) -> 'Store':
     """Initialize a simulation's state.
 
@@ -93,6 +94,62 @@ def _identity(y):
     return y
 
 
+def topology_path(topology, path):
+    '''
+    get the subtopology at the path inside the given topology.
+    '''
+
+    if not path:
+        topology, path
+    else:
+        head = path[0]
+        tail = path[1:]
+        if head in topology:
+            subtopology = topology[head]
+            if isinstance(subtopology, tuple):
+                return subtopology, tail
+            elif isinstance(subtopology, dict):
+                if '_path' in subtopology:
+                    if tail and tail[0] in subtopology:
+                        down = topology_path(subtopology, tail)
+                        if down:
+                            return subtopology['_path'] + down[0], down[1]
+                    else:
+                        return subtopology['_path'], tail
+                else:
+                    return topology_path(subtopology, tail)
+
+def topology_length(topology):
+    pass
+
+def insert_topology(topology, port_path, target_path):
+    assert isinstance(port_path, tuple)
+    assert len(port_path) > 0
+    head = port_path[0]
+    tail = port_path[1:]
+
+    if not tail:
+        topology[head] = target_path
+    else:
+        subtopology = topology[head]
+        if isinstance(subtopology, tuple):
+            relative_path = tuple(['..' for _ in subtopology]) + target_path
+            new_topology = insert_topology(
+                {'_path': subtopology},
+                tail,
+                relative_path)
+            topology[head] = new_topology
+
+        elif isinstance(subtopology, dict):
+            topology[head] = insert_topology(subtopology, tail, target_path)
+
+        else:
+            raise Exception(f'invalid topology {topology} at key {head}')
+
+    return topology
+
+
+
 class Store:
     """Holds a subset of the overall model state
 
@@ -145,6 +202,109 @@ class Store:
         self.topology = {}
 
         self.apply_config(config, source)
+
+    # TODO: add __getitem__ and __setitem__ to Process to follow topology
+    def __getitem__(self, path):
+        if not isinstance(path, tuple):
+            path = (path,)
+        return self.get_path(path)
+
+    def __setitem__(self, path, value):
+        if not isinstance(path, tuple):
+            path = (path,)
+        self.set_path(path, value)
+
+    def set_path(self, path, value):
+        if isinstance(self.value, Process) and isinstance(value, Store):
+            if self.independent_store(value):
+                raise Exception(
+                    f"the store being inserted at {path} is from a different tree "
+                    f"at {value.path_for()}: {value.get_value()}")
+            self.update_topology(path, value)
+
+        # this case only when called directly
+        elif len(path) == 0:
+            if isinstance(value, Store):
+                self.value = value.value
+            else:
+                self.value = value
+
+        elif len(path) == 1:
+            final = path[0]
+            if isinstance(value, Store):
+                raise Exception(
+                    f"the store being inserted at {path} is already in a tree "
+                    f"at {value.path_for()}: {value.get_value()}")
+
+                # TODO: make it so a Store can be added here if it has no outer
+                # if value.outer:
+                #     raise Exception(f"the store being inserted at {path} is already in a tree
+                #     at {value.path_for()}: {value.get_value()}")
+                # else:
+                #     # place the store at this point in the tree
+                #     self.inner[final] = value
+                #     value.outer = self
+
+            elif isinstance(value, Process):
+                self.insert({
+                    'processes': value.generate_processes({'name': final}),
+                    'topology': value.generate_topology({'name': final}),
+                    'initial_state': value.initial_state()})
+
+            else:
+                # create the path there and store the value
+                down = self.establish_path((final,), {})
+                down.value = value
+
+        elif len(path) > 1:
+            if isinstance(self.value, Process):
+                down = self.establish_path(path, {})
+                down.set_path((), value)
+            else:
+                head = path[0]
+                tail = path[1:]
+                down = self.establish_path((head,), {})
+                down.set_path(tail, value)
+
+        else:
+            raise Exception("this should never happen")
+
+    def update_topology(self, port_path, target_store):
+        """
+        Can only be at a process node
+        """
+
+        assert isinstance(self.value, Process), \
+            f'assigning topology from {port_path} to {target_store.path_for()} ' \
+            f'at {self.path_for()} is invalid, not a process'
+
+        topology = copy.deepcopy(self.topology)
+        self.topology = insert_topology(
+            topology, port_path, self.outer.path_to(target_store))
+
+        self.value.schema = self.value.get_schema()
+        self.outer.topology_ports(
+            self.value.schema,
+            self.topology,
+            source=self.path_for())
+
+    def independent_store(self, store):
+        return self.top() != store.top()
+
+    def path_to(self, to):
+        """return a path from self to the given Store"""
+
+        self_path = self.path_for()
+        to_path = to.path_for()
+        while len(self_path) > 0 and len(to_path) > 0 and self_path[0] == to_path[0]:
+            self_path = self_path[1:]
+            to_path = to_path[1:]
+
+        path = [
+            '..'
+            for _ in self_path]
+        path.extend(to_path)
+        return tuple(path)
 
     def check_default(self, new_default):
         """Check a new default value.
@@ -439,6 +599,37 @@ class Store:
             return {}
         return self.value
 
+    def get_processes(self):
+        """
+        Get all processes in this store.
+        """
+
+        if self.inner:
+            inner_processes = {}
+            for key, child in self.inner.items():
+                if isinstance(child.value, Process):
+                    inner_processes[key] = child.value
+            if inner_processes:
+                return inner_processes
+        elif isinstance(self.value, Process):
+            return self.value
+
+    def get_topology(self):
+        """
+        Get the topology for all processes in this store.
+        """
+
+        if self.inner:
+            inner_topology = {}
+            for key, child in self.inner.items():
+                topology = child.get_topology()
+                if topology:
+                    inner_topology[key] = topology
+            if inner_topology:
+                return inner_topology
+        elif self.topology:
+            return self.topology
+
     def get_path(self, path):
         """
         Get the node at the given path relative to this node.
@@ -453,9 +644,14 @@ class Store:
 
             if child:
                 return child.get_path(path[1:])
-            # TODO: more handling for bad paths?
-            # TODO: check deleted?
-            return None
+            elif isinstance(self.value, Process):
+                towards = topology_path(self.topology, path)
+                if towards:
+                    target = self.outer.get_path(towards[0])
+                    return target.get_path(towards[1])
+            else:
+                # self.establish_path(path, {})
+                raise Exception(f"there is no path from leaf node {self.path_for()} to {path}")
         return self
 
     def get_paths(self, paths):
@@ -600,6 +796,9 @@ class Store:
         """
 
         if self.inner or self.subschema:
+            if not isinstance(value, dict):
+                raise Exception(f"trying to set branch {self.path_for()} to value {value}")
+
             for child, inner_value in value.items():
                 if child not in self.inner:
                     if self.subschema:
@@ -613,6 +812,29 @@ class Store:
         else:
             self.value = value
 
+    def generate_value(self, value):
+        """
+        generate the structure for this value that don't exist, 
+        but don't overwrite any existing values. 
+        """
+
+        if self.inner or self.subschema:
+            if not isinstance(value, dict):
+                raise Exception(f"trying to set branch {self.path_for()} to value {value}")
+
+            for child, inner_value in value.items():
+                if child not in self.inner:
+                    if self.subschema:
+                        self.inner[child] = Store(self.subschema, self)
+                    else:
+                        self.establish_path((child,), {})
+
+                if child in self.inner:
+                    self.inner[child].generate_value(inner_value)
+        else:
+            if self.value is None:
+                self.value = value
+
     def apply_defaults(self):
         """
         If value is None, set to default.
@@ -623,6 +845,142 @@ class Store:
         else:
             if self.value is None:
                 self.value = self.default
+
+    def add(self, added):
+        path = (added['key'],)
+        added_state = added['state']
+
+        target = self.establish_path(path, {})
+        self.apply_subschema_path(path)
+        target.apply_defaults()
+        target.set_value(added_state)
+
+    def move(self, move, process_store):
+        process_updates = []
+        topology_updates = []
+        deletions = []
+
+        # get the source node
+        source_key = move['source']
+        source_path = (source_key,)
+        source_node = self.get_path(source_path)
+
+        # move source node to target path
+        target_port = move['target']
+        target_topology = process_store.topology[target_port]
+        target_node = process_store.outer.get_path(target_topology)
+        target = target_node.add_node(source_path, source_node)
+        target_path = target.path_for() + source_path
+
+        # find the paths to all the processes
+        source_process_paths = source_node.depth(
+            filter_function=lambda x: isinstance(x.value, Process))
+
+        # find the process and topology updates
+        for path, process in source_process_paths:
+            process_updates.append((
+                target_path + path, process.value))
+            topology_updates.append((
+                target_path + path, process.topology))
+
+        self.delete_path(source_path)
+
+        here = self.path_for()
+        source_absolute = tuple(here + source_path)
+        deletions.append(source_absolute)
+
+        return process_updates, topology_updates, deletions
+
+    def insert(self, insertion):
+        process_updates = []
+        topology_updates = []
+
+        key = insertion.get('key')
+        path = (key,) if key else tuple()
+
+        here = self.path_for()
+
+        self.generate(
+            path,
+            insertion['processes'],
+            insertion['topology'],
+            insertion['initial_state'])
+
+        root = here + path
+        process_paths = dict_to_paths(root, insertion['processes'])
+        process_updates.extend(process_paths)
+
+        topology_paths = [
+            (root + (key,), topology)
+            for key, topology in insertion['topology'].items()]
+        topology_updates.extend(topology_paths)
+
+        self.apply_subschema_path(path)
+        self.get_path(path).apply_defaults()
+
+        return process_updates, topology_updates
+
+    def divide(self, divide):
+        process_updates = []
+        topology_updates = []
+        deletions = []
+
+        # use dividers to find initial states for daughters
+        mother = divide['mother']
+        daughters = divide['daughters']
+        initial_state = self.inner[mother].get_value(
+            condition=lambda child: not
+            (isinstance(child.value, Process)),
+            f=lambda child: copy.deepcopy(child))
+        daughter_states = self.inner[mother].divide_value()
+
+        here = self.path_for()
+
+        for daughter, daughter_state in \
+                zip(daughters, daughter_states):
+            # use initial state as default, merge in divided values
+            initial_state = deep_merge(
+                initial_state,
+                daughter_state)
+
+            daughter_key = daughter['key']
+            daughter_path = (daughter_key,)
+
+            self.generate(
+                daughter_path,
+                daughter['processes'],
+                daughter['topology'],
+                daughter['initial_state'])
+
+            root = here + daughter_path
+            process_paths = dict_to_paths(root, daughter['processes'])
+            process_updates.extend(process_paths)
+
+            topology_paths = [
+                (root + (key,), topology)
+                for key, topology in daughter['topology'].items()]
+            topology_updates.extend(topology_paths)
+
+            self.apply_subschema_path(daughter_path)
+            target = self.get_path(daughter_path)
+            target.apply_defaults()
+            target.set_value(initial_state)
+
+        mother_path = (mother,)
+        self.delete_path(mother_path)
+        deletions.append(tuple(here + mother_path))
+
+        return process_updates, topology_updates, deletions
+
+    def delete(self, key, here=None):
+        if here is None:
+            here = self.path_for()
+        deletions = []
+        path = (key,)
+        self.delete_path(path)
+        deletions.append(tuple(here + path))
+
+        return deletions
 
     def apply_update(self, update, state=None):
         """
@@ -709,121 +1067,31 @@ class Store:
             if add_entries is not None:
                 # add a list of sub-states
                 for added in add_entries:
-                    path = (added['key'],)
-                    added_state = added['state']
-
-                    target = self.establish_path(path, {})
-                    self.apply_subschema_path(path)
-                    target.apply_defaults()
-                    target.set_value(added_state)
+                    self.add(added)
 
             move_entries = update.pop('_move', None)
             if move_entries is not None:
                 # move nodes from source to target path
                 for move in move_entries:
-                    # get the source node
-                    source_key = move['source']
-                    source_path = (source_key,)
-                    source_node = self.get_path(source_path)
-
-                    # move source node to target path
-                    target_port = move['target']
-                    target_topology = state.topology[target_port]
-                    target_node = state.outer.get_path(target_topology)
-                    target = target_node.add_node(source_path, source_node)
-                    target_path = target.path_for() + source_path
-
-                    # find the paths to all the processes
-                    source_process_paths = source_node.depth(
-                        filter_function=lambda x: isinstance(x.value, Process))
-
-                    # find the process and topology updates
-                    for path, process in source_process_paths:
-                        process_updates.append((
-                            target_path + path, process.value))
-                        topology_updates.append((
-                            target_path + path, process.topology))
-
-                    self.delete_path(source_path)
-
-                    here = self.path_for()
-                    source_absolute = tuple(here + source_path)
-                    deletions.append(source_absolute)
+                    move_processes, move_topology, move_deletions = self.move(move, state)
+                    process_updates.extend(move_processes)
+                    topology_updates.extend(move_topology)
+                    deletions.extend(move_deletions)
 
             generate_entries = update.pop('_generate', None)
             if generate_entries is not None:
                 # generate a list of new processes
                 for generate in generate_entries:
-                    key = generate.get('key')
-                    path = (key,) if key else tuple()
-
-                    here = self.path_for()
-
-                    self.generate(
-                        path,
-                        generate['processes'],
-                        generate['topology'],
-                        generate['initial_state'])
-
-                    root = here + path
-                    process_paths = dict_to_paths(root, generate['processes'])
-                    process_updates.extend(process_paths)
-
-                    topology_paths = [
-                        (root + (key,), topology)
-                        for key, topology in generate['topology'].items()]
-                    topology_updates.extend(topology_paths)
-
-                    self.apply_subschema_path(path)
-                    self.get_path(path).apply_defaults()
+                    insert_processes, insert_topology = self.insert(generate)
+                    process_updates.extend(insert_processes)
+                    topology_updates.extend(insert_topology)
 
             divide = update.pop('_divide', None)
             if divide is not None:
-                # use dividers to find initial states for daughters
-                mother = divide['mother']
-                daughters = divide['daughters']
-                initial_state = self.inner[mother].get_value(
-                    condition=lambda child: not
-                    (isinstance(child.value, Process)),
-                    f=lambda child: copy.deepcopy(child))
-                daughter_states = self.inner[mother].divide_value()
-
-                here = self.path_for()
-
-                for daughter, daughter_state in \
-                        zip(daughters, daughter_states):
-
-                    # use initial state as default, merge in divided values
-                    initial_state = deep_merge(
-                        initial_state,
-                        daughter_state)
-
-                    daughter_key = daughter['key']
-                    daughter_path = (daughter_key,)
-
-                    self.generate(
-                        daughter_path,
-                        daughter['processes'],
-                        daughter['topology'],
-                        daughter['initial_state'])
-
-                    root = here + daughter_path
-                    process_paths = dict_to_paths(root, daughter['processes'])
-                    process_updates.extend(process_paths)
-
-                    topology_paths = [
-                        (root + (key,), topology)
-                        for key, topology in daughter['topology'].items()]
-                    topology_updates.extend(topology_paths)
-
-                    self.apply_subschema_path(daughter_path)
-                    target = self.get_path(daughter_path)
-                    target.apply_defaults()
-                    target.set_value(initial_state)
-
-                mother_path = (mother,)
-                self.delete_path(mother_path)
-                deletions.append(tuple(here + mother_path))
+                divide_processes, divide_topology, divide_deletions = self.divide(divide)
+                process_updates.extend(divide_processes)
+                topology_updates.extend(divide_topology)
+                deletions.extend(divide_deletions)
 
             delete_keys = update.pop('_delete', None)
 
@@ -847,9 +1115,8 @@ class Store:
                 # delete a list of paths
                 here = self.path_for()
                 for key in delete_keys:
-                    path = (key,)
-                    self.delete_path(path)
-                    deletions.append(tuple(here + path))
+                    delete_deletions = self.delete(key, here)
+                    deletions.extend(delete_deletions)
 
             return topology_updates, process_updates, deletions
 
@@ -1070,16 +1337,23 @@ class Store:
                     remaining,
                     config,
                     source=source)
-            if path_step not in self.inner:
-                self.inner[path_step] = Store(
-                    {}, outer=self, source=source)
+            elif isinstance(self.value, Process):
+                towards = topology_path(self.topology, path)
+                if towards:
+                    target = self.outer.establish_path(towards[0], config, source=source)
+                    return target.establish_path(towards[1], config, source=source)
+            else:
+                if path_step not in self.inner:
+                    self.inner[path_step] = Store(
+                        {}, outer=self, source=source)
 
-            return self.inner[path_step].establish_path(
-                remaining,
-                config,
-                source=source)
-        self.apply_config(config, source=source)
-        return self
+                return self.inner[path_step].establish_path(
+                    remaining,
+                    config,
+                    source=source)
+        else:
+            self.apply_config(config, source=source)
+            return self
 
     def add_node(self, path, node):
         """ Add a node instance at the provided path """
@@ -1141,9 +1415,9 @@ class Store:
                     subschema_config = {
                         '_subschema': subschema}
                     if isinstance(path, dict):
-                        node, path = self.outer_path(
+                        node, subpath = self.outer_path(
                             path, source=source)
-                        node.merge_subtopology(path)
+                        node.merge_subtopology(subpath)
                         node.apply_config(subschema_config)
                     else:
                         node = self.establish_path(
@@ -1154,12 +1428,12 @@ class Store:
                     node.apply_defaults()
 
                 elif isinstance(path, dict):
-                    node, path = self.outer_path(
+                    node, subpath = self.outer_path(
                         path, source=source)
 
                     node.topology_ports(
                         subschema,
-                        path,
+                        subpath,
                         source=source)
 
                 else:
@@ -1210,6 +1484,7 @@ class Store:
 
         target = self.establish_path(path, {})
         target.generate_paths(processes, topology)
-        target.set_value(initial_state)
+        target.generate_value(initial_state)
+        # target.set_value(initial_state)
         target.apply_subschemas()
         target.apply_defaults()

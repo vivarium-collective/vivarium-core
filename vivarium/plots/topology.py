@@ -11,7 +11,8 @@ from matplotlib.path import Path
 from matplotlib.figure import Figure
 import networkx as nx
 
-from vivarium.core.process import Process, Composer, Composite
+from vivarium.core.process import Process
+from vivarium.core.composer import Composer, Composite
 from vivarium.core.store import generate_state
 from vivarium.library.topology import normalize_path
 from vivarium.library.dict_utils import deep_merge
@@ -473,7 +474,9 @@ def plot_topology(
     settings = copy.deepcopy(settings) or {}
     if isinstance(composite, Composer):
         composite = composite.generate()
-    assert isinstance(composite, Composite)
+    elif isinstance(composite, Process):
+        composite = composite.generate()
+    assert 'processes' in composite and 'topology' in composite
 
     # make networkx graph
     remove_nodes = settings.pop('remove_nodes', [])

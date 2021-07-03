@@ -1,5 +1,5 @@
 from vivarium.composites.toys import ExchangeA
-from vivarium.core.process import Composite
+from vivarium.core.composer import Composite
 
 
 

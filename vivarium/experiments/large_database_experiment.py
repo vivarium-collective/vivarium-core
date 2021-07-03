@@ -1,6 +1,7 @@
 import random
-from vivarium.core.experiment import Experiment
-from vivarium.core.process import Process, Composer
+from vivarium.core.engine import Engine
+from vivarium.core.process import Process
+from vivarium.core.composer import Composer
 from vivarium.core.emitter import (
     get_experiment_database,
     data_from_database,
@@ -64,7 +65,7 @@ def run_large_initial_emit():
         'emitter': 'database'
     }
 
-    experiment = Experiment({
+    experiment = Engine({
         'processes': composite['processes'],
         'topology': composite['topology'],
         **settings})

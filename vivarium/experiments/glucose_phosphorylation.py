@@ -20,7 +20,7 @@ from vivarium.core.emitter import (
     path_timeseries_from_data,
     timeseries_from_data,
 )
-from vivarium.core.experiment import Experiment
+from vivarium.core.engine import Engine
 
 
 NAME = 'glucose_phosphorylation'
@@ -42,7 +42,7 @@ def glucose_phosphorylation_experiment(config=None):
     compartment = InjectedGlcPhosphorylation(
         config['injected_glc_phosphorylation'])
     compartment_dict = compartment.generate()
-    experiment = Experiment({
+    experiment = Engine({
         'processes': compartment_dict['processes'],
         'topology': compartment_dict['topology'],
         'emitter': config['emitter'],
