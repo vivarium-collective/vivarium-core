@@ -19,6 +19,7 @@ from vivarium.library.dict_utils import (
     value_in_embedded_dict,
     make_path_dict,
 )
+from vivarium.library.topology import assoc_path
 from vivarium.core.serialize import deserialize_value
 
 HISTORY_INDEXES = [
@@ -42,7 +43,7 @@ SECRETS_PATH = 'secrets.json'
 
 
 def size_of(emit_data):
-    return sys.getsizeof(str(emit_data))
+    return len(str(emit_data))
 
 
 def breakdown_data(limit, data, path=(), size=None):
@@ -89,26 +90,6 @@ def breakdown_data(limit, data, path=(), size=None):
             print(f'value is too large to store, ignoring {data}')
     else:
         return [(path, data)]
-
-
-def test_breakdown():
-    input = {
-        'a': [1, 2, 3],
-        'b': {
-            'X': [1, 2, 3, 4, 5],
-            'Y': [1, 2, 3, 4, 5, 6],
-            'Z': [5]}}
-
-    output = breakdown_data(70, input)
-
-    import ipdb; ipdb.set_trace()
-
-    assert output == [
-        (('b', 'Y'), [1, 2, 3, 4, 5, 6]),
-        (('b', 'X'), [1, 2, 3, 4, 5]),
-        (('b',), {'Z': [5]}
-        ((), {'a': [1, 2, 3]}),
-    ]
 
 
 def get_emitter(config: Optional[Dict[str, str]]) -> 'Emitter':
@@ -300,11 +281,9 @@ class DatabaseEmitter(Emitter):
 
     def __init__(self, config: Dict[str, str]) -> None:
         """config may have 'host' and 'database' items."""
-        # TODO(jerry): Will this create the DB tables or does it fail if they
-        #  don't already exist?
         super().__init__(config)
         self.experiment_id = config.get('experiment_id')
-        self.emit_limit = config.get('emit_limit', 26000000)
+        self.emit_limit = config.get('emit_limit', 26000000)  # TODO -- get this in terms of len(str(data))
 
         # create singleton instance of mongo client
         if DatabaseEmitter.client is None:
@@ -319,10 +298,10 @@ class DatabaseEmitter(Emitter):
         self.create_indexes(self.configuration, CONFIGURATION_INDEXES)
         self.create_indexes(self.phylogeny, CONFIGURATION_INDEXES)
 
-    def emit(self, data: Dict[str, Any]) -> None:
-        emit_data: dict = data['data']
+    def emit(self, emit_data: Dict[str, Any]) -> None:
         emit_data['experiment_id'] = self.experiment_id
-        table = getattr(self.db, data['table'])
+        table_id = emit_data.pop('table')
+        table = getattr(self.db, table_id)
         self.write_emit(table, emit_data)
 
     def write_emit(self, table, emit_data):
@@ -330,36 +309,13 @@ class DatabaseEmitter(Emitter):
 
         Break up large emits into smaller pieces and emit them individually
         """
-        data_bytes = size_of(emit_data)
-        if data_bytes > self.emit_limit:
-
-            # break up by keys, and emit large values separately
-            if isinstance(emit_data, dict):
-                mother_emit = {
-                    'experiment_id': self.experiment_id}
-
-                for key, child_data in emit_data.items():
-                    if key not in [
-                        'experiment_id', 'time_created', 'name',
-                        'description', '_child_id', '_data_id'
-                    ]:
-                        child_emit = {
-                            '_data': child_data,
-                            'experiment_id': self.experiment_id}
-                        inserted_id = self.write_emit(table, child_emit)
-
-                        mother_emit[key] = {
-                            '_child_id': inserted_id}
-                        import ipdb;
-                        ipdb.set_trace()
-
-                    else:
-                        mother_emit[key] = child_data
-
-                self.write_emit(table, mother_emit)
-        else:
-            result = table.insert_one(emit_data)
-            return result.inserted_id
+        data = emit_data.pop('data')
+        broken_down_data = breakdown_data(self.emit_limit, data)
+        # TODO -- there needs to be an assembly_id for each set of broken down data
+        for (path, datum) in broken_down_data:
+            d = dict(emit_data)
+            assoc_path(d, ('data',) + path, datum)
+            table.insert_one(d)
 
     def read_emit(self, data):
         # re-assemble
@@ -552,6 +508,23 @@ def emit_environment_config(
         'data': config,
         'table': 'configuration',
     })
+
+
+def test_breakdown():
+    input = {
+        'a': [1, 2, 3],
+        'b': {
+            'X': [1, 2, 3, 4, 5],
+            'Y': [1, 2, 3, 4, 5, 6],
+            'Z': [5]}}
+
+    output = breakdown_data(70, input)
+    assert output == [
+        (('b', 'Y'), [1, 2, 3, 4, 5, 6]),
+        (('b', 'X'), [1, 2, 3, 4, 5]),
+        (('b',), {'Z': [5]}),
+        ((), {'a': [1, 2, 3]}),
+    ]
 
 
 if __name__ == '__main__':

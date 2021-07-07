@@ -28,7 +28,7 @@ class ManyParametersProcess(Process):
     def ports_schema(self):
         return {'port': {'variable': {'_default': 0, '_emit': True}}}
     def next_update(self, timestep, states):
-        return {}
+        return {'port': {'variable': 1}}
 
 
 class ManyParametersComposite(Composer):
@@ -43,7 +43,6 @@ class ManyParametersComposite(Composer):
             for key in range(self.config['number_of_processes'])]
 
     def generate_processes(self, config):
-
         # make a bunch of processes
         return {
             process_id: ManyParametersProcess({
