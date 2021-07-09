@@ -108,7 +108,7 @@ def get_emitter(config: Optional[Dict[str, str]]) -> 'Emitter':
     * ``database``: :py:class:`DatabaseEmitter`
     * ``null``: :py:class:`NullEmitter`
     * ``print``: :py:class:`Emitter`, prints to stdout
-    * ``timeseries``: :py:class:`TimeSeriesEmitter`
+    * ``timeseries``: :py:class:`RAMEmitter`
 
     Arguments:
         config: Must comtain the ``type`` key, which specifies the emitter
@@ -127,7 +127,7 @@ def get_emitter(config: Optional[Dict[str, str]]) -> 'Emitter':
     elif emitter_type == 'null':
         emitter = NullEmitter(config)
     elif emitter_type == 'timeseries':
-        emitter = TimeSeriesEmitter(config)
+        emitter = RAMEmitter(config)
     else:
         emitter = Emitter(config)
 
@@ -239,7 +239,7 @@ class NullEmitter(Emitter):
         pass
 
 
-class TimeSeriesEmitter(Emitter):
+class RAMEmitter(Emitter):
     """
     Accumulate the timeseries history portion of the "emitted" data to a table
     in RAM.
