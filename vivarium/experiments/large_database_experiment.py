@@ -52,7 +52,7 @@ class ManyParametersComposite(Composer):
 
     def generate_topology(self, config):
         return {
-            process_id: {'port': ('store',)}
+            process_id: {'port': ('store', process_id,)}
             for process_id in self.process_ids}
 
 def run_large_initial_emit():
@@ -66,6 +66,7 @@ def run_large_initial_emit():
 
     settings = {
         'experiment_name': 'large database experiment',
+
         'emitter': 'database'
     }
 
@@ -74,22 +75,27 @@ def run_large_initial_emit():
         'topology': composite['topology'],
         **settings})
 
-    # retrieve the data
-    experiment_id = experiment.experiment_id
-    db = get_experiment_database()
-    data, experiment_config = data_from_database(experiment_id, db)
-    # TODO -- data_from_database needs to know about assemble method!
-
-    assert 'processes' in experiment_config
-    assert 0.0 in data
-
     # run the experiment
     experiment.update(10)
 
-    # retrieve the data
+    # retrieve the data with data_from_database
+    experiment_id = experiment.experiment_id
+
+    # retrieve the data from emitter
     data = experiment.emitter.get_data()
 
-    import ipdb; ipdb.set_trace()
+    assert list(data.keys()) == [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0]
+
+
+    # retrieve the data directly from database
+    db = get_experiment_database()
+    data, experiment_config = data_from_database(experiment_id, db)
+
+    import ipdb;
+    ipdb.set_trace()
+    #
+    # assert 'processes' in experiment_config
+    # assert 0.0 in data
 
     # delete the experiment
     delete_experiment_from_database(experiment_id)

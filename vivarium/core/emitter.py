@@ -18,9 +18,12 @@ from vivarium.library.units import remove_units
 from vivarium.library.dict_utils import (
     value_in_embedded_dict,
     make_path_dict,
+    deep_merge,
 )
 from vivarium.library.topology import assoc_path
 from vivarium.core.serialize import deserialize_value
+
+MONGO_DOCUMENT_LIMIT = 5e7
 
 HISTORY_INDEXES = [
     'time',
@@ -77,7 +80,11 @@ def breakdown_data(limit, data, path=(), size=None):
                     data[large_key],
                     path=path + (large_key,),
                     size=subsizes[large_key])
-                output.extend(subdata)
+
+                try:
+                    output.extend(subdata)
+                except:
+                    print(f'data can not be broken down to size {limit}: {data[large_key]}')
 
             pruned = {
                 key: value
@@ -283,7 +290,7 @@ class DatabaseEmitter(Emitter):
         """config may have 'host' and 'database' items."""
         super().__init__(config)
         self.experiment_id = config.get('experiment_id')
-        self.emit_limit = config.get('emit_limit', 26000000)  # TODO -- get this in terms of len(str(data))
+        self.emit_limit = config.get('emit_limit', MONGO_DOCUMENT_LIMIT)
 
         # create singleton instance of mongo client
         if DatabaseEmitter.client is None:
@@ -311,21 +318,15 @@ class DatabaseEmitter(Emitter):
         """
         data = emit_data.pop('data')
         broken_down_data = breakdown_data(self.emit_limit, data)
-        # TODO -- there needs to be an assembly_id for each set of broken down data
+        assembly_id = str(uuid.uuid4())
         for (path, datum) in broken_down_data:
             d = dict(emit_data)
             assoc_path(d, ('data',) + path, datum)
+            d['assembly_id'] = assembly_id
             table.insert_one(d)
 
-    def read_emit(self, data):
-        # re-assemble
-        import ipdb; ipdb.set_trace()
-
-        return {}
-
     def get_data(self) -> dict:
-        data = get_history_data_db(self.history, self.experiment_id)
-        return self.read_emit(data)
+        return get_history_data_db(self.history, self.experiment_id)
 
 
 def get_experiment_database(
@@ -371,20 +372,38 @@ def delete_experiment_from_database(
     db.configuration.delete_many(query)
 
 
+def assemble_data(data):
+    """re-assemble data"""
+    assembly = {}
+    for datum in data:
+        if 'assembly_id' in datum:
+            assembly_id = datum['assembly_id']
+            if assembly_id not in assembly:
+                assembly[assembly_id] = {}
+            deep_merge(assembly[assembly_id], datum['data'])
+        else:
+            assembly_id = str(uuid.uuid4())
+            assembly[assembly_id] = datum['data']
+    return assembly
+
+
 def get_history_data_db(
         history_collection: Any, experiment_id: Any) -> Dict[float, dict]:
     """Query MongoDB for history data."""
     query = {'experiment_id': experiment_id}
     raw_data = list(history_collection.find(query))
 
-    # TODO -- this is where data needs to be re-assembled
+    # re-assemble data
+    assembly = assemble_data(raw_data)
 
+    # restructure by time
     data = {}
-    for datum in raw_data:
+    for datum in assembly.values():
         time = datum['time']
         data[time] = {
             key: value for key, value in datum.items()
-            if key not in ['_id', 'experiment_id', 'time']}
+            if key not in ['_id', 'time']}
+
     return data
 
 
@@ -518,13 +537,11 @@ def test_breakdown():
             'Y': [1, 2, 3, 4, 5, 6],
             'Z': [5]}}
 
-    output = breakdown_data(70, input)
+    output = breakdown_data(20, input)
     assert output == [
         (('b', 'Y'), [1, 2, 3, 4, 5, 6]),
-        (('b', 'X'), [1, 2, 3, 4, 5]),
-        (('b',), {'Z': [5]}),
-        ((), {'a': [1, 2, 3]}),
-    ]
+        (('b',), {'X': [1, 2, 3, 4, 5], 'Z': [5]}),
+        ((), {'a': [1, 2, 3]})]
 
 
 if __name__ == '__main__':
