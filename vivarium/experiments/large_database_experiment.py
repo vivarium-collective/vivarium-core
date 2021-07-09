@@ -84,7 +84,8 @@ def run_large_initial_emit():
 
     # retrieve the data from emitter
     data = experiment.emitter.get_data()
-    assert list(data.keys()) == [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0]
+    assert list(data.keys()) == [
+        0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0]
 
     # retrieve the data directly from database
     db = get_experiment_database()

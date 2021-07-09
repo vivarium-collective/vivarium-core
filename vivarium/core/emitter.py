@@ -6,7 +6,6 @@ Emitters
 Emitters log configuration data and time-series data somewhere.
 """
 
-import sys
 import json
 import uuid
 from typing import Any, Dict, List, Optional, Tuple
@@ -45,11 +44,16 @@ CONFIGURATION_INDEXES = [
 SECRETS_PATH = 'secrets.json'
 
 
-def size_of(emit_data):
+def size_of(emit_data: Any) -> int:
     return len(str(emit_data))
 
 
-def breakdown_data(limit, data, path=(), size=None):
+def breakdown_data(
+        limit: float,
+        data: Any,
+        path: Tuple = (),
+        size: float = None,
+) -> list:
     size = size or size_of(data)
     if size > limit:
         if isinstance(data, dict):
@@ -83,8 +87,9 @@ def breakdown_data(limit, data, path=(), size=None):
 
                 try:
                     output.extend(subdata)
-                except:
-                    print(f'data can not be broken down to size {limit}: {data[large_key]}')
+                except ValueError:
+                    print(f'data can not be broken down to size '
+                          f'{limit}: {data[large_key]}')
 
             pruned = {
                 key: value
@@ -93,10 +98,10 @@ def breakdown_data(limit, data, path=(), size=None):
             output.append((path, pruned))
             return output
 
-        else:
-            print(f'value is too large to store, ignoring {data}')
-    else:
-        return [(path, data)]
+        print(f'value is too large to store, ignoring {data}')
+        return []
+
+    return [(path, data)]
 
 
 def get_emitter(config: Optional[Dict[str, str]]) -> 'Emitter':
@@ -286,7 +291,7 @@ class DatabaseEmitter(Emitter):
         for column in columns:
             table.create_index(column)
 
-    def __init__(self, config: Dict[str, str]) -> None:
+    def __init__(self, config: Dict[str, Any]) -> None:
         """config may have 'host' and 'database' items."""
         super().__init__(config)
         self.experiment_id = config.get('experiment_id')
@@ -305,13 +310,13 @@ class DatabaseEmitter(Emitter):
         self.create_indexes(self.configuration, CONFIGURATION_INDEXES)
         self.create_indexes(self.phylogeny, CONFIGURATION_INDEXES)
 
-    def emit(self, emit_data: Dict[str, Any]) -> None:
-        emit_data['experiment_id'] = self.experiment_id
-        table_id = emit_data.pop('table')
+    def emit(self, data: Dict[str, Any]) -> None:
+        data['experiment_id'] = self.experiment_id
+        table_id = data.pop('table')
         table = getattr(self.db, table_id)
-        self.write_emit(table, emit_data)
+        self.write_emit(table, data)
 
-    def write_emit(self, table, emit_data):
+    def write_emit(self, table: Any, emit_data: Dict[str, Any]) -> None:
         """Check that data size is less than emit limit.
 
         Break up large emits into smaller pieces and emit them individually
@@ -372,9 +377,9 @@ def delete_experiment_from_database(
     db.configuration.delete_many(query)
 
 
-def assemble_data(data):
+def assemble_data(data: list) -> dict:
     """re-assemble data"""
-    assembly = {}
+    assembly: dict = {}
     for datum in data:
         if 'assembly_id' in datum:
             assembly_id = datum['assembly_id']
@@ -484,15 +489,15 @@ def get_atlas_database_emitter_config(
     }
 
 
-def test_breakdown():
-    input = {
+def test_breakdown() -> None:
+    data = {
         'a': [1, 2, 3],
         'b': {
             'X': [1, 2, 3, 4, 5],
             'Y': [1, 2, 3, 4, 5, 6],
             'Z': [5]}}
 
-    output = breakdown_data(20, input)
+    output = breakdown_data(20, data)
     assert output == [
         (('b', 'Y'), [1, 2, 3, 4, 5, 6]),
         (('b',), {'X': [1, 2, 3, 4, 5], 'Z': [5]}),
