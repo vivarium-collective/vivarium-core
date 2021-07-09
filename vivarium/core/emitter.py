@@ -29,16 +29,12 @@ HISTORY_INDEXES = [
     'type',
     'simulation_id',
     'experiment_id',
-    '_child_id',
-    '_data_id',
 ]
 
 CONFIGURATION_INDEXES = [
     'type',
     'simulation_id',
     'experiment_id',
-    '_child_id',
-    '_data_id',
 ]
 
 SECRETS_PATH = 'secrets.json'
