@@ -426,54 +426,22 @@ def get_local_client(host: str, port: Any, database_name: str) -> Any:
 
 def data_from_database(experiment_id: str, client: Any) -> Tuple[dict, Any]:
     """Fetch something from a MongoDB."""
+
     # Retrieve environment config
     config_collection = client.configuration
-    experiment_config = config_collection.find_one({
-        'experiment_id': experiment_id,
-    })
+    query = {'experiment_id': experiment_id}
+    experiment_configs = list(config_collection.find(query))
+
+    # Re-assemble experiment_config
+    experiment_assembly = assemble_data(experiment_configs)
+    assert len(experiment_assembly) == 1
+    assembly_id = list(experiment_assembly.keys())[0]
+    experiment_config = experiment_assembly[assembly_id]
 
     # Retrieve timepoint data
-    history_collection = client.history
+    history = client.history
+    data = get_history_data_db(history, experiment_id)
 
-    unique_time_objs = history_collection.aggregate([
-        {
-            '$match': {
-                'experiment_id': experiment_id
-            }
-        }, {
-            '$group': {
-                '_id': {
-                    'time': '$time'
-                },
-                'id': {
-                    '$first': '$_id'
-                }
-            }
-        }, {
-            '$sort': {
-                '_id.time': 1
-            }
-        },
-    ])
-    unique_time_ids = [
-        obj['id'] for obj in unique_time_objs
-    ]
-    data_cursor = history_collection.find({
-        '_id': {
-            '$in': unique_time_ids
-        }
-    }).sort('time')
-    raw_data = list(data_cursor)
-
-    # Reshape data
-    data = {
-        timepoint_dict['time']: {
-            key: val
-            for key, val in timepoint_dict.items()
-            if key != 'time'
-        }
-        for timepoint_dict in raw_data
-    }
     return data, experiment_config
 
 
@@ -514,19 +482,6 @@ def get_atlas_database_emitter_config(
         'host': uri,
         'database': database,
     }
-
-
-def emit_environment_config(
-        environment_config: Dict[str, Any], emitter: Emitter) -> None:
-    """Emit a multibody bounds environment config to the given Emitter."""
-    config = {
-        'bounds': environment_config['multibody']['bounds'],
-        'type': 'environment_config',
-    }
-    emitter.emit({
-        'data': config,
-        'table': 'configuration',
-    })
 
 
 def test_breakdown():
