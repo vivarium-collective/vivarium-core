@@ -52,6 +52,7 @@ def assoc_path(d, path, value):
 
     >>> d = {'a': {'b': 'c'}}
     >>> assoc_path(d, ('a', 'd'), 'e')
+    {'a': {'b': 'c', 'd': 'e'}}
     >>> d
     {'a': {'b': 'c', 'd': 'e'}}
 
@@ -68,6 +69,7 @@ def assoc_path(d, path, value):
             assoc_path(d[head], path[1:], value)
     elif isinstance(value, dict):
         deep_merge(d, value)
+    return d
 
 
 def without(d, removing):
