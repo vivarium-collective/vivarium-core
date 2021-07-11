@@ -2,6 +2,12 @@
 
 
 
+## v0.3.2
+
+* DatabaseEmitter supports arbitrary emit sizes by breaking up large emits into chunks, and reassembles them seamlessly upon retrieval.
+* libary.wrappers make_logging_process adds a logging port to any process
+* Improve the Store API by adding methods for creating new stores and connecting processes through their ports. 
+
 ## v0.3.1
 
 * Fix `plot_topology` to use `Process.generate()` now that `Process` no longer inherits from `Composer`
