@@ -259,7 +259,8 @@ class RAMEmitter(Emitter):
             emit_data = data['data']
             time = emit_data['time']
             self.saved_data[time] = {
-                key: value for key, value in emit_data.items() if key is not 'time'}
+                key: value for key, value in emit_data.items()
+                if key not in ['time']}
 
     def get_data(self) -> dict:
         """ Return the accumulated timeseries history of "emitted" data. """
