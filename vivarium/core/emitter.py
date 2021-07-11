@@ -257,8 +257,9 @@ class RAMEmitter(Emitter):
         """
         if data['table'] == 'history':
             emit_data = data['data']
-            time = emit_data.pop('time')  # TODO: OK to modify caller's dict?
-            self.saved_data[time] = emit_data
+            time = emit_data['time']
+            self.saved_data[time] = {
+                key: value for key, value in emit_data.items() if key is not 'time'}
 
     def get_data(self) -> dict:
         """ Return the accumulated timeseries history of "emitted" data. """
