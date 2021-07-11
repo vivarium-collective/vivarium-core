@@ -309,10 +309,13 @@ class DatabaseEmitter(Emitter):
         self.create_indexes(self.phylogeny, CONFIGURATION_INDEXES)
 
     def emit(self, data: Dict[str, Any]) -> None:
-        data['experiment_id'] = self.experiment_id
-        table_id = data.pop('table')
+        table_id = data['table']
         table = getattr(self.db, table_id)
-        self.write_emit(table, data)
+        emit_data = {
+            key: value for key, value in data.items()
+            if key not in ['table']}
+        emit_data['experiment_id'] = self.experiment_id
+        self.write_emit(table, emit_data)
 
     def write_emit(self, table: Any, emit_data: Dict[str, Any]) -> None:
         """Check that data size is less than emit limit.

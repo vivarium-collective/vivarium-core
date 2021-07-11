@@ -57,6 +57,10 @@ class ManyParametersComposite(Composer):
             for process_id in self.process_ids}
 
 def run_large_initial_emit():
+    """
+    This experiment runs a large experiment to test the database emitter.
+    This requires MongoDB to be configured and running.
+    """
 
     config = {
         'number_of_processes': 1000,
