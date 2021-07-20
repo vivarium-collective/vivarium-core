@@ -2,6 +2,10 @@
 
 
 
+## v0.3.3
+
+* Engine has emit_config option. Is set to False, this keeps the serialized processes from being emitted and can save a lot of compute time.
+
 ## v0.3.2
 
 * DatabaseEmitter supports arbitrary emit sizes by breaking up large emits into chunks, and reassembles them seamlessly upon retrieval.
