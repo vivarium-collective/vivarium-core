@@ -242,6 +242,11 @@ class Engine:
                     :py:func:`vivarium.core.emitter.get_emitter`. The
                     experiment ID will be added to the dictionary you
                     provide as the value for the key ``experiment_id``.
+                * **display_info** (:py:class:`bool`): prints experiment info
+                * **progress_bar** (:py:class:`bool`): shows a progress bar
+                * **emit_config** (:py:class:`bool`): If True, this will
+                    emit the serialized processes, topology, and initial
+                    state.
         """
         self.config = config
         self.experiment_id = config.get(
@@ -299,7 +304,9 @@ class Engine:
             emitter_config = dict(emitter_config)
         emitter_config['experiment_id'] = self.experiment_id
         self.emitter = get_emitter(emitter_config)
+        self.emit_config = config.get('emit_config', True)
 
+        # initialize global time
         self.experiment_time = 0.0
 
         # run the derivers
@@ -344,9 +351,13 @@ class Engine:
             'experiment_id': self.experiment_id,
             'name': self.experiment_name,
             'description': self.description,
-            'topology': self.topology,
-            'processes': serialize_value(self.processes),
-            'state': serialize_value(self.state.get_config())}
+            'topology': self.topology
+            if self.emit_config else None,
+            'processes': serialize_value(self.processes)
+            if self.emit_config else None,
+            'state': serialize_value(self.state.get_config())
+            if self.emit_config else None,
+        }
         emit_config: Dict[str, Any] = {
             'table': 'configuration',
             'data': data}
