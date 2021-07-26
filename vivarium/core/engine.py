@@ -908,7 +908,7 @@ def test_recursive_store() -> None:
 def test_topology_ports() -> None:
     proton = _make_proton()
 
-    experiment = Engine(proton)
+    experiment = Engine(**proton)
 
     log.debug(pf(experiment.state.get_config(True)))
 
@@ -981,7 +981,7 @@ def test_timescales() -> None:
         'fast': {'state': ('state',)}}
 
     emitter = {'type': 'null'}
-    experiment = Engine({
+    experiment = Engine(**{
         'processes': processes,
         'topology': topology,
         'emitter': emitter,
@@ -1039,7 +1039,7 @@ def test_2_store_1_port() -> None:
     # run experiment
     split_port = SplitPort({})
     network = split_port.generate()
-    exp = Engine({
+    exp = Engine(**{
         'processes': network['processes'],
         'topology': network['topology']})
 
@@ -1099,7 +1099,7 @@ def test_multi_port_merge() -> None:
     # run experiment
     merge_port = MergePort({})
     network = merge_port.generate()
-    exp = Engine({
+    exp = Engine(**{
         'processes': network['processes'],
         'topology': network['topology']})
 
@@ -1118,7 +1118,8 @@ def test_complex_topology() -> None:
     outer_path = ('universe', 'agent')
     pq = PoQo({})
     pq_composite = pq.generate(path=outer_path)
-    experiment = Engine(pq_composite)
+    pq_composite.pop('_schema')
+    experiment = Engine(**pq_composite)
 
     # get the initial state
     initial_state = experiment.state.get_value()
@@ -1143,7 +1144,7 @@ def test_complex_topology() -> None:
 
 def test_parallel() -> None:
     proton = _make_proton(parallel=True)
-    experiment = Engine(proton)
+    experiment = Engine(**proton)
 
     log.debug(pf(experiment.state.get_config(True)))
 
@@ -1236,7 +1237,7 @@ def test_units() -> None:
     # run experiment
     multi_unit = MultiUnits({})
     network = multi_unit.generate()
-    exp = Engine({
+    exp = Engine(**{
         'processes': network['processes'],
         'topology': network['topology']})
 
@@ -1269,7 +1270,7 @@ def test_custom_divider() -> None:
     })
     composite = composer.generate(path=('agents', agent_id))
 
-    experiment = Engine({
+    experiment = Engine(**{
         'processes': composite.processes,
         'topology': composite.topology,
     })
