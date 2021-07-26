@@ -204,7 +204,19 @@ class InvokeProcess:
 class Engine:
     def __init__(
             self,
-            config: Dict[str, Any]
+            processes=None,
+            topology=None,
+            store=None,
+            emitter='timeseries',
+            emit_config=True,
+            invoke=None,
+            experiment_id=None,
+            experiment_name=None,
+            initial_state=None,
+            description='',
+            emit_step=1.0,
+            display_info=True,
+            progress_bar=False,
     ) -> None:
         """Defines simulations
 
@@ -248,18 +260,15 @@ class Engine:
                     emit the serialized processes, topology, and initial
                     state.
         """
-        self.config = config
-        self.experiment_id = config.get(
-            'experiment_id', str(uuid.uuid1()))
-        self.initial_state = config.get('initial_state', {})
-        self.emit_step = config.get('emit_step', 1.0)
+
+        self.experiment_id = experiment_id or str(uuid.uuid1())
+        self.initial_state = initial_state or {}
+        self.emit_step = emit_step
 
         # get the processes, topology, and store
-        if 'processes' in config \
-                and 'topology' in config \
-                and 'store' not in config:
-            self.processes: Processes = config['processes']
-            self.topology: Topology = config['topology']
+        if processes and topology and not store:
+            self.processes: Processes = processes
+            self.topology: Topology = topology
 
             # initialize the store
             self.state: Store = generate_state(
@@ -267,8 +276,8 @@ class Engine:
                 self.topology,
                 self.initial_state)
 
-        elif 'store' in config:
-            self.state = config['store']
+        elif store:
+            self.state = store
 
             # get processes and topology from the store
             self.processes = self.state.get_processes()
@@ -278,17 +287,16 @@ class Engine:
                 'load either store or (processes and topology) into Engine')
 
         # display settings
-        self.experiment_name = config.get(
-            'experiment_name', self.experiment_id)
-        self.description = config.get('description', '')
-        self.display_info = config.get('display_info', True)
-        self.progress_bar = config.get('progress_bar', False)
+        self.experiment_name = experiment_name or self.experiment_id
+        self.description = description
+        self.display_info = display_info
+        self.progress_bar = progress_bar
         self.time_created = timestamp()
         if self.display_info:
             self.print_display()
 
         # parallel settings
-        self.invoke = config.get('invoke', InvokeProcess)
+        self.invoke = invoke or InvokeProcess
         self.parallel: Dict[HierarchyPath, ParallelProcess] = {}
 
         # get a mapping of all paths to processes
@@ -297,14 +305,14 @@ class Engine:
         self._find_process_paths(self.processes)
 
         # emitter settings
-        emitter_config = config.get('emitter', 'timeseries')
+        emitter_config = emitter
         if isinstance(emitter_config, str):
             emitter_config = {'type': emitter_config}
         else:
             emitter_config = dict(emitter_config)
         emitter_config['experiment_id'] = self.experiment_id
         self.emitter = get_emitter(emitter_config)
-        self.emit_config = config.get('emit_config', True)
+        self.emit_config = emit_config
 
         # initialize global time
         self.experiment_time = 0.0
