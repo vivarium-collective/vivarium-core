@@ -204,26 +204,23 @@ class InvokeProcess:
 class Engine:
     def __init__(
             self,
-            processes=None,
-            topology=None,
-            store=None,
-            emitter='timeseries',
-            emit_config=True,
-            invoke=None,
-            experiment_id=None,
-            experiment_name=None,
-            initial_state=None,
-            description='',
-            emit_step=1.0,
-            display_info=True,
-            progress_bar=False,
+            processes: Optional[Processes] = None,
+            topology: Optional[Topology] = None,
+            store: Optional[Store] = None,
+            initial_state: Optional[State] = None,
+            experiment_id: Optional[str] = None,
+            experiment_name: Optional[str] = None,
+            description: str = '',
+            emitter: Union[str, dict] = 'timeseries',
+            emit_config: bool = True,
+            invoke: Optional[Any] = None,
+            emit_step: float = 1.0,
+            display_info: bool = True,
+            progress_bar: bool = False,
     ) -> None:
         """Defines simulations
 
         Arguments:
-            config (dict): A dictionary of configuration options. The
-                required options are:
-
                 * **processes** (:py:class:`dict`): A dictionary that
                     maps :term:`process` names to process objects. You
                     will usually get this from the ``processes``
@@ -236,18 +233,21 @@ class Engine:
                     from the :term:`compartment` root to the
                     :term:`store` that will be passed to the process for
                     that port.
+                * **store** (:py:class:`Store`): A pre-loaded Store. This
+                    is an alternative to passing in processes and topology dict,
+                    which can not be loaded at the same time.
 
-                The following options are optional:
+                The following are optional:
 
+                * **initial_state** (:py:class:`dict`): By default an
+                    empty dictionary, this is the initial state of the
+                    simulation.
                 * **experiment_id** (:py:class:`uuid.UUID` or
                     :py:class:`str`): A unique identifier for the
                     experiment. A UUID will be generated if none is
                     provided.
                 * **description** (:py:class:`str`): A description of
                     the experiment. A blank string by default.
-                * **initial_state** (:py:class:`dict`): By default an
-                    empty dictionary, this is the initial state of the
-                    simulation.
                 * **emitter** (:py:class:`dict`): An emitter
                     configuration which must conform to the
                     specification in the documentation for
@@ -267,9 +267,8 @@ class Engine:
 
         # get the processes, topology, and store
         if processes and topology and not store:
-            self.processes: Processes = processes
-            self.topology: Topology = topology
-
+            self.processes = processes
+            self.topology = topology
             # initialize the store
             self.state: Store = generate_state(
                 self.processes,
@@ -278,7 +277,6 @@ class Engine:
 
         elif store:
             self.state = store
-
             # get processes and topology from the store
             self.processes = self.state.get_processes()
             self.topology = self.state.get_topology()
@@ -981,11 +979,11 @@ def test_timescales() -> None:
         'fast': {'state': ('state',)}}
 
     emitter = {'type': 'null'}
-    experiment = Engine(**{
-        'processes': processes,
-        'topology': topology,
-        'emitter': emitter,
-        'initial_state': states})
+    experiment = Engine(
+        processes=processes,
+        topology=topology,
+        emitter=emitter,
+        initial_state=states)
 
     experiment.update(10.0)
 
@@ -1270,10 +1268,10 @@ def test_custom_divider() -> None:
     })
     composite = composer.generate(path=('agents', agent_id))
 
-    experiment = Engine(**{
-        'processes': composite.processes,
-        'topology': composite.topology,
-    })
+    experiment = Engine(
+        processes=composite.processes,
+        topology=composite.topology,
+    )
 
     experiment.update(80)
     data = experiment.emitter.get_data()
