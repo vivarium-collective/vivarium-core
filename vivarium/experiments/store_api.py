@@ -147,7 +147,7 @@ def test_run_store_in_experiment() -> None:
     _ = topology
 
     # run the experiment with a topology
-    experiment = Engine({'store': store})
+    experiment = Engine(store=store)
     experiment.update(10)
     data = experiment.emitter.get_data()
 

@@ -42,7 +42,7 @@ def glucose_phosphorylation_experiment(config=None):
     compartment = InjectedGlcPhosphorylation(
         config['injected_glc_phosphorylation'])
     compartment_dict = compartment.generate()
-    experiment = Engine({
+    experiment = Engine(**{
         'processes': compartment_dict['processes'],
         'topology': compartment_dict['topology'],
         'emitter': config['emitter'],
