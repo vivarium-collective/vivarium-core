@@ -212,7 +212,9 @@ class Engine:
             experiment_name: Optional[str] = None,
             description: str = '',
             emitter: Union[str, dict] = 'timeseries',
-            emit_config: bool = True,
+            emit_topology: bool = True,
+            emit_processes: bool = False,
+            emit_config: bool = False,
             invoke: Optional[Any] = None,
             emit_step: float = 1.0,
             display_info: bool = True,
@@ -301,6 +303,9 @@ class Engine:
             emitter_config = dict(emitter_config)
         emitter_config['experiment_id'] = self.experiment_id
         self.emitter = get_emitter(emitter_config)
+
+        self.emit_topology = emit_topology
+        self.emit_processes = emit_processes
         self.emit_config = emit_config
 
         # initialize global time
@@ -348,12 +353,9 @@ class Engine:
             'experiment_id': self.experiment_id,
             'name': self.experiment_name,
             'description': self.description,
-            'topology': self.topology
-            if self.emit_config else None,
-            'processes': serialize_value(self.processes)
-            if self.emit_config else None,
-            'state': serialize_value(self.state.get_config())
-            if self.emit_config else None,
+            'topology': self.topology if self.emit_topology else None,
+            'processes': serialize_value(self.processes) if self.emit_processes else None,
+            'state': serialize_value(self.state.get_config()) if self.emit_config else None,
         }
         emit_config: Dict[str, Any] = {
             'table': 'configuration',

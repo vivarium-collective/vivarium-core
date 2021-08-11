@@ -94,7 +94,7 @@ def breakdown_data(
             output.append((path, pruned))
             return output
 
-        print(f'value is too large to store, ignoring {data}')
+        print(f'value is too large to emit, ignoring data')
         return []
 
     return [(path, data)]
