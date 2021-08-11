@@ -1,6 +1,10 @@
 # Changelog
 
 
+## v0.3.4
+
+* Engine uses keyword arguments rather than a config dict. Additional emit_config options are added to selectively emit metadata.
+
 
 ## v0.3.3
 
