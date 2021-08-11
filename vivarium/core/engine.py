@@ -216,7 +216,7 @@ class Engine:
             emit_processes: bool = False,
             emit_config: bool = False,
             invoke: Optional[Any] = None,
-            emit_step: float = 1.0,
+            emit_step: float = 1,
             display_info: bool = True,
             progress_bar: bool = False,
     ) -> None:
@@ -353,9 +353,12 @@ class Engine:
             'experiment_id': self.experiment_id,
             'name': self.experiment_name,
             'description': self.description,
-            'topology': self.topology if self.emit_topology else None,
-            'processes': serialize_value(self.processes) if self.emit_processes else None,
-            'state': serialize_value(self.state.get_config()) if self.emit_config else None,
+            'topology': self.topology
+            if self.emit_topology else None,
+            'processes': serialize_value(self.processes)
+            if self.emit_processes else None,
+            'state': serialize_value(self.state.get_config())
+            if self.emit_config else None,
         }
         emit_config: Dict[str, Any] = {
             'table': 'configuration',
@@ -686,7 +689,7 @@ class Engine:
                 # display and emit
                 if self.progress_bar:
                     print_progress_bar(time, interval)
-                if self.emit_step is None:
+                if self.emit_step == 1:
                     self.emit_data()
                 elif emit_time <= time:
                     while emit_time <= time:
@@ -1042,51 +1045,51 @@ def test_2_store_1_port() -> None:
         'time': [0.0, 1.0, 2.0]}
     assert output == expected_output
 
+class MultiPort(Process):
+    name = 'multi_port'
+
+    def ports_schema(self) -> Schema:
+        return {
+            'A': {
+                'a': {
+                    '_default': 0,
+                    '_emit': True}},
+            'B': {
+                'a': {
+                    '_default': 0,
+                    '_emit': True}},
+            'C': {
+                'a': {
+                    '_default': 0,
+                    '_emit': True}}}
+
+    def next_update(
+            self,
+            timestep: Union[float, int],
+            states: State) -> Update:
+        return {
+            'A': {'a': 1},
+            'B': {'a': 1},
+            'C': {'a': 1}}
+
+class MergePort(Composer):
+    """combines both of MultiPort's ports into one store"""
+    name = 'multi_port_composer'
+
+    def generate_processes(
+            self, config: Optional[dict]) -> Dict[str, Any]:
+        return {
+            'multi_port': MultiPort({})}
+
+    def generate_topology(self, config: Optional[dict]) -> Topology:
+        return {
+            'multi_port': {
+                'A': ('aaa',),
+                'B': ('aaa',),
+                'C': ('aaa',)}}
+
 
 def test_multi_port_merge() -> None:
-    class MultiPort(Process):
-        name = 'multi_port'
-
-        def ports_schema(self) -> Schema:
-            return {
-                'A': {
-                    'a': {
-                        '_default': 0,
-                        '_emit': True}},
-                'B': {
-                    'a': {
-                        '_default': 0,
-                        '_emit': True}},
-                'C': {
-                    'a': {
-                        '_default': 0,
-                        '_emit': True}}}
-
-        def next_update(
-                self,
-                timestep: Union[float, int],
-                states: State) -> Update:
-            return {
-                'A': {'a': 1},
-                'B': {'a': 1},
-                'C': {'a': 1}}
-
-    class MergePort(Composer):
-        """combines both of MultiPort's ports into one store"""
-        name = 'multi_port_composer'
-
-        def generate_processes(
-                self, config: Optional[dict]) -> Dict[str, Any]:
-            return {
-                'multi_port': MultiPort({})}
-
-        def generate_topology(self, config: Optional[dict]) -> Topology:
-            return {
-                'multi_port': {
-                    'A': ('aaa',),
-                    'B': ('aaa',),
-                    'C': ('aaa',)}}
-
     # run experiment
     merge_port = MergePort({})
     network = merge_port.generate()
@@ -1101,6 +1104,23 @@ def test_multi_port_merge() -> None:
         'time': [0.0, 1.0, 2.0]}
 
     assert output == expected_output
+
+
+def test_emit_config() -> None:
+    # test alternate emit options
+    merge_port = MergePort({})
+    network = merge_port.generate()
+    exp1 = Engine(
+        processes=network['processes'],
+        topology=network['topology'],
+        emit_topology=False,
+        emit_processes=True,
+        emit_config=True,
+        progress_bar=True,
+        emit_step=2,
+    )
+
+    exp1.update(10)
 
 
 def test_complex_topology() -> None:
