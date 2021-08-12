@@ -3,7 +3,8 @@ Experiment to test maximum BSON document size with MongoDB emitter
 """
 import uuid
 import random
-import cProfile
+import cProfile, pstats
+from pstats import SortKey
 
 from vivarium.core.engine import Engine
 from vivarium.core.process import Process
@@ -163,14 +164,67 @@ def test_model_complexity():
     timeseries = experiment.emitter.get_timeseries()
 
 
+class ComplexModelSim:
 
-def profile_model_complexity():
-    cProfile.run("test_model_complexity()")
+    def __init__(self):
+        self.number_of_processes = 10
+        self.number_of_variables = 10
 
-    # import ipdb;  ipdb.set_trace()
+        # initialize
+        self.initialize_composite()
+        self.generate_composite()
+        self.initialize_experiment()
+
+    def initialize_composite(self):
+        self.composer = ManyVariablesComposite({
+            'number_of_processes': self.number_of_processes,
+            'number_of_variables': self.number_of_variables})
+
+    def generate_composite(self):
+        self.composite = self.composer.generate()
+
+    def initialize_experiment(self):
+        self.experiment = Engine(
+            processes=self.composite['processes'],
+            topology=self.composite['topology'])
+
+    def run_experiment(self, total_time=10):
+        self.experiment.update(total_time)
+
+    def get_emitter_data(self):
+        self.data = self.experiment.emitter.get_timeseries()
+
+    def profile_method(self, method):
+        profiler = cProfile.Profile()
+        profiler.enable()
+        method()
+        profiler.disable()
+        stats = pstats.Stats(profiler).sort_stats(SortKey.TIME).print_stats(10)
+        stats.print_stats(10)
+
+
+    def run_profile(self):
+        print('INITIALIZE COMPOSITE')
+        self.profile_method(self.initialize_composite)
+
+        print('GENERATE COMPOSITE')
+        self.profile_method(self.generate_composite)
+
+        print('INITIALIZE EXPERIMENT')
+        self.profile_method(self.initialize_experiment)
+
+        print('RUN EXPERIMENT')
+        self.profile_method(self.run_experiment)
+
+        print('GET EMITTER DATA')
+        self.profile_method(self.get_emitter_data)
+
+
+
 
 
 if __name__ == '__main__':
     # run_large_initial_emit()
     # test_runtime_profile()
-    profile_model_complexity()
+    # profile_model_complexity()
+    ComplexModelSim().run_profile()
