@@ -3,6 +3,7 @@ Experiment to test maximum BSON document size with MongoDB emitter
 """
 import uuid
 import random
+import time
 import cProfile, pstats
 from pstats import SortKey
 
@@ -56,31 +57,45 @@ class ManyParametersComposite(Composer):
 class ManyVariablesProcess(Process):
     defaults = {
         'number_of_variables': 10,
-        'variables': [],
+        'process_sleep': 0,
     }
     def __init__(self, parameters=None):
         super().__init__(parameters)
         # make a bunch of variables
         random_variables = [key for key in range(self.parameters['number_of_variables'])]
-        super().__init__({'variables': random_variables})
+        self.parameters['variables'] = random_variables
+
     def ports_schema(self):
         return {
+            'update_timer': {
+                '_default': 0,
+                '_emit': True,
+            },
             'port': {
                 variable: {
                     '_default': random.random(),
                     '_emit': True
                 } for variable in self.parameters['variables']}}
+
     def next_update(self, timestep, states):
-        return {
-            'port': {
+        start = time.time()
+        update = {
                 variable: random.random()
-                for variable in self.parameters['variables']}}
+                for variable in self.parameters['variables']}
+        end = time.time()
+        time.sleep(self.parameters['process_sleep'])
+        runtime = end - start
+        return {
+            'port': update,
+            'update_timer': runtime,
+        }
 
 class ManyVariablesComposite(Composer):
     defaults = {
         'number_of_processes': 10,
         'number_of_stores': 10,
         'variables_per_process': 10,
+        'process_sleep': 0,
     }
 
     def __init__(self, config=None):
@@ -92,19 +107,21 @@ class ManyVariablesComposite(Composer):
             f'store_{key}'
             for key in range(self.config['number_of_stores'])]
 
-
     def generate_processes(self, config):
         # make a bunch of processes
         return {
             process_id: ManyVariablesProcess({
                 'name': process_id,
-                'number_of_variables': self.config['variables_per_process']})
+                'number_of_variables': self.config['variables_per_process'],
+                'process_sleep': self.config['process_sleep'],
+            })
             for process_id in self.process_ids}
 
     def generate_topology(self, config):
         return {
             process_id: {
-                'port': (random.choice(self.store_ids),)
+                'port': (random.choice(self.store_ids),),
+                'update_timer': ('update_timer',),
             }
             for process_id in self.process_ids}
 
@@ -158,44 +175,50 @@ def run_large_initial_emit():
 class ComplexModelSim:
 
     def __init__(self):
-        self.number_of_processes = 10
-        self.number_of_variables = 10
+        self.number_of_processes = 100
+        self.number_of_variables = 100
+        self.process_sleep = 1e-4
+        self.print_top_stats = 4
+        self.total_time = 100
 
-        # initialize
-        self.initialize_composite()
-        self.generate_composite()
-        self.initialize_experiment()
-
-    def initialize_composite(self):
+    def generate_composite(self, **kwargs):
         self.composer = ManyVariablesComposite({
             'number_of_processes': self.number_of_processes,
-            'number_of_variables': self.number_of_variables})
+            'number_of_variables': self.number_of_variables,
+            'process_sleep': self.process_sleep,
+        })
 
-    def generate_composite(self):
-        self.composite = self.composer.generate()
+        self.composite = self.composer.generate(**kwargs)
 
-    def initialize_experiment(self):
+    def initialize_experiment(self, **kwargs):
         self.experiment = Engine(
             processes=self.composite['processes'],
-            topology=self.composite['topology'])
+            topology=self.composite['topology'],
+            **kwargs)
 
-    def run_experiment(self, total_time=10):
-        self.experiment.update(total_time)
+    def run_experiment(self, **kwargs):
+        self.experiment.update(kwargs['total_time'])
 
-    def get_emitter_data(self):
-        self.data = self.experiment.emitter.get_timeseries()
+    def get_emitter_data(self, **kwargs):
+        self.data = self.experiment.emitter.get_data()
+        return self.data
 
-    def profile_method(self, method):
+    def get_emitter_timeseries(self, **kwargs):
+        self.timeseries = self.experiment.emitter.get_timeseries()
+        return self.timeseries
+
+    def profile_method(self, method, **kwargs):
+        print_top_stats = kwargs.get('print_top_stats', self.print_top_stats)
         profiler = cProfile.Profile()
         profiler.enable()
-        method()
+        method(**kwargs)
         profiler.disable()
         stats = pstats.Stats(profiler)
-        stats.sort_stats(SortKey.TIME).print_stats(10)
+        if print_top_stats:
+            stats.sort_stats(SortKey.TIME).print_stats(print_top_stats)
+        return stats
 
     def run_profile(self):
-        print('INITIALIZE COMPOSITE')
-        self.profile_method(self.initialize_composite)
 
         print('GENERATE COMPOSITE')
         self.profile_method(self.generate_composite)
@@ -203,18 +226,41 @@ class ComplexModelSim:
         print('INITIALIZE EXPERIMENT')
         self.profile_method(self.initialize_experiment)
 
-        # TODO -- run profile of time in process and in stores
-
         print('RUN EXPERIMENT')
-        self.profile_method(self.run_experiment)
+        self.profile_method(self.run_experiment, total_time=self.total_time)
 
         print('GET EMITTER DATA')
         self.profile_method(self.get_emitter_data)
+
+    def profile_communication_latency(self):
+
+        self.generate_composite()
+        self.initialize_experiment()
+
+        print('RUN EXPERIMENT')
+        stats = self.profile_method(
+            self.run_experiment,
+            total_time=self.total_time,
+            print_top_stats=None)
+
+        # self.get_emitter_data()
+        self.get_emitter_timeseries()
+
+        # analyze
+        experiment_time = stats.total_tt
+        process_update_time = self.timeseries['update_timer'][-1]
+        store_update_time = experiment_time - process_update_time
+
+        print(f"TOTAL EXPERIMENT TIME: {experiment_time}")
+        print(f"PROCESS NEXT_UPDATE: {process_update_time}")
+        print(f"STORE UPDATE: {store_update_time}")
 
 
 
 if __name__ == '__main__':
     # run_large_initial_emit()
     # test_runtime_profile()
-    # profile_model_complexity()
-    ComplexModelSim().run_profile()
+
+    sim = ComplexModelSim()
+    # sim.run_profile()
+    sim.profile_communication_latency()
