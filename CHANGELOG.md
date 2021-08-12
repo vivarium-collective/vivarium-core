@@ -3,7 +3,7 @@
 
 ## v0.3.4
 
-* Engine uses keyword arguments rather than a config dict. Additional emit_config options are added to selectively emit metadata.
+* Engine uses keyword arguments rather than a config dict. To fix this do `Engine(**config_dict)` instead of `Engine(config_dict)`. Additional emit_config options are added to selectively emit metadata.
 
 
 ## v0.3.3
