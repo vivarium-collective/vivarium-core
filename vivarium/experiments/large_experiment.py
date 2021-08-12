@@ -16,16 +16,13 @@ from vivarium.core.emitter import (
 class ManyParametersProcess(Process):
     defaults = {
         'number_of_parameters': 100}
-
     def __init__(self, parameters=None):
         super().__init__(parameters)
-
         # make a bunch of parameters
         random_parameters = {
             key: random.random()
             for key in range(self.parameters['number_of_parameters'])}
         super().__init__(random_parameters)
-
     def ports_schema(self):
         return {'port': {'variable': {'_default': 0, '_emit': True}}}
     def next_update(self, timestep, states):
@@ -36,13 +33,11 @@ class ManyParametersComposite(Composer):
     defaults = {
         'number_of_processes': 10,
         'number_of_parameters': 100}
-
     def __init__(self, config=None):
         super().__init__(config)
         self.process_ids = [
             f'process_{key}'
             for key in range(self.config['number_of_processes'])]
-
     def generate_processes(self, config):
         # make a bunch of processes
         return {
@@ -50,11 +45,57 @@ class ManyParametersComposite(Composer):
                 'name': process_id,
                 'number_of_parameters': self.config['number_of_parameters']})
             for process_id in self.process_ids}
-
     def generate_topology(self, config):
         return {
             process_id: {'port': ('store', process_id,)}
             for process_id in self.process_ids}
+
+
+class ManyVariablesProcess(Process):
+    defaults = {
+        'number_of_variables': 10,
+        'variables': [],
+    }
+    def __init__(self, parameters=None):
+        super().__init__(parameters)
+        # make a bunch of variables
+        random_variables = [key for key in range(self.parameters['number_of_variables'])]
+        super().__init__({'variables': random_variables})
+    def ports_schema(self):
+        return {
+            'port': {
+                variable: {
+                    '_default': random.random(),
+                    '_emit': True
+                } for variable in self.parameters['variables']}}
+    def next_update(self, timestep, states):
+        return {
+            'port': {
+                variable: random.random()
+                for variable in self.parameters['variables']}}
+
+class ManyVariablesComposite(Composer):
+    defaults = {
+        'number_of_processes': 10,
+        'number_of_variables': 10}
+    def __init__(self, config=None):
+        super().__init__(config)
+        self.process_ids = [
+            f'process_{key}'
+            for key in range(self.config['number_of_processes'])]
+    def generate_processes(self, config):
+        # make a bunch of processes
+        return {
+            process_id: ManyVariablesProcess({
+                'name': process_id,
+                'number_of_variables': self.config['number_of_variables']})
+            for process_id in self.process_ids}
+    def generate_topology(self, config):
+        return {
+            process_id: {'port': ('store', process_id,)}
+            for process_id in self.process_ids}
+
+
 
 def run_large_initial_emit():
     """
@@ -101,12 +142,12 @@ def run_large_initial_emit():
     delete_experiment_from_database(experiment_id)
 
 
-def runtime_profile():
+def test_runtime_profile():
     config = {
-        'number_of_processes': 10,
-        'number_of_parameters': 10}
+        'number_of_processes': 4,
+        'number_of_variables': 4}
 
-    composer = ManyParametersComposite(config)
+    composer = ManyVariablesComposite(config)
     composite = composer.generate()
 
     experiment = Engine(
@@ -115,11 +156,13 @@ def runtime_profile():
     )
 
     # run the experiment
-    experiment.update(10)
+    experiment.update(4)
 
+    # get the data
+    timeseries = experiment.emitter.get_timeseries()
     import ipdb; ipdb.set_trace()
 
 
 if __name__ == '__main__':
     # run_large_initial_emit()
-    runtime_profile()
+    test_runtime_profile()
