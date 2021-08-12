@@ -79,22 +79,33 @@ class ManyVariablesProcess(Process):
 class ManyVariablesComposite(Composer):
     defaults = {
         'number_of_processes': 10,
-        'number_of_variables': 10}
+        'number_of_stores': 10,
+        'variables_per_process': 10,
+    }
+
     def __init__(self, config=None):
         super().__init__(config)
         self.process_ids = [
             f'process_{key}'
             for key in range(self.config['number_of_processes'])]
+        self.store_ids = [
+            f'store_{key}'
+            for key in range(self.config['number_of_stores'])]
+
+
     def generate_processes(self, config):
         # make a bunch of processes
         return {
             process_id: ManyVariablesProcess({
                 'name': process_id,
-                'number_of_variables': self.config['number_of_variables']})
+                'number_of_variables': self.config['variables_per_process']})
             for process_id in self.process_ids}
+
     def generate_topology(self, config):
         return {
-            process_id: {'port': ('store', process_id,)}
+            process_id: {
+                'port': (random.choice(self.store_ids),)
+            }
             for process_id in self.process_ids}
 
 
@@ -144,26 +155,6 @@ def run_large_initial_emit():
     delete_experiment_from_database(experiment_id)
 
 
-def test_model_complexity():
-    config = {
-        'number_of_processes': 10,
-        'number_of_variables': 10}
-
-    composer = ManyVariablesComposite(config)
-    composite = composer.generate()
-
-    experiment = Engine(
-        processes=composite['processes'],
-        topology=composite['topology'],
-    )
-
-    # run the experiment
-    experiment.update(4)
-
-    # get the data
-    timeseries = experiment.emitter.get_timeseries()
-
-
 class ComplexModelSim:
 
     def __init__(self):
@@ -199,9 +190,8 @@ class ComplexModelSim:
         profiler.enable()
         method()
         profiler.disable()
-        stats = pstats.Stats(profiler).sort_stats(SortKey.TIME).print_stats(10)
-        stats.print_stats(10)
-
+        stats = pstats.Stats(profiler)
+        stats.sort_stats(SortKey.TIME).print_stats(10)
 
     def run_profile(self):
         print('INITIALIZE COMPOSITE')
@@ -213,13 +203,13 @@ class ComplexModelSim:
         print('INITIALIZE EXPERIMENT')
         self.profile_method(self.initialize_experiment)
 
+        # TODO -- run profile of time in process and in stores
+
         print('RUN EXPERIMENT')
         self.profile_method(self.run_experiment)
 
         print('GET EMITTER DATA')
         self.profile_method(self.get_emitter_data)
-
-
 
 
 
