@@ -101,5 +101,25 @@ def run_large_initial_emit():
     delete_experiment_from_database(experiment_id)
 
 
+def runtime_profile():
+    config = {
+        'number_of_processes': 10,
+        'number_of_parameters': 10}
+
+    composer = ManyParametersComposite(config)
+    composite = composer.generate()
+
+    experiment = Engine(
+        processes=composite['processes'],
+        topology=composite['topology'],
+    )
+
+    # run the experiment
+    experiment.update(10)
+
+    import ipdb; ipdb.set_trace()
+
+
 if __name__ == '__main__':
-    run_large_initial_emit()
+    # run_large_initial_emit()
+    runtime_profile()
