@@ -3,6 +3,7 @@ Experiment to test maximum BSON document size with MongoDB emitter
 """
 import uuid
 import random
+import cProfile
 
 from vivarium.core.engine import Engine
 from vivarium.core.process import Process
@@ -142,10 +143,10 @@ def run_large_initial_emit():
     delete_experiment_from_database(experiment_id)
 
 
-def test_runtime_profile():
+def test_model_complexity():
     config = {
-        'number_of_processes': 4,
-        'number_of_variables': 4}
+        'number_of_processes': 10,
+        'number_of_variables': 10}
 
     composer = ManyVariablesComposite(config)
     composite = composer.generate()
@@ -160,9 +161,16 @@ def test_runtime_profile():
 
     # get the data
     timeseries = experiment.emitter.get_timeseries()
-    import ipdb; ipdb.set_trace()
+
+
+
+def profile_model_complexity():
+    cProfile.run("test_model_complexity()")
+
+    # import ipdb;  ipdb.set_trace()
 
 
 if __name__ == '__main__':
     # run_large_initial_emit()
-    test_runtime_profile()
+    # test_runtime_profile()
+    profile_model_complexity()
