@@ -6,6 +6,7 @@ import random
 import time
 import cProfile, pstats
 from pstats import SortKey
+import argparse
 
 from vivarium.core.engine import Engine
 from vivarium.core.process import Process
@@ -173,13 +174,50 @@ def run_large_initial_emit():
 
 
 class ComplexModelSim:
+    """Profile Complex Models
 
-    def __init__(self):
-        self.number_of_processes = 100
-        self.number_of_variables = 100
-        self.process_sleep = 1e-4
-        self.print_top_stats = 4
-        self.total_time = 100
+    This class lets you initialize and profile the simulation of composite models
+    with arbitrary numbers of processes, variables per process, and total stores.
+    """
+
+    number_of_processes = 10
+    number_of_variables = 10
+    process_sleep = 1e-3
+    print_top_stats = 4
+    experiment_time = 100
+
+    def from_cli(self):
+        parser = argparse.ArgumentParser(
+            description='complex model simulations with runtime profiling'
+        )
+        parser.add_argument(
+            '--profile', '-p', action="store_true",
+            help="run profile of model composition and simulation"
+        )
+        parser.add_argument(
+            '--latency', '-l', action="store_true",
+            help="run profile of communication latency in an experiment"
+        )
+        args = parser.parse_args()
+
+        if args.profile:
+            self.run_profile()
+        if args.latency:
+            self.profile_communication_latency()
+
+    def set_parameters(
+            self,
+            number_of_processes=None,
+            number_of_variables=None,
+            process_sleep=None,
+            print_top_stats=None,
+            experiment_time=None,
+    ):
+        self.number_of_processes = number_of_processes or self.number_of_processes
+        self.number_of_variables = number_of_variables or self.number_of_variables
+        self.process_sleep = process_sleep or self.process_sleep
+        self.print_top_stats = print_top_stats or self.print_top_stats
+        self.experiment_time = experiment_time or self.experiment_time
 
     def generate_composite(self, **kwargs):
         self.composer = ManyVariablesComposite({
@@ -197,7 +235,7 @@ class ComplexModelSim:
             **kwargs)
 
     def run_experiment(self, **kwargs):
-        self.experiment.update(kwargs['total_time'])
+        self.experiment.update(kwargs['experiment_time'])
 
     def get_emitter_data(self, **kwargs):
         self.data = self.experiment.emitter.get_data()
@@ -227,7 +265,7 @@ class ComplexModelSim:
         self.profile_method(self.initialize_experiment)
 
         print('RUN EXPERIMENT')
-        self.profile_method(self.run_experiment, total_time=self.total_time)
+        self.profile_method(self.run_experiment, experiment_time=self.experiment_time)
 
         print('GET EMITTER DATA')
         self.profile_method(self.get_emitter_data)
@@ -240,7 +278,7 @@ class ComplexModelSim:
         print('RUN EXPERIMENT')
         stats = self.profile_method(
             self.run_experiment,
-            total_time=self.total_time,
+            experiment_time=self.experiment_time,
             print_top_stats=None)
 
         # self.get_emitter_data()
@@ -262,5 +300,6 @@ if __name__ == '__main__':
     # test_runtime_profile()
 
     sim = ComplexModelSim()
+    sim.from_cli()
     # sim.run_profile()
-    sim.profile_communication_latency()
+    # sim.profile_communication_latency()
