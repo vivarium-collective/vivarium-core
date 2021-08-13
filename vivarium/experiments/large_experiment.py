@@ -180,11 +180,19 @@ class ComplexModelSim:
     with arbitrary numbers of processes, variables per process, and total stores.
     """
 
+    # model complexity
     number_of_processes = 10
     number_of_variables = 10
     process_sleep = 1e-3
-    print_top_stats = 4
     experiment_time = 100
+
+    # scans
+    processes_range = [1, 10]
+    variables_range = [1, 10]
+    stores_range = [1, 10]
+
+    # display
+    print_top_stats = 4
 
     def from_cli(self):
         parser = argparse.ArgumentParser(
@@ -219,33 +227,37 @@ class ComplexModelSim:
         self.print_top_stats = print_top_stats or self.print_top_stats
         self.experiment_time = experiment_time or self.experiment_time
 
-    def generate_composite(self, **kwargs):
-        self.composer = ManyVariablesComposite({
-            'number_of_processes': self.number_of_processes,
-            'number_of_variables': self.number_of_variables,
-            'process_sleep': self.process_sleep,
+    def _generate_composite(self, **kwargs):
+        number_of_processes = kwargs.get('number_of_processes', self.number_of_processes)
+        number_of_variables = kwargs.get('number_of_variables', self.number_of_variables)
+        process_sleep = kwargs.get('process_sleep', self.process_sleep)
+
+        composer = ManyVariablesComposite({
+            'number_of_processes': number_of_processes,
+            'number_of_variables': number_of_variables,
+            'process_sleep': process_sleep,
         })
 
-        self.composite = self.composer.generate(**kwargs)
+        self.composite = composer.generate(**kwargs)
 
-    def initialize_experiment(self, **kwargs):
+    def _initialize_experiment(self, **kwargs):
         self.experiment = Engine(
             processes=self.composite['processes'],
             topology=self.composite['topology'],
             **kwargs)
 
-    def run_experiment(self, **kwargs):
+    def _run_experiment(self, **kwargs):
         self.experiment.update(kwargs['experiment_time'])
 
-    def get_emitter_data(self, **kwargs):
-        self.data = self.experiment.emitter.get_data()
-        return self.data
+    def _get_emitter_data(self, **kwargs):
+        data = self.experiment.emitter.get_data()
+        return data
 
-    def get_emitter_timeseries(self, **kwargs):
-        self.timeseries = self.experiment.emitter.get_timeseries()
-        return self.timeseries
+    def _get_emitter_timeseries(self, **kwargs):
+        timeseries = self.experiment.emitter.get_timeseries()
+        return timeseries
 
-    def profile_method(self, method, **kwargs):
+    def _profile_method(self, method, **kwargs):
         print_top_stats = kwargs.get('print_top_stats', self.print_top_stats)
         profiler = cProfile.Profile()
         profiler.enable()
@@ -259,39 +271,58 @@ class ComplexModelSim:
     def run_profile(self):
 
         print('GENERATE COMPOSITE')
-        self.profile_method(self.generate_composite)
+        self._profile_method(self._generate_composite)
 
         print('INITIALIZE EXPERIMENT')
-        self.profile_method(self.initialize_experiment)
+        self._profile_method(self._initialize_experiment)
 
         print('RUN EXPERIMENT')
-        self.profile_method(self.run_experiment, experiment_time=self.experiment_time)
+        self._profile_method(self._run_experiment, experiment_time=self.experiment_time)
 
         print('GET EMITTER DATA')
-        self.profile_method(self.get_emitter_data)
+        self._profile_method(self._get_emitter_data)
 
     def profile_communication_latency(self):
 
-        self.generate_composite()
-        self.initialize_experiment()
+        self._generate_composite()
+        self._initialize_experiment()
 
         print('RUN EXPERIMENT')
-        stats = self.profile_method(
-            self.run_experiment,
+        stats = self._profile_method(
+            self._run_experiment,
             experiment_time=self.experiment_time,
             print_top_stats=None)
 
         # self.get_emitter_data()
-        self.get_emitter_timeseries()
+        timeseries = self._get_emitter_timeseries()
 
         # analyze
         experiment_time = stats.total_tt
-        process_update_time = self.timeseries['update_timer'][-1]
+        process_update_time = timeseries['update_timer'][-1]
         store_update_time = experiment_time - process_update_time
 
         print(f"TOTAL EXPERIMENT TIME: {experiment_time}")
         print(f"PROCESS NEXT_UPDATE: {process_update_time}")
         print(f"STORE UPDATE: {store_update_time}")
+
+        return experiment_time, process_update_time, store_update_time
+
+    def run_scan(
+            self,
+            processes_range=None,
+            variables_range=None,
+            stores_range=None,
+    ):
+        processes_range = processes_range or self.processes_range
+        variables_range = variables_range or self.variables_range
+        stores_range = stores_range or self.stores_range
+
+        for n_processes in processes_range:
+            for n_vars in variables_range:
+                for n_stores in stores_range:
+                    pass
+                    # run experiment and save data
+
 
 
 
