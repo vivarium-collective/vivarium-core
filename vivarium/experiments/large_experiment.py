@@ -178,6 +178,7 @@ class ComplexModelSim:
     # model complexity
     number_of_processes = 10
     number_of_variables = 10
+    number_of_stores = 10
     process_sleep = 1e-4
     experiment_time = 100
 
@@ -201,17 +202,24 @@ class ComplexModelSim:
             '--latency', '-l', action="store_true",
             help="run profile of communication latency in an experiment"
         )
+        parser.add_argument(
+            '--scan', '-s', action="store_true",
+            help="run scan of communication latency"
+        )
         args = parser.parse_args()
 
         if args.profile:
             self.run_profile()
         if args.latency:
             self.profile_communication_latency()
+        if args.scan:
+            self.run_scan()
 
     def set_parameters(
             self,
             number_of_processes=None,
             number_of_variables=None,
+            number_of_stores=None,
             process_sleep=None,
             print_top_stats=None,
             experiment_time=None,
@@ -225,11 +233,13 @@ class ComplexModelSim:
     def _generate_composite(self, **kwargs):
         number_of_processes = kwargs.get('number_of_processes', self.number_of_processes)
         number_of_variables = kwargs.get('number_of_variables', self.number_of_variables)
+        number_of_stores = kwargs.get('number_of_stores', self.number_of_stores)
         process_sleep = kwargs.get('process_sleep', self.process_sleep)
 
         composer = ManyVariablesComposite({
             'number_of_processes': number_of_processes,
             'number_of_variables': number_of_variables,
+            'number_of_stores': number_of_stores,
             'process_sleep': process_sleep,
         })
 
@@ -277,12 +287,12 @@ class ComplexModelSim:
         print('GET EMITTER DATA')
         self._profile_method(self._get_emitter_data)
 
-    def profile_communication_latency(self):
+    def profile_communication_latency(self, print_report=True):
 
         self._generate_composite()
-        self._initialize_experiment()
+        self._initialize_experiment(display_info=False)
 
-        print('RUN EXPERIMENT')
+        # profile the experiment
         stats = self._profile_method(
             self._run_experiment,
             experiment_time=self.experiment_time,
@@ -304,11 +314,12 @@ class ComplexModelSim:
         # analyze
         store_update_time = experiment_time - process_update_time
 
-        print(f"TOTAL EXPERIMENT TIME: {experiment_time}")
-        print(f"PROCESS NEXT_UPDATE: {process_update_time}")
-        print(f"STORE UPDATE: {store_update_time}")
+        if print_report:
+            print(f"TOTAL EXPERIMENT TIME: {experiment_time}")
+            print(f"PROCESS NEXT_UPDATE: {process_update_time}")
+            print(f"STORE UPDATE: {store_update_time}")
 
-        return experiment_time, process_update_time, store_update_time
+        return process_update_time, store_update_time
 
     def run_scan(
             self,
@@ -320,12 +331,26 @@ class ComplexModelSim:
         variables_range = variables_range or self.variables_range
         stores_range = stores_range or self.stores_range
 
+        saved_stats = {}
         for n_processes in processes_range:
             for n_vars in variables_range:
                 for n_stores in stores_range:
-                    pass
-                    # run experiment and save data
+                    self.set_parameters(
+                        number_of_processes=n_processes,
+                        number_of_variables=n_vars,
+                        number_of_stores=n_stores)
 
+                    # run experiment
+                    process_update_time, store_update_time = \
+                        self.profile_communication_latency(print_report=False)
+
+                    # save data
+                    saved_stats[(n_processes, n_vars, n_stores)] = (
+                        process_update_time, store_update_time)
+
+        # import ipdb;
+        # ipdb.set_trace()
+        return saved_stats
 
 
 
@@ -335,5 +360,3 @@ if __name__ == '__main__':
 
     sim = ComplexModelSim()
     sim.from_cli()
-    # sim.run_profile()
-    # sim.profile_communication_latency()
