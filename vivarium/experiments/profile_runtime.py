@@ -4,8 +4,8 @@ Experiment to profile runtime in process next_update vs in store
 import os
 import random
 import time
-import cProfile, pstats
-from pstats import SortKey
+import cProfile
+import pstats
 import argparse
 import matplotlib.pyplot as plt
 
@@ -22,7 +22,8 @@ class ManyVariablesProcess(Process):
     def __init__(self, parameters=None):
         super().__init__(parameters)
         # make a bunch of variables
-        random_variables = [key for key in range(self.parameters['number_of_variables'])]
+        random_variables = [
+            key for key in range(self.parameters['number_of_variables'])]
         self.parameters['variables'] = random_variables
 
     def ports_schema(self):
@@ -84,8 +85,9 @@ class ManyVariablesComposite(Composer):
 class ComplexModelSim:
     """Profile Complex Models
 
-    This class lets you initialize and profile the simulation of composite models
-    with arbitrary numbers of processes, variables per process, and total stores.
+    This class lets you initialize and profile the simulation of
+    composite models with arbitrary numbers of processes, variables
+    per process, and total stores.
     """
 
     # model complexity
@@ -120,6 +122,8 @@ class ComplexModelSim:
             self.run_profile()
         if args.latency:
             self.profile_communication_latency()
+        if args.scan:
+            self.run_scan_and_plot()
 
     def set_parameters(
             self,
@@ -130,18 +134,28 @@ class ComplexModelSim:
             print_top_stats=None,
             experiment_time=None,
     ):
-        self.number_of_processes = number_of_processes or self.number_of_processes
-        self.number_of_variables = number_of_variables or self.number_of_variables
-        self.number_of_stores = number_of_stores or self.number_of_stores
-        self.process_sleep = process_sleep or self.process_sleep
-        self.print_top_stats = print_top_stats or self.print_top_stats
-        self.experiment_time = experiment_time or self.experiment_time
+        self.number_of_processes = \
+            number_of_processes or self.number_of_processes
+        self.number_of_variables = \
+            number_of_variables or self.number_of_variables
+        self.number_of_stores = \
+            number_of_stores or self.number_of_stores
+        self.process_sleep = \
+            process_sleep or self.process_sleep
+        self.print_top_stats = \
+            print_top_stats or self.print_top_stats
+        self.experiment_time = \
+            experiment_time or self.experiment_time
 
     def _generate_composite(self, **kwargs):
-        number_of_processes = kwargs.get('number_of_processes', self.number_of_processes)
-        number_of_variables = kwargs.get('number_of_variables', self.number_of_variables)
-        number_of_stores = kwargs.get('number_of_stores', self.number_of_stores)
-        process_sleep = kwargs.get('process_sleep', self.process_sleep)
+        number_of_processes = kwargs.get(
+            'number_of_processes', self.number_of_processes)
+        number_of_variables = kwargs.get(
+            'number_of_variables', self.number_of_variables)
+        number_of_stores = kwargs.get(
+            'number_of_stores', self.number_of_stores)
+        process_sleep = kwargs.get(
+            'process_sleep', self.process_sleep)
 
         composer = ManyVariablesComposite({
             'number_of_processes': number_of_processes,
@@ -170,29 +184,34 @@ class ComplexModelSim:
         return timeseries
 
     def _profile_method(self, method, **kwargs):
-        print_top_stats = kwargs.get('print_top_stats', self.print_top_stats)
+        print_top_stats = kwargs.get(
+            'print_top_stats', self.print_top_stats)
         profiler = cProfile.Profile()
         profiler.enable()
         method(**kwargs)
         profiler.disable()
         stats = pstats.Stats(profiler)
         if print_top_stats:
-            stats.sort_stats(SortKey.TIME).print_stats(print_top_stats)
+            stats.sort_stats('tottime').print_stats(print_top_stats)
         return stats
 
     def run_profile(self):
 
         print('GENERATE COMPOSITE')
-        self._profile_method(self._generate_composite)
+        self._profile_method(
+            self._generate_composite)
 
         print('INITIALIZE EXPERIMENT')
-        self._profile_method(self._initialize_experiment)
+        self._profile_method(
+            self._initialize_experiment)
 
         print('RUN EXPERIMENT')
-        self._profile_method(self._run_experiment, experiment_time=self.experiment_time)
+        self._profile_method(
+            self._run_experiment, experiment_time=self.experiment_time)
 
         print('GET EMITTER DATA')
-        self._profile_method(self._get_emitter_data)
+        self._profile_method(
+            self._get_emitter_data)
 
     def profile_communication_latency(self, print_report=True):
 
@@ -228,105 +247,114 @@ class ComplexModelSim:
 
         return process_update_time, store_update_time
 
+    def run_scan(
+        self,
+        processes_range=None,
+        stores_range=None,
+    ):
+        processes_range = processes_range or [1, 10]
+        stores_range = stores_range or [1, 10]
 
-def run_scan(
-    processes_range=[1, 10],
-    stores_range=[1, 10],
-):
-    sim = ComplexModelSim()
+        sim = ComplexModelSim()
 
-    saved_stats = {}
-    for n_processes in processes_range:
-        for n_stores in stores_range:
-            sim.set_parameters(
-                number_of_processes=n_processes,
-                number_of_variables=n_stores,
-                number_of_stores=n_stores)
+        saved_stats = {}
+        for n_processes in processes_range:
+            for n_stores in stores_range:
 
-            # run experiment
-            process_update_time, store_update_time = \
-                sim.profile_communication_latency(print_report=False)
+                # set the parameters
+                sim.set_parameters(
+                    number_of_processes=n_processes,
+                    number_of_variables=n_stores,
+                    number_of_stores=n_stores)
 
-            # save data
-            saved_stats[(n_processes, n_stores)] = (
-                process_update_time, store_update_time)
+                # run experiment
+                process_update_time, store_update_time = \
+                    sim.profile_communication_latency(print_report=False)
 
-    return saved_stats
+                # save data
+                saved_stats[(n_processes, n_stores)] = (
+                    process_update_time, store_update_time)
 
-def plot_scan_results(saved_stats, out_dir='out/experiments', filename='profile'):
-    n_cols = 1
-    n_rows = 2
-    column_width = 6
-    row_height = 3
-    h_space = 0.5
+        return saved_stats
 
-    # make figure and plot
-    fig = plt.figure(figsize=(n_cols * column_width, n_rows * row_height))
-    grid = plt.GridSpec(n_rows, n_cols)
+    def plot_scan_results(
+            self,
+            saved_stats,
+            out_dir='out/experiments',
+            filename='profile',
+    ):
+        n_cols = 1
+        n_rows = 2
+        column_width = 6
+        row_height = 3
+        h_space = 0.5
 
-    # plot
-    ax_processes = fig.add_subplot(grid[0, 0])
-    ax_stores = fig.add_subplot(grid[1, 0])
-    for (n_processes, n_stores), \
-        (process_update_time, store_update_time) \
-            in saved_stats.items():
+        # make figure and plot
+        fig = plt.figure(figsize=(n_cols * column_width, n_rows * row_height))
+        grid = plt.GridSpec(n_rows, n_cols)
 
-        # plot process run tim
-        pr_pr_handle, = ax_processes.plot(
-            n_processes,
-            process_update_time,
-            'bo')
-        pr_st_handle, = ax_processes.plot(
-            n_processes,
-            store_update_time,
-            'r+')
+        # plot
+        ax_processes = fig.add_subplot(grid[0, 0])
+        ax_stores = fig.add_subplot(grid[1, 0])
+        for (n_processes, n_stores), \
+            (process_update_time, store_update_time) \
+                in saved_stats.items():
 
-        # plot store run time
-        st_pr_handle, = ax_stores.plot(
-            n_stores,
-            process_update_time,
-            'bo')
-        st_st_handle, = ax_stores.plot(
-            n_stores,
-            store_update_time,
-            'r+')
+            # plot process run tim
+            pr_pr_handle, = ax_processes.plot(
+                n_processes,
+                process_update_time,
+                'bo')
+            pr_st_handle, = ax_processes.plot(
+                n_processes,
+                store_update_time,
+                'r+')
 
-    # axis labels
-    # ax_processes.set_title('process updates')
-    ax_processes.set_xlabel('number of processes')
-    ax_processes.set_ylabel('runtime (s)')
-    ax_processes.legend(
-        [pr_pr_handle, pr_st_handle],
-        ['process update', 'store update'],
-        bbox_to_anchor=(1.05, 1))
+            # plot store run time
+            st_pr_handle, = ax_stores.plot(
+                n_stores,
+                process_update_time,
+                'bo')
+            st_st_handle, = ax_stores.plot(
+                n_stores,
+                store_update_time,
+                'r+')
 
-    # ax_stores.set_title('store updates')
-    ax_stores.set_xlabel('number of stores')
-    ax_stores.set_ylabel('runtime (s)')
-    ax_stores.legend(
-        [st_pr_handle, st_st_handle],
-        ['process update', 'store update'],
-        bbox_to_anchor=(1.05, 1))
+        # axis labels
+        # ax_processes.set_title('process updates')
+        ax_processes.set_xlabel('number of processes')
+        ax_processes.set_ylabel('runtime (s)')
+        ax_processes.legend(
+            [pr_pr_handle, pr_st_handle],
+            ['process update', 'store update'],
+            bbox_to_anchor=(1.05, 1))
 
-    # adjustments
-    plt.subplots_adjust(hspace=h_space)
+        # ax_stores.set_title('store updates')
+        ax_stores.set_xlabel('number of stores')
+        ax_stores.set_ylabel('runtime (s)')
+        ax_stores.legend(
+            [st_pr_handle, st_st_handle],
+            ['process update', 'store update'],
+            bbox_to_anchor=(1.05, 1))
 
-    # save
-    os.makedirs(out_dir, exist_ok=True)
-    fig_path = os.path.join(out_dir, filename)
-    fig.savefig(fig_path, bbox_inches='tight')
+        # adjustments
+        plt.subplots_adjust(hspace=h_space)
+
+        # save
+        os.makedirs(out_dir, exist_ok=True)
+        fig_path = os.path.join(out_dir, filename)
+        fig.savefig(fig_path, bbox_inches='tight')
 
 
-def run_scan_and_plot():
-    saved_stats = run_scan(
-        processes_range=[10, 100, 500],
-        stores_range=[10, 100, 500],
-    )
-    plot_scan_results(saved_stats)
+    def run_scan_and_plot(self):
+        saved_stats = self.run_scan(
+            processes_range=[10, 100, 500],
+            stores_range=[10, 100, 500],
+        )
+        self.plot_scan_results(saved_stats)
 
 
 
 if __name__ == '__main__':
-    # sim = ComplexModelSim()
-    # sim.from_cli()
-    run_scan_and_plot()
+    sim = ComplexModelSim()
+    sim.from_cli()
