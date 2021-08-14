@@ -22,8 +22,7 @@ class ManyVariablesProcess(Process):
     def __init__(self, parameters=None):
         super().__init__(parameters)
         # make a bunch of variables
-        random_variables = [
-            key for key in range(self.parameters['number_of_variables'])]
+        random_variables = [range(self.parameters['number_of_variables'])]
         self.parameters['variables'] = random_variables
 
     def ports_schema(self):
@@ -58,11 +57,11 @@ class ManyVariablesComposite(Composer):
     def __init__(self, config=None):
         super().__init__(config)
         self.process_ids = [
-            f'process_{key}'
-            for key in range(self.config['number_of_processes'])]
+            f'process_{key}' for key
+            in range(self.config['number_of_processes'])]
         self.store_ids = [
-            f'store_{key}'
-            for key in range(self.config['number_of_stores'])]
+            f'store_{key}' for key
+            in range(self.config['number_of_stores'])]
 
     def generate_processes(self, config):
         # make a bunch of processes
@@ -99,6 +98,10 @@ class ComplexModelSim:
 
     # display
     print_top_stats = 4
+
+    # initialize
+    composite = None
+    experiment = None
 
     def from_cli(self):
         parser = argparse.ArgumentParser(
@@ -176,10 +179,12 @@ class ComplexModelSim:
         self.experiment.update(kwargs['experiment_time'])
 
     def _get_emitter_data(self, **kwargs):
+        _ = kwargs
         data = self.experiment.emitter.get_data()
         return data
 
     def _get_emitter_timeseries(self, **kwargs):
+        _ = kwargs
         timeseries = self.experiment.emitter.get_timeseries()
         return timeseries
 
@@ -226,8 +231,12 @@ class ComplexModelSim:
 
         # get next_update runtime
         next_update_amount = ("next_update",)
-        width, list = stats.get_print_list(next_update_amount)
-        cc, nc, tt, ct, callers = stats.stats[list[0]]
+        _, stats_list = stats.get_print_list(next_update_amount)
+        cc, nc, tt, ct, callers = stats.stats[stats_list[0]]
+        _ = cc
+        _ = nc
+        _ = tt
+        _ = callers
         process_update_time = ct
 
         # get total runtime
@@ -255,21 +264,19 @@ class ComplexModelSim:
         processes_range = processes_range or [1, 10]
         stores_range = stores_range or [1, 10]
 
-        sim = ComplexModelSim()
-
         saved_stats = {}
         for n_processes in processes_range:
             for n_stores in stores_range:
 
                 # set the parameters
-                sim.set_parameters(
+                self.set_parameters(
                     number_of_processes=n_processes,
                     number_of_variables=n_stores,
                     number_of_stores=n_stores)
 
                 # run experiment
                 process_update_time, store_update_time = \
-                    sim.profile_communication_latency(print_report=False)
+                    self.profile_communication_latency(print_report=False)
 
                 # save data
                 saved_stats[(n_processes, n_stores)] = (
@@ -344,7 +351,6 @@ class ComplexModelSim:
         os.makedirs(out_dir, exist_ok=True)
         fig_path = os.path.join(out_dir, filename)
         fig.savefig(fig_path, bbox_inches='tight')
-
 
     def run_scan_and_plot(self):
         saved_stats = self.run_scan(
