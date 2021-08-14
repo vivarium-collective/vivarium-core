@@ -79,16 +79,12 @@ class ManyVariablesProcess(Process):
                 } for variable in self.parameters['variables']}}
 
     def next_update(self, timestep, states):
-        start = time.time()
         update = {
                 variable: random.random()
                 for variable in self.parameters['variables']}
-        end = time.time()
         time.sleep(self.parameters['process_sleep'])
-        runtime = end - start
         return {
             'port': update,
-            'update_timer': runtime,
         }
 
 class ManyVariablesComposite(Composer):
@@ -122,7 +118,6 @@ class ManyVariablesComposite(Composer):
         return {
             process_id: {
                 'port': (random.choice(self.store_ids),),
-                'update_timer': ('update_timer',),
             }
             for process_id in self.process_ids}
 
@@ -183,7 +178,7 @@ class ComplexModelSim:
     # model complexity
     number_of_processes = 10
     number_of_variables = 10
-    process_sleep = 1e-3
+    process_sleep = 1e-4
     experiment_time = 100
 
     # scans
@@ -293,12 +288,20 @@ class ComplexModelSim:
             experiment_time=self.experiment_time,
             print_top_stats=None)
 
-        # self.get_emitter_data()
-        timeseries = self._get_emitter_timeseries()
+        # get next_update runtime
+        next_update_amount = ("next_update",)
+        width, list = stats.get_print_list(next_update_amount)
+        cc, nc, tt, ct, callers = stats.stats[list[0]]
+        process_update_time = ct
+
+        # get total runtime
+        experiment_time = stats.total_tt
+
+        # # print stats
+        # stats.print_stats("large_experiment")
+        # stats.print_stats("next_update")
 
         # analyze
-        experiment_time = stats.total_tt
-        process_update_time = timeseries['update_timer'][-1]
         store_update_time = experiment_time - process_update_time
 
         print(f"TOTAL EXPERIMENT TIME: {experiment_time}")
