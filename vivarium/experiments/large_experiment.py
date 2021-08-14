@@ -1,12 +1,14 @@
 """
 Experiment to test maximum BSON document size with MongoDB emitter
 """
+import os
 import uuid
 import random
 import time
 import cProfile, pstats
 from pstats import SortKey
 import argparse
+import matplotlib.pyplot as plt
 
 from vivarium.core.engine import Engine
 from vivarium.core.process import Process
@@ -182,11 +184,6 @@ class ComplexModelSim:
     process_sleep = 1e-4
     experiment_time = 100
 
-    # scans
-    processes_range = [1, 10]
-    variables_range = [1, 10]
-    stores_range = [1, 10]
-
     # display
     print_top_stats = 4
 
@@ -212,8 +209,6 @@ class ComplexModelSim:
             self.run_profile()
         if args.latency:
             self.profile_communication_latency()
-        if args.scan:
-            self.run_scan()
 
     def set_parameters(
             self,
@@ -226,6 +221,7 @@ class ComplexModelSim:
     ):
         self.number_of_processes = number_of_processes or self.number_of_processes
         self.number_of_variables = number_of_variables or self.number_of_variables
+        self.number_of_stores = number_of_stores or self.number_of_stores
         self.process_sleep = process_sleep or self.process_sleep
         self.print_top_stats = print_top_stats or self.print_top_stats
         self.experiment_time = experiment_time or self.experiment_time
@@ -321,36 +317,105 @@ class ComplexModelSim:
 
         return process_update_time, store_update_time
 
-    def run_scan(
-            self,
-            processes_range=None,
-            variables_range=None,
-            stores_range=None,
-    ):
-        processes_range = processes_range or self.processes_range
-        variables_range = variables_range or self.variables_range
-        stores_range = stores_range or self.stores_range
 
-        saved_stats = {}
-        for n_processes in processes_range:
-            for n_vars in variables_range:
-                for n_stores in stores_range:
-                    self.set_parameters(
-                        number_of_processes=n_processes,
-                        number_of_variables=n_vars,
-                        number_of_stores=n_stores)
+def run_scan(
+    processes_range=[1, 10],
+    variables_range=[1, 10],
+    stores_range=[1, 10],
+):
+    sim = ComplexModelSim()
 
-                    # run experiment
-                    process_update_time, store_update_time = \
-                        self.profile_communication_latency(print_report=False)
+    saved_stats = {}
+    for n_processes in processes_range:
+        for n_vars in variables_range:
+            for n_stores in stores_range:
+                sim.set_parameters(
+                    number_of_processes=n_processes,
+                    number_of_variables=n_vars,
+                    number_of_stores=n_stores)
 
-                    # save data
-                    saved_stats[(n_processes, n_vars, n_stores)] = (
-                        process_update_time, store_update_time)
+                # run experiment
+                process_update_time, store_update_time = \
+                    sim.profile_communication_latency(print_report=False)
 
-        # import ipdb;
-        # ipdb.set_trace()
-        return saved_stats
+                # save data
+                saved_stats[(n_processes, n_vars, n_stores)] = (
+                    process_update_time, store_update_time)
+
+    return saved_stats
+
+def plot_scan_results(saved_stats, out_dir='out/experiments', filename='profile'):
+    n_cols = 1
+    n_rows = 2
+    column_width = 6
+    row_height = 3
+    h_space = 0.5
+
+    # make figure and plot
+    fig = plt.figure(figsize=(n_cols * column_width, n_rows * row_height))
+    grid = plt.GridSpec(n_rows, n_cols)
+
+    # plot
+    ax_processes = fig.add_subplot(grid[0, 0])
+    ax_stores = fig.add_subplot(grid[1, 0])
+    for (n_processes, n_vars, n_stores), \
+        (process_update_time, store_update_time) \
+            in saved_stats.items():
+
+        # plot process run tim
+        pr_pr_handle, = ax_processes.plot(
+            n_processes,
+            process_update_time,
+            'bo')
+        pr_st_handle, = ax_processes.plot(
+            n_processes,
+            store_update_time,
+            'r+')
+
+        # plot store run time
+        st_pr_handle, = ax_stores.plot(
+            n_stores,
+            process_update_time,
+            'bo')
+        st_st_handle, = ax_stores.plot(
+            n_stores,
+            store_update_time,
+            'r+')
+
+    # axis labels
+    # ax_processes.set_title('process updates')
+    ax_processes.set_xlabel('number of processes')
+    ax_processes.set_ylabel('runtime (s)')
+    ax_processes.legend(
+        [pr_pr_handle, pr_st_handle],
+        ['process update', 'store update'],
+        bbox_to_anchor=(1.05, 1))
+
+    # ax_stores.set_title('store updates')
+    ax_stores.set_xlabel('number of stores')
+    ax_stores.set_ylabel('runtime (s)')
+    ax_stores.legend(
+        [st_pr_handle, st_st_handle],
+        ['process update', 'store update'],
+        bbox_to_anchor=(1.05, 1))
+
+    # adjustments
+    plt.subplots_adjust(hspace=h_space)
+
+    # save
+    os.makedirs(out_dir, exist_ok=True)
+    fig_path = os.path.join(out_dir, filename)
+    fig.savefig(fig_path, bbox_inches='tight')
+
+
+
+def run_scan_and_plot():
+    saved_stats = run_scan(
+        processes_range=[10, 100, 500],
+        variables_range=[10],
+        stores_range=[10, 100, 500],
+    )
+    plot_scan_results(saved_stats)
 
 
 
@@ -358,5 +423,6 @@ if __name__ == '__main__':
     # run_large_initial_emit()
     # test_runtime_profile()
 
-    sim = ComplexModelSim()
-    sim.from_cli()
+    # sim = ComplexModelSim()
+    # sim.from_cli()
+    run_scan_and_plot()
