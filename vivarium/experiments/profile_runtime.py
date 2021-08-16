@@ -93,7 +93,7 @@ class ComplexModelSim:
     number_of_processes = 10
     number_of_variables = 10
     number_of_stores = 10
-    process_sleep = 1e-4
+    process_sleep = 0
     experiment_time = 100
 
     # display
@@ -256,111 +256,181 @@ class ComplexModelSim:
 
         return process_update_time, store_update_time
 
-    def run_scan(
-        self,
-        processes_range=None,
-        stores_range=None,
-    ):
-        processes_range = processes_range or [1, 10]
-        stores_range = stores_range or [1, 10]
+def run_scan(
+    sim=None,
+    scan_values=None,
+):
+    sim = sim or ComplexModelSim()
+    scan_values = scan_values or [
+        {'stores': 10, 'processes': 10, 'variables': 10}]
 
-        saved_stats = {}
-        for n_processes in processes_range:
-            for n_stores in stores_range:
+    saved_stats = {}
+    for scan_dict in scan_values:
+        n_processes = scan_dict.get('processes', 10)
+        n_stores = scan_dict.get('stores', 10)
+        n_vars = scan_dict.get('variables', n_stores)
 
-                # set the parameters
-                self.set_parameters(
-                    number_of_processes=n_processes,
-                    number_of_variables=n_stores,
-                    number_of_stores=n_stores)
+        # set the parameters
+        sim.set_parameters(
+            number_of_processes=n_processes,
+            number_of_variables=n_vars,
+            number_of_stores=n_stores)
 
-                # run experiment
-                process_update_time, store_update_time = \
-                    self.profile_communication_latency(print_report=False)
+        print(
+            f'number_of_processes={n_processes}, '
+            f'number_of_stores={n_stores}')
 
-                # save data
-                saved_stats[(n_processes, n_stores)] = (
-                    process_update_time, store_update_time)
+        # run experiment
+        process_update_time, store_update_time = \
+            sim.profile_communication_latency(print_report=False)
 
-        return saved_stats
+        # save data
+        saved_stats[(n_processes, n_stores)] = (
+            process_update_time, store_update_time)
 
-    def plot_scan_results(
-            self,
-            saved_stats,
-            out_dir='out/experiments',
-            filename='profile',
-    ):
-        n_cols = 1
-        n_rows = 2
-        column_width = 6
-        row_height = 3
-        h_space = 0.5
+    return saved_stats
 
-        # make figure and plot
-        fig = plt.figure(figsize=(n_cols * column_width, n_rows * row_height))
-        grid = plt.GridSpec(n_rows, n_cols)
+def plot_scan_results(
+        saved_stats,
+        out_dir='out/experiments',
+        filename='profile',
+):
+    n_cols = 2
+    n_rows = 2
+    column_width = 6
+    row_height = 3
+    h_space = 0.5
 
-        # plot
-        ax_processes = fig.add_subplot(grid[0, 0])
-        ax_stores = fig.add_subplot(grid[1, 0])
-        for (n_processes, n_stores), \
-            (process_update_time, store_update_time) \
-                in saved_stats.items():
+    # make figure and plot
+    fig = plt.figure(figsize=(n_cols * column_width, n_rows * row_height))
+    grid = plt.GridSpec(n_rows, n_cols)
 
-            # plot process run tim
-            pr_pr_handle, = ax_processes.plot(
-                n_processes,
-                process_update_time,
-                'bo')
-            pr_st_handle, = ax_processes.plot(
-                n_processes,
-                store_update_time,
-                'r+')
+    # plot
+    ax_nprocesses_pr_time = fig.add_subplot(grid[0, 0])
+    ax_nprocesses_st_time = fig.add_subplot(grid[0, 1])
+    ax_nstores_pr_time = fig.add_subplot(grid[1, 0])
+    ax_nstores_st_time = fig.add_subplot(grid[1, 1])
+    for (n_processes, n_stores), \
+        (process_update_time, store_update_time) \
+            in saved_stats.items():
 
-            # plot store run time
-            st_pr_handle, = ax_stores.plot(
-                n_stores,
-                process_update_time,
-                'bo')
-            st_st_handle, = ax_stores.plot(
-                n_stores,
-                store_update_time,
-                'r+')
+        # plot variable processses
+        # process runtime
+        pr_pr_handle, = ax_nprocesses_pr_time.plot(
+            n_processes,
+            process_update_time,
+            'bo')
+        # store runtime
+        pr_st_handle, = ax_nprocesses_st_time.plot(
+            n_processes,
+            store_update_time,
+            'r+')
 
-        # axis labels
-        # ax_processes.set_title('process updates')
-        ax_processes.set_xlabel('number of processes')
-        ax_processes.set_ylabel('runtime (s)')
-        ax_processes.legend(
-            [pr_pr_handle, pr_st_handle],
-            ['process update', 'store update'],
-            bbox_to_anchor=(1.05, 1))
+        # plot variable stores
+        # process runtime
+        st_pr_handle, = ax_nstores_pr_time.plot(
+            n_stores,
+            process_update_time,
+            'bo')
+        # store runtime
+        st_st_handle, = ax_nstores_st_time.plot(
+            n_stores,
+            store_update_time,
+            'r+')
 
-        # ax_stores.set_title('store updates')
-        ax_stores.set_xlabel('number of stores')
-        ax_stores.set_ylabel('runtime (s)')
-        ax_stores.legend(
-            [st_pr_handle, st_st_handle],
-            ['process update', 'store update'],
-            bbox_to_anchor=(1.05, 1))
+    # axis labels
+    ax_nprocesses_pr_time.set_xlabel('number of processes')
+    ax_nprocesses_pr_time.set_ylabel('runtime (s)')
+    ax_nprocesses_pr_time.legend(
+        [pr_pr_handle], ['process update'])
 
-        # adjustments
-        plt.subplots_adjust(hspace=h_space)
+    ax_nprocesses_st_time.set_xlabel('number of processes')
+    ax_nprocesses_st_time.set_ylabel('runtime (s)')
+    ax_nprocesses_st_time.legend(
+        [pr_st_handle], ['store update'])
 
-        # save
-        os.makedirs(out_dir, exist_ok=True)
-        fig_path = os.path.join(out_dir, filename)
-        fig.savefig(fig_path, bbox_inches='tight')
+    ax_nstores_pr_time.set_xlabel('number of stores')
+    ax_nstores_pr_time.set_ylabel('runtime (s)')
+    ax_nstores_pr_time.legend(
+        [st_pr_handle], ['process update'])
 
-    def run_scan_and_plot(self):
-        saved_stats = self.run_scan(
-            processes_range=[10, 100, 500],
-            stores_range=[10, 100, 500],
-        )
-        self.plot_scan_results(saved_stats)
+    ax_nstores_st_time.set_xlabel('number of stores')
+    ax_nstores_st_time.set_ylabel('runtime (s)')
+    ax_nstores_st_time.legend(
+        [st_st_handle], ['store update'])
 
 
+    # adjustments
+    plt.subplots_adjust(hspace=h_space)
+
+    # save
+    os.makedirs(out_dir, exist_ok=True)
+    fig_path = os.path.join(out_dir, filename)
+    fig.savefig(fig_path, bbox_inches='tight')
+
+def scan_stores():
+    scan_values = [
+        {'stores': 10},
+        {'stores': 100},
+        {'stores': 200},
+        {'stores': 400},
+        {'stores': 600},
+        {'stores': 800},
+        {'stores': 1000},
+        {'stores': 1200},
+        {'stores': 1400},
+        {'stores': 1600},
+    ]
+
+    sim = ComplexModelSim()
+    sim.experiment_time = 100
+    sim.process_sleep = 1e-4
+    saved_stats = run_scan(
+        sim,
+        scan_values=scan_values,
+        # stores_range=stores_range,
+    )
+    plot_scan_results(
+        saved_stats,
+        filename=f'scan_values={scan_values}',
+    )
+
+def scan_processes():
+    scan_values = [
+        {'processes': 10},
+        {'processes': 100},
+        {'processes': 200},
+        {'processes': 400},
+    ]
+
+    sim = ComplexModelSim()
+    sim.experiment_time = 100
+    sim.process_sleep = 1e-6
+    saved_stats = run_scan(
+        sim,
+        scan_values=scan_values,
+    )
+    plot_scan_results(
+        saved_stats,
+        filename=f'scan={scan_values}',
+    )
+
+
+test_library = {
+    '0': scan_stores,
+    '1': scan_processes,
+
+}
 
 if __name__ == '__main__':
-    sim = ComplexModelSim()
-    sim.from_cli()
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        '--name', '-n', default=[], nargs='+', help='test ids to run')
+    args = parser.parse_args()
+    run_all = not args.name
+
+    for name in args.name:
+        test_library[name]()
+    if run_all:
+        for name, test in test_library.items():
+            test()
