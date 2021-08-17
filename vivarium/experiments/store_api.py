@@ -1,10 +1,10 @@
-import argparse
 import pytest
 
 from vivarium.composites.toys import Qo, ToyProcess, ToyComposer
 from vivarium.core.process import Process
 from vivarium.core.engine import Engine
 from vivarium.core.store import Store
+from vivarium.core.control import run_library_cli
 
 
 def get_toy_store() -> Store:
@@ -227,14 +227,4 @@ test_library = {
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='store API')
-    parser.add_argument(
-        '--name', '-n', default=[], nargs='+', help='test ids to run')
-    args = parser.parse_args()
-    run_all = not args.name
-
-    for name in args.name:
-        test_library[name]()
-    if run_all:
-        for name, test in test_library.items():
-            test()
+    run_library_cli(test_library)

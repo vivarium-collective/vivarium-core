@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 from vivarium.core.engine import Engine
 from vivarium.core.process import Process
 from vivarium.core.composer import Composer
+from vivarium.core.control import run_library_cli
 
 
 class ManyVariablesProcess(Process):
@@ -304,7 +305,8 @@ def plot_scan_results(
     row_height = 3
     h_space = 0.5
 
-    marker_cycle = itertools.cycle(('r+', 'bo', 'g*'))
+    marker_cycle = itertools.cycle((
+        'b.', 'gv', 'r^', 'c<', 'm>', 'ys', 'bP', 'gX', 'rD', 'cd'))
 
     # make figure and plot
     fig = plt.figure(figsize=(n_cols * column_width, n_rows * row_height))
@@ -353,26 +355,31 @@ def plot_scan_results(
             var_marker)
 
         # add to legend handles
+        _ = pr_pr_handle
+        _ = pr_st_handle
+        _ = st_pr_handle
         if n_vars not in var_handles:
             var_handles[n_vars] = st_st_handle
 
     # prepare legend
     var_handles_list = tuple(var_handles.values())
     var_values = tuple(
-        [f'{val} updates per process' for val in var_handles.keys()])
+        [f'{val} updates per process' for val, _ in var_handles.items()])
 
     # axis labels
     ax_nprocesses_pr_time.set_title('process update time')
     ax_nprocesses_pr_time.set_xlabel('number of processes')
     ax_nprocesses_pr_time.set_ylabel('runtime (s)')
-    ax_nprocesses_pr_time.legend(
-        handles=var_handles_list, labels=var_values)
     # ax_nprocesses_pr_time.legend(
     #     [pr_pr_handle], ['process update'])
 
     ax_nprocesses_st_time.set_title('store update time')
     ax_nprocesses_st_time.set_xlabel('number of processes')
     ax_nprocesses_st_time.set_ylabel('runtime (s)')
+    ax_nprocesses_st_time.legend(
+        handles=var_handles_list,
+        labels=var_values,
+        bbox_to_anchor=(1.05, 1),)
     # ax_nprocesses_st_time.legend(
     #     [pr_st_handle], ['store update'])
 
@@ -426,6 +433,8 @@ def scan_processes():
         {'processes': 100},
         {'processes': 200},
         {'processes': 400},
+        {'processes': 600},
+        {'processes': 800},
     ]
 
     sim = ComplexModelSim()
@@ -477,15 +486,6 @@ test_library = {
     '2': scan_processes_variables,
 }
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        '--name', '-n', default=[], nargs='+', help='test ids to run')
-    args = parser.parse_args()
-    run_all = not args.name
 
-    for name in args.name:
-        test_library[name]()
-    if run_all:
-        for name, test in test_library.items():
-            test()
+if __name__ == '__main__':
+    run_library_cli(test_library)
