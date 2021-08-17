@@ -7,6 +7,8 @@ import time
 import cProfile
 import pstats
 import argparse
+import itertools
+
 import matplotlib.pyplot as plt
 
 from vivarium.core.engine import Engine
@@ -278,14 +280,15 @@ def run_scan(
 
         print(
             f'number_of_processes={n_processes}, '
-            f'number_of_stores={n_stores}')
+            f'number_of_stores={n_stores}, '
+            f'number_of_variables={n_vars}')
 
         # run experiment
         process_update_time, store_update_time = \
             sim.profile_communication_latency(print_report=False)
 
         # save data
-        saved_stats[(n_processes, n_stores)] = (
+        saved_stats[(n_processes, n_stores, n_vars)] = (
             process_update_time, store_update_time)
 
     return saved_stats
@@ -301,6 +304,8 @@ def plot_scan_results(
     row_height = 3
     h_space = 0.5
 
+    marker_cycle = itertools.cycle(('r+', 'bo', 'g*'))
+
     # make figure and plot
     fig = plt.figure(figsize=(n_cols * column_width, n_rows * row_height))
     grid = plt.GridSpec(n_rows, n_cols)
@@ -310,54 +315,78 @@ def plot_scan_results(
     ax_nprocesses_st_time = fig.add_subplot(grid[0, 1])
     ax_nstores_pr_time = fig.add_subplot(grid[1, 0])
     ax_nstores_st_time = fig.add_subplot(grid[1, 1])
-    for (n_processes, n_stores), \
+
+    var_markers = {}
+    var_handles = {}
+    for (n_processes, n_stores, n_vars), \
         (process_update_time, store_update_time) \
             in saved_stats.items():
+
+        if n_vars not in var_markers:
+            var_marker = next(marker_cycle)
+            var_markers[n_vars] = var_marker
+        else:
+            var_marker = var_markers[n_vars]
 
         # plot variable processses
         # process runtime
         pr_pr_handle, = ax_nprocesses_pr_time.plot(
             n_processes,
             process_update_time,
-            'bo')
+            var_marker)
         # store runtime
         pr_st_handle, = ax_nprocesses_st_time.plot(
             n_processes,
             store_update_time,
-            'r+')
+            var_marker)
 
         # plot variable stores
         # process runtime
         st_pr_handle, = ax_nstores_pr_time.plot(
             n_stores,
             process_update_time,
-            'bo')
+            var_marker)
         # store runtime
         st_st_handle, = ax_nstores_st_time.plot(
             n_stores,
             store_update_time,
-            'r+')
+            var_marker)
+
+        # add to legend handles
+        if n_vars not in var_handles:
+            var_handles[n_vars] = st_st_handle
+
+    # prepare legend
+    var_handles_list = tuple(var_handles.values())
+    var_values = tuple(
+        [f'{val} updates per process' for val in var_handles.keys()])
 
     # axis labels
+    ax_nprocesses_pr_time.set_title('process update time')
     ax_nprocesses_pr_time.set_xlabel('number of processes')
     ax_nprocesses_pr_time.set_ylabel('runtime (s)')
     ax_nprocesses_pr_time.legend(
-        [pr_pr_handle], ['process update'])
+        handles=var_handles_list, labels=var_values)
+    # ax_nprocesses_pr_time.legend(
+    #     [pr_pr_handle], ['process update'])
 
+    ax_nprocesses_st_time.set_title('store update time')
     ax_nprocesses_st_time.set_xlabel('number of processes')
     ax_nprocesses_st_time.set_ylabel('runtime (s)')
-    ax_nprocesses_st_time.legend(
-        [pr_st_handle], ['store update'])
+    # ax_nprocesses_st_time.legend(
+    #     [pr_st_handle], ['store update'])
 
+    ax_nstores_pr_time.set_title('process update time')
     ax_nstores_pr_time.set_xlabel('number of stores')
     ax_nstores_pr_time.set_ylabel('runtime (s)')
-    ax_nstores_pr_time.legend(
-        [st_pr_handle], ['process update'])
+    # ax_nstores_pr_time.legend(
+    #     [st_pr_handle], ['process update'])
 
+    ax_nstores_st_time.set_title('store update time')
     ax_nstores_st_time.set_xlabel('number of stores')
     ax_nstores_st_time.set_ylabel('runtime (s)')
-    ax_nstores_st_time.legend(
-        [st_st_handle], ['store update'])
+    # ax_nstores_st_time.legend(
+    #     [st_st_handle], ['store update'])
 
 
     # adjustments
@@ -365,8 +394,9 @@ def plot_scan_results(
 
     # save
     os.makedirs(out_dir, exist_ok=True)
-    fig_path = os.path.join(out_dir, filename)
+    fig_path = os.path.join(out_dir, filename[0:100])
     fig.savefig(fig_path, bbox_inches='tight')
+
 
 def scan_stores():
     scan_values = [
@@ -385,15 +415,10 @@ def scan_stores():
     sim = ComplexModelSim()
     sim.experiment_time = 100
     sim.process_sleep = 1e-4
-    saved_stats = run_scan(
-        sim,
-        scan_values=scan_values,
-        # stores_range=stores_range,
-    )
-    plot_scan_results(
-        saved_stats,
-        filename=f'scan_values={scan_values}',
-    )
+    saved_stats = run_scan(sim,
+                           scan_values=scan_values)
+    plot_scan_results(saved_stats,
+                      filename=f'scan_stores={scan_values}')
 
 def scan_processes():
     scan_values = [
@@ -406,20 +431,50 @@ def scan_processes():
     sim = ComplexModelSim()
     sim.experiment_time = 100
     sim.process_sleep = 1e-6
-    saved_stats = run_scan(
-        sim,
-        scan_values=scan_values,
-    )
-    plot_scan_results(
-        saved_stats,
-        filename=f'scan={scan_values}',
-    )
+    saved_stats = run_scan(sim,
+                           scan_values=scan_values)
+    plot_scan_results(saved_stats,
+                      filename=f'scan_processes={scan_values}')
+
+
+def scan_processes_variables():
+    scan_values = [
+        {'processes': 10, 'variables': 5, 'stores': 5},
+        {'processes': 10, 'variables': 100, 'stores': 100},
+        {'processes': 10, 'variables': 1000, 'stores': 1000},
+
+        {'processes': 100, 'variables': 5, 'stores': 5},
+        {'processes': 100, 'variables': 100, 'stores': 100},
+        {'processes': 100, 'variables': 1000, 'stores': 1000},
+
+        {'processes': 200, 'variables': 5, 'stores': 5},
+        {'processes': 200, 'variables': 100, 'stores': 100},
+        {'processes': 200, 'variables': 1000, 'stores': 1000},
+
+        {'processes': 400, 'variables': 5, 'stores': 5},
+        {'processes': 400, 'variables': 100, 'stores': 100},
+        {'processes': 400, 'variables': 1000, 'stores': 1000},
+
+        {'processes': 600, 'variables': 5, 'stores': 5},
+        {'processes': 600, 'variables': 100, 'stores': 100},
+        {'processes': 600, 'variables': 1000, 'stores': 1000},
+
+    ]
+
+    sim = ComplexModelSim()
+    sim.experiment_time = 100
+    # sim.process_sleep = 1e-6
+    sim.process_sleep = 1e-4
+    saved_stats = run_scan(sim,
+                           scan_values=scan_values)
+    plot_scan_results(saved_stats,
+                      filename=f'scan_processes_variables={scan_values}')
 
 
 test_library = {
     '0': scan_stores,
     '1': scan_processes,
-
+    '2': scan_processes_variables,
 }
 
 if __name__ == '__main__':
