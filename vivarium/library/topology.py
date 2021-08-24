@@ -99,7 +99,8 @@ def update_in(d, path, f):
     if path:
         head = path[0]
         d.setdefault(head, {})
-        updated = copy.deepcopy(d)
+        # updated = copy.deepcopy(d)
+        updated = copy.copy(d)
         updated[head] = update_in(d[head], path[1:], f)
         return updated
     return f(d)

@@ -211,6 +211,15 @@ def test_port_connect() -> None:
         'port1': ('store1',), 'port2': ('store2',)}
 
 
+def test_add_store():
+    store = get_toy_store()
+
+    store.add({
+        'key': 'store_D',
+        'state': {'var_a': 1, 'var_b': 2}
+    })
+
+
 test_library = {
     '1': test_insert_process,
     '2': test_rewire_ports,
@@ -223,6 +232,7 @@ test_library = {
     '9': test_divide_store,
     '10': test_update_schema,
     '11': test_port_connect,
+    '12': test_add_store,
 }
 
 

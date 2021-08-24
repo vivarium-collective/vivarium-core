@@ -893,6 +893,7 @@ class Store:
         path = (added['key'],)
         added_state = added['state']
 
+        # TODO -- check that this path does not exist
         target = self.establish_path(path, {})
         self.apply_subschema_path(path)
         target.apply_defaults()
