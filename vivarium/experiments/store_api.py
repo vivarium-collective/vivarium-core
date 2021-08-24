@@ -2,7 +2,7 @@ import pytest
 
 from vivarium.composites.toys import Qo, ToyProcess, ToyComposer
 from vivarium.core.process import Process
-from vivarium.core.engine import Engine, pf
+from vivarium.core.engine import Engine
 from vivarium.core.store import Store
 from vivarium.core.control import run_library_cli
 
@@ -211,7 +211,7 @@ def test_port_connect() -> None:
         'port1': ('store1',), 'port2': ('store2',)}
 
 
-def test_add_store():
+def test_add_store() -> None:
     store = get_toy_store()
 
     v = store.get_value()
