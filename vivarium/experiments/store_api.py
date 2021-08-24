@@ -2,7 +2,7 @@ import pytest
 
 from vivarium.composites.toys import Qo, ToyProcess, ToyComposer
 from vivarium.core.process import Process
-from vivarium.core.engine import Engine
+from vivarium.core.engine import Engine, pf
 from vivarium.core.store import Store
 from vivarium.core.control import run_library_cli
 
@@ -214,10 +214,23 @@ def test_port_connect() -> None:
 def test_add_store():
     store = get_toy_store()
 
+    v = store.get_value()
+    assert len(v) == 5
+
+    store.add({
+        'key': '_unique_id',
+        'state': {'var_a': 1, 'var_b': 2}
+    })
+    v = store.get_value()
+    assert len(v) == 6
+
     store.add({
         'key': 'store_D',
         'state': {'var_a': 1, 'var_b': 2}
     })
+
+    v = store.get_value()
+    assert len(v) == 7
 
 
 test_library = {

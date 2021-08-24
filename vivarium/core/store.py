@@ -9,6 +9,7 @@ The file system for storing and updating state variables during an experiment.
 import copy
 import logging as log
 from pprint import pformat
+import uuid
 
 import numpy as np
 from pint import Quantity
@@ -890,10 +891,13 @@ class Store:
                 self.value = self.default
 
     def add(self, added):
-        path = (added['key'],)
+        if added['key'] == '_unique_id':
+            path = (str(uuid.uuid1()),)
+        else:
+            path = (added['key'],)
         added_state = added['state']
 
-        # TODO -- check that this path does not exist
+        # get path
         target = self.establish_path(path, {})
         self.apply_subschema_path(path)
         target.apply_defaults()
