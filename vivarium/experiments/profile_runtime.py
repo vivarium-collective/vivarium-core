@@ -362,21 +362,21 @@ def make_axis(fig, grid, plot_n, patches, label=''):
         bbox_to_anchor=(0.5, 1.2), )
     return ax
 
+PROCESS_UPDATE_MARKER = 'b.'
+VIVARIUM_OVERHEAD_MARKER = 'r.'
 
-def get_patches(
-        process_update_marker='b.',
-        vivarium_overhead_marker='r.',
-):
+def get_patches():
     patches = []
     patches.append(
         mpatches.Patch(
-            color=process_update_marker[0],
+            color=PROCESS_UPDATE_MARKER[0],
             label="process updates"))
     patches.append(
         mpatches.Patch(
-            color=vivarium_overhead_marker[0],
+            color=VIVARIUM_OVERHEAD_MARKER[0],
             label="vivarium overhead"))
     return patches
+
 
 
 def plot_scan_results(
@@ -409,11 +409,7 @@ def plot_scan_results(
     fig = plt.figure(figsize=(n_cols * 6, n_rows * 3))
     grid = plt.GridSpec(n_rows, n_cols)
 
-    process_update_marker = 'b.'
-    vivarium_overhead_marker = 'r.'
-    patches = get_patches(
-        process_update_marker,
-        vivarium_overhead_marker)
+    patches = get_patches()
 
     # initialize axes
     plot_n = 0
@@ -459,33 +455,33 @@ def plot_scan_results(
 
         if process_plot:
             ax_nprocesses.plot(
-                n_processes, process_update_time, process_update_marker)
+                n_processes, process_update_time, PROCESS_UPDATE_MARKER)
             ax_nprocesses.plot(
-                n_processes, store_update_time, vivarium_overhead_marker)
+                n_processes, store_update_time, VIVARIUM_OVERHEAD_MARKER)
 
         if store_plot:
             ax_nstores.plot(
-                n_stores, process_update_time, process_update_marker)
+                n_stores, process_update_time, PROCESS_UPDATE_MARKER)
             ax_nstores.plot(
-                n_stores, store_update_time, vivarium_overhead_marker)
+                n_stores, store_update_time, VIVARIUM_OVERHEAD_MARKER)
 
         if port_plot:
             ax_nports.plot(
-                n_ports, process_update_time, process_update_marker)
+                n_ports, process_update_time, PROCESS_UPDATE_MARKER)
             ax_nports.plot(
-                n_ports, store_update_time, vivarium_overhead_marker)
+                n_ports, store_update_time, VIVARIUM_OVERHEAD_MARKER)
 
         if var_plot:
             ax_nvars.plot(
-                n_vars, process_update_time, process_update_marker)
+                n_vars, process_update_time, PROCESS_UPDATE_MARKER)
             ax_nvars.plot(
-                n_vars, store_update_time, vivarium_overhead_marker)
+                n_vars, store_update_time, VIVARIUM_OVERHEAD_MARKER)
 
         if hierarchy_plot:
             ax_depth.plot(
-                depth, process_update_time, process_update_marker)
+                depth, process_update_time, PROCESS_UPDATE_MARKER)
             ax_depth.plot(
-                depth, store_update_time, vivarium_overhead_marker)
+                depth, store_update_time, VIVARIUM_OVERHEAD_MARKER)
 
     # adjustments
     plt.subplots_adjust(hspace=0.5)
