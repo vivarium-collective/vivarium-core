@@ -301,7 +301,7 @@ def run_scan(
         'hierarchy_depth': 1,
     }]
 
-    saved_stats = {}
+    saved_stats = []
     for scan_dict in scan_values:
         n_processes = scan_dict.get('number_of_processes', 10)
         n_stores = scan_dict.get('number_of_stores', 10)
@@ -331,8 +331,16 @@ def run_scan(
             sim.profile_communication_latency(print_report=False)
 
         # save data
-        saved_stats[(n_processes, n_stores, n_vars)] = (
-            process_update_time, store_update_time)
+        stat_dict = {
+            'number_of_processes': n_processes,
+            'number_of_stores': n_stores,
+            'number_of_ports': n_ports,
+            'variables_per_port': n_vars,
+            'hierarchy_depth': hierarchy_depth,
+            'process_update_time': process_update_time,
+            'store_update_time': store_update_time,
+        }
+        saved_stats.append(stat_dict)
 
     return saved_stats
 
@@ -342,7 +350,7 @@ def plot_scan_results(
         filename='profile',
 ):
     n_cols = 2
-    n_rows = 2
+    n_rows = 3
     column_width = 6
     row_height = 3
     h_space = 0.5
@@ -359,12 +367,19 @@ def plot_scan_results(
     ax_nprocesses_st_time = fig.add_subplot(grid[0, 1])
     ax_nstores_pr_time = fig.add_subplot(grid[1, 0])
     ax_nstores_st_time = fig.add_subplot(grid[1, 1])
+    ax_nports_pr_time = fig.add_subplot(grid[2, 0])
+    ax_nports_st_time = fig.add_subplot(grid[2, 1])
 
     var_markers = {}
     var_handles = {}
-    for (n_processes, n_stores, n_vars), \
-        (process_update_time, store_update_time) \
-            in saved_stats.items():
+
+    for stat in saved_stats:
+        n_processes = stat['number_of_processes']
+        n_stores = stat['number_of_stores']
+        n_ports = stat['number_of_ports']
+        n_vars = stat['variables_per_port']
+        process_update_time = stat['process_update_time']
+        store_update_time = stat['store_update_time']
 
         if n_vars not in var_markers:
             var_marker = next(marker_cycle)
@@ -375,30 +390,33 @@ def plot_scan_results(
         # plot variable processses
         # process runtime
         pr_pr_handle, = ax_nprocesses_pr_time.plot(
-            n_processes,
-            process_update_time,
-            var_marker)
+            n_processes, process_update_time, var_marker)
         # store runtime
         pr_st_handle, = ax_nprocesses_st_time.plot(
-            n_processes,
-            store_update_time,
-            var_marker)
+            n_processes, store_update_time, var_marker)
 
         # plot variable stores
         # process runtime
         st_pr_handle, = ax_nstores_pr_time.plot(
-            n_stores,
-            process_update_time,
-            var_marker)
+            n_stores, process_update_time, var_marker)
         # store runtime
         st_st_handle, = ax_nstores_st_time.plot(
-            n_stores,
-            store_update_time,
-            var_marker)
+            n_stores, store_update_time, var_marker)
+
+        # plot variable ports
+        # process runtime
+        pt_pr_handle, = ax_nports_pr_time.plot(
+            n_ports, process_update_time, var_marker)
+        # store runtime
+        pt_st_handle, = ax_nports_st_time.plot(
+            n_ports, store_update_time, var_marker)
+
 
         # add to legend handles
         _ = pr_pr_handle
         _ = pr_st_handle
+        _ = pt_pr_handle
+        _ = pt_st_handle
         _ = st_pr_handle
         if n_vars not in var_handles:
             var_handles[n_vars] = st_st_handle
@@ -406,7 +424,7 @@ def plot_scan_results(
     # prepare legend
     var_handles_list = tuple(var_handles.values())
     var_values = tuple(
-        [f'{val} updates per process' for val, _ in var_handles.items()])
+        [f'{val} updates per port' for val, _ in var_handles.items()])
 
     # axis labels
     ax_nprocesses_pr_time.set_title('process update time')
@@ -425,18 +443,23 @@ def plot_scan_results(
     # ax_nprocesses_st_time.legend(
     #     [pr_st_handle], ['store update'])
 
+    # number of stores
     ax_nstores_pr_time.set_title('process update time')
     ax_nstores_pr_time.set_xlabel('number of stores')
     ax_nstores_pr_time.set_ylabel('runtime (s)')
-    # ax_nstores_pr_time.legend(
-    #     [st_pr_handle], ['process update'])
 
     ax_nstores_st_time.set_title('store update time')
     ax_nstores_st_time.set_xlabel('number of stores')
     ax_nstores_st_time.set_ylabel('runtime (s)')
-    # ax_nstores_st_time.legend(
-    #     [st_st_handle], ['store update'])
 
+    # number of ports
+    ax_nports_pr_time.set_title('process update time')
+    ax_nports_pr_time.set_xlabel('number of ports')
+    ax_nports_pr_time.set_ylabel('runtime (s)')
+
+    ax_nports_st_time.set_title('store update time')
+    ax_nports_st_time.set_xlabel('number of ports')
+    ax_nports_st_time.set_ylabel('runtime (s)')
 
     # adjustments
     plt.subplots_adjust(hspace=h_space)
@@ -525,11 +548,10 @@ def scan_number_of_ports():
     scan_values = [
         {'number_of_processes': 10, 'number_of_stores': 10, 'variables_per_port': 5, 'number_of_ports': 1},
         {'number_of_processes': 10, 'number_of_stores': 10, 'variables_per_port': 5, 'number_of_ports': 2},
-        {'number_of_processes': 10, 'number_of_stores': 10, 'variables_per_port': 5, 'number_of_ports': 3},
         {'number_of_processes': 10, 'number_of_stores': 10, 'variables_per_port': 5, 'number_of_ports': 4},
-        {'number_of_processes': 10, 'number_of_stores': 10, 'variables_per_port': 5, 'number_of_ports': 5},
-        {'number_of_processes': 10, 'number_of_stores': 10, 'variables_per_port': 5, 'number_of_ports': 6},
-        {'number_of_processes': 10, 'number_of_stores': 10, 'variables_per_port': 5, 'number_of_ports': 7},
+        {'number_of_processes': 10, 'number_of_stores': 10, 'variables_per_port': 5, 'number_of_ports': 8},
+        {'number_of_processes': 10, 'number_of_stores': 10, 'variables_per_port': 5, 'number_of_ports': 16},
+        {'number_of_processes': 10, 'number_of_stores': 10, 'variables_per_port': 5, 'number_of_ports': 32},
     ]
 
     sim = ComplexModelSim()
