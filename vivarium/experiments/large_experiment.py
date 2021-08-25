@@ -16,16 +16,13 @@ from vivarium.core.emitter import (
 class ManyParametersProcess(Process):
     defaults = {
         'number_of_parameters': 100}
-
     def __init__(self, parameters=None):
         super().__init__(parameters)
-
         # make a bunch of parameters
         random_parameters = {
             key: random.random()
             for key in range(self.parameters['number_of_parameters'])}
         super().__init__(random_parameters)
-
     def ports_schema(self):
         return {'port': {'variable': {'_default': 0, '_emit': True}}}
     def next_update(self, timestep, states):
@@ -36,13 +33,11 @@ class ManyParametersComposite(Composer):
     defaults = {
         'number_of_processes': 10,
         'number_of_parameters': 100}
-
     def __init__(self, config=None):
         super().__init__(config)
         self.process_ids = [
             f'process_{key}'
             for key in range(self.config['number_of_processes'])]
-
     def generate_processes(self, config):
         # make a bunch of processes
         return {
@@ -50,11 +45,11 @@ class ManyParametersComposite(Composer):
                 'name': process_id,
                 'number_of_parameters': self.config['number_of_parameters']})
             for process_id in self.process_ids}
-
     def generate_topology(self, config):
         return {
             process_id: {'port': ('store', process_id,)}
             for process_id in self.process_ids}
+
 
 def run_large_initial_emit():
     """

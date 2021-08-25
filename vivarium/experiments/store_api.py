@@ -1,10 +1,10 @@
-import argparse
 import pytest
 
 from vivarium.composites.toys import Qo, ToyProcess, ToyComposer
 from vivarium.core.process import Process
 from vivarium.core.engine import Engine
 from vivarium.core.store import Store
+from vivarium.core.control import run_library_cli
 
 
 def get_toy_store() -> Store:
@@ -211,6 +211,28 @@ def test_port_connect() -> None:
         'port1': ('store1',), 'port2': ('store2',)}
 
 
+def test_add_store() -> None:
+    store = get_toy_store()
+
+    v = store.get_value()
+    assert len(v) == 5
+
+    store.add({
+        'key': '_unique_id',
+        'state': {'var_a': 1, 'var_b': 2}
+    })
+    v = store.get_value()
+    assert len(v) == 6
+
+    store.add({
+        'key': 'store_D',
+        'state': {'var_a': 1, 'var_b': 2}
+    })
+
+    v = store.get_value()
+    assert len(v) == 7
+
+
 test_library = {
     '1': test_insert_process,
     '2': test_rewire_ports,
@@ -223,18 +245,9 @@ test_library = {
     '9': test_divide_store,
     '10': test_update_schema,
     '11': test_port_connect,
+    '12': test_add_store,
 }
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='store API')
-    parser.add_argument(
-        '--name', '-n', default=[], nargs='+', help='test ids to run')
-    args = parser.parse_args()
-    run_all = not args.name
-
-    for name in args.name:
-        test_library[name]()
-    if run_all:
-        for name, test in test_library.items():
-            test()
+    run_library_cli(test_library)
