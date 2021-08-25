@@ -19,41 +19,47 @@ from vivarium.core.control import run_library_cli
 
 class ManyVariablesProcess(Process):
     defaults = {
-        'number_of_variables': 10,
+        'number_of_ports': 1,
+        'variables_per_port': 10,
         'process_sleep': 0,
     }
+
     def __init__(self, parameters=None):
         super().__init__(parameters)
-        # make a bunch of variables
-        random_variables = [range(self.parameters['number_of_variables'])]
-        self.parameters['variables'] = random_variables
+        # make a bunch of port and variable ids
+        self.port_ids = [
+            port_ids for port_ids in range(self.parameters['number_of_ports'])]
+        self.variable_ids = [
+            variable_id for variable_id in range(self.parameters['variables_per_port'])]
 
     def ports_schema(self):
-        return {
-            'update_timer': {
-                '_default': 0,
-                '_emit': True,
-            },
-            'port': {
+        ports = {
+            port_id: {
                 variable: {
                     '_default': random.random(),
                     '_emit': True
-                } for variable in self.parameters['variables']}}
+                } for variable in self.variable_ids
+            } for port_id in self.port_ids}
+        return ports
 
     def next_update(self, timestep, states):
-        update = {
+        update = {}
+        for port_id in self.port_ids:
+            port_update = {
                 variable: random.random()
-                for variable in self.parameters['variables']}
+                for variable in self.variable_ids}
+            update[port_id] = port_update
+
         time.sleep(self.parameters['process_sleep'])
-        return {
-            'port': update,
-        }
+        return update
 
 class ManyVariablesComposite(Composer):
     defaults = {
         'number_of_processes': 10,
         'number_of_stores': 10,
-        'variables_per_process': 10,
+        'number_of_ports': 1,
+        'variables_per_process_port': 10,
+        'hierarchy_depth': 1,
         'process_sleep': 0,
     }
 
@@ -66,22 +72,31 @@ class ManyVariablesComposite(Composer):
             f'store_{key}' for key
             in range(self.config['number_of_stores'])]
 
-    def generate_processes(self, config):
         # make a bunch of processes
-        return {
+        self.processes = {
             process_id: ManyVariablesProcess({
                 'name': process_id,
-                'number_of_variables': self.config['variables_per_process'],
+                'number_of_ports': self.config['number_of_ports'],
+                'variables_per_port': self.config['variables_per_process_port'],
                 'process_sleep': self.config['process_sleep'],
             })
             for process_id in self.process_ids}
 
+        # connect the processes' ports to a random store at hierarchy_depth
+        self.topology = {}
+        for process_id, process in self.processes.items():
+            process_ports = {}
+            for port_id in process.port_ids:
+                store_id = random.choice(self.store_ids)
+                store_path = [store_id for _ in range(self.config['hierarchy_depth'])]
+                process_ports[port_id] = tuple(store_path)
+            self.topology[process_id] = process_ports
+
+    def generate_processes(self, config):
+        return self.processes
+
     def generate_topology(self, config):
-        return {
-            process_id: {
-                'port': (random.choice(self.store_ids),),
-            }
-            for process_id in self.process_ids}
+        return self.topology
 
 
 class ComplexModelSim:
@@ -94,8 +109,10 @@ class ComplexModelSim:
 
     # model complexity
     number_of_processes = 10
-    number_of_variables = 10
     number_of_stores = 10
+    number_of_ports = 1
+    variables_per_port = 10
+    hierarchy_depth = 1
     process_sleep = 0
     experiment_time = 100
 
@@ -134,18 +151,24 @@ class ComplexModelSim:
     def set_parameters(
             self,
             number_of_processes=None,
-            number_of_variables=None,
             number_of_stores=None,
+            number_of_ports=None,
+            variables_per_port=None,
+            hierarchy_depth=None,
             process_sleep=None,
             print_top_stats=None,
             experiment_time=None,
     ):
         self.number_of_processes = \
             number_of_processes or self.number_of_processes
-        self.number_of_variables = \
-            number_of_variables or self.number_of_variables
+        self.number_of_ports = \
+            number_of_ports or self.number_of_ports
+        self.variables_per_port = \
+            variables_per_port or self.variables_per_port
         self.number_of_stores = \
             number_of_stores or self.number_of_stores
+        self.hierarchy_depth = \
+            hierarchy_depth or self.hierarchy_depth
         self.process_sleep = \
             process_sleep or self.process_sleep
         self.print_top_stats = \
@@ -156,17 +179,23 @@ class ComplexModelSim:
     def _generate_composite(self, **kwargs):
         number_of_processes = kwargs.get(
             'number_of_processes', self.number_of_processes)
-        number_of_variables = kwargs.get(
-            'number_of_variables', self.number_of_variables)
         number_of_stores = kwargs.get(
             'number_of_stores', self.number_of_stores)
+        number_of_ports = kwargs.get(
+            'number_of_ports', self.number_of_ports)
+        variables_per_port = kwargs.get(
+            'variables_per_port', self.variables_per_port)
+        hierarchy_depth = kwargs.get(
+            'hierarchy_depth', self.hierarchy_depth)
         process_sleep = kwargs.get(
             'process_sleep', self.process_sleep)
 
         composer = ManyVariablesComposite({
             'number_of_processes': number_of_processes,
-            'number_of_variables': number_of_variables,
             'number_of_stores': number_of_stores,
+            'number_of_ports': number_of_ports,
+            'variables_per_port': variables_per_port,
+            'hierarchy_depth': hierarchy_depth,
             'process_sleep': process_sleep,
         })
 
@@ -264,25 +293,38 @@ def run_scan(
     scan_values=None,
 ):
     sim = sim or ComplexModelSim()
-    scan_values = scan_values or [
-        {'stores': 10, 'processes': 10, 'variables': 10}]
+    scan_values = scan_values or [{
+        'number_of_stores': 10,
+        'number_of_processes': 10,
+        'variables_per_port': 10,
+        'number_of_ports': 1,
+        'hierarchy_depth': 1,
+    }]
 
     saved_stats = {}
     for scan_dict in scan_values:
-        n_processes = scan_dict.get('processes', 10)
-        n_stores = scan_dict.get('stores', 10)
-        n_vars = scan_dict.get('variables', n_stores)
+        n_processes = scan_dict.get('number_of_processes', 10)
+        n_stores = scan_dict.get('number_of_stores', 10)
+        n_vars = scan_dict.get('variables_per_port', n_stores)
+        n_ports = scan_dict.get('number_of_ports', 1)
+        hierarchy_depth = scan_dict.get('hierarchy_depth', 1)
 
         # set the parameters
         sim.set_parameters(
             number_of_processes=n_processes,
-            number_of_variables=n_vars,
-            number_of_stores=n_stores)
+            number_of_stores=n_stores,
+            number_of_ports=n_ports,
+            variables_per_port=n_vars,
+            hierarchy_depth=hierarchy_depth,
+        )
 
         print(
             f'number_of_processes={n_processes}, '
             f'number_of_stores={n_stores}, '
-            f'number_of_variables={n_vars}')
+            f'number_of_ports={n_ports}, '
+            f'variables_per_port={n_vars}, '
+            f'hierarchy_depth={hierarchy_depth}, '
+        )
 
         # run experiment
         process_update_time, store_update_time = \
@@ -407,16 +449,16 @@ def plot_scan_results(
 
 def scan_stores():
     scan_values = [
-        {'stores': 10},
-        {'stores': 100},
-        {'stores': 200},
-        {'stores': 400},
-        {'stores': 600},
-        {'stores': 800},
-        {'stores': 1000},
-        {'stores': 1200},
-        {'stores': 1400},
-        {'stores': 1600},
+        {'number_of_stores': 10},
+        {'number_of_stores': 100},
+        {'number_of_stores': 200},
+        {'number_of_stores': 400},
+        {'number_of_stores': 600},
+        {'number_of_stores': 800},
+        {'number_of_stores': 1000},
+        {'number_of_stores': 1200},
+        {'number_of_stores': 1400},
+        {'number_of_stores': 1600},
     ]
 
     sim = ComplexModelSim()
@@ -429,12 +471,12 @@ def scan_stores():
 
 def scan_processes():
     scan_values = [
-        {'processes': 10},
-        {'processes': 100},
-        {'processes': 200},
-        {'processes': 400},
-        {'processes': 600},
-        {'processes': 800},
+        {'number_of_processes': 10},
+        {'number_of_processes': 100},
+        {'number_of_processes': 200},
+        {'number_of_processes': 400},
+        {'number_of_processes': 600},
+        {'number_of_processes': 800},
     ]
 
     sim = ComplexModelSim()
@@ -448,25 +490,25 @@ def scan_processes():
 
 def scan_processes_variables():
     scan_values = [
-        {'processes': 10, 'variables': 5, 'stores': 5},
-        {'processes': 10, 'variables': 100, 'stores': 100},
-        {'processes': 10, 'variables': 1000, 'stores': 1000},
+        {'number_of_processes': 10, 'variables_per_port': 5, 'number_of_stores': 5},
+        {'number_of_processes': 10, 'variables_per_port': 100, 'number_of_stores': 100},
+        {'number_of_processes': 10, 'variables_per_port': 1000, 'number_of_stores': 1000},
 
-        {'processes': 100, 'variables': 5, 'stores': 5},
-        {'processes': 100, 'variables': 100, 'stores': 100},
-        {'processes': 100, 'variables': 1000, 'stores': 1000},
+        {'number_of_processes': 100, 'variables_per_port': 5, 'number_of_stores': 5},
+        {'number_of_processes': 100, 'variables_per_port': 100, 'number_of_stores': 100},
+        {'number_of_processes': 100, 'variables_per_port': 1000, 'number_of_stores': 1000},
 
-        {'processes': 200, 'variables': 5, 'stores': 5},
-        {'processes': 200, 'variables': 100, 'stores': 100},
-        {'processes': 200, 'variables': 1000, 'stores': 1000},
+        {'number_of_processes': 200, 'variables_per_port': 5, 'number_of_stores': 5},
+        {'number_of_processes': 200, 'variables_per_port': 100, 'number_of_stores': 100},
+        {'number_of_processes': 200, 'variables_per_port': 1000, 'number_of_stores': 1000},
 
-        {'processes': 400, 'variables': 5, 'stores': 5},
-        {'processes': 400, 'variables': 100, 'stores': 100},
-        {'processes': 400, 'variables': 1000, 'stores': 1000},
+        {'number_of_processes': 400, 'variables_per_port': 5, 'number_of_stores': 5},
+        {'number_of_processes': 400, 'variables_per_port': 100, 'number_of_stores': 100},
+        {'number_of_processes': 400, 'variables_per_port': 1000, 'number_of_stores': 1000},
 
-        {'processes': 600, 'variables': 5, 'stores': 5},
-        {'processes': 600, 'variables': 100, 'stores': 100},
-        {'processes': 600, 'variables': 1000, 'stores': 1000},
+        {'number_of_processes': 600, 'variables_per_port': 5, 'number_of_stores': 5},
+        {'number_of_processes': 600, 'variables_per_port': 100, 'number_of_stores': 100},
+        {'number_of_processes': 600, 'variables_per_port': 1000, 'number_of_stores': 1000},
 
     ]
 
@@ -479,11 +521,33 @@ def scan_processes_variables():
     plot_scan_results(saved_stats,
                       filename=f'scan_processes_variables={scan_values}')
 
+def scan_number_of_ports():
+    scan_values = [
+        {'number_of_processes': 10, 'number_of_stores': 10, 'variables_per_port': 5, 'number_of_ports': 1},
+        {'number_of_processes': 10, 'number_of_stores': 10, 'variables_per_port': 5, 'number_of_ports': 2},
+        {'number_of_processes': 10, 'number_of_stores': 10, 'variables_per_port': 5, 'number_of_ports': 3},
+        {'number_of_processes': 10, 'number_of_stores': 10, 'variables_per_port': 5, 'number_of_ports': 4},
+        {'number_of_processes': 10, 'number_of_stores': 10, 'variables_per_port': 5, 'number_of_ports': 5},
+        {'number_of_processes': 10, 'number_of_stores': 10, 'variables_per_port': 5, 'number_of_ports': 6},
+        {'number_of_processes': 10, 'number_of_stores': 10, 'variables_per_port': 5, 'number_of_ports': 7},
+    ]
+
+    sim = ComplexModelSim()
+    sim.experiment_time = 100
+    # sim.process_sleep = 1e-6
+    sim.process_sleep = 1e-4
+    saved_stats = run_scan(sim,
+                           scan_values=scan_values)
+    plot_scan_results(saved_stats,
+                      filename=f'scan_processes_variables={scan_values}')
+
+
 
 test_library = {
     '0': scan_stores,
     '1': scan_processes,
     '2': scan_processes_variables,
+    '3': scan_number_of_ports,
 }
 
 
