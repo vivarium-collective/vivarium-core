@@ -351,6 +351,18 @@ def run_scan(
 
     return saved_stats
 
+
+def make_axis(fig, grid, plot_n, patches, label=''):
+    ax = fig.add_subplot(grid[plot_n, 0])
+    ax.set_xlabel(label)
+    ax.set_ylabel('runtime (s)')
+    ax.legend(
+        loc='upper center',
+        handles=patches, ncol=2,
+        bbox_to_anchor=(0.5, 1.2), )
+    return ax
+
+
 def plot_scan_results(
         saved_stats,
         plot_all=True,
@@ -400,55 +412,34 @@ def plot_scan_results(
     # initialize axes
     plot_n = 0
     if process_plot:
-        ax_nprocesses = fig.add_subplot(grid[plot_n, 0])
-        ax_nprocesses.set_xlabel('number of processes')
-        ax_nprocesses.set_ylabel('runtime (s)')
-        ax_nprocesses.legend(
-            loc='upper center',
-            handles=patches, ncol=2,
-            bbox_to_anchor=(0.5, 1.2), )
+        ax_nprocesses = make_axis(
+            fig, grid, plot_n, patches,
+            label='number of processes')
         plot_n += 1
 
     if store_plot:
-        ax_nstores = fig.add_subplot(grid[plot_n, 0])
-        ax_nstores.set_xlabel('number of stores')
-        ax_nstores.set_ylabel('runtime (s)')
-        ax_nstores.legend(
-            loc='upper center',
-            handles=patches, ncol=2,
-            bbox_to_anchor=(0.5, 1.2), )
+        ax_nstores = make_axis(
+            fig, grid, plot_n, patches,
+            label='number of stores')
         plot_n += 1
 
     if port_plot:
-        ax_nports = fig.add_subplot(grid[plot_n, 0])
-        ax_nports.set_xlabel('number of ports')
-        ax_nports.set_ylabel('runtime (s)')
-        ax_nports.legend(
-            loc='upper center',
-            handles=patches, ncol=2,
-            bbox_to_anchor=(0.5, 1.2), )
+        ax_nports = make_axis(
+            fig, grid, plot_n, patches,
+            label='number of ports')
         plot_n += 1
 
     if var_plot:
-        ax_nvars = fig.add_subplot(grid[plot_n, 0])
-        ax_nvars.set_xlabel('number of variables per port')
-        ax_nvars.set_ylabel('runtime (s)')
-        ax_nvars.legend(
-            loc='upper center',
-            handles=patches, ncol=2,
-            bbox_to_anchor=(0.5, 1.2), )
+        ax_nvars = make_axis(
+            fig, grid, plot_n, patches,
+            label='number of variables per port')
         plot_n += 1
 
     if hierarchy_plot:
-        ax_depth = fig.add_subplot(grid[plot_n, 0])
-        ax_depth.set_xlabel('hierarchy depth')
-        ax_depth.set_ylabel('runtime (s)')
-        ax_depth.legend(
-            loc='upper center',
-            handles=patches, ncol=2,
-            bbox_to_anchor=(0.5, 1.2), )
+        ax_depth = make_axis(
+            fig, grid, plot_n, patches,
+            label='hierarchy depth')
         plot_n += 1
-
 
     # plot saved states
     for stat in saved_stats:
