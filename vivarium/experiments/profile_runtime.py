@@ -1,7 +1,9 @@
 """
-Experiment to profile runtime in process next_update vs remaining vivarium overhead
+Experiment to profile runtime in process next_update vs
+remaining vivarium overhead
 
-Execute by running: ``python vivarium/experiments/profile_runtime.py -n [scan ids from scans_library]``
+Execute by running:
+``python vivarium/experiments/profile_runtime.py -n [scan id]``
 """
 
 import os
@@ -30,10 +32,10 @@ class ManyVariablesProcess(Process):
     def __init__(self, parameters=None):
         super().__init__(parameters)
         # make a bunch of port and variable ids
-        self.port_ids = [
-            port_ids for port_ids in range(self.parameters['number_of_ports'])]
-        self.variable_ids = [
-            variable_id for variable_id in range(self.parameters['variables_per_port'])]
+        self.port_ids = [*range(
+            self.parameters['number_of_ports'])]
+        self.variable_ids = [*range(
+            self.parameters['variables_per_port'])]
 
     def ports_schema(self):
         ports = {
@@ -91,7 +93,9 @@ class ManyVariablesComposite(Composer):
             process_ports = {}
             for port_id in process.port_ids:
                 store_id = random.choice(self.store_ids)
-                store_path = [store_id for _ in range(self.config['hierarchy_depth'])]
+                store_path = [
+                    store_id for _
+                    in range(self.config['hierarchy_depth'])]
                 process_ports[port_id] = tuple(store_path)
             self.topology[process_id] = process_ports
 
@@ -477,7 +481,7 @@ def scan_stores():
     saved_stats = run_scan(sim,
                            scan_values=scan_values)
     plot_scan_results(saved_stats,
-                      filename=f'scan_stores')
+                      filename='scan_stores')
 
 def scan_processes():
     n_processes = [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024]
@@ -489,7 +493,7 @@ def scan_processes():
     saved_stats = run_scan(sim,
                            scan_values=scan_values)
     plot_scan_results(saved_stats,
-                      filename=f'scan_processes')
+                      filename='scan_processes')
 
 
 def scan_processes_variables():
@@ -511,7 +515,7 @@ def scan_processes_variables():
     saved_stats = run_scan(sim,
                            scan_values=scan_values)
     plot_scan_results(saved_stats,
-                      filename=f'scan_processes_variables')
+                      filename='scan_processes_variables')
 
 def scan_number_of_ports():
     n_ports = [1, 2, 4, 8, 16, 32, 64]
@@ -531,7 +535,7 @@ def scan_number_of_ports():
     saved_stats = run_scan(sim,
                            scan_values=scan_values)
     plot_scan_results(saved_stats,
-                      filename=f'scan_number_of_ports')
+                      filename='scan_number_of_ports')
 
 
 def scan_hierarchy_depth():
@@ -552,7 +556,7 @@ def scan_hierarchy_depth():
     saved_stats = run_scan(sim,
                            scan_values=scan_values)
     plot_scan_results(saved_stats,
-                      filename=f'scan_hierarchy_depth')
+                      filename='scan_hierarchy_depth')
 
 
 scans_library = {
