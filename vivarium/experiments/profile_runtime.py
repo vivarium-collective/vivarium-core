@@ -485,12 +485,12 @@ def scan_processes_variables():
             scan = {
                 'number_of_processes': n_p,
                 'variables_per_port': n_v,
-                'number_of_stores': n_v}
+                'number_of_stores': max(n_vars),
+            }
             scan_values.append(scan)
 
     sim = ComplexModelSim()
     sim.experiment_time = 100
-    # sim.process_sleep = 1e-6
     sim.process_sleep = 1e-4
     saved_stats = run_scan(sim,
                            scan_values=scan_values)
