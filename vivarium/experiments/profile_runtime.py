@@ -10,6 +10,7 @@ import argparse
 import itertools
 
 import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
 
 from vivarium.core.engine import Engine
 from vivarium.core.process import Process
@@ -349,29 +350,24 @@ def plot_scan_results(
         out_dir='out/experiments',
         filename='profile',
 ):
-    n_cols = 2
-    n_rows = 3
+    n_cols = 1
+    n_rows = 4
     column_width = 6
     row_height = 3
     h_space = 0.5
-
-    marker_cycle = itertools.cycle((
-        'b.', 'gv', 'r^', 'c<', 'm>', 'ys', 'bP', 'gX', 'rD', 'cd'))
 
     # make figure and plot
     fig = plt.figure(figsize=(n_cols * column_width, n_rows * row_height))
     grid = plt.GridSpec(n_rows, n_cols)
 
     # plot
-    ax_nprocesses_pr_time = fig.add_subplot(grid[0, 0])
-    ax_nprocesses_st_time = fig.add_subplot(grid[0, 1])
-    ax_nstores_pr_time = fig.add_subplot(grid[1, 0])
-    ax_nstores_st_time = fig.add_subplot(grid[1, 1])
-    ax_nports_pr_time = fig.add_subplot(grid[2, 0])
-    ax_nports_st_time = fig.add_subplot(grid[2, 1])
+    ax_nprocesses = fig.add_subplot(grid[0, 0])
+    ax_nstores = fig.add_subplot(grid[1, 0])
+    ax_nports = fig.add_subplot(grid[2, 0])
+    ax_nvars = fig.add_subplot(grid[3, 0])
 
-    var_markers = {}
-    var_handles = {}
+    process_update_marker = 'b.'
+    vivarium_overhead_marker = 'r.'
 
     for stat in saved_stats:
         n_processes = stat['number_of_processes']
@@ -381,85 +377,70 @@ def plot_scan_results(
         process_update_time = stat['process_update_time']
         store_update_time = stat['store_update_time']
 
-        if n_vars not in var_markers:
-            var_marker = next(marker_cycle)
-            var_markers[n_vars] = var_marker
-        else:
-            var_marker = var_markers[n_vars]
-
-        # plot variable processses
+        # plot variable processes
         # process runtime
-        pr_pr_handle, = ax_nprocesses_pr_time.plot(
-            n_processes, process_update_time, var_marker)
+        ax_nprocesses.plot(
+            n_processes, process_update_time, process_update_marker)
         # store runtime
-        pr_st_handle, = ax_nprocesses_st_time.plot(
-            n_processes, store_update_time, var_marker)
+        ax_nprocesses.plot(
+            n_processes, store_update_time, vivarium_overhead_marker)
 
         # plot variable stores
         # process runtime
-        st_pr_handle, = ax_nstores_pr_time.plot(
-            n_stores, process_update_time, var_marker)
+        ax_nstores.plot(
+            n_stores, process_update_time, process_update_marker)
         # store runtime
-        st_st_handle, = ax_nstores_st_time.plot(
-            n_stores, store_update_time, var_marker)
+        ax_nstores.plot(
+            n_stores, store_update_time, vivarium_overhead_marker)
 
         # plot variable ports
         # process runtime
-        pt_pr_handle, = ax_nports_pr_time.plot(
-            n_ports, process_update_time, var_marker)
+        ax_nports.plot(
+            n_ports, process_update_time, process_update_marker)
         # store runtime
-        pt_st_handle, = ax_nports_st_time.plot(
-            n_ports, store_update_time, var_marker)
+        ax_nports.plot(
+            n_ports, store_update_time, vivarium_overhead_marker)
 
-
-        # add to legend handles
-        _ = pr_pr_handle
-        _ = pr_st_handle
-        _ = pt_pr_handle
-        _ = pt_st_handle
-        _ = st_pr_handle
-        if n_vars not in var_handles:
-            var_handles[n_vars] = st_st_handle
+        # plot variable number of variables
+        # process runtime
+        ax_nvars.plot(
+            n_vars, process_update_time, process_update_marker)
+        # store runtime
+        ax_nvars.plot(
+            n_vars, store_update_time, vivarium_overhead_marker)
 
     # prepare legend
-    var_handles_list = tuple(var_handles.values())
-    var_values = tuple(
-        [f'{val} updates per port' for val, _ in var_handles.items()])
+    patches = []
+    patches.append(
+        mpatches.Patch(
+            color=process_update_marker[0],
+            label="process updates"))
+    patches.append(
+        mpatches.Patch(
+            color=vivarium_overhead_marker[0],
+            label="vivarium overhead"))
 
     # axis labels
-    ax_nprocesses_pr_time.set_title('process update time')
-    ax_nprocesses_pr_time.set_xlabel('number of processes')
-    ax_nprocesses_pr_time.set_ylabel('runtime (s)')
-    # ax_nprocesses_pr_time.legend(
-    #     [pr_pr_handle], ['process update'])
-
-    ax_nprocesses_st_time.set_title('store update time')
-    ax_nprocesses_st_time.set_xlabel('number of processes')
-    ax_nprocesses_st_time.set_ylabel('runtime (s)')
-    ax_nprocesses_st_time.legend(
-        handles=var_handles_list,
-        labels=var_values,
-        bbox_to_anchor=(1.05, 1),)
-    # ax_nprocesses_st_time.legend(
-    #     [pr_st_handle], ['store update'])
+    ax_nprocesses.set_xlabel('number of processes')
+    ax_nprocesses.set_ylabel('runtime (s)')
+    ax_nprocesses.legend(
+        loc='upper center',
+        handles=patches,
+        ncol=2,
+        bbox_to_anchor=(0.5, 1.3),)
 
     # number of stores
-    ax_nstores_pr_time.set_title('process update time')
-    ax_nstores_pr_time.set_xlabel('number of stores')
-    ax_nstores_pr_time.set_ylabel('runtime (s)')
-
-    ax_nstores_st_time.set_title('store update time')
-    ax_nstores_st_time.set_xlabel('number of stores')
-    ax_nstores_st_time.set_ylabel('runtime (s)')
+    ax_nstores.set_xlabel('number of stores')
+    ax_nstores.set_ylabel('runtime (s)')
 
     # number of ports
-    ax_nports_pr_time.set_title('process update time')
-    ax_nports_pr_time.set_xlabel('number of ports')
-    ax_nports_pr_time.set_ylabel('runtime (s)')
+    ax_nports.set_xlabel('number of ports')
+    ax_nports.set_ylabel('runtime (s)')
 
-    ax_nports_st_time.set_title('store update time')
-    ax_nports_st_time.set_xlabel('number of ports')
-    ax_nports_st_time.set_ylabel('runtime (s)')
+    # number of variables
+    ax_nvars.set_xlabel('number of variables')
+    ax_nvars.set_ylabel('runtime (s)')
+
 
     # adjustments
     plt.subplots_adjust(hspace=h_space)
@@ -550,8 +531,8 @@ def scan_number_of_ports():
         {'number_of_processes': 10, 'number_of_stores': 10, 'variables_per_port': 5, 'number_of_ports': 2},
         {'number_of_processes': 10, 'number_of_stores': 10, 'variables_per_port': 5, 'number_of_ports': 4},
         {'number_of_processes': 10, 'number_of_stores': 10, 'variables_per_port': 5, 'number_of_ports': 8},
-        {'number_of_processes': 10, 'number_of_stores': 10, 'variables_per_port': 5, 'number_of_ports': 16},
-        {'number_of_processes': 10, 'number_of_stores': 10, 'variables_per_port': 5, 'number_of_ports': 32},
+        # {'number_of_processes': 10, 'number_of_stores': 10, 'variables_per_port': 5, 'number_of_ports': 16},
+        # {'number_of_processes': 10, 'number_of_stores': 10, 'variables_per_port': 5, 'number_of_ports': 32},
     ]
 
     sim = ComplexModelSim()
