@@ -1,13 +1,15 @@
 """
-Experiment to profile runtime in process next_update vs in store
+Experiment to profile runtime in process next_update vs remaining vivarium overhead
+
+Execute by running: ``python vivarium/experiments/profile_runtime.py -n [scan ids from scans_library]``
 """
+
 import os
 import random
 import time
 import cProfile
 import pstats
 import argparse
-import itertools
 
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
@@ -553,8 +555,7 @@ def scan_hierarchy_depth():
                       filename=f'scan_hierarchy_depth')
 
 
-
-test_library = {
+scans_library = {
     '0': scan_stores,
     '1': scan_processes,
     '2': scan_processes_variables,
@@ -562,6 +563,5 @@ test_library = {
     '4': scan_hierarchy_depth,
 }
 
-
 if __name__ == '__main__':
-    run_library_cli(test_library)
+    run_library_cli(scans_library)
