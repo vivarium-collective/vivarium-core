@@ -353,79 +353,40 @@ def run_scan(
 
 def plot_scan_results(
         saved_stats,
+        plot_all=True,
+        process_plot=False,
+        store_plot=False,
+        port_plot=False,
+        var_plot=False,
+        hierarchy_plot=False,
         out_dir='out/experiments',
         filename='profile',
 ):
-    n_cols = 2
-    n_rows = 3
+    if plot_all:
+        process_plot = True
+        store_plot = True
+        port_plot = True
+        var_plot = True
+        hierarchy_plot = True
+
+    n_cols = 1
+    n_rows = sum([
+        process_plot,
+        store_plot,
+        port_plot,
+        var_plot,
+        hierarchy_plot])
     column_width = 6
     row_height = 3
     h_space = 0.5
 
-    # make figure and plot
+    ## make figure
     fig = plt.figure(figsize=(n_cols * column_width, n_rows * row_height))
     grid = plt.GridSpec(n_rows, n_cols)
 
-    # plot
-    ax_nprocesses = fig.add_subplot(grid[0, 0])
-    ax_nstores = fig.add_subplot(grid[1, 0])
-    ax_nports = fig.add_subplot(grid[0, 1])
-    ax_nvars = fig.add_subplot(grid[1, 1])
-    ax_depth = fig.add_subplot(grid[2, 1])
-
+    # prepare legend
     process_update_marker = 'b.'
     vivarium_overhead_marker = 'r.'
-
-    for stat in saved_stats:
-        n_processes = stat['number_of_processes']
-        n_stores = stat['number_of_stores']
-        n_ports = stat['number_of_ports']
-        n_vars = stat['variables_per_port']
-        depth = stat['hierarchy_depth']
-        process_update_time = stat['process_update_time']
-        store_update_time = stat['store_update_time']
-
-        # plot variable processes
-        # process runtime
-        ax_nprocesses.plot(
-            n_processes, process_update_time, process_update_marker)
-        # store runtime
-        ax_nprocesses.plot(
-            n_processes, store_update_time, vivarium_overhead_marker)
-
-        # plot variable stores
-        # process runtime
-        ax_nstores.plot(
-            n_stores, process_update_time, process_update_marker)
-        # store runtime
-        ax_nstores.plot(
-            n_stores, store_update_time, vivarium_overhead_marker)
-
-        # plot variable ports
-        # process runtime
-        ax_nports.plot(
-            n_ports, process_update_time, process_update_marker)
-        # store runtime
-        ax_nports.plot(
-            n_ports, store_update_time, vivarium_overhead_marker)
-
-        # plot variable number of variables
-        # process runtime
-        ax_nvars.plot(
-            n_vars, process_update_time, process_update_marker)
-        # store runtime
-        ax_nvars.plot(
-            n_vars, store_update_time, vivarium_overhead_marker)
-
-        # plot variable hierarchy depth
-        # process runtime
-        ax_depth.plot(
-            depth, process_update_time, process_update_marker)
-        # store runtime
-        ax_depth.plot(
-            depth, store_update_time, vivarium_overhead_marker)
-
-    # prepare legend
     patches = []
     patches.append(
         mpatches.Patch(
@@ -436,30 +397,98 @@ def plot_scan_results(
             color=vivarium_overhead_marker[0],
             label="vivarium overhead"))
 
-    # axis labels
-    ax_nprocesses.set_xlabel('number of processes')
-    ax_nprocesses.set_ylabel('runtime (s)')
-    ax_nprocesses.legend(
-        loc='upper center',
-        handles=patches,
-        ncol=2,
-        bbox_to_anchor=(0.5, 1.3),)
+    # initialize axes
+    plot_n = 0
+    if process_plot:
+        ax_nprocesses = fig.add_subplot(grid[plot_n, 0])
+        ax_nprocesses.set_xlabel('number of processes')
+        ax_nprocesses.set_ylabel('runtime (s)')
+        ax_nprocesses.legend(
+            loc='upper center',
+            handles=patches, ncol=2,
+            bbox_to_anchor=(0.5, 1.2), )
+        plot_n += 1
 
-    # number of stores
-    ax_nstores.set_xlabel('number of stores')
-    ax_nstores.set_ylabel('runtime (s)')
+    if store_plot:
+        ax_nstores = fig.add_subplot(grid[plot_n, 0])
+        ax_nstores.set_xlabel('number of stores')
+        ax_nstores.set_ylabel('runtime (s)')
+        ax_nstores.legend(
+            loc='upper center',
+            handles=patches, ncol=2,
+            bbox_to_anchor=(0.5, 1.2), )
+        plot_n += 1
 
-    # number of ports
-    ax_nports.set_xlabel('number of ports')
-    ax_nports.set_ylabel('runtime (s)')
+    if port_plot:
+        ax_nports = fig.add_subplot(grid[plot_n, 0])
+        ax_nports.set_xlabel('number of ports')
+        ax_nports.set_ylabel('runtime (s)')
+        ax_nports.legend(
+            loc='upper center',
+            handles=patches, ncol=2,
+            bbox_to_anchor=(0.5, 1.2), )
+        plot_n += 1
 
-    # number of variables
-    ax_nvars.set_xlabel('number of variables per port')
-    ax_nvars.set_ylabel('runtime (s)')
+    if var_plot:
+        ax_nvars = fig.add_subplot(grid[plot_n, 0])
+        ax_nvars.set_xlabel('number of variables per port')
+        ax_nvars.set_ylabel('runtime (s)')
+        ax_nvars.legend(
+            loc='upper center',
+            handles=patches, ncol=2,
+            bbox_to_anchor=(0.5, 1.2), )
+        plot_n += 1
 
-    # hierarchy depth
-    ax_depth.set_xlabel('hierarchy depth')
-    ax_depth.set_ylabel('runtime (s)')
+    if hierarchy_plot:
+        ax_depth = fig.add_subplot(grid[plot_n, 0])
+        ax_depth.set_xlabel('hierarchy depth')
+        ax_depth.set_ylabel('runtime (s)')
+        ax_depth.legend(
+            loc='upper center',
+            handles=patches, ncol=2,
+            bbox_to_anchor=(0.5, 1.2), )
+        plot_n += 1
+
+
+    # plot saved states
+    for stat in saved_stats:
+        n_processes = stat['number_of_processes']
+        n_stores = stat['number_of_stores']
+        n_ports = stat['number_of_ports']
+        n_vars = stat['variables_per_port']
+        depth = stat['hierarchy_depth']
+        process_update_time = stat['process_update_time']
+        store_update_time = stat['store_update_time']
+
+        if process_plot:
+            ax_nprocesses.plot(
+                n_processes, process_update_time, process_update_marker)
+            ax_nprocesses.plot(
+                n_processes, store_update_time, vivarium_overhead_marker)
+
+        if store_plot:
+            ax_nstores.plot(
+                n_stores, process_update_time, process_update_marker)
+            ax_nstores.plot(
+                n_stores, store_update_time, vivarium_overhead_marker)
+
+        if port_plot:
+            ax_nports.plot(
+                n_ports, process_update_time, process_update_marker)
+            ax_nports.plot(
+                n_ports, store_update_time, vivarium_overhead_marker)
+
+        if var_plot:
+            ax_nvars.plot(
+                n_vars, process_update_time, process_update_marker)
+            ax_nvars.plot(
+                n_vars, store_update_time, vivarium_overhead_marker)
+
+        if hierarchy_plot:
+            ax_depth.plot(
+                depth, process_update_time, process_update_marker)
+            ax_depth.plot(
+                depth, store_update_time, vivarium_overhead_marker)
 
     # adjustments
     plt.subplots_adjust(hspace=h_space)
@@ -470,6 +499,7 @@ def plot_scan_results(
     fig.savefig(fig_path, bbox_inches='tight')
 
 
+# scan functions
 def scan_stores():
     n_stores = [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024]
     scan_values = [{
@@ -481,18 +511,23 @@ def scan_stores():
     saved_stats = run_scan(sim,
                            scan_values=scan_values)
     plot_scan_results(saved_stats,
+                      plot_all=False,
+                      store_plot=True,
+                      var_plot=True,
                       filename='scan_stores')
 
 def scan_processes():
-    n_processes = [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024]
+    n_processes = [2, 4, 8, 16, 32, 64, 128, 256, 512]
     scan_values = [{'number_of_processes': n} for n in n_processes]
 
     sim = ComplexModelSim()
     sim.experiment_time = 100
-    sim.process_sleep = 1e-6
+    sim.process_sleep = 1e-5
     saved_stats = run_scan(sim,
                            scan_values=scan_values)
     plot_scan_results(saved_stats,
+                      plot_all=False,
+                      process_plot=True,
                       filename='scan_processes')
 
 
@@ -515,6 +550,9 @@ def scan_processes_variables():
     saved_stats = run_scan(sim,
                            scan_values=scan_values)
     plot_scan_results(saved_stats,
+                      plot_all=False,
+                      process_plot=True,
+                      var_plot=True,
                       filename='scan_processes_variables')
 
 def scan_number_of_ports():
@@ -556,6 +594,8 @@ def scan_hierarchy_depth():
     saved_stats = run_scan(sim,
                            scan_values=scan_values)
     plot_scan_results(saved_stats,
+                      plot_all=False,
+                      hierarchy_plot=True,
                       filename='scan_hierarchy_depth')
 
 
