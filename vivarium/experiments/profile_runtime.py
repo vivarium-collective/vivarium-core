@@ -438,9 +438,8 @@ def plot_scan_results(
     ax_nports.set_ylabel('runtime (s)')
 
     # number of variables
-    ax_nvars.set_xlabel('number of variables')
+    ax_nvars.set_xlabel('number of variables per port')
     ax_nvars.set_ylabel('runtime (s)')
-
 
     # adjustments
     plt.subplots_adjust(hspace=h_space)
@@ -452,18 +451,9 @@ def plot_scan_results(
 
 
 def scan_stores():
-    scan_values = [
-        {'number_of_stores': 10},
-        {'number_of_stores': 100},
-        {'number_of_stores': 200},
-        {'number_of_stores': 400},
-        {'number_of_stores': 600},
-        {'number_of_stores': 800},
-        {'number_of_stores': 1000},
-        {'number_of_stores': 1200},
-        {'number_of_stores': 1400},
-        {'number_of_stores': 1600},
-    ]
+    n_stores = [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024]
+    scan_values = [{
+        'number_of_stores': n} for n in n_stores]
 
     sim = ComplexModelSim()
     sim.experiment_time = 100
@@ -471,17 +461,11 @@ def scan_stores():
     saved_stats = run_scan(sim,
                            scan_values=scan_values)
     plot_scan_results(saved_stats,
-                      filename=f'scan_stores={scan_values}')
+                      filename=f'scan_stores')
 
 def scan_processes():
-    scan_values = [
-        {'number_of_processes': 10},
-        {'number_of_processes': 100},
-        {'number_of_processes': 200},
-        {'number_of_processes': 400},
-        {'number_of_processes': 600},
-        {'number_of_processes': 800},
-    ]
+    n_processes = [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024]
+    scan_values = [{'number_of_processes': n} for n in n_processes]
 
     sim = ComplexModelSim()
     sim.experiment_time = 100
@@ -489,32 +473,20 @@ def scan_processes():
     saved_stats = run_scan(sim,
                            scan_values=scan_values)
     plot_scan_results(saved_stats,
-                      filename=f'scan_processes={scan_values}')
+                      filename=f'scan_processes')
 
 
 def scan_processes_variables():
-    scan_values = [
-        {'number_of_processes': 10, 'variables_per_port': 5, 'number_of_stores': 5},
-        {'number_of_processes': 10, 'variables_per_port': 100, 'number_of_stores': 100},
-        {'number_of_processes': 10, 'variables_per_port': 1000, 'number_of_stores': 1000},
-
-        {'number_of_processes': 100, 'variables_per_port': 5, 'number_of_stores': 5},
-        {'number_of_processes': 100, 'variables_per_port': 100, 'number_of_stores': 100},
-        {'number_of_processes': 100, 'variables_per_port': 1000, 'number_of_stores': 1000},
-
-        {'number_of_processes': 200, 'variables_per_port': 5, 'number_of_stores': 5},
-        {'number_of_processes': 200, 'variables_per_port': 100, 'number_of_stores': 100},
-        {'number_of_processes': 200, 'variables_per_port': 1000, 'number_of_stores': 1000},
-
-        {'number_of_processes': 400, 'variables_per_port': 5, 'number_of_stores': 5},
-        {'number_of_processes': 400, 'variables_per_port': 100, 'number_of_stores': 100},
-        {'number_of_processes': 400, 'variables_per_port': 1000, 'number_of_stores': 1000},
-
-        {'number_of_processes': 600, 'variables_per_port': 5, 'number_of_stores': 5},
-        {'number_of_processes': 600, 'variables_per_port': 100, 'number_of_stores': 100},
-        {'number_of_processes': 600, 'variables_per_port': 1000, 'number_of_stores': 1000},
-
-    ]
+    n_processes = [2, 4, 8, 16, 32, 64, 128, 256, 512]
+    n_vars = [5, 100, 1000]
+    scan_values = []
+    for n_p in n_processes:
+        for n_v in n_vars:
+            scan = {
+                'number_of_processes': n_p,
+                'variables_per_port': n_v,
+                'number_of_stores': n_v}
+            scan_values.append(scan)
 
     sim = ComplexModelSim()
     sim.experiment_time = 100
@@ -523,16 +495,17 @@ def scan_processes_variables():
     saved_stats = run_scan(sim,
                            scan_values=scan_values)
     plot_scan_results(saved_stats,
-                      filename=f'scan_processes_variables={scan_values}')
+                      filename=f'scan_processes_variables')
 
 def scan_number_of_ports():
+    n_ports = [1, 2, 4, 8, 16, 32, 64]
     scan_values = [
-        {'number_of_processes': 10, 'number_of_stores': 10, 'variables_per_port': 5, 'number_of_ports': 1},
-        {'number_of_processes': 10, 'number_of_stores': 10, 'variables_per_port': 5, 'number_of_ports': 2},
-        {'number_of_processes': 10, 'number_of_stores': 10, 'variables_per_port': 5, 'number_of_ports': 4},
-        {'number_of_processes': 10, 'number_of_stores': 10, 'variables_per_port': 5, 'number_of_ports': 8},
-        # {'number_of_processes': 10, 'number_of_stores': 10, 'variables_per_port': 5, 'number_of_ports': 16},
-        # {'number_of_processes': 10, 'number_of_stores': 10, 'variables_per_port': 5, 'number_of_ports': 32},
+        {
+            'number_of_processes': 10,
+            'number_of_stores': 10,
+            'variables_per_port': 5,
+            'number_of_ports': n
+        } for n in n_ports
     ]
 
     sim = ComplexModelSim()
@@ -542,7 +515,7 @@ def scan_number_of_ports():
     saved_stats = run_scan(sim,
                            scan_values=scan_values)
     plot_scan_results(saved_stats,
-                      filename=f'scan_processes_variables={scan_values}')
+                      filename=f'scan_number_of_ports')
 
 
 
