@@ -363,6 +363,22 @@ def make_axis(fig, grid, plot_n, patches, label=''):
     return ax
 
 
+def get_patches(
+        process_update_marker='b.',
+        vivarium_overhead_marker='r.',
+):
+    patches = []
+    patches.append(
+        mpatches.Patch(
+            color=process_update_marker[0],
+            label="process updates"))
+    patches.append(
+        mpatches.Patch(
+            color=vivarium_overhead_marker[0],
+            label="vivarium overhead"))
+    return patches
+
+
 def plot_scan_results(
         saved_stats,
         plot_all=True,
@@ -388,26 +404,16 @@ def plot_scan_results(
         port_plot,
         var_plot,
         hierarchy_plot])
-    column_width = 6
-    row_height = 3
-    h_space = 0.5
 
     ## make figure
-    fig = plt.figure(figsize=(n_cols * column_width, n_rows * row_height))
+    fig = plt.figure(figsize=(n_cols * 6, n_rows * 3))
     grid = plt.GridSpec(n_rows, n_cols)
 
-    # prepare legend
     process_update_marker = 'b.'
     vivarium_overhead_marker = 'r.'
-    patches = []
-    patches.append(
-        mpatches.Patch(
-            color=process_update_marker[0],
-            label="process updates"))
-    patches.append(
-        mpatches.Patch(
-            color=vivarium_overhead_marker[0],
-            label="vivarium overhead"))
+    patches = get_patches(
+        process_update_marker,
+        vivarium_overhead_marker)
 
     # initialize axes
     plot_n = 0
@@ -482,7 +488,7 @@ def plot_scan_results(
                 depth, store_update_time, vivarium_overhead_marker)
 
     # adjustments
-    plt.subplots_adjust(hspace=h_space)
+    plt.subplots_adjust(hspace=0.5)
 
     # save
     os.makedirs(out_dir, exist_ok=True)
