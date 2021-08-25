@@ -573,6 +573,8 @@ def scan_number_of_ports():
     saved_stats = run_scan(sim,
                            scan_values=scan_values)
     plot_scan_results(saved_stats,
+                      plot_all=False,
+                      port_plot=True,
                       filename='scan_number_of_ports')
 
 
