@@ -995,13 +995,21 @@ class Store:
             daughter_key = daughter['key']
             daughter_path = (daughter_key,)
 
-            # if no processes or topology provided, copy the mother's processes and topology
-            processes = daughter.get(
-                'processes', copy.deepcopy(self.get_path(mother_path).get_processes()))
-            topology = daughter.get(
-                'topology', copy.deepcopy(self.get_path(mother_path).get_topology()))
-            processes = processes or {}
-            topology = topology or {}
+            # get the daughter processes
+            if 'processes' in daughter:
+                processes = daughter['processes']
+            else:
+                # if no processes provided, copy the mother's processes
+                mother_processes = self.get_path(mother_path).get_processes()
+                processes = copy.deepcopy(mother_processes)
+
+            # get the daughter topology
+            if 'topology' in daughter:
+                topology = daughter['topology']
+            else:
+                # if no topology provided, copy the mother's topology
+                mother_topology = self.get_path(mother_path).get_topology()
+                topology = copy.deepcopy(mother_topology)
 
             self.generate(
                 daughter_path,
