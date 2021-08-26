@@ -1,10 +1,14 @@
 # Changelog
 
 
+## v0.3.5
+
+* remove unneeded deepcopy from update step, leading to runtime boost.
+* runtime_profile experiment added.
+
 ## v0.3.4
 
 * Engine uses keyword arguments rather than a config dict. To fix this do `Engine(**config_dict)` instead of `Engine(config_dict)`. Additional emit_config options are added to selectively emit metadata.
-
 
 ## v0.3.3
 
