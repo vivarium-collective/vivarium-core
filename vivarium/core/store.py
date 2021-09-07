@@ -802,15 +802,16 @@ class Store:
             # divider is either a function or a dict with topology and/or config
             if isinstance(self.divider, dict):
                 divider = self.divider['divider']
-                state = {}
+                args = {}
                 if 'topology' in self.divider:
                     topology = self.divider['topology']
-                    state.update({'state': self.outer.get_values(topology)})
+                    state = self.topology_state(topology)
+                    args.update({'state': state})
                 if 'config' in self.divider:
                     config = self.divider['config']
-                    state.update({'config': config})
+                    args.update({'config': config})
 
-                return divider(self.get_value(), **state)
+                return divider(self.get_value(), **args)
             return self.divider(self.get_value())
         if self.inner:
             daughters = [{}, {}]
