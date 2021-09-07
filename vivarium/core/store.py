@@ -802,6 +802,8 @@ class Store:
             # divider is either a function or a dict with topology and/or config
             if isinstance(self.divider, dict):
                 divider = self.divider['divider']
+                if isinstance(divider, str):
+                    divider = divider_registry.access(divider)
                 args = {}
                 if 'topology' in self.divider:
                     topology = self.divider['topology']

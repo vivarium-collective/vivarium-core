@@ -1,6 +1,10 @@
 # Changelog
 
 
+## v0.3.6
+
+* fix custom dividers to use topology argument
+
 ## v0.3.5
 
 * remove unneeded deepcopy from update step, leading to runtime boost.
