@@ -807,8 +807,7 @@ class Store:
                 args = {}
                 if 'topology' in self.divider:
                     topology = self.divider['topology']
-                    state = self.topology_state(topology)
-                    args.update({'state': state})
+                    args.update({'view': self.topology_state(topology)})
                 if 'config' in self.divider:
                     config = self.divider['config']
                     args.update({'config': config})

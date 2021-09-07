@@ -1,7 +1,7 @@
 # Changelog
 
 
-## v0.3.6
+## v0.3.7
 
 * fix custom dividers to use topology argument
 
