@@ -807,7 +807,7 @@ class Store:
                 args = {}
                 if 'topology' in self.divider:
                     topology = self.divider['topology']
-                    args.update({'view': self.topology_state(topology)})
+                    args.update({'state': self.topology_state(topology)})
                 if 'config' in self.divider:
                     config = self.divider['config']
                     args.update({'config': config})
@@ -893,10 +893,16 @@ class Store:
                 self.value = self.default
 
     def add(self, added):
-        if added['key'] == '_unique_id':
+        key = added['key']
+        inner_keys = self.inner.keys()
+        if key in inner_keys:
+            raise Exception(
+                f"cannot add '{key}' to the hierarchy, "
+                f"already present at path {self.path_for()} ")
+        elif key == '_unique_id':
             path = (str(uuid.uuid1()),)
         else:
-            path = (added['key'],)
+            path = (key,)
         added_state = added['state']
 
         # get path

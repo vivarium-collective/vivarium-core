@@ -232,6 +232,12 @@ def test_add_store() -> None:
     v = store.get_value()
     assert len(v) == 7
 
+    # test that you cannot add a store with the same name
+    with pytest.raises(Exception):
+        store.add({
+            'key': 'store_D',
+            'state': {'var_c': 100}})
+
 
 test_library = {
     '1': test_insert_process,
