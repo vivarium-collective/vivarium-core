@@ -1,6 +1,11 @@
 # Changelog
 
 
+## v0.3.8
+
+* revert rename of divider argument to "state"
+* do not allow _add updates with repeat keys
+
 ## v0.3.7
 
 * fix custom dividers to use topology argument
