@@ -173,12 +173,6 @@ def test_alternator():
     output = experiment.emitter.get_data()
     experiment.end()  # end required for parallel processes
 
-    import ipdb; ipdb.set_trace()
-
-    # asserts total A is the same at the beginning and the end
-    assert output[0.0]['concentrations']['A'] == initial_a
-    assert output[5.0]['concentrations']['A'] + output[5.0]['agents'][agent_1_id]['concentrations']['A'] == initial_a
-
     return output
 
 
