@@ -96,8 +96,6 @@ class Alternator(Process):
         chosen, index = find_chosen(states)
         next_choice = (index + 1) % len(self.parameters['choices'])
 
-        import ipdb; ipdb.set_trace()
-
         return choose_option(self.parameters['choices'], next_choice)
 
 
