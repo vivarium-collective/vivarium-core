@@ -24,6 +24,11 @@ NAME = 'alternator'
 
 
 def find_chosen(choices):
+    '''
+    given a dict of choices key -> True/False where only one value is True,
+    return the index of the True value. 
+    '''
+
     for index, option in enumerate(choices.items()):
         choice, chosen = option
         if chosen:
@@ -32,6 +37,11 @@ def find_chosen(choices):
 
 
 def choose_option(choices, chosen_index):
+    '''
+    given a list of choices and an index, construct a dict where the keys are the choices
+    and the values are False everywhere except the given index
+    '''
+
     return {
         choice: index == chosen_index
         for index, choice in enumerate(choices)}

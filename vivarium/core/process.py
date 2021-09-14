@@ -102,6 +102,8 @@ class Process(metaclass=abc.ABCMeta):
         self.schema_override = self.parameters.pop('_schema', {})
         self.parallel = self.parameters.pop('_parallel', False)
         self.condition_key = None
+
+        # set up the conditional state if a condition key is provided
         if '_condition' in self.parameters:
             self.condition_key = self.parameters.pop('_condition')
         if self.condition_key:
@@ -110,6 +112,7 @@ class Process(metaclass=abc.ABCMeta):
                     '_default': True,
                     '_emit': True,
                     '_updater': 'set'}})
+
         self.parameters.setdefault('time_step', DEFAULT_TIME_STEP)
         self.schema = None
 
@@ -313,6 +316,7 @@ class Process(metaclass=abc.ABCMeta):
         _ = timestep
         _ = states
 
+        # use the given condition key if it was provided
         if self.condition_key:
             return states.get(self.condition_key)
         else:
