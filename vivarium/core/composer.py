@@ -183,6 +183,10 @@ class Composer(metaclass=abc.ABCMeta):
         self.config = deep_merge(self.config, config)
         self.schema_override = self.config.pop('_schema', {})
 
+    def generate_store(self, config: Optional[dict] = None) -> Store:
+        composite = self.generate()
+        return composite.generate_store(config)
+
     @abc.abstractmethod
     def generate_processes(
             self,

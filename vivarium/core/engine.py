@@ -6,10 +6,8 @@ Engine
 Engine runs the simulation.
 """
 
-import sys
 import os
 import logging as log
-import warnings
 import pprint
 from typing import (
     Any, Dict, Optional, Union, Tuple, Callable)
@@ -206,67 +204,72 @@ class InvokeProcess:
 class Engine:
     def __init__(
             self,
-            config: Dict[str, Any]
+            processes: Optional[Processes] = None,
+            topology: Optional[Topology] = None,
+            store: Optional[Store] = None,
+            initial_state: Optional[State] = None,
+            experiment_id: Optional[str] = None,
+            experiment_name: Optional[str] = None,
+            description: str = '',
+            emitter: Union[str, dict] = 'timeseries',
+            emit_topology: bool = True,
+            emit_processes: bool = False,
+            emit_config: bool = False,
+            invoke: Optional[Any] = None,
+            emit_step: float = 1,
+            display_info: bool = True,
+            progress_bar: bool = False,
     ) -> None:
         """Defines simulations
 
         Arguments:
-            config (dict): A dictionary of configuration options. The
-                required options are:
+        * **processes** (:py:class:`dict`): A dictionary that
+        maps :term:`process` names to process objects. You will
+        usually get this from the ``processes`` attribute of the
+        dictionary from :py:meth:`vivarium.core.composer.Composer.generate`.
+        * **topology** (:py:class:`dict`): A dictionary that
+        maps process names to sub-dictionaries. These sub-dictionaries
+        map the process's port names to tuples that specify a path through
+        the :term:`tree` from the :term:`compartment` root to the
+        :term:`store` that will be passed to the process for that port.
+        * **store**: A pre-loaded Store. This is an alternative to
+        passing in processes and topology dict, which can not be
+        loaded at the same time.
+        * **initial_state** (:py:class:`dict`): By default an
+        empty dictionary, this is the initial state of the simulation.
+        * **experiment_id** (:py:class:`uuid.UUID` or :py:class:`str`):
+        A unique identifier for the experiment. A UUID will be generated
+        if none is provided.
+        * **description** (:py:class:`str`): A description of the
+        experiment. A blank string by default.
+        * **emitter** (:py:class:`dict`): An emitter configuration
+        which must conform to the specification in the documentation
+        for :py:func:`vivarium.core.emitter.get_emitter`. The experiment
+        ID will be added to the dictionary you provide as the value for
+        the key ``experiment_id``.
+        * **display_info** (:py:class:`bool`): prints experiment info
+        * **progress_bar** (:py:class:`bool`): shows a progress bar
+        * **emit_config** (:py:class:`bool`): If True, this will emit
+        the serialized processes, topology, and initial state.
 
-                * **processes** (:py:class:`dict`): A dictionary that
-                    maps :term:`process` names to process objects. You
-                    will usually get this from the ``processes``
-                    attribute of the dictionary from
-                    :py:meth:`vivarium.core.composer.Composer.generate`.
-                * **topology** (:py:class:`dict`): A dictionary that
-                    maps process names to sub-dictionaries. These
-                    sub-dictionaries map the process's port names to
-                    tuples that specify a path through the :term:`tree`
-                    from the :term:`compartment` root to the
-                    :term:`store` that will be passed to the process for
-                    that port.
-
-                The following options are optional:
-
-                * **experiment_id** (:py:class:`uuid.UUID` or
-                    :py:class:`str`): A unique identifier for the
-                    experiment. A UUID will be generated if none is
-                    provided.
-                * **description** (:py:class:`str`): A description of
-                    the experiment. A blank string by default.
-                * **initial_state** (:py:class:`dict`): By default an
-                    empty dictionary, this is the initial state of the
-                    simulation.
-                * **emitter** (:py:class:`dict`): An emitter
-                    configuration which must conform to the
-                    specification in the documentation for
-                    :py:func:`vivarium.core.emitter.get_emitter`. The
-                    experiment ID will be added to the dictionary you
-                    provide as the value for the key ``experiment_id``.
         """
-        self.config = config
-        self.experiment_id = config.get(
-            'experiment_id', str(uuid.uuid1()))
-        self.initial_state = config.get('initial_state', {})
-        self.emit_step = config.get('emit_step', 1.0)
+
+        self.experiment_id = experiment_id or str(uuid.uuid1())
+        self.initial_state = initial_state or {}
+        self.emit_step = emit_step
 
         # get the processes, topology, and store
-        if 'processes' in config \
-                and 'topology' in config \
-                and 'store' not in config:
-            self.processes: Processes = config['processes']
-            self.topology: Topology = config['topology']
-
+        if processes and topology and not store:
+            self.processes = processes
+            self.topology = topology
             # initialize the store
             self.state: Store = generate_state(
                 self.processes,
                 self.topology,
                 self.initial_state)
 
-        elif 'store' in config:
-            self.state = config['store']
-
+        elif store:
+            self.state = store
             # get processes and topology from the store
             self.processes = self.state.get_processes()
             self.topology = self.state.get_topology()
@@ -275,17 +278,16 @@ class Engine:
                 'load either store or (processes and topology) into Engine')
 
         # display settings
-        self.experiment_name = config.get(
-            'experiment_name', self.experiment_id)
-        self.description = config.get('description', '')
-        self.display_info = config.get('display_info', True)
-        self.progress_bar = config.get('progress_bar', False)
+        self.experiment_name = experiment_name or self.experiment_id
+        self.description = description
+        self.display_info = display_info
+        self.progress_bar = progress_bar
         self.time_created = timestamp()
         if self.display_info:
             self.print_display()
 
         # parallel settings
-        self.invoke = config.get('invoke', InvokeProcess)
+        self.invoke = invoke or InvokeProcess
         self.parallel: Dict[HierarchyPath, ParallelProcess] = {}
 
         # get a mapping of all paths to processes
@@ -294,7 +296,7 @@ class Engine:
         self._find_process_paths(self.processes)
 
         # emitter settings
-        emitter_config = config.get('emitter', 'timeseries')
+        emitter_config = emitter
         if isinstance(emitter_config, str):
             emitter_config = {'type': emitter_config}
         else:
@@ -302,6 +304,11 @@ class Engine:
         emitter_config['experiment_id'] = self.experiment_id
         self.emitter = get_emitter(emitter_config)
 
+        self.emit_topology = emit_topology
+        self.emit_processes = emit_processes
+        self.emit_config = emit_config
+
+        # initialize global time
         self.experiment_time = 0.0
 
         # run the derivers
@@ -340,30 +347,35 @@ class Engine:
             self._add_process_path(process, path)
 
     def emit_configuration(self) -> None:
-        """Emit configuration information to the emitter."""
+        """Emit experiment configuration."""
         data: Dict[str, Any] = {
             'time_created': self.time_created,
             'experiment_id': self.experiment_id,
             'name': self.experiment_name,
             'description': self.description,
-            'topology': self.topology,
-            'processes': serialize_value(self.processes),
+            'topology': self.topology
+            if self.emit_topology else None,
+            'processes': serialize_value(self.processes)
+            if self.emit_processes else None,
             'state': serialize_value(self.state.get_config())
+            if self.emit_config else None,
         }
         emit_config: Dict[str, Any] = {
             'table': 'configuration',
             'data': data}
+        self.emitter.emit(emit_config)
 
-        # get size of data for emit
-        data_bytes = sys.getsizeof(str(emit_config))
-        if data_bytes < 26000000:  # pymongo document size limit
-            self.emitter.emit(emit_config)
-        else:
-            warnings.warn('configuration size is too big for the emitter, '
-                          'discarding process parameters')
-            for process_id in emit_config['data']['processes'].keys():
-                emit_config['data']['processes'][process_id] = None
-            self.emitter.emit(emit_config)
+    def emit_data(self) -> None:
+        """Emit the current simulation state.
+        Only variables with ``_emit=True`` are emitted.
+        """
+        data = self.state.emit_data()
+        data.update({
+            'time': self.experiment_time})
+        emit_config = {
+            'table': 'history',
+            'data': serialize_value(data)}
+        self.emitter.emit(emit_config)
 
     def invoke_process(
             self,
@@ -556,18 +568,6 @@ class Engine:
                     path, deriver, 0)
                 self.apply_update(update.get(), store)
 
-    def emit_data(self) -> None:
-        """Emit the current simulation state.
-
-        Only variables with ``_emit=True`` are emitted.
-        """
-        data = self.state.emit_data()
-        data.update({
-            'time': self.experiment_time})
-        emit_config = {
-            'table': 'history',
-            'data': serialize_value(data)}
-        self.emitter.emit(emit_config)
 
     def send_updates(
             self,
@@ -689,7 +689,7 @@ class Engine:
                 # display and emit
                 if self.progress_bar:
                     print_progress_bar(time, interval)
-                if self.emit_step is None:
+                if self.emit_step == 1:
                     self.emit_data()
                 elif emit_time <= time:
                     while emit_time <= time:
@@ -902,7 +902,7 @@ def test_recursive_store() -> None:
 def test_topology_ports() -> None:
     proton = _make_proton()
 
-    experiment = Engine(proton)
+    experiment = Engine(**proton)
 
     log.debug(pf(experiment.state.get_config(True)))
 
@@ -970,16 +970,16 @@ def test_timescales() -> None:
             'base': 1.0,
             'motion': 0.0}}
 
-    topology = {
+    topology: Topology = {
         'slow': {'state': ('state',)},
         'fast': {'state': ('state',)}}
 
     emitter = {'type': 'null'}
-    experiment = Engine({
-        'processes': processes,
-        'topology': topology,
-        'emitter': emitter,
-        'initial_state': states})
+    experiment = Engine(
+        processes=processes,
+        topology=topology,
+        emitter=emitter,
+        initial_state=states)
 
     experiment.update(10.0)
 
@@ -1033,7 +1033,7 @@ def test_2_store_1_port() -> None:
     # run experiment
     split_port = SplitPort({})
     network = split_port.generate()
-    exp = Engine({
+    exp = Engine(**{
         'processes': network['processes'],
         'topology': network['topology']})
 
@@ -1045,55 +1045,55 @@ def test_2_store_1_port() -> None:
         'time': [0.0, 1.0, 2.0]}
     assert output == expected_output
 
+class MultiPort(Process):
+    name = 'multi_port'
+
+    def ports_schema(self) -> Schema:
+        return {
+            'A': {
+                'a': {
+                    '_default': 0,
+                    '_emit': True}},
+            'B': {
+                'a': {
+                    '_default': 0,
+                    '_emit': True}},
+            'C': {
+                'a': {
+                    '_default': 0,
+                    '_emit': True}}}
+
+    def next_update(
+            self,
+            timestep: Union[float, int],
+            states: State) -> Update:
+        return {
+            'A': {'a': 1},
+            'B': {'a': 1},
+            'C': {'a': 1}}
+
+class MergePort(Composer):
+    """combines both of MultiPort's ports into one store"""
+    name = 'multi_port_composer'
+
+    def generate_processes(
+            self, config: Optional[dict]) -> Dict[str, Any]:
+        return {
+            'multi_port': MultiPort({})}
+
+    def generate_topology(self, config: Optional[dict]) -> Topology:
+        return {
+            'multi_port': {
+                'A': ('aaa',),
+                'B': ('aaa',),
+                'C': ('aaa',)}}
+
 
 def test_multi_port_merge() -> None:
-    class MultiPort(Process):
-        name = 'multi_port'
-
-        def ports_schema(self) -> Schema:
-            return {
-                'A': {
-                    'a': {
-                        '_default': 0,
-                        '_emit': True}},
-                'B': {
-                    'a': {
-                        '_default': 0,
-                        '_emit': True}},
-                'C': {
-                    'a': {
-                        '_default': 0,
-                        '_emit': True}}}
-
-        def next_update(
-                self,
-                timestep: Union[float, int],
-                states: State) -> Update:
-            return {
-                'A': {'a': 1},
-                'B': {'a': 1},
-                'C': {'a': 1}}
-
-    class MergePort(Composer):
-        """combines both of MultiPort's ports into one store"""
-        name = 'multi_port_composer'
-
-        def generate_processes(
-                self, config: Optional[dict]) -> Dict[str, Any]:
-            return {
-                'multi_port': MultiPort({})}
-
-        def generate_topology(self, config: Optional[dict]) -> Topology:
-            return {
-                'multi_port': {
-                    'A': ('aaa',),
-                    'B': ('aaa',),
-                    'C': ('aaa',)}}
-
     # run experiment
     merge_port = MergePort({})
     network = merge_port.generate()
-    exp = Engine({
+    exp = Engine(**{
         'processes': network['processes'],
         'topology': network['topology']})
 
@@ -1106,13 +1106,31 @@ def test_multi_port_merge() -> None:
     assert output == expected_output
 
 
+def test_emit_config() -> None:
+    # test alternate emit options
+    merge_port = MergePort({})
+    network = merge_port.generate()
+    exp1 = Engine(
+        processes=network['processes'],
+        topology=network['topology'],
+        emit_topology=False,
+        emit_processes=True,
+        emit_config=True,
+        progress_bar=True,
+        emit_step=2,
+    )
+
+    exp1.update(10)
+
+
 def test_complex_topology() -> None:
 
     # make the experiment
     outer_path = ('universe', 'agent')
     pq = PoQo({})
     pq_composite = pq.generate(path=outer_path)
-    experiment = Engine(pq_composite)
+    pq_composite.pop('_schema')
+    experiment = Engine(**pq_composite)
 
     # get the initial state
     initial_state = experiment.state.get_value()
@@ -1137,7 +1155,7 @@ def test_complex_topology() -> None:
 
 def test_parallel() -> None:
     proton = _make_proton(parallel=True)
-    experiment = Engine(proton)
+    experiment = Engine(**proton)
 
     log.debug(pf(experiment.state.get_config(True)))
 
@@ -1230,7 +1248,7 @@ def test_units() -> None:
     # run experiment
     multi_unit = MultiUnits({})
     network = multi_unit.generate()
-    exp = Engine({
+    exp = Engine(**{
         'processes': network['processes'],
         'topology': network['topology']})
 
@@ -1263,10 +1281,10 @@ def test_custom_divider() -> None:
     })
     composite = composer.generate(path=('agents', agent_id))
 
-    experiment = Engine({
-        'processes': composite.processes,
-        'topology': composite.topology,
-    })
+    experiment = Engine(
+        processes=composite.processes,
+        topology=composite.topology,
+    )
 
     experiment.update(80)
     data = experiment.emitter.get_data()

@@ -7,6 +7,7 @@ Emitters log configuration data and time-series data somewhere.
 """
 
 import json
+import uuid
 from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import quote_plus
 
@@ -16,21 +17,87 @@ from vivarium.library.units import remove_units
 from vivarium.library.dict_utils import (
     value_in_embedded_dict,
     make_path_dict,
+    deep_merge,
 )
+from vivarium.library.topology import assoc_path
 from vivarium.core.serialize import deserialize_value
+
+MONGO_DOCUMENT_LIMIT = 5e7
 
 HISTORY_INDEXES = [
     'time',
     'type',
     'simulation_id',
-    'experiment_id']
+    'experiment_id',
+]
 
 CONFIGURATION_INDEXES = [
     'type',
     'simulation_id',
-    'experiment_id']
+    'experiment_id',
+]
 
 SECRETS_PATH = 'secrets.json'
+
+
+def size_of(emit_data: Any) -> int:
+    return len(str(emit_data))
+
+
+def breakdown_data(
+        limit: float,
+        data: Any,
+        path: Tuple = (),
+        size: float = None,
+) -> list:
+    size = size or size_of(data)
+    if size > limit:
+        if isinstance(data, dict):
+            output = []
+            subsizes = {}
+            total = 0
+            for key, subdata in data.items():
+                subsizes[key] = size_of(subdata)
+                total += subsizes[key]
+
+            order = sorted(
+                subsizes.items(),
+                key=lambda item: item[1],
+                reverse=True)
+
+            remaining = total
+            index = 0
+            large_keys = []
+            while remaining > limit and index < len(order):
+                key, subsize = order[index]
+                large_keys.append(key)
+                remaining -= subsize
+                index += 1
+
+            for large_key in large_keys:
+                subdata = breakdown_data(
+                    limit,
+                    data[large_key],
+                    path=path + (large_key,),
+                    size=subsizes[large_key])
+
+                try:
+                    output.extend(subdata)
+                except ValueError:
+                    print(f'data can not be broken down to size '
+                          f'{limit}: {data[large_key]}')
+
+            pruned = {
+                key: value
+                for key, value in data.items()
+                if key not in large_keys}
+            output.append((path, pruned))
+            return output
+
+        print('value is too large to emit, ignoring data')
+        return []
+
+    return [(path, data)]
 
 
 def get_emitter(config: Optional[Dict[str, str]]) -> 'Emitter':
@@ -41,7 +108,7 @@ def get_emitter(config: Optional[Dict[str, str]]) -> 'Emitter':
     * ``database``: :py:class:`DatabaseEmitter`
     * ``null``: :py:class:`NullEmitter`
     * ``print``: :py:class:`Emitter`, prints to stdout
-    * ``timeseries``: :py:class:`TimeSeriesEmitter`
+    * ``timeseries``: :py:class:`RAMEmitter`
 
     Arguments:
         config: Must comtain the ``type`` key, which specifies the emitter
@@ -60,7 +127,7 @@ def get_emitter(config: Optional[Dict[str, str]]) -> 'Emitter':
     elif emitter_type == 'null':
         emitter = NullEmitter(config)
     elif emitter_type == 'timeseries':
-        emitter = TimeSeriesEmitter(config)
+        emitter = RAMEmitter(config)
     else:
         emitter = Emitter(config)
 
@@ -172,7 +239,7 @@ class NullEmitter(Emitter):
         pass
 
 
-class TimeSeriesEmitter(Emitter):
+class RAMEmitter(Emitter):
     """
     Accumulate the timeseries history portion of the "emitted" data to a table
     in RAM.
@@ -190,8 +257,10 @@ class TimeSeriesEmitter(Emitter):
         """
         if data['table'] == 'history':
             emit_data = data['data']
-            time = emit_data.pop('time')  # TODO: OK to modify caller's dict?
-            self.saved_data[time] = emit_data
+            time = emit_data['time']
+            self.saved_data[time] = {
+                key: value for key, value in emit_data.items()
+                if key not in ['time']}
 
     def get_data(self) -> dict:
         """ Return the accumulated timeseries history of "emitted" data. """
@@ -220,12 +289,11 @@ class DatabaseEmitter(Emitter):
         for column in columns:
             table.create_index(column)
 
-    def __init__(self, config: Dict[str, str]) -> None:
+    def __init__(self, config: Dict[str, Any]) -> None:
         """config may have 'host' and 'database' items."""
-        # TODO(jerry): Will this create the DB tables or does it fail if they
-        #  don't already exist?
         super().__init__(config)
         self.experiment_id = config.get('experiment_id')
+        self.emit_limit = config.get('emit_limit', MONGO_DOCUMENT_LIMIT)
 
         # create singleton instance of mongo client
         if DatabaseEmitter.client is None:
@@ -241,10 +309,27 @@ class DatabaseEmitter(Emitter):
         self.create_indexes(self.phylogeny, CONFIGURATION_INDEXES)
 
     def emit(self, data: Dict[str, Any]) -> None:
-        emit_data: dict = data['data']
+        table_id = data['table']
+        table = getattr(self.db, table_id)
+        emit_data = {
+            key: value for key, value in data.items()
+            if key not in ['table']}
         emit_data['experiment_id'] = self.experiment_id
-        table = getattr(self.db, data['table'])
-        table.insert_one(emit_data)
+        self.write_emit(table, emit_data)
+
+    def write_emit(self, table: Any, emit_data: Dict[str, Any]) -> None:
+        """Check that data size is less than emit limit.
+
+        Break up large emits into smaller pieces and emit them individually
+        """
+        data = emit_data.pop('data')
+        broken_down_data = breakdown_data(self.emit_limit, data)
+        assembly_id = str(uuid.uuid4())
+        for (path, datum) in broken_down_data:
+            d = dict(emit_data)
+            assoc_path(d, ('data',) + path, datum)
+            d['assembly_id'] = assembly_id
+            table.insert_one(d)
 
     def get_data(self) -> dict:
         return get_history_data_db(self.history, self.experiment_id)
@@ -293,17 +378,38 @@ def delete_experiment_from_database(
     db.configuration.delete_many(query)
 
 
+def assemble_data(data: list) -> dict:
+    """re-assemble data"""
+    assembly: dict = {}
+    for datum in data:
+        if 'assembly_id' in datum:
+            assembly_id = datum['assembly_id']
+            if assembly_id not in assembly:
+                assembly[assembly_id] = {}
+            deep_merge(assembly[assembly_id], datum['data'])
+        else:
+            assembly_id = str(uuid.uuid4())
+            assembly[assembly_id] = datum['data']
+    return assembly
+
+
 def get_history_data_db(
         history_collection: Any, experiment_id: Any) -> Dict[float, dict]:
     """Query MongoDB for history data."""
     query = {'experiment_id': experiment_id}
     raw_data = list(history_collection.find(query))
+
+    # re-assemble data
+    assembly = assemble_data(raw_data)
+
+    # restructure by time
     data = {}
-    for datum in raw_data:
+    for datum in assembly.values():
         time = datum['time']
         data[time] = {
             key: value for key, value in datum.items()
-            if key not in ['_id', 'experiment_id', 'time']}
+            if key not in ['_id', 'time']}
+
     return data
 
 
@@ -326,54 +432,22 @@ def get_local_client(host: str, port: Any, database_name: str) -> Any:
 
 def data_from_database(experiment_id: str, client: Any) -> Tuple[dict, Any]:
     """Fetch something from a MongoDB."""
+
     # Retrieve environment config
     config_collection = client.configuration
-    experiment_config = config_collection.find_one({
-        'experiment_id': experiment_id,
-    })
+    query = {'experiment_id': experiment_id}
+    experiment_configs = list(config_collection.find(query))
+
+    # Re-assemble experiment_config
+    experiment_assembly = assemble_data(experiment_configs)
+    assert len(experiment_assembly) == 1
+    assembly_id = list(experiment_assembly.keys())[0]
+    experiment_config = experiment_assembly[assembly_id]
 
     # Retrieve timepoint data
-    history_collection = client.history
+    history = client.history
+    data = get_history_data_db(history, experiment_id)
 
-    unique_time_objs = history_collection.aggregate([
-        {
-            '$match': {
-                'experiment_id': experiment_id
-            }
-        }, {
-            '$group': {
-                '_id': {
-                    'time': '$time'
-                },
-                'id': {
-                    '$first': '$_id'
-                }
-            }
-        }, {
-            '$sort': {
-                '_id.time': 1
-            }
-        },
-    ])
-    unique_time_ids = [
-        obj['id'] for obj in unique_time_objs
-    ]
-    data_cursor = history_collection.find({
-        '_id': {
-            '$in': unique_time_ids
-        }
-    }).sort('time')
-    raw_data = list(data_cursor)
-
-    # Reshape data
-    data = {
-        timepoint_dict['time']: {
-            key: val
-            for key, val in timepoint_dict.items()
-            if key != 'time'
-        }
-        for timepoint_dict in raw_data
-    }
     return data, experiment_config
 
 
@@ -416,14 +490,20 @@ def get_atlas_database_emitter_config(
     }
 
 
-def emit_environment_config(
-        environment_config: Dict[str, Any], emitter: Emitter) -> None:
-    """Emit a multibody bounds environment config to the given Emitter."""
-    config = {
-        'bounds': environment_config['multibody']['bounds'],
-        'type': 'environment_config',
-    }
-    emitter.emit({
-        'data': config,
-        'table': 'configuration',
-    })
+def test_breakdown() -> None:
+    data = {
+        'a': [1, 2, 3],
+        'b': {
+            'X': [1, 2, 3, 4, 5],
+            'Y': [1, 2, 3, 4, 5, 6],
+            'Z': [5]}}
+
+    output = breakdown_data(20, data)
+    assert output == [
+        (('b', 'Y'), [1, 2, 3, 4, 5, 6]),
+        (('b',), {'X': [1, 2, 3, 4, 5], 'Z': [5]}),
+        ((), {'a': [1, 2, 3]})]
+
+
+if __name__ == '__main__':
+    test_breakdown()

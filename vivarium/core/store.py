@@ -9,6 +9,7 @@ The file system for storing and updating state variables during an experiment.
 import copy
 import logging as log
 from pprint import pformat
+import uuid
 
 import numpy as np
 from pint import Quantity
@@ -148,7 +149,12 @@ def insert_topology(topology, port_path, target_path):
 
     return topology
 
-
+def convert_path(path):
+    if isinstance(path, list):
+        path = tuple(path)
+    elif not isinstance(path, tuple):
+        path = (path,)
+    return path
 
 class Store:
     """Holds a subset of the overall model state
@@ -203,27 +209,59 @@ class Store:
 
         self.apply_config(config, source)
 
-    # TODO: add __getitem__ and __setitem__ to Process to follow topology
     def __getitem__(self, path):
-        if not isinstance(path, tuple):
-            path = (path,)
+        path = convert_path(path)
         return self.get_path(path)
 
     def __setitem__(self, path, value):
-        if not isinstance(path, tuple):
-            path = (path,)
+        path = convert_path(path)
         self.set_path(path, value)
 
-    def set_path(self, path, value):
-        if isinstance(self.value, Process) and isinstance(value, Store):
-            if self.independent_store(value):
+    def create(self, path, value=None, absolute=False, **kwargs):
+        path = convert_path(path)
+        if value:
+            kwargs['_value'] = value
+        if '_default' not in kwargs:
+            kwargs['_default'] = kwargs.get('_value')
+
+        if absolute:
+            top = self.top()
+            store = top.establish_path(path, config=kwargs)
+            top.apply_subschema_path(path)
+        else:
+            store = self.establish_path(path, config=kwargs)
+            self.apply_subschema_path(path)
+
+        store.apply_defaults()
+        return store
+
+    def connect(self, path, value, absolute=False):
+        path = convert_path(path)
+        assert isinstance(self.value, Process), \
+            f'cannot connect non-process {self.value} at {self.path_for()} to {path}'
+
+        if isinstance(value, Store):
+            target_store = value
+            assert isinstance(target_store, Store)
+            if self.independent_store(target_store):
                 raise Exception(
                     f"the store being inserted at {path} is from a different tree "
-                    f"at {value.path_for()}: {value.get_value()}")
-            self.update_topology(path, value)
+                    f"at {target_store.path_for()}: {target_store.get_value()}")
+        else:
+            store_path = convert_path(value)
+            if absolute:
+                target_store = self.top().get_path(store_path)
+            else:
+                target_store = self.outer.get_path(store_path)
+
+        # update the topology
+        self.update_topology(path, target_store)
+
+
+    def set_path(self, path, value):
 
         # this case only when called directly
-        elif len(path) == 0:
+        if len(path) == 0:
             if isinstance(value, Store):
                 self.value = value.value
             else:
@@ -252,19 +290,22 @@ class Store:
                     'initial_state': value.initial_state()})
 
             else:
-                # create the path there and store the value
-                down = self.establish_path((final,), {})
-                down.value = value
+                down = self.get_path((final,))
+                if down:
+                    if not down.leaf:
+                        Exception(f'trying to set the value {value} of a branch at {down.path_for()}')
+                    down.value = value
+                else:
+                    Exception(f'trying to set the value {value} at a path that does not exist {final} at {self.path_for()}')
 
         elif len(path) > 1:
-            if isinstance(self.value, Process):
-                down = self.establish_path(path, {})
-                down.set_path((), value)
-            else:
-                head = path[0]
-                tail = path[1:]
-                down = self.establish_path((head,), {})
+            head = path[0]
+            tail = path[1:]
+            down = self.get_path((head,))
+            if down:
                 down.set_path(tail, value)
+            else:
+                Exception(f'trying to set the value {value} at a path that does not exist {path} at {self.path_for()}')
 
         else:
             raise Exception("this should never happen")
@@ -488,11 +529,11 @@ class Store:
 
         else:
             if self.leaf and config:
-                raise Exception(
-                    'trying to assign create inner for leaf node: {}'.format(
-                        self.path_for()))
-
-            # self.value = None
+                if self.value:
+                    raise Exception(
+                        f'trying to assign create inner for leaf node: '
+                        f'{self.path_for()} with value {self.value}')
+                self.leaf = False
 
             for key, child in config.items():
                 if key not in self.inner:
@@ -607,7 +648,11 @@ class Store:
         if self.inner:
             inner_processes = {}
             for key, child in self.inner.items():
-                if isinstance(child.value, Process):
+                if child.inner:
+                    child_processes = child.get_processes()
+                    if child_processes:
+                        inner_processes[key] = child_processes
+                elif isinstance(child.value, Process):
                     inner_processes[key] = child.value
             if inner_processes:
                 return inner_processes
@@ -622,9 +667,9 @@ class Store:
         if self.inner:
             inner_topology = {}
             for key, child in self.inner.items():
-                topology = child.get_topology()
-                if topology:
-                    inner_topology[key] = topology
+                child_topology = child.get_topology()
+                if child_topology:
+                    inner_topology[key] = child_topology
             if inner_topology:
                 return inner_topology
         elif self.topology:
@@ -650,7 +695,6 @@ class Store:
                     target = self.outer.get_path(towards[0])
                     return target.get_path(towards[1])
             else:
-                # self.establish_path(path, {})
                 raise Exception(f"there is no path from leaf node {self.path_for()} to {path}")
         return self
 
@@ -758,15 +802,17 @@ class Store:
             # divider is either a function or a dict with topology and/or config
             if isinstance(self.divider, dict):
                 divider = self.divider['divider']
-                state = {}
+                if isinstance(divider, str):
+                    divider = divider_registry.access(divider)
+                args = {}
                 if 'topology' in self.divider:
                     topology = self.divider['topology']
-                    state.update({'state': self.outer.get_values(topology)})
+                    args.update({'state': self.topology_state(topology)})
                 if 'config' in self.divider:
                     config = self.divider['config']
-                    state.update({'config': config})
+                    args.update({'config': config})
 
-                return divider(self.get_value(), **state)
+                return divider(self.get_value(), **args)
             return self.divider(self.get_value())
         if self.inner:
             daughters = [{}, {}]
@@ -847,9 +893,19 @@ class Store:
                 self.value = self.default
 
     def add(self, added):
-        path = (added['key'],)
+        key = added['key']
+        inner_keys = self.inner.keys()
+        if key in inner_keys:
+            raise Exception(
+                f"cannot add '{key}' to the hierarchy, "
+                f"already present at path {self.path_for()} ")
+        elif key == '_unique_id':
+            path = (str(uuid.uuid1()),)
+        else:
+            path = (key,)
         added_state = added['state']
 
+        # get path
         target = self.establish_path(path, {})
         self.apply_subschema_path(path)
         target.apply_defaults()
@@ -927,6 +983,7 @@ class Store:
 
         # use dividers to find initial states for daughters
         mother = divide['mother']
+        mother_path = (mother,)
         daughters = divide['daughters']
         initial_state = self.inner[mother].get_value(
             condition=lambda child: not
@@ -946,19 +1003,37 @@ class Store:
             daughter_key = daughter['key']
             daughter_path = (daughter_key,)
 
+            # get the daughter processes
+            if 'processes' in daughter:
+                processes = daughter['processes']
+            else:
+                # if no processes provided, copy the mother's processes
+                mother_processes = self.get_path(mother_path).get_processes()
+                processes = copy.deepcopy(mother_processes)
+                processes = processes or {}
+
+            # get the daughter topology
+            if 'topology' in daughter:
+                topology = daughter['topology']
+            else:
+                # if no topology provided, copy the mother's topology
+                mother_topology = self.get_path(mother_path).get_topology()
+                topology = copy.deepcopy(mother_topology)
+                topology = topology or {}
+
             self.generate(
                 daughter_path,
-                daughter['processes'],
-                daughter['topology'],
-                daughter['initial_state'])
+                processes,
+                topology,
+                initial_state)
 
             root = here + daughter_path
-            process_paths = dict_to_paths(root, daughter['processes'])
+            process_paths = dict_to_paths(root, processes)
             process_updates.extend(process_paths)
 
             topology_paths = [
-                (root + (key,), topology)
-                for key, topology in daughter['topology'].items()]
+                (root + (key,), ports)
+                for key, ports in topology.items()]
             topology_updates.extend(topology_paths)
 
             self.apply_subschema_path(daughter_path)
@@ -966,7 +1041,7 @@ class Store:
             target.apply_defaults()
             target.set_value(initial_state)
 
-        mother_path = (mother,)
+
         self.delete_path(mother_path)
         deletions.append(tuple(here + mother_path))
 

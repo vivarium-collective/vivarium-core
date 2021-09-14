@@ -1,6 +1,33 @@
 # Changelog
 
 
+## v0.3.8
+
+* revert rename of divider argument to "state"
+* do not allow _add updates with repeat keys
+
+## v0.3.7
+
+* fix custom dividers to use topology argument
+
+## v0.3.5
+
+* remove unneeded deepcopy from update step, leading to runtime boost.
+* runtime_profile experiment added.
+
+## v0.3.4
+
+* Engine uses keyword arguments rather than a config dict. To fix this do `Engine(**config_dict)` instead of `Engine(config_dict)`. Additional emit_config options are added to selectively emit metadata.
+
+## v0.3.3
+
+* Engine has emit_config option. Is set to False, this keeps the serialized processes from being emitted and can save a lot of compute time.
+
+## v0.3.2
+
+* DatabaseEmitter supports arbitrary emit sizes by breaking up large emits into chunks, and reassembles them seamlessly upon retrieval.
+* libary.wrappers make_logging_process adds a logging port to any process
+* Improve the Store API by adding methods for creating new stores and connecting processes through their ports. 
 
 ## v0.3.1
 

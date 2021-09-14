@@ -234,6 +234,34 @@ def toy_control(
     return control
 
 
+def run_library_cli(library: dict, args: Optional[list] = None) -> None:
+    """Run experiments from the command line
+
+    Args:
+        library (dict): maps experiment id to experiment function
+    """
+    parser = argparse.ArgumentParser(
+        description='run experiments from the command line')
+    parser.add_argument(
+        '--name', '-n', default=[], nargs='+',
+        help='experiment ids to run')
+    parser_args = parser.parse_args(args)
+    run_all = not parser_args.name
+
+    for name in parser_args.name:
+        library[name]()
+    if run_all:
+        for name, test in library.items():
+            test()
+
+
+def test_library_cli() -> None:
+    def run_fun() -> dict:
+        return {}
+    lib = {'1': run_fun}
+    run_library_cli(lib, args=['-n', '1'])
+
+
 def test_control() -> None:
     toy_control(args=['-w', '1'])
     toy_control(args=['-w', '2'])

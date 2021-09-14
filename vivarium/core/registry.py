@@ -90,6 +90,9 @@ class Registry(object):
         """Get an item by key from the registry."""
         return self.registry.get(key)
 
+    def list(self):
+        return list(self.registry.keys())
+
 
 # Initialize registries
 # These are imported into module __init__.py files,
