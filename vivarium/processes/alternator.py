@@ -17,7 +17,6 @@ from vivarium.core.composition import (
     PROCESS_OUT_DIR,
 )
 from vivarium.composites.toys import ExchangeA
-from vivarium.processes.timeline import TimelineProcess
 
 
 NAME = 'alternator'
@@ -26,7 +25,7 @@ NAME = 'alternator'
 def find_chosen(choices):
     '''
     given a dict of choices key -> True/False where only one value is True,
-    return the index of the True value. 
+    return the index of the True value.
     '''
 
     for index, option in enumerate(choices.items()):
@@ -38,8 +37,9 @@ def find_chosen(choices):
 
 def choose_option(choices, chosen_index):
     '''
-    given a list of choices and an index, construct a dict where the keys are the choices
-    and the values are False everywhere except the given index
+    given a list of choices and an index, construct a dict where
+    the keys are the choices and the values are False everywhere
+    except the given index
     '''
 
     return {
@@ -50,7 +50,7 @@ def choose_option(choices, chosen_index):
 class Alternator(Process):
     """ Alternator Process
 
-    Alternate between different choices for the given periods of time. 
+    Alternate between different choices for the given periods of time.
     """
 
     name = NAME
@@ -60,7 +60,7 @@ class Alternator(Process):
     }
 
     def __init__(self, parameters=None):
-        super(Alternator, self).__init__(parameters)
+        super().__init__(parameters)
         self.choices = self.parameters['choices']
         self.periods = self.parameters['periods']
 
@@ -79,7 +79,7 @@ class Alternator(Process):
                 break
         return period
 
-    def initial_state(self, config):
+    def initial_state(self, config=None):
         return {
             choice: index == 0
             for index, choice in enumerate(self.parameters['choices'])}
@@ -93,7 +93,7 @@ class Alternator(Process):
         return choices
 
     def next_update(self, timestep, states):
-        chosen, index = find_chosen(states)
+        _, index = find_chosen(states)
         next_choice = (index + 1) % len(self.parameters['choices'])
 
         return choose_option(self.parameters['choices'], next_choice)

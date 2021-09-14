@@ -319,8 +319,8 @@ class Process(metaclass=abc.ABCMeta):
         # use the given condition key if it was provided
         if self.condition_key:
             return states.get(self.condition_key)
-        else:
-            return True
+
+        return True
 
 
 class Deriver(Process, metaclass=abc.ABCMeta):
@@ -398,5 +398,3 @@ class ParallelProcess:
         """End the child process."""
         self.parent.send((-1, None))
         self.multiprocess.join()
-
-
