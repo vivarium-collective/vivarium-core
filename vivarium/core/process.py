@@ -101,6 +101,15 @@ class Process(metaclass=abc.ABCMeta):
         self.parameters = deep_merge(self.parameters, parameters)
         self.schema_override = self.parameters.pop('_schema', {})
         self.parallel = self.parameters.pop('_parallel', False)
+        self.condition_key = None
+        if '_condition' in self.parameters:
+            self.condition_key = self.parameters.pop('_condition')
+        if self.condition_key:
+            self.merge_overrides({
+                self.condition_key: {
+                    '_default': True,
+                    '_emit': True,
+                    '_updater': 'set'}})
         self.parameters.setdefault('time_step', DEFAULT_TIME_STEP)
         self.schema = None
 
@@ -300,10 +309,14 @@ class Process(metaclass=abc.ABCMeta):
         Returns:
             Boolean for whether this process runs. True by default.
         """
+
         _ = timestep
         _ = states
-        return True
 
+        if self.condition_key:
+            return states.get(self.condition_key)
+        else:
+            return True
 
 
 class Deriver(Process, metaclass=abc.ABCMeta):
@@ -381,3 +394,5 @@ class ParallelProcess:
         """End the child process."""
         self.parent.send((-1, None))
         self.multiprocess.join()
+
+
