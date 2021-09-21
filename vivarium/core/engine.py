@@ -120,9 +120,10 @@ def invoke_process(
     :py:meth:`vivarium.core.process.Process.next_update` function with
     ``interval`` and ``states``.
     """
-    if process.update_condition(interval, states):
-        return process.next_update(interval, states)
-    return {}
+
+    # if process.update_condition(interval, states):
+    return process.next_update(interval, states)
+    # return {}
 
 
 class Defer:
@@ -161,6 +162,14 @@ class Defer:
         return self.f(
             self.defer.get(),
             self.args)
+
+
+class EmptyDefer(Defer):
+    def __init__(self):
+        super().__init__(None, None, None)
+
+    def get(self):
+        return {}
 
 
 class InvokeProcess:
@@ -500,8 +509,11 @@ class Engine:
             ``path``) and the store at ``path``.
         """
         store, states = self.process_state(path, process)
-        return self._process_update(
-            path, process, store, states, interval)
+        if process.update_condition(interval, states):
+            return self._process_update(
+                path, process, store, states, interval)
+        else:
+            return (EmptyDefer(), store)
 
     def apply_update(
             self,
@@ -516,6 +528,10 @@ class Engine:
                 root of simulation state. We need this so to preserve
                 the "perspective" from which the update was generated.
         """
+
+        if not update:
+            return
+
         topology_updates, process_updates, deletions = self.state.apply_update(
             update, state)
 
@@ -643,17 +659,22 @@ class Engine:
                     #    Type Process doesn't have expected attribute 'schema'
                     # TODO(chris): Is there any reason to generate a process's
                     #  schema dynamically like this?
-                    update = self._process_update(
-                        path, process, store, states, process_timestep)
+                    if process.update_condition(process_timestep, states):
+                        update = self._process_update(
+                            path, process, store, states, process_timestep)
 
-                    # store the update to apply at its projected time
-                    front[path]['time'] = future
-                    front[path]['update'] = update
+                        # store the update to apply at its projected time
+                        front[path]['time'] = future
+                        front[path]['update'] = update
 
-                    # absolute timestep
-                    timestep = future - time
-                    if timestep < full_step:
-                        full_step = timestep
+                        # absolute timestep
+                        timestep = future - time
+                        if timestep < full_step:
+                            full_step = timestep
+                    else:
+                        # store the update to apply at its projected time
+                        front[path]['time'] = future
+                        front[path]['update'] = (EmptyDefer(), store)
 
                 else:
                     # don't shoot past processes that didn't run this time
