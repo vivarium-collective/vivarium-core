@@ -302,7 +302,7 @@ class Process(metaclass=abc.ABCMeta):
         return {}  # pragma: no cover
 
     def update_condition(
-            self, timestep: Union[float, int], states: State) -> bool:
+            self, timestep: Union[float, int], states: State) -> Any:
         """Determine whether this process runs.
 
         Args:

@@ -6,6 +6,8 @@ Alternator Process
 
 import os
 
+from typing import Any, Dict
+
 from vivarium.core.engine import pp
 from vivarium.core.process import (
     Process,
@@ -54,7 +56,7 @@ class Alternator(Process):
     """
 
     name = NAME
-    defaults = {
+    defaults: Dict[str, Any] = {
         'choices': [],
         'periods': [],
     }

@@ -165,10 +165,12 @@ class Defer:
 
 
 class EmptyDefer(Defer):
-    def __init__(self):
-        super().__init__(None, None, None)
+    def __init__(self) -> None:
+        function = lambda update, arg: update
+        args = ()
+        super().__init__(None, function, args)
 
-    def get(self):
+    def get(self) -> Update:
         return {}
 
 
@@ -512,8 +514,7 @@ class Engine:
         if process.update_condition(interval, states):
             return self._process_update(
                 path, process, store, states, interval)
-        else:
-            return (EmptyDefer(), store)
+        return (EmptyDefer(), store)
 
     def apply_update(
             self,
