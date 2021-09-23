@@ -22,7 +22,7 @@ from vivarium.library.dict_utils import (
 from vivarium.library.topology import assoc_path
 from vivarium.core.serialize import deserialize_value
 
-MONGO_DOCUMENT_LIMIT = 5e7
+MONGO_DOCUMENT_LIMIT = 1e7
 
 HISTORY_INDEXES = [
     'time',
