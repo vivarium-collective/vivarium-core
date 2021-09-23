@@ -159,7 +159,7 @@ class Control:
     def run_workflow(self, workflow_id: str) -> None:
         workflow = self.workflows_library[workflow_id]
         experiment_id = workflow['experiment']
-        plot_ids = workflow['plots']
+        plot_ids = workflow.get('plots')
 
         # output directory for this workflow
         workflow_name = workflow.get('name', timestamp())
@@ -169,9 +169,9 @@ class Control:
         self.output_data = self.run_experiment(experiment_id)
 
         # run the plots
-        self.run_plots(plot_ids, self.output_data, out_dir=out_dir)
-
-        print('plots saved to directory: {}'.format(out_dir))
+        if plot_ids:
+            self.run_plots(plot_ids, self.output_data, out_dir=out_dir)
+            print('plots saved to directory: {}'.format(out_dir))
 
 
 # testing
