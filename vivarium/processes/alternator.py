@@ -11,6 +11,7 @@ from typing import Any, Dict
 from vivarium.core.engine import pp
 from vivarium.core.process import (
     Process,
+    Deriver
 )
 from vivarium.core.composer import Composer
 from vivarium.core.composition import (
@@ -49,28 +50,69 @@ def choose_option(choices, chosen_index):
         for index, choice in enumerate(choices)}
 
 
-class Alternator(Process):
-    """ Alternator Process
+def choice_index(self, choices, choice):
+    for index, option in enumerate(choices):
+        if choice == option:
+            return index
+    return -1
+
+
+
+
+class PeriodicEvent(Process):
+    """ PeriodicEvent Process
 
     Alternate between different choices for the given periods of time.
     """
 
-    name = NAME
     defaults: Dict[str, Any] = {
-        'choices': [],
         'periods': [],
     }
 
     def __init__(self, parameters=None):
         super().__init__(parameters)
-        self.choices = self.parameters['choices']
         self.periods = self.parameters['periods']
 
-    def choice_index(self, choice):
-        for index, option in enumerate(self.parameters['choices']):
-            if choice == option:
-                return index
-        return -1
+    def calculate_timestep(self, states):
+        num_periods = len(self.parameters['periods'])
+        period_index = states['period_index'] % num_periods
+        period = self.parameters['periods'][period_index]
+
+        return period
+
+    def ports_schema(self):
+        return {
+            'event_trigger': {
+                '_default': False,
+                '_updater': 'set'},
+            'period_index': {
+                '_default': 0,
+                '_updater': 'set'}}
+
+    def next_update(self, timestep, states):
+        print('in periodic_event next_update')
+
+        num_periods = len(self.parameters['periods'])
+        next_index = (states['period_index'] + 1) % num_periods
+        
+        return {
+            'event_trigger': True,
+            'period_index': next_index}
+
+
+class Alternator(Deriver):
+    """ Alternator Process
+
+    Alternate between different choices for the given periods of time.
+    """
+
+    defaults: Dict[str, Any] = {
+        'choices': [],
+    }
+
+    def __init__(self, parameters=None):
+        super().__init__(parameters)
+        self.choices = self.parameters['choices']
 
     def calculate_timestep(self, states):
         period = 0
@@ -92,13 +134,27 @@ class Alternator(Process):
                 '_default': False}
             for choice in self.parameters['choices']}
 
-        return choices
+        return {
+            'alternate_trigger': {
+                '_default': False,
+                '_updater': 'set'},
+            'choices': choices}
 
     def next_update(self, timestep, states):
-        _, index = find_chosen(states)
-        next_choice = (index + 1) % len(self.parameters['choices'])
+        print('in alternator next_update')
 
-        return choose_option(self.parameters['choices'], next_choice)
+        if states['alternate_trigger']:
+            _, index = find_chosen(states['choices'])
+            if index == -1:
+                index = 0
+            next_choice = (index + 1) % len(self.parameters['choices'])
+            choices_update = choose_option(self.parameters['choices'], next_choice)
+
+            return {
+                'alternate_trigger': False,
+                'choices': choices_update}
+        else:
+            return {}
 
 
 # test
@@ -106,18 +162,20 @@ class ExchangeAlternator(Composer):
     defaults = {
         'on_exchange': {
             'uptake_rate': 0.2,
-            '_condition': 'ON'},
+            '_condition': ('ON',)},
         'off_exchange': {
             'uptake_rate': 0.5,
-            '_condition': 'OFF'},
+            '_condition': ('OFF',)},
+        'periodic': {
+            'periods': [10.0, 4.0]},
         'alternator': {
-            'choices': ['ON', 'OFF'],
-            'periods': [10.0, 4.0]}}
+            'choices': ['ON', 'OFF']}}
 
     def generate_processes(self, config):
         return {
             'on_exchange': ExchangeA(config['on_exchange']),
             'off_exchange': ExchangeA(config['off_exchange']),
+            'periodic': PeriodicEvent(config['periodic']),
             'alternator': Alternator(config['alternator'])}
 
     def generate_topology(self, config):
@@ -128,9 +186,14 @@ class ExchangeAlternator(Composer):
             'off_exchange': {
                 'internal': ('concentrations', 'OFF'),
                 'external': ('concentrations', 'ON')},
+            'periodic': {
+                'event_trigger': ('trigger',),
+                'period_index': ('period_index',)},
             'alternator': {
-                'ON': ('ON',),
-                'OFF': ('OFF',)}}
+                'alternate_trigger': ('trigger',),
+                'choices': {
+                    'ON': ('ON',),
+                    'OFF': ('OFF',)}}}
 
 
 def test_alternator():

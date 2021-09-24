@@ -636,6 +636,8 @@ class Engine:
                 for path, progress in front.items()
                 if path in self.process_paths}
 
+            quiet_paths = []
+
             # go through each process and find those that are able to update
             # based on their current time being less than the global time.
             for path, process in self.process_paths.items():
@@ -673,10 +675,9 @@ class Engine:
                         if timestep < full_step:
                             full_step = timestep
                     else:
-                        # store the update to apply at its projected time
-                        front[path]['time'] = future
+                        # mark this path as "quiet" so its time can be advanced
                         front[path]['update'] = (EmptyDefer(), store)
-
+                        quiet_paths.append(path)
                 else:
                     # don't shoot past processes that didn't run this time
                     process_delay = process_time - time
@@ -695,6 +696,11 @@ class Engine:
                 # increase the time, apply updates, and continue
                 time += full_step
                 self.experiment_time += full_step
+
+                # advance all existing paths that didn't meet
+                # their execution condition to current time
+                for quiet in quiet_paths:
+                    front[quiet]['time'] = time
 
                 updates = []
                 paths = []

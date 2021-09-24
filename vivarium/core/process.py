@@ -13,6 +13,7 @@ from typing import (
     Any, Dict, Optional, Union, List)
 
 from vivarium.library.dict_utils import deep_merge
+from vivarium.library.topology import assoc_path, get_in
 from vivarium.core.types import (
     HierarchyPath, Schema, State, Update,
     Topology)
@@ -101,17 +102,16 @@ class Process(metaclass=abc.ABCMeta):
         self.parameters = deep_merge(self.parameters, parameters)
         self.schema_override = self.parameters.pop('_schema', {})
         self.parallel = self.parameters.pop('_parallel', False)
-        self.condition_key = None
+        self.condition_path = None
 
         # set up the conditional state if a condition key is provided
         if '_condition' in self.parameters:
-            self.condition_key = self.parameters.pop('_condition')
-        if self.condition_key:
-            self.merge_overrides({
-                self.condition_key: {
-                    '_default': True,
-                    '_emit': True,
-                    '_updater': 'set'}})
+            self.condition_path = self.parameters.pop('_condition')
+        if self.condition_path:
+            self.merge_overrides(assoc_path({}, self.condition_path, {
+                '_default': True,
+                '_emit': True,
+                '_updater': 'set'}))
 
         self.parameters.setdefault('time_step', DEFAULT_TIME_STEP)
         self.schema = None
@@ -317,8 +317,8 @@ class Process(metaclass=abc.ABCMeta):
         _ = states
 
         # use the given condition key if it was provided
-        if self.condition_key:
-            return states.get(self.condition_key)
+        if self.condition_path:
+            return get_in(states, self.condition_path)
 
         return True
 
