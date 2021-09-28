@@ -50,15 +50,6 @@ def choose_option(choices, chosen_index):
         for index, choice in enumerate(choices)}
 
 
-def choice_index(self, choices, choice):
-    for index, option in enumerate(choices):
-        if choice == option:
-            return index
-    return -1
-
-
-
-
 class PeriodicEvent(Process):
     """ PeriodicEvent Process
 
@@ -94,7 +85,6 @@ class PeriodicEvent(Process):
 
         num_periods = len(self.parameters['periods'])
         next_index = (states['period_index'] + 1) % num_periods
-        
         return {
             'event_trigger': True,
             'period_index': next_index}
@@ -148,13 +138,14 @@ class Alternator(Deriver):
             if index == -1:
                 index = 0
             next_choice = (index + 1) % len(self.parameters['choices'])
-            choices_update = choose_option(self.parameters['choices'], next_choice)
+            choices_update = choose_option(
+                self.parameters['choices'],
+                next_choice)
 
             return {
                 'alternate_trigger': False,
                 'choices': choices_update}
-        else:
-            return {}
+        return {}
 
 
 # test

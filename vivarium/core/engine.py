@@ -656,12 +656,6 @@ class Engine:
                     process_timestep = future - process_time
 
                     # calculate the update for this process
-                    # TODO(jerry): Do something cleaner than having
-                    #  generate_paths() add a schema attribute to the Process.
-                    #  PyCharm's type check reports:
-                    #    Type Process doesn't have expected attribute 'schema'
-                    # TODO(chris): Is there any reason to generate a process's
-                    #  schema dynamically like this?
                     if process.update_condition(process_timestep, states):
                         update = self._process_update(
                             path, process, store, states, process_timestep)
