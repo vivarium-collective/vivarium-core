@@ -11,6 +11,7 @@ from vivarium.core.registry import (
     updater_registry,
     divider_registry,
     serializer_registry,
+    emitter_registry,
 )
 
 # import processes
@@ -26,11 +27,13 @@ from vivarium.processes.nonspatial_environment import (
     NonSpatialEnvironment)
 from vivarium.processes.molarity_deriver import (
     MolarToCounts,
-    CountsToMolar)
+    CountsToMolar,
+)
 from vivarium.processes.mass_adaptor import (
     CountsToConcentration,
     MassToMolar,
-    MassToCount)
+    MassToCount,
+)
 
 # import updaters, dividers, serializers
 from vivarium.core.registry import (
@@ -40,6 +43,11 @@ from vivarium.core.registry import (
     divide_set_value,
     NumpySerializer, NumpyScalarSerializer, UnitsSerializer,
     ProcessSerializer, ComposerSerializer, FunctionSerializer,
+)
+
+# import emitters
+from vivarium.core.emitter import (
+    Emitter, NullEmitter, RAMEmitter, DatabaseEmitter
 )
 
 _ = plt  # suppress PyCharm's unused-import warning
@@ -86,3 +94,9 @@ serializer_registry.register('units', UnitsSerializer())
 serializer_registry.register('process', ProcessSerializer())
 serializer_registry.register('composer', ComposerSerializer())
 serializer_registry.register('function', FunctionSerializer())
+
+# register emitters
+emitter_registry.register('print', Emitter)
+emitter_registry.register('null', NullEmitter)
+emitter_registry.register('timeseries', RAMEmitter)
+emitter_registry.register('database', DatabaseEmitter)

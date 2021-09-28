@@ -5,7 +5,7 @@ from bson import ObjectId
 from pint import Unit, UndefinedUnitError
 from pint.quantity import Quantity
 
-from vivarium import serializer_registry
+from vivarium.core.registry import serializer_registry
 from vivarium.core.composer import Composer
 from vivarium.core.process import Process
 
