@@ -122,7 +122,7 @@ def get_emitter(config: Optional[Dict[str, str]]) -> 'Emitter':
     if config is None:
         config = {}
     emitter_type = config.get('type', 'print')
-    emitter: Emitter = emitter_registry.access(emitter_type)
+    emitter: Emitter = emitter_registry.access(emitter_type)(config)
     return emitter
 
 
