@@ -66,11 +66,9 @@ class Composite(Datum):
     """
     processes: Dict[str, Any] = {}
     topology: Dict[str, Any] = {}
-    _schema: Dict[str, Any] = {}
     defaults: Dict[str, Any] = {
         'processes': dict,
-        'topology': dict,
-        '_schema': dict}
+        'topology': dict}
 
     def __init__(
             self,
@@ -78,6 +76,7 @@ class Composite(Datum):
     ) -> None:
         config = config or {}
         super().__init__(config)
+        self._schema = config.get('_schema', {})
         _override_schemas(self._schema, self.processes)
 
     def generate_store(self, config: Optional[dict] = None) -> Store:

@@ -107,8 +107,11 @@ updater_registry = Registry()
 #: Map divider names to :term:`divider` functions
 divider_registry = Registry()
 
-#: Map serializer names to divider :term:`serializer` classes
+#: Map serializer names to :term:`serializer` classes
 serializer_registry = Registry()
+
+#: Map serializer names to :term:`Emitter` classes
+emitter_registry = Registry()
 
 
 # Updaters, Dividers, and Serializers
