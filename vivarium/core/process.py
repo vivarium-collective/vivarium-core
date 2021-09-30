@@ -13,6 +13,7 @@ from typing import (
     Any, Dict, Optional, Union, List)
 
 from vivarium.library.dict_utils import deep_merge
+from vivarium.library.topology import assoc_path, get_in
 from vivarium.core.types import (
     HierarchyPath, Schema, State, Update,
     Topology)
@@ -101,6 +102,17 @@ class Process(metaclass=abc.ABCMeta):
         self.parameters = deep_merge(self.parameters, parameters)
         self.schema_override = self.parameters.pop('_schema', {})
         self.parallel = self.parameters.pop('_parallel', False)
+        self.condition_path = None
+
+        # set up the conditional state if a condition key is provided
+        if '_condition' in self.parameters:
+            self.condition_path = self.parameters.pop('_condition')
+        if self.condition_path:
+            self.merge_overrides(assoc_path({}, self.condition_path, {
+                '_default': True,
+                '_emit': True,
+                '_updater': 'set'}))
+
         self.parameters.setdefault('time_step', DEFAULT_TIME_STEP)
         self.schema = None
 
@@ -290,7 +302,7 @@ class Process(metaclass=abc.ABCMeta):
         return {}  # pragma: no cover
 
     def update_condition(
-            self, timestep: Union[float, int], states: State) -> bool:
+            self, timestep: Union[float, int], states: State) -> Any:
         """Determine whether this process runs.
 
         Args:
@@ -300,10 +312,15 @@ class Process(metaclass=abc.ABCMeta):
         Returns:
             Boolean for whether this process runs. True by default.
         """
+
         _ = timestep
         _ = states
-        return True
 
+        # use the given condition key if it was provided
+        if self.condition_path:
+            return get_in(states, self.condition_path)
+
+        return True
 
 
 class Deriver(Process, metaclass=abc.ABCMeta):

@@ -120,9 +120,8 @@ def invoke_process(
     :py:meth:`vivarium.core.process.Process.next_update` function with
     ``interval`` and ``states``.
     """
-    if process.update_condition(interval, states):
-        return process.next_update(interval, states)
-    return {}
+
+    return process.next_update(interval, states)
 
 
 class Defer:
@@ -161,6 +160,16 @@ class Defer:
         return self.f(
             self.defer.get(),
             self.args)
+
+
+class EmptyDefer(Defer):
+    def __init__(self) -> None:
+        function = lambda update, arg: update
+        args = ()
+        super().__init__(None, function, args)
+
+    def get(self) -> Update:
+        return {}
 
 
 class InvokeProcess:
@@ -500,8 +509,10 @@ class Engine:
             ``path``) and the store at ``path``.
         """
         store, states = self.process_state(path, process)
-        return self._process_update(
-            path, process, store, states, interval)
+        if process.update_condition(interval, states):
+            return self._process_update(
+                path, process, store, states, interval)
+        return (EmptyDefer(), store)
 
     def apply_update(
             self,
@@ -516,6 +527,10 @@ class Engine:
                 root of simulation state. We need this so to preserve
                 the "perspective" from which the update was generated.
         """
+
+        if not update:
+            return
+
         topology_updates, process_updates, deletions = self.state.apply_update(
             update, state)
 
@@ -619,6 +634,8 @@ class Engine:
                 for path, progress in front.items()
                 if path in self.process_paths}
 
+            quiet_paths = []
+
             # go through each process and find those that are able to update
             # based on their current time being less than the global time.
             for path, process in self.process_paths.items():
@@ -637,24 +654,22 @@ class Engine:
                     process_timestep = future - process_time
 
                     # calculate the update for this process
-                    # TODO(jerry): Do something cleaner than having
-                    #  generate_paths() add a schema attribute to the Process.
-                    #  PyCharm's type check reports:
-                    #    Type Process doesn't have expected attribute 'schema'
-                    # TODO(chris): Is there any reason to generate a process's
-                    #  schema dynamically like this?
-                    update = self._process_update(
-                        path, process, store, states, process_timestep)
+                    if process.update_condition(process_timestep, states):
+                        update = self._process_update(
+                            path, process, store, states, process_timestep)
 
-                    # store the update to apply at its projected time
-                    front[path]['time'] = future
-                    front[path]['update'] = update
+                        # store the update to apply at its projected time
+                        front[path]['time'] = future
+                        front[path]['update'] = update
 
-                    # absolute timestep
-                    timestep = future - time
-                    if timestep < full_step:
-                        full_step = timestep
-
+                        # absolute timestep
+                        timestep = future - time
+                        if timestep < full_step:
+                            full_step = timestep
+                    else:
+                        # mark this path as "quiet" so its time can be advanced
+                        front[path]['update'] = (EmptyDefer(), store)
+                        quiet_paths.append(path)
                 else:
                     # don't shoot past processes that didn't run this time
                     process_delay = process_time - time
@@ -673,6 +688,11 @@ class Engine:
                 # increase the time, apply updates, and continue
                 time += full_step
                 self.experiment_time += full_step
+
+                # advance all existing paths that didn't meet
+                # their execution condition to current time
+                for quiet in quiet_paths:
+                    front[quiet]['time'] = time
 
                 updates = []
                 paths = []
