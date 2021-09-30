@@ -21,8 +21,9 @@ from vivarium.library.dict_utils import (
 )
 from vivarium.library.topology import assoc_path
 from vivarium.core.serialize import deserialize_value
+from vivarium.core.registry import emitter_registry
 
-MONGO_DOCUMENT_LIMIT = 5e7
+MONGO_DOCUMENT_LIMIT = 1e7
 
 HISTORY_INDEXES = [
     'time',
@@ -121,16 +122,7 @@ def get_emitter(config: Optional[Dict[str, str]]) -> 'Emitter':
     if config is None:
         config = {}
     emitter_type = config.get('type', 'print')
-
-    if emitter_type == 'database':
-        emitter: Emitter = DatabaseEmitter(config)
-    elif emitter_type == 'null':
-        emitter = NullEmitter(config)
-    elif emitter_type == 'timeseries':
-        emitter = RAMEmitter(config)
-    else:
-        emitter = Emitter(config)
-
+    emitter: Emitter = emitter_registry.access(emitter_type)(config)
     return emitter
 
 

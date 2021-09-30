@@ -1,6 +1,10 @@
 # Changelog
 
 
+## v0.3.9
+
+* reduce mongo document limit for the DatabaseEmitter
+
 ## v0.3.8
 
 * revert rename of divider argument to "state"
