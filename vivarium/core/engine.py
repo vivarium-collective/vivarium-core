@@ -121,9 +121,7 @@ def invoke_process(
     ``interval`` and ``states``.
     """
 
-    # if process.update_condition(interval, states):
     return process.next_update(interval, states)
-    # return {}
 
 
 class Defer:
