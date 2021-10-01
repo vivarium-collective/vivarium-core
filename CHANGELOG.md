@@ -1,6 +1,11 @@
 # Changelog
 
 
+## v0.3.10
+
+* add `emitter_registry`, so that emitters can be added from different repositories by importing the registry and registering their emitter.
+* add `_condition` key to process parameters, that lets them by conditionally triggered by connecting to a boolean states in the hierarchy.
+
 ## v0.3.9
 
 * reduce mongo document limit for the DatabaseEmitter
