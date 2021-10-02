@@ -81,6 +81,11 @@ html_static_path = ['_static']
 
 # -- Options for extensions --------------------------------------------------
 
+# -- nbsphinx options --
+
+# Never execute Jupyter notebooks.
+nbsphinx_execute = 'never'
+
 # -- sphinx.ext.intersphinx options --
 intersphinx_mapping = {
     'matplotlib': ('https://matplotlib.org/3.3.1/', None),
