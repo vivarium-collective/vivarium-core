@@ -48,6 +48,7 @@ extensions = [
     'sphinx.ext.napoleon',
     'sphinx.ext.intersphinx',
     'sphinx.ext.viewcode',
+    'nbsphinx',
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -79,6 +80,11 @@ html_theme_options = {
 html_static_path = ['_static']
 
 # -- Options for extensions --------------------------------------------------
+
+# -- nbsphinx options --
+
+# Never execute Jupyter notebooks.
+nbsphinx_execute = 'never'
 
 # -- sphinx.ext.intersphinx options --
 intersphinx_mapping = {
@@ -120,6 +126,15 @@ def autodoc_skip_member_handler(app, what, name, obj, skip, options):
     if name.startswith('test_'):
         return True
     return None
+
+
+cur_dir = os.path.abspath(os.path.dirname(__file__))
+notebooks_dst = os.path.join(cur_dir, 'notebooks')
+notebooks_src = os.path.join(cur_dir, '..', 'notebooks')
+if os.path.exists(notebooks_dst):
+    shutil.rmtree(notebooks_dst)
+shutil.copytree(notebooks_src, notebooks_dst)
+
 
 # -- Custom Extensions -------------------------------------------------
 

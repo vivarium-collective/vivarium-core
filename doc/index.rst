@@ -16,7 +16,8 @@ for composing and simulating integrative, multiscale models.
    getting_started.rst
    getting_started_dev.rst
    guides/index.rst
-   tutorials/index.rst
+   tutorials.rst
+   tutorials/write_process.rst
    reference/index.rst
 
 .. todo:: Maybe use :ref:`genindex`
