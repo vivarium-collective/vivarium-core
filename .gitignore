@@ -22,8 +22,6 @@ user/*
 ###################
 *.pyc
 __pycache__
-/doc/reference/api/
-/doc/notebooks/
 
 # OS generated files #
 ######################
