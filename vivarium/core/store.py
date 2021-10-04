@@ -769,6 +769,8 @@ class Store:
                 if self.units:
                     return self.serializer.serialize(
                         self.value.to(self.units))
+                if isinstance(self.value, list):
+                    return self.value
                 return self.serializer.serialize(self.value)
             if self.units:
                 return self.value.to(self.units).magnitude
