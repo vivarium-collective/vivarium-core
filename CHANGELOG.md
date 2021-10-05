@@ -1,6 +1,10 @@
 # Changelog
 
 
+## v0.3.11
+
+* fix bug in serializing list
+
 ## v0.3.10
 
 * add `emitter_registry`, so that emitters can be added from different repositories by importing the registry and registering their emitter.
