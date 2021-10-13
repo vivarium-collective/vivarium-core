@@ -89,6 +89,19 @@ def deep_merge_multi_update(dct, merge_dct):
     return dct
 
 
+def remove_multi_update(d):
+    new = {}
+    for k, v in d.items():
+        if isinstance(v, dict):
+            if '_multi_update' in v:
+                new[k] = v['_multi_update'][0]
+            else:
+                new[k] = remove_multi_update(v)
+        else:
+            new[k] = v
+    return new
+
+
 def deep_merge(dct, merge_dct):
     """ Recursive dict merge
 

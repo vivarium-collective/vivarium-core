@@ -8,14 +8,20 @@ from pint.quantity import Quantity
 from vivarium.core.registry import serializer_registry
 from vivarium.core.composer import Composer, Composite
 from vivarium.core.process import Process
+from vivarium.library.dict_utils import remove_multi_update
 
 
-def composite_specification(composite: Composite) -> dict:
+def composite_specification(
+        composite: Composite,
+        initial_state: bool = False,
+) -> dict:
     composite_dict = serialize_value(composite)
     composite_dict.pop('_schema')
-    composite_dict = dict(
-        composite_dict,
-        initial_state=composite.initial_state())
+    if initial_state:
+        composite_initial_state = remove_multi_update(composite.initial_state())
+        composite_dict = dict(
+            composite_dict,
+            initial_state=composite_initial_state)
     return composite_dict
 
 
