@@ -6,11 +6,11 @@ from pint import Unit, UndefinedUnitError
 from pint.quantity import Quantity
 
 from vivarium.core.registry import serializer_registry
-from vivarium.core.composer import Composer
+from vivarium.core.composer import Composer, Composite
 from vivarium.core.process import Process
 
 
-def composite_specification(composite):
+def composite_specification(composite: Composite) -> dict:
     composite_dict = serialize_value(composite)
     composite_dict.pop('_schema')
     composite_dict = dict(
