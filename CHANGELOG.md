@@ -1,6 +1,10 @@
 # Changelog
 
 
+## v0.3.12
+
+* add composite specification
+
 ## v0.3.11
 
 * fix bug in serializing list
