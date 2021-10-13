@@ -10,6 +10,15 @@ from vivarium.core.composer import Composer
 from vivarium.core.process import Process
 
 
+def composite_specification(composite):
+    composite_dict = serialize_value(composite)
+    composite_dict.pop('_schema')
+    composite_dict = dict(
+        composite_dict,
+        initial_state=composite.initial_state())
+    return composite_dict
+
+
 def serialize_value(value: Any) -> Any:
     """Attempt to serialize a value.
 
