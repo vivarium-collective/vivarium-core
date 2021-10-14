@@ -115,6 +115,7 @@ class Process(metaclass=abc.ABCMeta):
 
         self.parameters.setdefault('time_step', DEFAULT_TIME_STEP)
         self.schema = None
+        self.process_state: tuple = ()
 
     def initial_state(self, config: Optional[dict] = None) -> State:
         """Get initial state in embedded path dictionary.

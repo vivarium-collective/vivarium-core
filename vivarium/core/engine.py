@@ -123,13 +123,15 @@ def invoke_process(
 
     return process.next_update(interval, states)
 
-def view_values(states):
-        state_values = {}
-        if isinstance(states, Store):
-            return states.get_value()
-        for key, value in states.items():
-            state_values[key] = view_values(value)
-        return state_values
+def view_values(
+        states: dict
+) -> State:
+    state_values = {}
+    if isinstance(states, Store):
+        return states.get_value()
+    for key, value in states.items():
+        state_values[key] = view_values(value)
+    return state_values
 
 class Defer:
     def __init__(
@@ -515,7 +517,7 @@ class Engine:
             Tuple of the deferred update (relative to the root of
             ``path``) and the store at ``path``.
         """
-        if not hasattr(process, 'process_state'):
+        if process.process_state == ():
             store, states = self.process_state(path, process)
             process.process_state = (store, states)
         store = process.process_state[0]
@@ -657,7 +659,7 @@ class Engine:
                 if process_time <= time:
 
                     # get the time step
-                    if not hasattr(process, 'process_state'):
+                    if process.process_state == ():
                         store, states = self.process_state(path, process)
                         process.process_state = (store, states)
                     store = process.process_state[0]
