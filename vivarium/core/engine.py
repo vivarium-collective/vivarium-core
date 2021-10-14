@@ -123,6 +123,13 @@ def invoke_process(
 
     return process.next_update(interval, states)
 
+def view_values(states):
+        state_values = {}
+        if isinstance(states, Store):
+            return states.get_value()
+        for key, value in states.items():
+            state_values[key] = view_values(value)
+        return state_values
 
 class Defer:
     def __init__(
@@ -508,7 +515,11 @@ class Engine:
             Tuple of the deferred update (relative to the root of
             ``path``) and the store at ``path``.
         """
-        store, states = self.process_state(path, process)
+        if not hasattr(process, 'process_state'):
+            store, states = self.process_state(path, process)
+            process.process_state = (store, states)
+        store = process.process_state[0]
+        states = view_values(process.process_state[1])
         if process.update_condition(interval, states):
             return self._process_update(
                 path, process, store, states, interval)
@@ -646,7 +657,11 @@ class Engine:
                 if process_time <= time:
 
                     # get the time step
-                    store, states = self.process_state(path, process)
+                    if not hasattr(process, 'process_state'):
+                        store, states = self.process_state(path, process)
+                        process.process_state = (store, states)
+                    store = process.process_state[0]
+                    states = view_values(process.process_state[1])
                     requested_timestep = process.calculate_timestep(states)
 
                     # progress only to the end of interval

@@ -1274,7 +1274,7 @@ class Store:
         state = {}
 
         if self.leaf:
-            state = self.get_value()
+            state = self
         else:
             for key, subschema in schema.items():
                 path = topology.get(key)
