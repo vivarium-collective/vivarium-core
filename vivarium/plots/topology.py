@@ -287,7 +287,7 @@ def graph_figure(
     ys = [p[1] for p in pos_values]
     xr = max(xs) - min(xs)
     yr = max(ys) - min(ys)
-    fig = plt.figure(1, figsize=(
+    fig, ax = plt.subplots(figsize=(
         xr * node_distance + 2 * buffer,
         yr * node_distance + 2 * buffer))
 
@@ -310,6 +310,7 @@ def graph_figure(
 
     # draw the process nodes
     nx.draw_networkx_nodes(graph, pos,
+                           ax=ax,
                            nodelist=process_nodes,
                            node_color=fill_color,
                            edgecolors=process_color_list,
@@ -318,6 +319,7 @@ def graph_figure(
                            node_shape='s')
     # draw the store nodes
     nx.draw_networkx_nodes(graph, pos,
+                           ax=ax,
                            nodelist=store_nodes,
                            node_color=fill_color,
                            edgecolors=store_color_list,
@@ -343,24 +345,27 @@ def graph_figure(
         edge_args['style'] = ['dashed' for _ in edges.keys()]
         edge_args['style'].extend(['solid' for _ in place_edges])
 
-    nx.draw_networkx_edges(graph, pos, **edge_args)
+    nx.draw_networkx_edges(graph, pos, ax=ax, **edge_args)
 
     # node labels
     nx.draw_networkx_labels(graph, pos,
+                            ax=ax,
                             labels=node_labels,
                             font_size=font_size)
     if show_ports:
         # edge labels
         nx.draw_networkx_edge_labels(graph, pos,
+                                     ax=ax,
                                      edge_labels=edges,
                                      font_size=font_size,
                                      label_pos=label_pos)
 
     # add white buffer around final figure
-    xmin, xmax, ymin, ymax = plt.axis()
-    plt.xlim(xmin - buffer, xmax + buffer)
-    plt.ylim(ymin - buffer, ymax + buffer)
-    plt.axis('off')
+    xmin, xmax = ax.get_xlim()
+    ymin, ymax = ax.get_ylim()
+    ax.set_xlim(xmin - buffer, xmax + buffer)
+    ax.set_ylim(ymin - buffer, ymax + buffer)
+    ax.axis('off')
 
     return fig
 
