@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.3.13
+
+* Fix topology plot to avoid using `plt.figure` so that plots work correctly when other plotting functions are used in the same Python session (e.g. Jupyter notebooks).
 
 ## v0.3.12
 
@@ -44,7 +47,7 @@
 
 * DatabaseEmitter supports arbitrary emit sizes by breaking up large emits into chunks, and reassembles them seamlessly upon retrieval.
 * libary.wrappers make_logging_process adds a logging port to any process
-* Improve the Store API by adding methods for creating new stores and connecting processes through their ports. 
+* Improve the Store API by adding methods for creating new stores and connecting processes through their ports.
 
 ## v0.3.1
 
@@ -57,7 +60,7 @@
 
 ## v0.2.16
 
-* add more flexible kwarg passing in `Control` 
+* add more flexible kwarg passing in `Control`
 
 ## v0.2.15
 
@@ -76,7 +79,7 @@
 
 ## v0.2.12
 
-* plotting tweaks. 
+* plotting tweaks.
 * provide information about update failure.
 * improve data_from_database to return experiment config.
 
@@ -124,7 +127,7 @@
 ## v0.2.0
 
 * breaking API changes:
-    * Composer class instead of Composite. 
+    * Composer class instead of Composite.
     * several composition.py functions have been renamed to improve self-description.
 
 ## v0.1.12

@@ -5,7 +5,7 @@ from distutils.core import setup
 _ = setuptools  # don't warn about this unused import; it might have side effects
 
 
-VERSION = '0.3.12'
+VERSION = '0.3.13'
 
 
 if __name__ == '__main__':
