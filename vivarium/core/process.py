@@ -246,10 +246,14 @@ class Process(metaclass=abc.ABCMeta):
         return state
 
     def is_deriver(self) -> bool:
-        """Check whether this process is a deriver.
+        """Synonym for :py:meth:`is_task` for backwards-compatibility."""
+        return self.is_task()
+
+    def is_task(self) -> bool:
+        """Check whether this process is a task.
 
         Returns:
-            Whether this process is a deriver. This class always returns
+            Whether this process is a task. This class always returns
             ``False``, but subclasses may change this.
         """
         return False
@@ -323,19 +327,24 @@ class Process(metaclass=abc.ABCMeta):
         return True
 
 
-class Deriver(Process, metaclass=abc.ABCMeta):
-    """Base class for :term:`derivers`."""
+class Task(Process, metaclass=abc.ABCMeta):
+    """Base class for tasks (formerly :term:`derivers`)."""
+
     def initial_state(self, config: Optional[dict] = None) -> State:
         """Subclasses should override this method.
 
-         Given a config, this method should return the Deriver's initial
+         Given a config, this method should return the Task's initial
          state.
          """
         return {}
 
-    def is_deriver(self) -> bool:
-        """Returns ``True`` to signal this process is a deriver."""
+    def is_task(self) -> bool:
+        """Returns ``True`` to signal that this process is a task."""
         return True
+
+
+#: Deriver is a synonym for Task for backwards-compatibility.
+Deriver = Task
 
 
 def _run_update(connection: Connection, process: Process) -> None:

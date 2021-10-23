@@ -10,11 +10,13 @@ import os
 import logging as log
 import pprint
 from typing import (
-    Any, Dict, Optional, Union, Tuple, Callable)
+    Any, Dict, Optional, Union, Tuple, Callable, Iterable, List, Set)
 import math
 import datetime
 import time as clock
 import uuid
+
+import networkx as nx
 
 from vivarium.composites.toys import Proton, Electron, Sine, PoQo, ToyDivider
 from vivarium.core.store import hierarchy_depth, Store, generate_state
@@ -210,6 +212,100 @@ class InvokeProcess:
         return self.update
 
 
+class TaskGraph:
+    '''A dependency graph of tasks.
+
+    A task is just a Process object that has dependencies on other
+    tasks. Unlike processes, which can be run in any order, tasks run
+    every timestep. In a given timestep, each task must not run until
+    all its dependency tasks have run and had their updates applied.
+
+    Attributes:
+        graph: A NetworkX DiGraph with an edge for each dependency
+            relationship and a node for each task path. If the task at
+            path ``a`` depends on the task at path ``b``, then the graph
+            will contain an edge from ``b`` to ``a``. This means that a
+            topological sort of the graph produces a valid runtime order
+            for the tasks. Note that the graph must be a DAG.
+    '''
+
+    def __init__(self) -> None:
+        self.graph = nx.DiGraph()
+
+    def add_task(
+            self,
+            task_path: HierarchyPath,
+            dependencies: Iterable[HierarchyPath]) -> None:
+        '''Add a task to the graph.
+
+        Args:
+            task_path: The task object's path in the hierarchy.
+            dependencies: The hierarchy paths to each dependency of the
+                task.
+
+        Raises:
+            ValueError: If the graph produced by adding the task is not
+            a DAG.
+        '''
+        self.graph.add_node(task_path)
+        for dependency in dependencies:
+            self.graph.add_edge(dependency, task_path)
+        if not nx.is_directed_acyclic_graph(self.graph):
+            raise ValueError('Task graph must be a DAG.')
+
+    def add_sequential_task(
+            self,
+            task_path: HierarchyPath) -> None:
+        '''Add a task that is meant to run sequentially.
+
+        Legacy tasks (called "derivers") were meant to run sequentially
+        instead of being provided as a dependency graph. To support
+        these legacy tasks, this method adds a task that will run after
+        all tasks currently in the graph.
+
+        Args:
+            task_path: The path to the task in the hierarchy.
+        '''
+        self.add_task(task_path, list(self.graph.nodes))
+
+    def get_execution_layers(self) -> List[Set[HierarchyPath]]:
+        '''Get task execution layers, with tasks represnted by paths.
+
+        An execution layer is a set of tasks that can be executed in
+        parallel. The graph's execution layers are an ordered list of
+        these layers such that:
+
+        * For a given layer, every task in the layer may be executed as
+          soon as all tasks in preceding layers have been executed.
+        * Every task is in as early a layer as possible.
+
+        In other words, the execution layers are the topological
+        generations of the graph.
+
+        Returns:
+            An ordered list of the execution layers, with each task
+            represented by its path.
+        '''
+        layers = nx.topological_generations(self.graph)
+        return [set(layer) for layer in layers]
+
+    def remove(self, path: HierarchyPath) -> None:
+        '''Delete a task based on its path.
+
+        Args:
+            path: Hierarhcy path of the task to delete.
+        '''
+        to_delete = nx.algorithms.dag.descendants(self.graph, path)
+        to_delete.add(path)
+        for path_to_delete in to_delete:
+            self.graph.remove_node(path_to_delete)
+
+    def copy(self) -> 'TaskGraph':
+        new = self.__class__()
+        new.graph = self.graph.copy()
+        return new
+
+
 class Engine:
     def __init__(
             self,
@@ -301,7 +397,8 @@ class Engine:
 
         # get a mapping of all paths to processes
         self.process_paths: Dict[HierarchyPath, Process] = {}
-        self.deriver_paths: Dict[HierarchyPath, Process] = {}
+        self.task_graph = TaskGraph()
+        self.task_paths: Dict[HierarchyPath, Process] = {}
         self._find_process_paths(self.processes)
 
         # emitter settings
@@ -320,8 +417,8 @@ class Engine:
         # initialize global time
         self.experiment_time = 0.0
 
-        # run the derivers
-        self.send_updates([])
+        # run the tasks
+        self.run_tasks()
 
         # run the emitter
         self.emit_configuration()
@@ -342,8 +439,9 @@ class Engine:
             process: Process,
             path: HierarchyPath
     ) -> None:
-        if process.is_deriver():
-            self.deriver_paths[path] = process
+        if process.is_task():
+            self.task_graph.add_sequential_task(path)
+            self.task_paths[path] = process
         else:
             self.process_paths[path] = process
 
@@ -563,32 +661,40 @@ class Engine:
             if starts_with(path, deletion):
                 del self.process_paths[path]
 
-        for path in list(self.deriver_paths.keys()):
+        for path in list(self.task_paths):
             if starts_with(path, deletion):
-                del self.deriver_paths[path]
+                try:
+                    self.task_graph.remove(path)
+                except nx.exception.NetworkXError as e:
+                    # The task might have been deleted already.
+                    msg = f'The node {path} is not in the graph.'
+                    if e.args[0] != msg:
+                        raise e
+                del self.task_paths[path]
 
-    def run_derivers(self) -> None:
-        """Run all the derivers in the simulation."""
-        paths = list(self.deriver_paths.keys())
-        for path in paths:
-            # deriver could have been deleted by another deriver
-            deriver = self.deriver_paths.get(path)
-            if deriver:
-                # timestep shouldn't influence derivers
+    def run_tasks(self) -> None:
+        '''Run all the tasks in the simulation.'''
+        layers = self.task_graph.get_execution_layers()
+        for layer in layers:
+            for path in layer:
+                task = self.task_paths[path]
+                if not task:
+                    # Task was deleted by a previous task.
+                    continue
+                # Timestep shouldn't influence tasks.
                 # TODO(jerry): Do something cleaner than having
                 #  generate_paths() add a schema attribute to the Deriver.
                 #  PyCharm's type check reports:
                 #    Type Process doesn't have expected attribute 'schema'
                 update, store = self.calculate_update(
-                    path, deriver, 0)
+                    path, task, 0)
                 self.apply_update(update.get(), store)
-
 
     def send_updates(
             self,
             update_tuples: list
     ) -> None:
-        """Apply updates and run derivers.
+        """Apply updates and run tasks.
 
         Args:
             update_tuples: List of tuples ``(update, state)`` where
@@ -599,7 +705,7 @@ class Engine:
             update, state = update_tuple
             self.apply_update(update.get(), state)
 
-        self.run_derivers()
+        self.run_tasks()
 
     def update(
             self,
@@ -1309,6 +1415,51 @@ def test_custom_divider() -> None:
     experiment.update(80)
     data = experiment.emitter.get_data()
     print(pf(data))
+
+
+class TestTaskGraph:
+
+    @staticmethod
+    def test_task_graph_execution_layers() -> None:
+        tg = TaskGraph()
+        tg.add_task(('a',), [])
+        tg.add_task(('b',), [])
+        tg.add_task(('c',), [('a',), ('b',)])
+        tg.add_task(('d',), [('c',)])
+
+        layers = list(tg.get_execution_layers())
+        expected_layers = [
+            {('a',), ('b',)},
+            {('c',)},
+            {('d',)},
+        ]
+        assert layers == expected_layers
+
+    @staticmethod
+    def test_task_graph_sequential() -> None:
+        tg = TaskGraph()
+        tg.add_task(('a',), [])
+        tg.add_task(('b',), [])
+        tg.add_sequential_task(('c',))
+
+        layers = list(tg.get_execution_layers())
+        expected_layers = [
+            {('a',), ('b',)},
+            {('c',)},
+        ]
+        assert layers == expected_layers
+
+    @staticmethod
+    def test_task_graph_removal() -> None:
+        tg = TaskGraph()
+        tg.add_task(('a',), [])
+        tg.add_task(('b',), [('a',)])
+        tg.add_task(('c',), [('b',)])
+
+        tg.remove(('a',))
+        layers = list(tg.get_execution_layers())
+
+        assert layers == []
 
 
 if __name__ == '__main__':
