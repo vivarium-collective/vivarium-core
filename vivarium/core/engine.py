@@ -1493,7 +1493,8 @@ def test_runtime_order() -> None:
                 }
             }
 
-        def next_update(self, timestep: float, state: State) -> Update:
+        def next_update(self, timestep: float, states: State) -> Update:
+            _ = states
             self.parameters['execution_log'].append(self.name)
             return {}
 
@@ -1509,7 +1510,8 @@ def test_runtime_order() -> None:
                 }
             }
 
-        def next_update(self, timestep: float, state: State) -> Update:
+        def next_update(self, timestep: float, states: State) -> Update:
+            _ = states
             self.parameters['execution_log'].append(self.name)
             return {}
 
@@ -1524,7 +1526,8 @@ def test_runtime_order() -> None:
                 }
             }
 
-        def next_update(self, timestep: float, state: State) -> Update:
+        def next_update(self, timestep: float, states: State) -> Update:
+            _ = states
             self.parameters['execution_log'].append(self.name)
             return {}
 
