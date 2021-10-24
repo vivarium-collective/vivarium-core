@@ -694,6 +694,7 @@ class Engine:
         '''Run all the tasks in the simulation.'''
         layers = self.task_graph.get_execution_layers()
         for layer in layers:
+            deferred_updates: List[Tuple[Defer, Store]] = []
             for path in layer:
                 task = self.task_paths[path]
                 if not task:
@@ -706,6 +707,8 @@ class Engine:
                 #    Type Process doesn't have expected attribute 'schema'
                 update, store = self.calculate_update(
                     path, task, 0)
+                deferred_updates.append((update, store))
+            for update, store in deferred_updates:
                 self.apply_update(update.get(), store)
 
     def send_updates(
@@ -748,7 +751,8 @@ class Engine:
             full_step = math.inf
 
             # find any parallel processes that were removed and terminate them
-            for terminated in self.parallel.keys() - self.process_paths.keys():
+            for terminated in self.parallel.keys() - (
+                    self.process_paths.keys() | self.task_paths.keys()):
                 self.parallel[terminated].end()
                 del self.parallel[terminated]
 
