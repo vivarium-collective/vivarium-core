@@ -351,7 +351,7 @@ class Task(Process, metaclass=abc.ABCMeta):
 class Deriver(Task, metaclass=abc.ABCMeta):
     """Base class for :term:`derivers`.
 
-    Derivers are :py:class:`Task`s that run sequentially.
+    Derivers are :py:class:`Task` objects that run sequentially.
     """
 
     def is_deriver(self) -> bool:
