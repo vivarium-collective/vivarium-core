@@ -60,6 +60,7 @@ if __name__ == '__main__':
             'Pint',
             'pymongo',
             'scipy',
+            'orjson'
         ],
         classifiers=[
             'Development Status :: 4 - Beta',

@@ -496,7 +496,7 @@ class Engine:
 
         # translate the values from the tree structure into the form
         # that this process expects, based on its declared topology
-        states = store.outer.schema_topology(process.schema, store.topology)
+        states = store.outer.schema_serialize(process.schema, store.topology)
 
         return store, states
 
@@ -517,11 +517,8 @@ class Engine:
             Tuple of the deferred update (relative to the root of
             ``path``) and the store at ``path``.
         """
-        if process.process_state == ():
-            store, states = self.process_state(path, process)
-            process.process_state = (store, states)
-        store = process.process_state[0]
-        states = view_values(process.process_state[1])
+        store, states = self.process_state(path, process)
+        states = view_values(states)
         if process.update_condition(interval, states):
             return self._process_update(
                 path, process, store, states, interval)
@@ -659,11 +656,12 @@ class Engine:
                 if process_time <= time:
 
                     # get the time step
-                    if process.process_state == ():
-                        store, states = self.process_state(path, process)
-                        process.process_state = (store, states)
-                    store = process.process_state[0]
-                    states = view_values(process.process_state[1])
+                    # if process.process_state == ():
+                    #     store, states = self.process_state(path, process)
+                    #     process.process_state = (store, states)
+                    # store = process.process_state[0]
+                    store, states = self.process_state(path, process)
+                    states = view_values(states)
                     requested_timestep = process.calculate_timestep(states)
 
                     # progress only to the end of interval

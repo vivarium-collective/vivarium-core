@@ -10,6 +10,8 @@ import copy
 import logging as log
 from pprint import pformat
 import uuid
+import functools
+import orjson
 
 import numpy as np
 from pint import Quantity
@@ -93,6 +95,16 @@ def _always_true(_):
 
 def _identity(y):
     return y
+
+def default(obj):
+    '''
+    serializes Quantity (pint) and function objects for hashing
+    '''
+    if isinstance(obj, Quantity):
+        return str(obj)
+    if callable(obj):
+        return str(obj)
+    raise TypeError
 
 
 def topology_path(topology, path):
@@ -1264,6 +1276,21 @@ class Store:
             else:
                 state[key] = self.get_path(path).get_value()
         return state
+
+    def schema_serialize(self, *args):
+        '''
+        make schema_topology arguments hashable for lru_cache
+        '''
+        args = tuple(orjson.dumps(arg, default=default, option=orjson.OPT_SERIALIZE_NUMPY | orjson.OPT_NON_STR_KEYS) for arg in args)
+        return self.schema_deserialize(args)
+    
+    @functools.lru_cache
+    def schema_deserialize(self, args):
+        '''
+        wrapper around schema_topology to deserialize arguments
+        '''
+        args = tuple(orjson.loads(arg) for arg in args)
+        return self.schema_topology(*args)
 
     def schema_topology(self, schema, topology):
         """
