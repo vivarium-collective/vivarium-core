@@ -656,10 +656,6 @@ class Engine:
                 if process_time <= time:
 
                     # get the time step
-                    # if process.process_state == ():
-                    #     store, states = self.process_state(path, process)
-                    #     process.process_state = (store, states)
-                    # store = process.process_state[0]
                     store, states = self.process_state(path, process)
                     states = view_values(states)
                     requested_timestep = process.calculate_timestep(states)

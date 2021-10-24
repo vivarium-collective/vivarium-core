@@ -1235,7 +1235,7 @@ class Store:
                     f"with value {self.value} for update {pformat(update)}")
             else:
                 raise Exception(
-                    f"failed update at path {self.path_for} "
+                    f"failed update at path {self.path_for()} "
                     f"with value {self.value} for update {pformat(update)}")
 
         return EMPTY_UPDATES
