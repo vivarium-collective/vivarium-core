@@ -92,7 +92,7 @@ def serialize_value(value: Any) -> Any:
         value = cast(Composer, value)
         return _serialize_dictionary(
             serializer_registry.access('composer').serialize(value))
-    if isinstance(value, (np.integer, np.floating)):
+    if isinstance(value, (np.integer, np.floating, np.bool_)):
         return serializer_registry.access(
             'numpy_scalar').serialize(value)
     if isinstance(value, ObjectId):
