@@ -249,7 +249,7 @@ class TaskGraph:
 
         Raises:
             ValueError: If the graph produced by adding the task is not
-            a DAG.
+                a DAG.
         '''
         self.graph.add_node(task_path)
         for dependency in dependencies:
