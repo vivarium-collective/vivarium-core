@@ -10,7 +10,8 @@ import os
 import logging as log
 import pprint
 from typing import (
-    Any, Dict, Optional, Union, Tuple, Callable, Iterable, List, Set)
+    Any, Dict, Optional, Union, Tuple, Callable, Iterable, List, Set,
+    cast)
 import math
 import datetime
 import time as clock
@@ -24,13 +25,16 @@ from vivarium.core.emitter import get_emitter
 from vivarium.core.process import (
     Process,
     ParallelProcess,
+    Task,
+    Deriver,
 )
 from vivarium.core.serialize import serialize_value
 from vivarium.core.composer import Composer
 from vivarium.library.topology import (
     delete_in,
     assoc_path,
-    inverse_topology
+    inverse_topology,
+    normalize_path,
 )
 from vivarium.library.units import units
 from vivarium.core.types import (
@@ -301,6 +305,11 @@ class TaskGraph:
             self.graph.remove_node(path_to_delete)
 
     def copy(self) -> 'TaskGraph':
+        '''Create a copy of self.
+
+        Returns:
+            A new TaskGraph with a copy of self's graph.
+        '''
         new = self.__class__()
         new.graph = self.graph.copy()
         return new
@@ -439,9 +448,18 @@ class Engine:
             process: Process,
             path: HierarchyPath
     ) -> None:
-        if process.is_task():
+        if process.is_deriver():
             self.task_graph.add_sequential_task(path)
             self.task_paths[path] = process
+        elif process.is_task():
+            task = cast(Task, process)
+            relative_dependencies = task.get_dependencies()
+            dependencies = [
+                path + ('..',) + dep for dep in relative_dependencies]
+            norm_dependencies = [
+                normalize_path(dep) for dep in dependencies]
+            self.task_graph.add_task(path, norm_dependencies)
+            self.task_paths[path] = task
         else:
             self.process_paths[path] = process
 
@@ -1460,6 +1478,159 @@ class TestTaskGraph:
         layers = list(tg.get_execution_layers())
 
         assert layers == []
+
+
+def test_runtime_order() -> None:
+
+    class RuntimeOrderProcess(Process):
+
+        def ports_schema(self) -> Schema:
+            return {
+                'store': {
+                    'var': {
+                        '_default': 0
+                    }
+                }
+            }
+
+        def next_update(self, timestep: float, state: State) -> Update:
+            self.parameters['execution_log'].append(self.name)
+            return {}
+
+
+    class RuntimeOrderTask(Task):
+
+        def ports_schema(self) -> Schema:
+            return {
+                'store': {
+                    'var': {
+                        '_default': 0
+                    }
+                }
+            }
+
+        def next_update(self, timestep: float, state: State) -> Update:
+            self.parameters['execution_log'].append(self.name)
+            return {}
+
+    class RuntimeOrderDeriver(Deriver):
+
+        def ports_schema(self) -> Schema:
+            return {
+                'store': {
+                    'var': {
+                        '_default': 0
+                    }
+                }
+            }
+
+        def next_update(self, timestep: float, state: State) -> Update:
+            self.parameters['execution_log'].append(self.name)
+            return {}
+
+    class RuntimeOrderComposer(Composer):
+
+        def generate_processes(
+                self, config: Optional[dict]) -> Dict[str, Any]:
+            config = cast(dict, config or {})
+            proc1 = RuntimeOrderProcess({
+                'name': 'process1',
+                'time_step': 1,
+                'execution_log': config['execution_log'],
+            })
+            proc2 = RuntimeOrderProcess({
+                'name': 'process2',
+                'time_step': 2,
+                'execution_log': config['execution_log'],
+            })
+            task1 = RuntimeOrderTask({
+                'name': 'task1',
+                'execution_log': config['execution_log'],
+            })
+            task2 = RuntimeOrderTask({
+                'name': 'task2',
+                'dependencies': [('t1',)],
+                'execution_log': config['execution_log'],
+            })
+            deriver = RuntimeOrderDeriver({
+                'name': 'deriver',
+                'execution_log': config['execution_log'],
+            })
+            task3 = RuntimeOrderTask({
+                'name': 'task3',
+                'dependencies': [('t2',)],
+                'execution_log': config['execution_log'],
+            })
+            return {
+                'p1': proc1,
+                'p2': proc2,
+                't1': task1,
+                't2': task2,
+                'd': deriver,
+                't3': task3,
+            }
+
+        def generate_topology(self, config: Optional[dict]) -> Topology:
+            return {
+                'p1': {
+                    'store': ('store',),
+                },
+                'p2': {
+                    'store': ('store',),
+                },
+                't1': {
+                    'store': ('store',),
+                },
+                't2': {
+                    'store': ('store',),
+                },
+                'd': {
+                    'store': ('store',),
+                },
+                't3': {
+                    'store': ('store',),
+                },
+            }
+
+    execution_log: List[str] = []
+    composer = RuntimeOrderComposer()
+    composite = composer.generate({'execution_log': execution_log})
+    experiment = Engine(
+        processes=composite.processes,
+        topology=composite.topology,
+    )
+    expected_layers = [
+        {('t1',)},
+        {('t2',)},
+        {('d',), ('t3',)},
+    ]
+    layers = experiment.task_graph.get_execution_layers()
+    assert layers == expected_layers
+    experiment.update(4)
+    expected_log = [
+        ('task1', 'task2'),
+        {'deriver', 'task3'},
+        ('process1', 'process2'),
+        ('task1', 'task2'),
+        {'deriver', 'task3'},
+        ('process1',),
+        ('task1', 'task2'),
+        {'deriver', 'task3'},
+        ('process1', 'process2'),
+        ('task1', 'task2'),
+        {'deriver', 'task3'},
+        ('process1',),
+        ('task1', 'task2'),
+        {'deriver', 'task3'},
+    ]
+    for expected_group in expected_log:
+        num = len(expected_group)
+        group = execution_log[0:num]
+        execution_log = execution_log[num:]
+        if isinstance(expected_group, tuple):
+            assert tuple(group) == expected_group
+        elif isinstance(expected_group, set):
+            assert set(group) == expected_group
 
 
 if __name__ == '__main__':
