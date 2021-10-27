@@ -331,6 +331,8 @@ class NumpyScalarSerializer(Serializer):
             return int(data)
         if isinstance(data, (float, np.floating)):
             return float(data)
+        if isinstance(data, (bool, np.bool_)):
+            return bool(data)
         raise ValueError(
             'Cannot serialize numpy scalar {} of type {}.'.format(
                 data, type(data)
@@ -343,6 +345,8 @@ class NumpyScalarSerializer(Serializer):
             return np.int64(data)
         if isinstance(data, float):
             return np.float64(data)
+        if isinstance(data, bool):
+            return np.bool_(data)
         raise ValueError(
             'Cannot deserialize scalar {} of type {}.'.format(
                 data, type(data)
