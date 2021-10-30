@@ -658,8 +658,7 @@ class Engine:
 
         # translate the values from the tree structure into the form
         # that this process expects, based on its declared topology
-        states = store.outer.schema_topology(
-            process.get_schema(), store.topology)
+        states = store.outer.schema_topology(process.schema, store.topology)
 
         return store, states
 
@@ -768,6 +767,10 @@ class Engine:
                     # Step was deleted by a previous step.
                     continue
                 # Timestep shouldn't influence steps.
+                # TODO(jerry): Do something cleaner than having
+                #  generate_paths() add a schema attribute to the Deriver.
+                #  PyCharm's type check reports:
+                #    Type Process doesn't have expected attribute 'schema'
                 update, store = self.calculate_update(
                     path, step, 0)
                 deferred_updates.append((update, store))

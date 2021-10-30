@@ -398,8 +398,9 @@ class Store:
         self.topology = insert_topology(
             topology, port_path, self.outer.path_to(target_store))
 
+        self.value.schema = self.value.get_schema()
         self.outer.topology_ports(
-            self.value.get_schema(),
+            self.value.schema,
             self.topology,
             source=self.path_for())
 
@@ -1832,8 +1833,9 @@ class Store:
 
                 self.inner[key] = process_state
 
+                subprocess.schema = subprocess.get_schema()
                 self.topology_ports(
-                    subprocess.get_schema(),
+                    subprocess.schema,
                     subtopology,
                     source=self.path_for() + (key,))
             else:
