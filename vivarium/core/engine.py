@@ -219,6 +219,7 @@ class Engine:
             initial_state: Optional[State] = None,
             experiment_id: Optional[str] = None,
             experiment_name: Optional[str] = None,
+            metadata: Optional[dict] = None,
             description: str = '',
             emitter: Union[str, dict] = 'timeseries',
             emit_topology: bool = True,
@@ -288,6 +289,7 @@ class Engine:
 
         # display settings
         self.experiment_name = experiment_name or self.experiment_id
+        self.metadata = metadata
         self.description = description
         self.display_info = display_info
         self.progress_bar = progress_bar
@@ -362,6 +364,7 @@ class Engine:
             'experiment_id': self.experiment_id,
             'name': self.experiment_name,
             'description': self.description,
+            'metadata': self.metadata,
             'topology': self.topology
             if self.emit_topology else None,
             'processes': serialize_value(self.processes)
