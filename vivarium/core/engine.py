@@ -520,7 +520,7 @@ class Engine:
             depend_on_derivers: bool = False,
     ) -> None:
         tree = hierarchy_depth(steps)
-        first_step = True
+        first_step = depend_on_derivers
         for path, step in tree.items():
             name = path[-1]
             self._add_step_path(step, path, flow.get(name), first_step)
@@ -658,7 +658,8 @@ class Engine:
 
         # translate the values from the tree structure into the form
         # that this process expects, based on its declared topology
-        states = store.outer.schema_topology(process.get_schema(), store.topology)
+        states = store.outer.schema_topology(
+            process.get_schema(), store.topology)
 
         return store, states
 
@@ -707,7 +708,7 @@ class Engine:
             flow_updates, deletions
         ) = self.state.apply_update(update, state)
 
-        flow_update_dict = {path: flow for path, flow in flow_updates}
+        flow_update_dict = dict(flow_updates)
 
         if topology_updates:
             for path, topology_update in topology_updates:

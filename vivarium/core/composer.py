@@ -238,6 +238,7 @@ class Composer(metaclass=abc.ABCMeta):
             step names to instantiated and configured
             :py:class:`vivarium.core.process.Step` objects.
         '''
+        _ = config
         return {}  # pragma: no cover
 
     def generate_flow(self, config: Optional[dict]) -> Flow:
@@ -258,6 +259,7 @@ class Composer(metaclass=abc.ABCMeta):
             flow will be treated as if they depend on every step
             previously added to the :term:`engine`.
         '''
+        _ = config
         return {}  # pragma: no cover
 
     @abc.abstractmethod
