@@ -215,13 +215,37 @@ class Store:
 
         self.apply_config(config, source)
 
-    # For the Store API
     def __getitem__(self, path):
+        '''Retrieve a :term:`hierarchy` node by its :term:`path`.
+
+        .. WARNING:
+
+           This function is **experimental** and part of the
+           :term:`store API`.
+
+        Args:
+            path: Path, relative to ``self``, of the store to retrieve.
+
+        Returns:
+            The store at ``path``. Note that the store is returned, not
+            the value of that store.
+        '''
         path = convert_path(path)
         return self.get_path(path)
 
-    # For the Store API
     def __setitem__(self, path, value):
+        '''Set a :term:`hierarchy` node's value by its :term:`path`.
+
+        .. WARNING:
+
+           This function is **experimental** and part of the
+           :term:`store API`.
+
+        Args:
+            path: Path, relative to ``self``, of the store to modify.
+            value: The value to be stored as the value of the store at
+                ``path``.
+        '''
         path = convert_path(path)
         self.set_path(path, value)
 
@@ -243,15 +267,34 @@ class Store:
         store.apply_defaults()
         return store
 
-    # For the Store API
     def connect(self, path, value, absolute=False):
+        '''Wire a store's process to another store.
+
+        This function must not be used unless ``self`` holds a
+        :term:`process`.
+
+        .. WARNING:
+
+           This function is **experimental** and part of the
+           :term:`store API`.
+
+        Args:
+            path: Path of the port to connect.
+            value: The store (or the path to the store) to connect to
+                the port at ``path``.
+
+        Raises:
+            AssertionError: If ``self.value`` is not an instance of
+                :py:class:`vivarium.core.process.Process`.
+            Exception: If ``value`` is a :py:class:`Store` that is in a
+                different tree than ``self``.
+        '''
         path = convert_path(path)
         assert isinstance(self.value, Process), \
             f'cannot connect non-process {self.value} at {self.path_for()} to {path}'
 
         if isinstance(value, Store):
             target_store = value
-            assert isinstance(target_store, Store)
             if self.independent_store(target_store):
                 raise Exception(
                     f"the store being inserted at {path} is from a different tree "
@@ -266,8 +309,20 @@ class Store:
         # update the topology
         self.update_topology(path, target_store)
 
-    # For the Store API
     def set_path(self, path, value):
+        '''Set a value at a path in the hierarchy.
+
+        .. WARNING:
+
+           This function is **experimental** and part of the
+           :term:`store API`.
+
+        Args:
+            path: The :term:`path` relative to ``self`` where the value
+                should be set.
+            value: The value to set. The store node at ``path`` will
+                hold ``value`` when this function returns.
+        '''
 
         # this case only when called directly
         if len(path) == 0:
@@ -319,10 +374,23 @@ class Store:
         else:
             raise Exception("this should never happen")
 
-    # For the Store API
     def update_topology(self, port_path, target_store):
-        """
-        Can only be at a process node
+        """Update the topology with a new port-path pair.
+
+        To use this function ``self`` must hold a :term:`process`.
+
+        .. WARNING:
+
+           This function is **experimental** and part of the
+           :term:`store API`.
+
+        Args:
+            port_path: Port of the new topology entry.
+            target_store: The store to wire to ``port_path``.
+
+        Raises:
+            AssertionError: If ``self.value`` is not an instance of
+                :py:class:`vivarium.core.process.Process`.
         """
 
         assert isinstance(self.value, Process), \

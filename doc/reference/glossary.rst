@@ -290,6 +290,11 @@ Glossary
         in the cytoplasm, and one for the transcripts in the nucleus.
         Each :term:`variable` must belong to exactly one store.
 
+    Store API
+    store API
+        An experimental API that allows for simulations to be built up
+        from :term:`stores`.
+
     Template
     template
     Templates
