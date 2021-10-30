@@ -11,6 +11,7 @@ from multiprocessing import Process as Multiprocess
 from multiprocessing.connection import Connection
 from typing import (
     Any, Dict, Optional, Union, List)
+from warnings import warn
 
 from vivarium.library.dict_utils import deep_merge
 from vivarium.library.topology import assoc_path, get_in
@@ -246,7 +247,12 @@ class Process(metaclass=abc.ABCMeta):
         return state
 
     def is_deriver(self) -> bool:
-        """Check whether this process is a deriver.
+        """Check whether this process is a :term:`deriver`.
+
+        .. deprecated:: 0.3.14
+           Derivers have been deprecated in favor of :term:`steps`, so
+           please override ``is_step`` instead of ``is_deriver``.
+           Support for Derivers may be removed in a future release.
 
         Returns:
             Whether this process is a deriver. This class always returns
@@ -254,13 +260,21 @@ class Process(metaclass=abc.ABCMeta):
         """
         return False
 
-    def is_task(self) -> bool:
-        """Check whether this process is a task.
+    def is_step(self) -> bool:
+        """Check whether this process is a :term:`step`.
 
         Returns:
-            Whether this process is a task. This class always returns
-            ``False``, but subclasses may change this.
+            Whether this process is a step. This class always returns
+            ``False``, but subclasses may change this behavior.
         """
+        method = getattr(self.is_deriver, '__func__', None)
+        if method and method is not Process.is_deriver:
+            # `self` is an instance of a subclass that has overridden
+            # `is_deriver`.
+            warn(
+                'is_deriver() is deprecated. Use is_step() instead.',
+                category=FutureWarning)
+            return self.is_deriver()
         return False
 
     def get_private_state(self) -> State:
@@ -332,34 +346,22 @@ class Process(metaclass=abc.ABCMeta):
         return True
 
 
-class Task(Process, metaclass=abc.ABCMeta):
-    """Base class for tasks."""
+class Step(Process, metaclass=abc.ABCMeta):
+    """Base class for steps."""
 
     def __init__(self, parameters: Optional[dict] = None) -> None:
         parameters = parameters or {}
         self.dependencies = parameters.pop('dependencies', [])
         super().__init__(parameters)
 
-    def is_task(self) -> bool:
-        """Returns ``True`` to signal that this process is a task."""
+    def is_step(self) -> bool:
+        """Returns ``True`` to signal that this process is a step."""
         return True
 
-    def get_dependencies(self) -> List[HierarchyPath]:
-        return self.dependencies
 
-
-class Deriver(Task, metaclass=abc.ABCMeta):
-    """Base class for :term:`derivers`.
-
-    Derivers are :py:class:`Task` objects that run sequentially.
-    """
-
-    def is_deriver(self) -> bool:
-        """Returns ``True`` to signal that this process is a deriver."""
-        return True
-
-    def get_dependencies(self) -> List[HierarchyPath]:
-        return []
+#: Deriver is just an alias for :py:class:`Step` now that Derivers have
+#: been deprecated.
+Deriver = Step
 
 
 def _run_update(connection: Connection, process: Process) -> None:
