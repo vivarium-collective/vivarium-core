@@ -43,8 +43,8 @@ def generate_state(
         Initialized state.
     """
     store = Store({})
-    store.generate(tuple(), processes, flow, topology, initial_state)
-    store.generate(tuple(), steps, flow, topology, initial_state)
+    steps = steps or {}
+    store.generate(tuple(), processes, steps, flow, topology, initial_state)
 
     return store
 
@@ -1162,11 +1162,6 @@ class Store:
         self.generate(
             path,
             insertion['processes'],
-            insertion.get('flow'),
-            insertion['topology'],
-            insertion['initial_state'])
-        self.generate(
-            path,
             insertion.get('steps', {}),
             insertion.get('flow'),
             insertion['topology'],
@@ -1261,6 +1256,7 @@ class Store:
             self.generate(
                 daughter_path,
                 processes,
+                {},
                 flow,
                 topology,
                 initial_state)
@@ -1849,7 +1845,7 @@ class Store:
                     subtopology,
                 )
 
-    def generate(self, path, processes, flow, topology, initial_state):
+    def generate(self, path, processes, steps, flow, topology, initial_state):
         """
         Generate a subtree of this store at the given path.
         The processes will be mapped into locations in the tree by the
@@ -1859,6 +1855,7 @@ class Store:
 
         target = self.establish_path(path, {})
         target._generate_paths(processes, flow, topology)
+        target._generate_paths(steps, flow, topology)
         target.generate_value(initial_state)
         target.apply_subschemas()
         target.apply_defaults()
