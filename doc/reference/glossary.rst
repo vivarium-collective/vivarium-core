@@ -149,6 +149,8 @@ Glossary
 
     Path
     path
+    Paths
+    paths
         In its most general form, a path specifies an item in a nested
         dictionary as a tuple of dictionary keys. For example, consider
         the following nested dictionary:
@@ -275,8 +277,9 @@ Glossary
         Steps run after all processes have run for a :term:`timepoint`
         and compute values from the state of the model. These steps may
         have dependencies on each other, and these dependencies are
-        specified in the ``flow`` key of :py:class:`Composite`
-        dictionaries. For more information, see the documentation for
+        specified in the ``flow`` key of
+        :py:class:`vivarium.core.composer.Composite` dictionaries. For
+        more information, see the documentation for
         :py:class:`vivarium.core.composer.Composer`.
 
     Store

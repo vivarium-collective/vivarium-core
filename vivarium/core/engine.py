@@ -339,48 +339,44 @@ class Engine:
     ) -> None:
         """Defines simulations
 
-        Arguments:
-        * **processes** (:py:class:`dict`): A dictionary that
-          maps :term:`process` names to process objects. You will
-          usually get this from the ``processes`` key of the
-          dictionary from
-          :py:meth:`vivarium.core.composer.Composer.generate`.
-        * **steps** (:py:class:`dict`): A dictionary that
-          maps :term:`step` names to step objects. You will
-          usually get this from the ``steps`` key of the
-          dictionary from
-          :py:meth:`vivarium.core.composer.Composer.generate`.
-        * **flow** (:py:class:`dict`): A dictionary that
-          maps :term:`step` names to sequences of paths to the steps
-          that the step depends on. You will usually get this from the
-          ``flow`` key of the dictionary from
-          :py:meth:`vivarium.core.composer.Composer.generate`.
-        * **topology** (:py:class:`dict`): A dictionary that
-          maps process names to sub-dictionaries. These sub-dictionaries
-          map the process's port names to tuples that specify a path
-          through the :term:`tree` from the :term:`compartment` root to
-          the :term:`store` that will be passed to the process for that
-          port.
-        * **store**: A pre-loaded Store. This is an alternative to
-          passing in processes and topology dict, which can not be
-          loaded at the same time.
-        * **initial_state** (:py:class:`dict`): By default an
-          empty dictionary, this is the initial state of the simulation.
-        * **experiment_id** (:py:class:`uuid.UUID` or :py:class:`str`):
-          A unique identifier for the experiment. A UUID will be
-          generated if none is provided.
-        * **description** (:py:class:`str`): A description of the
-          experiment. A blank string by default.
-        * **emitter** (:py:class:`dict`): An emitter configuration
-          which must conform to the specification in the documentation
-          for :py:func:`vivarium.core.emitter.get_emitter`. The
-          experiment ID will be added to the dictionary you provide as
-          the value for the key ``experiment_id``.
-        * **display_info** (:py:class:`bool`): prints experiment info
-        * **progress_bar** (:py:class:`bool`): shows a progress bar
-        * **emit_config** (:py:class:`bool`): If True, this will emit
-          the serialized processes, topology, and initial state.
-
+        Args:
+            processes: A dictionary that maps :term:`process` names to
+                process objects. You will usually get this from the
+                ``processes`` key of the dictionary from
+                :py:meth:`vivarium.core.composer.Composer.generate`.
+            steps: A dictionary that maps :term:`step` names to step
+                objects. You will usually get this from the ``steps``
+                key of the dictionary from
+                :py:meth:`vivarium.core.composer.Composer.generate`.
+            flow: A dictionary that maps :term:`step` names to sequences
+                of paths to the steps that the step depends on. You will
+                usually get this from the ``flow`` key of the dictionary
+                from
+                :py:meth:`vivarium.core.composer.Composer.generate`.
+            topology: A dictionary that maps process names to
+                sub-dictionaries. These sub-dictionaries map the
+                process's port names to tuples that specify a path
+                through the :term:`tree` from the :term:`compartment`
+                root to the :term:`store` that will be passed to the
+                process for that port.
+            store: A pre-loaded Store. This is an alternative to passing
+                in processes and topology dict, which can not be loaded
+                at the same time.
+            initial_state: By default an empty dictionary, this is the
+                initial state of the simulation.
+            experiment_id: A unique identifier for the experiment. A
+                UUID will be generated if none is provided.
+            description: A description of the experiment. A blank string
+                by default.
+            emitter: An emitter configuration which must conform to the
+                specification in the documentation for
+                :py:func:`vivarium.core.emitter.get_emitter`. The
+                experiment ID will be added to the dictionary you
+                provide as the value for the key ``experiment_id``.
+            display_info: prints experiment info
+            progress_bar: shows a progress bar
+            emit_config: If True, this will emit the serialized
+                processes, topology, and initial state.
         """
 
         self.experiment_id = experiment_id or str(uuid.uuid1())
