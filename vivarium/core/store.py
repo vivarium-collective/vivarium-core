@@ -43,11 +43,8 @@ def generate_state(
         Initialized state.
     """
     store = Store({})
-    store.generate_paths(processes, flow or {}, topology)
-    store.generate_paths(steps or {}, flow or {}, topology)
-    store.apply_subschemas()
-    store.set_value(initial_state)
-    store.apply_defaults()
+    store.generate(tuple(), processes, flow, topology, initial_state)
+    store.generate(tuple(), steps, flow, topology, initial_state)
 
     return store
 
@@ -1092,6 +1089,13 @@ class Store:
         target.set_value(added_state)
 
     def move(self, move, process_store):
+        '''
+        .. WARNING:
+
+           While this function is used internally by :py:class:`Store`,
+           using it as a public method is **experimental** and part of
+           the :term:`store API`.
+        '''
         process_updates = []
         step_updates = []
         flow_updates = []
@@ -1140,6 +1144,13 @@ class Store:
             topology_updates, deletions)
 
     def insert(self, insertion):
+        '''
+        .. WARNING:
+
+           While this function is used internally by :py:class:`Store`,
+           using it as a public method is **experimental** and part of
+           the :term:`store API`.
+        '''
         process_updates = []
         step_updates = []
         flow_updates = []
@@ -1185,6 +1196,13 @@ class Store:
         return process_updates, step_updates, flow_updates, topology_updates
 
     def divide(self, divide):
+        '''
+        .. WARNING:
+
+           While this function is used internally by :py:class:`Store`,
+           using it as a public method is **experimental** and part of
+           the :term:`store API`.
+        '''
         process_and_step_updates = []
         process_updates = []
         step_updates = []
@@ -1280,6 +1298,13 @@ class Store:
             topology_updates, deletions)
 
     def delete(self, key, here=None):
+        '''
+        .. WARNING:
+
+           While this function is used internally by :py:class:`Store`,
+           using it as a public method is **experimental** and part of
+           the :term:`store API`.
+        '''
         if here is None:
             here = self.path_for()
         deletions = []
@@ -1773,12 +1798,18 @@ class Store:
                         subschema,
                         source=source)
 
-    def generate_paths(
+    def _generate_paths(
             self, processes: Processes, flow: Flow, topology: Topology):
         """Set up state :term:`hierarchy` with stores.
 
         Recursively creates the entire state hierarchy rooted at
         ``self``.
+
+        .. WARNING::
+
+           This method is public since it is used by
+           :py:func:`generate_state`, but it should not be used from
+           outside this module. It is not part of the supported API.
 
         Args:
             processes: Map from process names to process objects,
@@ -1814,7 +1845,7 @@ class Store:
             else:
                 if key not in self.inner:
                     self.inner[key] = Store({}, outer=self)
-                self.inner[key].generate_paths(
+                self.inner[key]._generate_paths(
                     subprocess,
                     subflow,
                     subtopology,
@@ -1829,7 +1860,7 @@ class Store:
         """
 
         target = self.establish_path(path, {})
-        target.generate_paths(processes, flow, topology)
+        target._generate_paths(processes, flow, topology)
         target.generate_value(initial_state)
         target.apply_subschemas()
         target.apply_defaults()
