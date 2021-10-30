@@ -4,7 +4,7 @@ Types
 =====
 """
 
-from typing import Tuple, Dict, Any, Union
+from typing import Tuple, Dict, Any, Union, Sequence
 
 
 #: Relative path between nodes in the :term:`hierarchy`. Like Unix file
@@ -18,6 +18,14 @@ Topology = Dict[str, Union[HierarchyPath, dict]]
 #: Mapping from processes names to Processes, which can be embedded in
 #: a hierarchy.
 Processes = Dict[str, Any]
+
+#: Mapping from step names to Steps, which can be embedded in a
+#: hierarchy.
+Steps = Dict[str, Any]
+
+#: Mapping from step names to sequences of HierarchyPaths that specify
+#: the step's dependencies.
+Flow = Dict[str, Sequence[HierarchyPath]]
 
 #: A dictionary that specifies a :term:`schema`.
 Schema = Dict[str, Any]
