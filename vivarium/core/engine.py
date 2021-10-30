@@ -11,11 +11,12 @@ import logging as log
 import pprint
 from typing import (
     Any, Dict, Optional, Union, Tuple, Callable, Iterable, List, Set,
-    cast)
+    cast, Sequence)
 import math
 import datetime
 import time as clock
 import uuid
+import warnings
 
 import networkx as nx
 
@@ -25,7 +26,7 @@ from vivarium.core.emitter import get_emitter
 from vivarium.core.process import (
     Process,
     ParallelProcess,
-    Task,
+    Step,
     Deriver,
 )
 from vivarium.core.serialize import serialize_value
@@ -38,7 +39,8 @@ from vivarium.library.topology import (
 )
 from vivarium.library.units import units
 from vivarium.core.types import (
-    HierarchyPath, Topology, Schema, State, Update, Processes)
+    HierarchyPath, Topology, Schema, State, Update, Processes, Steps,
+    Flow)
 
 pretty = pprint.PrettyPrinter(indent=2, sort_dicts=False)
 
@@ -216,99 +218,98 @@ class InvokeProcess:
         return self.update
 
 
-class TaskGraph:
-    '''A dependency graph of tasks.
+class StepGraph:
+    '''A dependency graph of :term:`steps`.
 
-    A task is just a Process object that has dependencies on other
-    tasks. Unlike processes, which can be run in any order, tasks run
-    every timestep. In a given timestep, each task must not run until
-    all its dependency tasks have run and had their updates applied.
+    A step is just a Process object that has dependencies on other
+    steps. Unlike processes, which can be run in any order, steps run
+    every timestep. In a given timestep, each step must not run until
+    all its dependency steps have run and had their updates applied.
 
     Attributes:
         graph: A NetworkX DiGraph with an edge for each dependency
-            relationship and a node for each task path. If the task at
-            path ``a`` depends on the task at path ``b``, then the graph
+            relationship and a node for each step path. If the step at
+            path ``a`` depends on the step at path ``b``, then the graph
             will contain an edge from ``b`` to ``a``. This means that a
             topological sort of the graph produces a valid runtime order
-            for the tasks. Note that the graph must be a DAG.
+            for the step. Note that the graph must be a DAG.
     '''
 
     def __init__(self) -> None:
         self.graph = nx.DiGraph()
 
-    def add_task(
+    def add(
             self,
-            task_path: HierarchyPath,
+            path: HierarchyPath,
             dependencies: Iterable[HierarchyPath]) -> None:
-        '''Add a task to the graph.
+        '''Add a step to the graph.
 
         Args:
-            task_path: The task object's path in the hierarchy.
-            dependencies: The hierarchy paths to each dependency of the
-                task.
+            path: The step object's path in the hierarchy.
+            dependencies: The hierarchy paths to each dependency.
 
         Raises:
-            ValueError: If the graph produced by adding the task is not
+            ValueError: If the graph produced by adding the step is not
                 a DAG.
         '''
-        self.graph.add_node(task_path)
+        self.graph.add_node(path)
         for dependency in dependencies:
-            self.graph.add_edge(dependency, task_path)
+            self.graph.add_edge(dependency, path)
         if not nx.is_directed_acyclic_graph(self.graph):
-            raise ValueError('Task graph must be a DAG.')
+            raise ValueError('Step graph must be a DAG.')
 
-    def add_sequential_task(
+    def add_sequential(
             self,
-            task_path: HierarchyPath) -> None:
-        '''Add a task that is meant to run sequentially.
+            path: HierarchyPath) -> None:
+        '''Add a step that is meant to run sequentially.
 
-        Legacy tasks (called "derivers") were meant to run sequentially
+        Legacy steps (:term:`derivers`) were meant to run sequentially
         instead of being provided as a dependency graph. To support
-        these legacy tasks, this method adds a task that will run after
-        all tasks currently in the graph.
+        these legacy steps, this method adds a step that will run after
+        all steps currently in the graph.
 
         Args:
-            task_path: The path to the task in the hierarchy.
+            path: The path to the step in the hierarchy.
         '''
-        self.add_task(task_path, list(self.graph.nodes))
+        self.add(path, list(self.graph.nodes))
 
     def get_execution_layers(self) -> List[Set[HierarchyPath]]:
-        '''Get task execution layers, with tasks represnted by paths.
+        '''Get step execution layers, with steps represnted by paths.
 
-        An execution layer is a set of tasks that can be executed in
+        An execution layer is a set of steps that can be executed in
         parallel. The graph's execution layers are an ordered list of
         these layers such that:
 
-        * For a given layer, every task in the layer may be executed as
-          soon as all tasks in preceding layers have been executed.
-        * Every task is in as early a layer as possible.
+        * For a given layer, every step in the layer may be executed as
+          soon as all steps in preceding layers have been executed.
+        * Every step is in as early a layer as possible.
 
         In other words, the execution layers are the topological
         generations of the graph.
 
         Returns:
-            An ordered list of the execution layers, with each task
+            An ordered list of the execution layers, with each step
             represented by its path.
         '''
         layers = nx.topological_generations(self.graph)
         return [set(layer) for layer in layers]
 
     def remove(self, path: HierarchyPath) -> None:
-        '''Delete a task based on its path.
+        '''Delete a step based on its path.
 
         Args:
-            path: Hierarhcy path of the task to delete.
+            path: Hierarhcy path of the step to delete.
         '''
         to_delete = nx.algorithms.dag.descendants(self.graph, path)
         to_delete.add(path)
         for path_to_delete in to_delete:
             self.graph.remove_node(path_to_delete)
 
-    def copy(self) -> 'TaskGraph':
+    def copy(self) -> 'StepGraph':
         '''Create a copy of self.
 
         Returns:
-            A new TaskGraph with a copy of self's graph.
+            A new StepGraph with a copy of self's graph.
         '''
         new = self.__class__()
         new.graph = self.graph.copy()
@@ -319,6 +320,8 @@ class Engine:
     def __init__(
             self,
             processes: Optional[Processes] = None,
+            steps: Optional[Steps] = None,
+            flow: Optional[Flow] = None,
             topology: Optional[Topology] = None,
             store: Optional[Store] = None,
             initial_state: Optional[State] = None,
@@ -338,33 +341,45 @@ class Engine:
 
         Arguments:
         * **processes** (:py:class:`dict`): A dictionary that
-        maps :term:`process` names to process objects. You will
-        usually get this from the ``processes`` attribute of the
-        dictionary from :py:meth:`vivarium.core.composer.Composer.generate`.
+          maps :term:`process` names to process objects. You will
+          usually get this from the ``processes`` key of the
+          dictionary from
+          :py:meth:`vivarium.core.composer.Composer.generate`.
+        * **steps** (:py:class:`dict`): A dictionary that
+          maps :term:`step` names to step objects. You will
+          usually get this from the ``steps`` key of the
+          dictionary from
+          :py:meth:`vivarium.core.composer.Composer.generate`.
+        * **flow** (:py:class:`dict`): A dictionary that
+          maps :term:`step` names to sequences of paths to the steps
+          that the step depends on. You will usually get this from the
+          ``flow`` key of the dictionary from
+          :py:meth:`vivarium.core.composer.Composer.generate`.
         * **topology** (:py:class:`dict`): A dictionary that
-        maps process names to sub-dictionaries. These sub-dictionaries
-        map the process's port names to tuples that specify a path through
-        the :term:`tree` from the :term:`compartment` root to the
-        :term:`store` that will be passed to the process for that port.
+          maps process names to sub-dictionaries. These sub-dictionaries
+          map the process's port names to tuples that specify a path
+          through the :term:`tree` from the :term:`compartment` root to
+          the :term:`store` that will be passed to the process for that
+          port.
         * **store**: A pre-loaded Store. This is an alternative to
-        passing in processes and topology dict, which can not be
-        loaded at the same time.
+          passing in processes and topology dict, which can not be
+          loaded at the same time.
         * **initial_state** (:py:class:`dict`): By default an
-        empty dictionary, this is the initial state of the simulation.
+          empty dictionary, this is the initial state of the simulation.
         * **experiment_id** (:py:class:`uuid.UUID` or :py:class:`str`):
-        A unique identifier for the experiment. A UUID will be generated
-        if none is provided.
+          A unique identifier for the experiment. A UUID will be
+          generated if none is provided.
         * **description** (:py:class:`str`): A description of the
-        experiment. A blank string by default.
+          experiment. A blank string by default.
         * **emitter** (:py:class:`dict`): An emitter configuration
-        which must conform to the specification in the documentation
-        for :py:func:`vivarium.core.emitter.get_emitter`. The experiment
-        ID will be added to the dictionary you provide as the value for
-        the key ``experiment_id``.
+          which must conform to the specification in the documentation
+          for :py:func:`vivarium.core.emitter.get_emitter`. The
+          experiment ID will be added to the dictionary you provide as
+          the value for the key ``experiment_id``.
         * **display_info** (:py:class:`bool`): prints experiment info
         * **progress_bar** (:py:class:`bool`): shows a progress bar
         * **emit_config** (:py:class:`bool`): If True, this will emit
-        the serialized processes, topology, and initial state.
+          the serialized processes, topology, and initial state.
 
         """
 
@@ -375,21 +390,31 @@ class Engine:
         # get the processes, topology, and store
         if processes and topology and not store:
             self.processes = processes
+            self.steps = steps or {}
+            self.flow = flow or {}
             self.topology = topology
             # initialize the store
             self.state: Store = generate_state(
                 self.processes,
                 self.topology,
-                self.initial_state)
+                self.initial_state,
+                self.steps,
+                self.flow,
+            )
 
         elif store:
             self.state = store
             # get processes and topology from the store
             self.processes = self.state.get_processes()
+            self.steps = self.state.get_steps()
+            self.flow = self.state.get_flow()
             self.topology = self.state.get_topology()
         else:
             raise Exception(
                 'load either store or (processes and topology) into Engine')
+
+        steps = steps or {}
+        flow = flow or {}
 
         # display settings
         self.experiment_name = experiment_name or self.experiment_id
@@ -406,9 +431,10 @@ class Engine:
 
         # get a mapping of all paths to processes
         self.process_paths: Dict[HierarchyPath, Process] = {}
-        self.task_graph = TaskGraph()
-        self.task_paths: Dict[HierarchyPath, Process] = {}
-        self._find_process_paths(self.processes)
+        self.step_graph = StepGraph()
+        self.step_paths: Dict[HierarchyPath, Process] = {}
+        self._find_process_paths(self.processes, flow)
+        self._find_step_paths(steps, flow, bool(self.step_paths))
 
         # emitter settings
         emitter_config = emitter
@@ -426,8 +452,8 @@ class Engine:
         # initialize global time
         self.experiment_time = 0.0
 
-        # run the tasks
-        self.run_tasks()
+        # run the steps
+        self.run_steps()
 
         # run the emitter
         self.emit_configuration()
@@ -443,33 +469,66 @@ class Engine:
         log.info(pf(self.topology))
 
 
+    def _add_step_path(
+            self,
+            step: Step,
+            path: HierarchyPath,
+            # None if deriver, empty list if no dependencies.
+            relative_dependencies: Optional[Sequence[HierarchyPath]],
+            depend_on_derivers: bool = False,
+    ) -> None:
+        self.step_paths[path] = step
+        if relative_dependencies is None or depend_on_derivers:
+            # The first Step must always depend on any existing derivers
+            # so that the derivers run first.
+            self.step_graph.add_sequential(path)
+            return
+        dependencies = [
+            path + ('..',) + dep for dep in relative_dependencies]
+        norm_dependencies = [
+            normalize_path(dep) for dep in dependencies]
+        self.step_graph.add(path, norm_dependencies)
+
     def _add_process_path(
             self,
             process: Process,
-            path: HierarchyPath
+            path: HierarchyPath,
+            flow: Flow,
     ) -> None:
-        if process.is_deriver():
-            self.task_graph.add_sequential_task(path)
-            self.task_paths[path] = process
-        elif process.is_task():
-            task = cast(Task, process)
-            relative_dependencies = task.get_dependencies()
-            dependencies = [
-                path + ('..',) + dep for dep in relative_dependencies]
-            norm_dependencies = [
-                normalize_path(dep) for dep in dependencies]
-            self.task_graph.add_task(path, norm_dependencies)
-            self.task_paths[path] = task
+        if process.is_step():
+            warnings.warn(
+                f'Found a step {path} in the processes dict. This is '
+                'deprecated. Steps should be specified in the steps '
+                'dict instead.',
+                category=FutureWarning,
+            )
+            step = cast(Step, process)
+            name = path[-1]
+            self._add_step_path(step, path, flow.get(name))
         else:
             self.process_paths[path] = process
 
     def _find_process_paths(
             self,
-            processes: Processes
+            processes: Processes,
+            flow: Flow,
     ) -> None:
         tree = hierarchy_depth(processes)
         for path, process in tree.items():
-            self._add_process_path(process, path)
+            self._add_process_path(process, path, flow)
+
+    def _find_step_paths(
+            self,
+            steps: Steps,
+            flow: Flow,
+            depend_on_derivers: bool = False,
+    ) -> None:
+        tree = hierarchy_depth(steps)
+        first_step = True
+        for path, step in tree.items():
+            name = path[-1]
+            self._add_step_path(step, path, flow.get(name), first_step)
+            first_step = False
 
     def emit_configuration(self) -> None:
         """Emit experiment configuration."""
@@ -647,8 +706,12 @@ class Engine:
         if not update:
             return
 
-        topology_updates, process_updates, deletions = self.state.apply_update(
-            update, state)
+        (
+            topology_updates, process_updates, step_updates,
+            flow_updates, deletions
+        ) = self.state.apply_update(update, state)
+
+        flow_update_dict = {path: flow for path, flow in flow_updates}
 
         if topology_updates:
             for path, topology_update in topology_updates:
@@ -657,7 +720,14 @@ class Engine:
         if process_updates:
             for path, process in process_updates:
                 assoc_path(self.processes, path, process)
-                self._add_process_path(process, path)
+                self._add_process_path(process, path, {})
+
+        if step_updates:
+            for path, step in step_updates:
+                dependencies = flow_update_dict.get(path)
+                assoc_path(self.steps, path, step)
+                self._add_step_path(step, path, dependencies)
+
 
         if deletions:
             for deletion in deletions:
@@ -679,34 +749,34 @@ class Engine:
             if starts_with(path, deletion):
                 del self.process_paths[path]
 
-        for path in list(self.task_paths):
+        for path in list(self.step_paths):
             if starts_with(path, deletion):
                 try:
-                    self.task_graph.remove(path)
+                    self.step_graph.remove(path)
                 except nx.exception.NetworkXError as e:
-                    # The task might have been deleted already.
+                    # The step might have been deleted already.
                     msg = f'The node {path} is not in the graph.'
                     if e.args[0] != msg:
                         raise e
-                del self.task_paths[path]
+                del self.step_paths[path]
 
-    def run_tasks(self) -> None:
-        '''Run all the tasks in the simulation.'''
-        layers = self.task_graph.get_execution_layers()
+    def run_steps(self) -> None:
+        '''Run all the steps in the simulation.'''
+        layers = self.step_graph.get_execution_layers()
         for layer in layers:
             deferred_updates: List[Tuple[Defer, Store]] = []
             for path in layer:
-                task = self.task_paths[path]
-                if not task:
-                    # Task was deleted by a previous task.
+                step = self.step_paths[path]
+                if not step:
+                    # Step was deleted by a previous step.
                     continue
-                # Timestep shouldn't influence tasks.
+                # Timestep shouldn't influence steps.
                 # TODO(jerry): Do something cleaner than having
                 #  generate_paths() add a schema attribute to the Deriver.
                 #  PyCharm's type check reports:
                 #    Type Process doesn't have expected attribute 'schema'
                 update, store = self.calculate_update(
-                    path, task, 0)
+                    path, step, 0)
                 deferred_updates.append((update, store))
             for update, store in deferred_updates:
                 self.apply_update(update.get(), store)
@@ -715,7 +785,7 @@ class Engine:
             self,
             update_tuples: list
     ) -> None:
-        """Apply updates and run tasks.
+        """Apply updates and run steps.
 
         Args:
             update_tuples: List of tuples ``(update, state)`` where
@@ -726,7 +796,7 @@ class Engine:
             update, state = update_tuple
             self.apply_update(update.get(), state)
 
-        self.run_tasks()
+        self.run_steps()
 
     def update(
             self,
@@ -752,7 +822,7 @@ class Engine:
 
             # find any parallel processes that were removed and terminate them
             for terminated in self.parallel.keys() - (
-                    self.process_paths.keys() | self.task_paths.keys()):
+                    self.process_paths.keys() | self.step_paths.keys()):
                 self.parallel[terminated].end()
                 del self.parallel[terminated]
 
@@ -1439,15 +1509,15 @@ def test_custom_divider() -> None:
     print(pf(data))
 
 
-class TestTaskGraph:
+class TestStepGraph:
 
     @staticmethod
-    def test_task_graph_execution_layers() -> None:
-        tg = TaskGraph()
-        tg.add_task(('a',), [])
-        tg.add_task(('b',), [])
-        tg.add_task(('c',), [('a',), ('b',)])
-        tg.add_task(('d',), [('c',)])
+    def test_step_graph_execution_layers() -> None:
+        tg = StepGraph()
+        tg.add(('a',), [])
+        tg.add(('b',), [])
+        tg.add(('c',), [('a',), ('b',)])
+        tg.add(('d',), [('c',)])
 
         layers = list(tg.get_execution_layers())
         expected_layers = [
@@ -1458,11 +1528,11 @@ class TestTaskGraph:
         assert layers == expected_layers
 
     @staticmethod
-    def test_task_graph_sequential() -> None:
-        tg = TaskGraph()
-        tg.add_task(('a',), [])
-        tg.add_task(('b',), [])
-        tg.add_sequential_task(('c',))
+    def test_step_graph_sequential() -> None:
+        tg = StepGraph()
+        tg.add(('a',), [])
+        tg.add(('b',), [])
+        tg.add_sequential(('c',))
 
         layers = list(tg.get_execution_layers())
         expected_layers = [
@@ -1472,11 +1542,11 @@ class TestTaskGraph:
         assert layers == expected_layers
 
     @staticmethod
-    def test_task_graph_removal() -> None:
-        tg = TaskGraph()
-        tg.add_task(('a',), [])
-        tg.add_task(('b',), [('a',)])
-        tg.add_task(('c',), [('b',)])
+    def test_step_graph_removal() -> None:
+        tg = StepGraph()
+        tg.add(('a',), [])
+        tg.add(('b',), [('a',)])
+        tg.add(('c',), [('b',)])
 
         tg.remove(('a',))
         layers = list(tg.get_execution_layers())
@@ -1503,7 +1573,7 @@ def test_runtime_order() -> None:
             return {}
 
 
-    class RuntimeOrderTask(Task):
+    class RuntimeOrderStep(Step):
 
         def ports_schema(self) -> Schema:
             return {
@@ -1550,32 +1620,44 @@ def test_runtime_order() -> None:
                 'time_step': 2,
                 'execution_log': config['execution_log'],
             })
-            task1 = RuntimeOrderTask({
-                'name': 'task1',
-                'execution_log': config['execution_log'],
-            })
-            task2 = RuntimeOrderTask({
-                'name': 'task2',
-                'dependencies': [('t1',)],
-                'execution_log': config['execution_log'],
-            })
             deriver = RuntimeOrderDeriver({
                 'name': 'deriver',
-                'execution_log': config['execution_log'],
-            })
-            task3 = RuntimeOrderTask({
-                'name': 'task3',
-                'dependencies': [('t2',)],
                 'execution_log': config['execution_log'],
             })
             return {
                 'p1': proc1,
                 'p2': proc2,
-                't1': task1,
-                't2': task2,
                 'd': deriver,
-                't3': task3,
             }
+
+        def generate_steps(self, config: Optional[dict]) -> Steps:
+            config = config or {}
+            step1 = RuntimeOrderStep({
+                'name': 'step1',
+                'execution_log': config['execution_log'],
+            })
+            step2 = RuntimeOrderStep({
+                'name': 'step2',
+                'execution_log': config['execution_log'],
+            })
+            step3 = RuntimeOrderStep({
+                'name': 'step3',
+                'execution_log': config['execution_log'],
+            })
+            return {
+                's1': step1,
+                's2': step2,
+                's3': step3,
+            }
+
+        def generate_flow(self, config: Optional[dict]) -> Steps:
+            config = config or {}
+            return {
+                's1': [],
+                's2': [('s1',)],
+                's3': [('s1',)],
+            }
+
 
         def generate_topology(self, config: Optional[dict]) -> Topology:
             return {
@@ -1585,16 +1667,16 @@ def test_runtime_order() -> None:
                 'p2': {
                     'store': ('store',),
                 },
-                't1': {
-                    'store': ('store',),
-                },
-                't2': {
-                    'store': ('store',),
-                },
                 'd': {
                     'store': ('store',),
                 },
-                't3': {
+                's1': {
+                    'store': ('store',),
+                },
+                's2': {
+                    'store': ('store',),
+                },
+                's3': {
                     'store': ('store',),
                 },
             }
@@ -1604,31 +1686,33 @@ def test_runtime_order() -> None:
     composite = composer.generate({'execution_log': execution_log})
     experiment = Engine(
         processes=composite.processes,
+        steps=composite.steps,
+        flow=composite.flow,
         topology=composite.topology,
     )
     expected_layers = [
-        {('t1',)},
-        {('t2',)},
-        {('d',), ('t3',)},
+        {('d',)},
+        {('s1',)},
+        {('s2',), ('s3',)},
     ]
-    layers = experiment.task_graph.get_execution_layers()
+    layers = experiment.step_graph.get_execution_layers()
     assert layers == expected_layers
     experiment.update(4)
     expected_log = [
-        ('task1', 'task2'),
-        {'deriver', 'task3'},
+        ('deriver', 'step1'),
+        {'step2', 'step3'},
         {'process1', 'process2'},
-        ('task1', 'task2'),
-        {'deriver', 'task3'},
+        ('deriver', 'step1'),
+        {'step2', 'step3'},
         {'process1'},
-        ('task1', 'task2'),
-        {'deriver', 'task3'},
+        ('deriver', 'step1'),
+        {'step2', 'step3'},
         {'process1', 'process2'},
-        ('task1', 'task2'),
-        {'deriver', 'task3'},
+        ('deriver', 'step1'),
+        {'step2', 'step3'},
         {'process1'},
-        ('task1', 'task2'),
-        {'deriver', 'task3'},
+        ('deriver', 'step1'),
+        {'step2', 'step3'},
     ]
     for expected_group in expected_log:
         num = len(expected_group)
@@ -1652,3 +1736,4 @@ if __name__ == '__main__':
     # test_2_store_1_port()
     # test_units()
     test_custom_divider()
+    # test_runtime_order()
