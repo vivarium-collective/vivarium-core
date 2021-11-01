@@ -402,15 +402,12 @@ class Engine:
             self.state = store
             # get processes and topology from the store
             self.processes = self.state.get_processes()
-            self.steps = self.state.get_steps()
-            self.flow = self.state.get_flow()
+            self.steps = self.state.get_steps() or {}
+            self.flow = self.state.get_flow() or {}
             self.topology = self.state.get_topology()
         else:
             raise Exception(
                 'load either store or (processes and topology) into Engine')
-
-        steps = steps or {}
-        flow = flow or {}
 
         # display settings
         self.experiment_name = experiment_name or self.experiment_id
@@ -429,8 +426,8 @@ class Engine:
         self.process_paths: Dict[HierarchyPath, Process] = {}
         self.step_graph = StepGraph()
         self.step_paths: Dict[HierarchyPath, Process] = {}
-        self._find_process_paths(self.processes, flow)
-        self._find_step_paths(steps, flow, bool(self.step_paths))
+        self._find_process_paths(self.processes, self.flow)
+        self._find_step_paths(self.steps, self.flow, bool(self.step_paths))
 
         # emitter settings
         emitter_config = emitter

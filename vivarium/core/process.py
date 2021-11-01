@@ -351,7 +351,6 @@ class Step(Process, metaclass=abc.ABCMeta):
 
     def __init__(self, parameters: Optional[dict] = None) -> None:
         parameters = parameters or {}
-        self.dependencies = parameters.pop('dependencies', [])
         super().__init__(parameters)
 
     def is_step(self) -> bool:
