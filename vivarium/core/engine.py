@@ -218,7 +218,7 @@ class InvokeProcess:
         return self.update
 
 
-class StepGraph:
+class _StepGraph:
     '''A dependency graph of :term:`steps`.
 
     A step is just a Process object that has dependencies on other
@@ -336,11 +336,11 @@ class StepGraph:
         for path_to_delete in to_delete:
             self._graph.remove_node(path_to_delete)
 
-    def copy(self) -> 'StepGraph':
+    def copy(self) -> '_StepGraph':
         '''Create a copy of self.
 
         Returns:
-            A new StepGraph with a copy of self's graph.
+            A new _StepGraph with a copy of self's graph.
         '''
         new = self.__class__(
             self._graph.copy(), self._sequential_steps.copy())
@@ -454,9 +454,9 @@ class Engine:
         self.parallel: Dict[HierarchyPath, ParallelProcess] = {}
 
         # get a mapping of all paths to processes
-        self.process_paths: Dict[HierarchyPath, Process] = {}
-        self.step_graph = StepGraph()
-        self.step_paths: Dict[HierarchyPath, Process] = {}
+        self._process_paths: Dict[HierarchyPath, Process] = {}
+        self._step_graph = _StepGraph()
+        self._step_paths: Dict[HierarchyPath, Process] = {}
         self._find_process_paths(self.processes, self.flow)
         self._find_step_paths(self.steps, self.flow)
 
@@ -477,7 +477,7 @@ class Engine:
         self.experiment_time = 0.0
 
         # run the steps
-        self.run_steps()
+        self._run_steps()
 
         # run the emitter
         self.emit_configuration()
@@ -500,15 +500,15 @@ class Engine:
             # None if deriver, empty list if no dependencies.
             relative_dependencies: Optional[Sequence[HierarchyPath]],
     ) -> None:
-        self.step_paths[path] = step
+        self._step_paths[path] = step
         if relative_dependencies is None:
-            self.step_graph.add_sequential(path)
+            self._step_graph.add_sequential(path)
             return
         dependencies = [
             path + ('..',) + dep for dep in relative_dependencies]
         norm_dependencies = [
             normalize_path(dep) for dep in dependencies]
-        self.step_graph.add(path, norm_dependencies)
+        self._step_graph.add(path, norm_dependencies)
 
     def _add_process_path(
             self,
@@ -527,7 +527,7 @@ class Engine:
             name = path[-1]
             self._add_step_path(step, path, flow.get(name))
         else:
-            self.process_paths[path] = process
+            self._process_paths[path] = process
 
     def _find_process_paths(
             self,
@@ -763,28 +763,28 @@ class Engine:
         delete_in(self.processes, deletion)
         delete_in(self.topology, deletion)
 
-        for path in list(self.process_paths.keys()):
+        for path in list(self._process_paths.keys()):
             if starts_with(path, deletion):
-                del self.process_paths[path]
+                del self._process_paths[path]
 
-        for path in list(self.step_paths):
+        for path in list(self._step_paths):
             if starts_with(path, deletion):
                 try:
-                    self.step_graph.remove(path)
+                    self._step_graph.remove(path)
                 except nx.exception.NetworkXError as e:
                     # The step might have been deleted already.
                     msg = f'The node {path} is not in the graph.'
                     if e.args[0] != msg:
                         raise e
-                del self.step_paths[path]
+                del self._step_paths[path]
 
-    def run_steps(self) -> None:
+    def _run_steps(self) -> None:
         '''Run all the steps in the simulation.'''
-        layers = self.step_graph.get_execution_layers()
+        layers = self._step_graph.get_execution_layers()
         for layer in layers:
             deferred_updates: List[Tuple[Defer, Store]] = []
             for path in layer:
-                step = self.step_paths.get(path)
+                step = self._step_paths.get(path)
                 if not step:
                     # Step was deleted by a previous step.
                     continue
@@ -814,7 +814,7 @@ class Engine:
             update, state = update_tuple
             self.apply_update(update.get(), state)
 
-        self.run_steps()
+        self._run_steps()
 
     def update(
             self,
@@ -840,7 +840,7 @@ class Engine:
 
             # find any parallel processes that were removed and terminate them
             for terminated in self.parallel.keys() - (
-                    self.process_paths.keys() | self.step_paths.keys()):
+                    self._process_paths.keys() | self._step_paths.keys()):
                 self.parallel[terminated].end()
                 del self.parallel[terminated]
 
@@ -848,13 +848,13 @@ class Engine:
             front = {
                 path: progress
                 for path, progress in front.items()
-                if path in self.process_paths}
+                if path in self._process_paths}
 
             quiet_paths = []
 
             # go through each process and find those that are able to update
             # based on their current time being less than the global time.
-            for path, process in self.process_paths.items():
+            for path, process in self._process_paths.items():
                 if path not in front:
                     front[path] = empty_front(time)
                 process_time = front[path]['time']
@@ -1551,7 +1551,7 @@ class TestStepGraph:
 
     @staticmethod
     def test_step_graph_execution_layers() -> None:
-        tg = StepGraph()
+        tg = _StepGraph()
         tg.add(('a',), [])
         tg.add(('b',), [])
         tg.add(('c',), [('a',), ('b',)])
@@ -1567,7 +1567,7 @@ class TestStepGraph:
 
     @staticmethod
     def test_step_graph_sequential() -> None:
-        tg = StepGraph()
+        tg = _StepGraph()
         tg.add(('a',), [])
         tg.add(('b',), [])
         tg.add_sequential(('c',))
@@ -1581,7 +1581,7 @@ class TestStepGraph:
 
     @staticmethod
     def test_step_graph_removal() -> None:
-        tg = StepGraph()
+        tg = _StepGraph()
         tg.add(('a',), [])
         tg.add(('b',), [('a',)])
         tg.add(('c',), [('b',)])
@@ -1728,13 +1728,6 @@ def test_runtime_order() -> None:
         flow=composite.flow,
         topology=composite.topology,
     )
-    expected_layers = [
-        {('d',)},
-        {('s1',)},
-        {('s2',), ('s3',)},
-    ]
-    layers = experiment.step_graph.get_execution_layers()
-    assert layers == expected_layers
     experiment.update(4)
     expected_log = [
         ('deriver', 'step1'),

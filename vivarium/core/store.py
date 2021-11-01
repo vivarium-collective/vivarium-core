@@ -21,7 +21,7 @@ from vivarium.library.dict_utils import deep_merge, deep_merge_check, MULTI_UPDA
 from vivarium.library.topology import without, dict_to_paths, get_in
 from vivarium.core.types import Processes, Topology, State, Steps, Flow
 
-EMPTY_UPDATES = None, None, None, None, None
+_EMPTY_UPDATES = None, None, None, None, None
 
 
 def generate_state(
@@ -1384,7 +1384,7 @@ class Store:
             assert isinstance(multi_update, list)
             for update_value in multi_update:
                 self.apply_update(update_value, state)
-            return EMPTY_UPDATES
+            return _EMPTY_UPDATES
 
         if self.inner or self.subschema:
             # Branch update: this node has an inner
@@ -1502,7 +1502,7 @@ class Store:
                     f"failed update at path {self.path_for()} "
                     f"with value {self.value} for update {pformat(update)}")
 
-        return EMPTY_UPDATES
+        return _EMPTY_UPDATES
 
     def inner_value(self, key):
         """
