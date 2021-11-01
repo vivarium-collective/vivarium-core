@@ -17,6 +17,10 @@
 * Fixes a bug where parallel derivers were re-instantiated every timestep.
 * Marks the Store API as experimental, including the public use of `Store.move()`, `Store.insert()`, `Store.divide()`, and `Store.delete()`.
 
+## v0.3.14
+
+* De/serializer for np.bool_
+
 ## v0.3.13
 
 * Fix topology plot to avoid using `plt.figure` so that plots work correctly when other plotting functions are used in the same Python session (e.g. Jupyter notebooks).
