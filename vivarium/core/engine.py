@@ -226,6 +226,9 @@ class StepGraph:
     every timestep. In a given timestep, each step must not run until
     all its dependency steps have run and had their updates applied.
 
+    Note that the constructor uses any provided arguments without
+    copying them.
+
     Attributes:
         graph: A NetworkX DiGraph with an edge for each dependency
             relationship and a node for each step path. If the step at
@@ -239,20 +242,25 @@ class StepGraph:
             backwards-compatibility.
     '''
 
-    def __init__(self) -> None:
-        self.graph = nx.DiGraph()
-        self.sequential_steps: List[HierarchyPath] = []
+    def __init__(
+            self,
+            graph: Optional[nx.DiGraph] = None,
+            sequential_steps: Optional[List[HierarchyPath]] = None
+            ) -> None:
+        self._graph = graph or nx.DiGraph()
+        self._sequential_steps: List[HierarchyPath] = (
+            sequential_steps or [])
 
     def _validate(self) -> None:
-        if not nx.is_directed_acyclic_graph(self.graph):
+        if not nx.is_directed_acyclic_graph(self._graph):
             raise ValueError('Step graph must be a DAG.')
-        graph_steps = set(self.graph.nodes)
-        sequential_steps = set(self.sequential_steps)
+        graph_steps = set(self._graph.nodes)
+        sequential_steps = set(self._sequential_steps)
         intersection = graph_steps & sequential_steps
         if intersection:
             raise ValueError(
-                'self.graph and self.sequential_steps have overlapping '
-                f'steps: {intersection}')
+                'self._graph and self._sequential_steps have '
+                f'overlapping steps: {intersection}')
 
     def add(
             self,
@@ -268,9 +276,9 @@ class StepGraph:
             ValueError: If the graph produced by adding the step is not
                 a DAG.
         '''
-        self.graph.add_node(path)
+        self._graph.add_node(path)
         for dependency in dependencies:
-            self.graph.add_edge(dependency, path)
+            self._graph.add_edge(dependency, path)
         self._validate()
 
     def add_sequential(
@@ -287,7 +295,7 @@ class StepGraph:
         Args:
             path: The path to the step in the hierarchy.
         '''
-        self.sequential_steps.append(path)
+        self._sequential_steps.append(path)
         self._validate()
 
     def get_execution_layers(self) -> List[Set[HierarchyPath]]:
@@ -309,8 +317,8 @@ class StepGraph:
             An ordered list of the execution layers, with each step
             represented by its path.
         '''
-        layers = nx.topological_generations(self.graph)
-        to_return = [set([step]) for step in self.sequential_steps]
+        layers = nx.topological_generations(self._graph)
+        to_return = [set([step]) for step in self._sequential_steps]
         to_return += [set(layer) for layer in layers]
         return to_return
 
@@ -320,13 +328,13 @@ class StepGraph:
         Args:
             path: Hierarhcy path of the step to delete.
         '''
-        if path in self.sequential_steps:
-            self.sequential_steps.remove(path)
+        if path in self._sequential_steps:
+            self._sequential_steps.remove(path)
             return
-        to_delete = nx.algorithms.dag.descendants(self.graph, path)
+        to_delete = nx.algorithms.dag.descendants(self._graph, path)
         to_delete.add(path)
         for path_to_delete in to_delete:
-            self.graph.remove_node(path_to_delete)
+            self._graph.remove_node(path_to_delete)
 
     def copy(self) -> 'StepGraph':
         '''Create a copy of self.
@@ -334,9 +342,8 @@ class StepGraph:
         Returns:
             A new StepGraph with a copy of self's graph.
         '''
-        new = self.__class__()
-        new.graph = self.graph.copy()
-        new.sequential_steps = self.sequential_steps.copy()
+        new = self.__class__(
+            self._graph.copy(), self._sequential_steps.copy())
         return new
 
 
