@@ -398,6 +398,8 @@ class Engine:
                 initial state of the simulation.
             experiment_id: A unique identifier for the experiment. A
                 UUID will be generated if none is provided.
+            metadata: A dictionary with additional data about the experiment,
+                which is saved by the emitter with the configuration.
             description: A description of the experiment. A blank string
                 by default.
             emitter: An emitter configuration which must conform to the
