@@ -233,10 +233,26 @@ class StepGraph:
             will contain an edge from ``b`` to ``a``. This means that a
             topological sort of the graph produces a valid runtime order
             for the step. Note that the graph must be a DAG.
+        sequential_steps: A list of paths for steps that should run
+            sequentially and before the steps in ``graph``. This is
+            where we store legacy :term:`derivers` for
+            backwards-compatibility.
     '''
 
     def __init__(self) -> None:
         self.graph = nx.DiGraph()
+        self.sequential_steps: List[HierarchyPath] = []
+
+    def _validate(self) -> None:
+        if not nx.is_directed_acyclic_graph(self.graph):
+            raise ValueError('Step graph must be a DAG.')
+        graph_steps = set(self.graph.nodes)
+        sequential_steps = set(self.sequential_steps)
+        intersection = graph_steps & sequential_steps
+        if intersection:
+            raise ValueError(
+                'self.graph and self.sequential_steps have overlapping '
+                f'steps: {intersection}')
 
     def add(
             self,
@@ -255,8 +271,7 @@ class StepGraph:
         self.graph.add_node(path)
         for dependency in dependencies:
             self.graph.add_edge(dependency, path)
-        if not nx.is_directed_acyclic_graph(self.graph):
-            raise ValueError('Step graph must be a DAG.')
+        self._validate()
 
     def add_sequential(
             self,
@@ -266,12 +281,14 @@ class StepGraph:
         Legacy steps (:term:`derivers`) were meant to run sequentially
         instead of being provided as a dependency graph. To support
         these legacy steps, this method adds a step that will run after
-        all steps currently in the graph.
+        all previously-added sequential steps and before any
+        non-sequential steps.
 
         Args:
             path: The path to the step in the hierarchy.
         '''
-        self.add(path, list(self.graph.nodes))
+        self.sequential_steps.append(path)
+        self._validate()
 
     def get_execution_layers(self) -> List[Set[HierarchyPath]]:
         '''Get step execution layers, with steps represnted by paths.
@@ -285,14 +302,17 @@ class StepGraph:
         * Every step is in as early a layer as possible.
 
         In other words, the execution layers are the topological
-        generations of the graph.
+        generations of the graph, prepended by any sequential steps,
+        each in its own layer and in the order in which they were added.
 
         Returns:
             An ordered list of the execution layers, with each step
             represented by its path.
         '''
         layers = nx.topological_generations(self.graph)
-        return [set(layer) for layer in layers]
+        to_return = [set([step]) for step in self.sequential_steps]
+        to_return += [set(layer) for layer in layers]
+        return to_return
 
     def remove(self, path: HierarchyPath) -> None:
         '''Delete a step based on its path.
@@ -300,6 +320,9 @@ class StepGraph:
         Args:
             path: Hierarhcy path of the step to delete.
         '''
+        if path in self.sequential_steps:
+            self.sequential_steps.remove(path)
+            return
         to_delete = nx.algorithms.dag.descendants(self.graph, path)
         to_delete.add(path)
         for path_to_delete in to_delete:
@@ -313,6 +336,7 @@ class StepGraph:
         '''
         new = self.__class__()
         new.graph = self.graph.copy()
+        new.sequential_steps = self.sequential_steps.copy()
         return new
 
 
@@ -427,7 +451,7 @@ class Engine:
         self.step_graph = StepGraph()
         self.step_paths: Dict[HierarchyPath, Process] = {}
         self._find_process_paths(self.processes, self.flow)
-        self._find_step_paths(self.steps, self.flow, bool(self.step_paths))
+        self._find_step_paths(self.steps, self.flow)
 
         # emitter settings
         emitter_config = emitter
@@ -468,12 +492,9 @@ class Engine:
             path: HierarchyPath,
             # None if deriver, empty list if no dependencies.
             relative_dependencies: Optional[Sequence[HierarchyPath]],
-            depend_on_derivers: bool = False,
     ) -> None:
         self.step_paths[path] = step
-        if relative_dependencies is None or depend_on_derivers:
-            # The first Step must always depend on any existing derivers
-            # so that the derivers run first.
+        if relative_dependencies is None:
             self.step_graph.add_sequential(path)
             return
         dependencies = [
@@ -514,14 +535,11 @@ class Engine:
             self,
             steps: Steps,
             flow: Flow,
-            depend_on_derivers: bool = False,
     ) -> None:
         tree = hierarchy_depth(steps)
-        first_step = depend_on_derivers
         for path, step in tree.items():
             name = path[-1]
-            self._add_step_path(step, path, flow.get(name), first_step)
-            first_step = False
+            self._add_step_path(step, path, flow.get(name))
 
     def emit_configuration(self) -> None:
         """Emit experiment configuration."""
@@ -759,7 +777,7 @@ class Engine:
         for layer in layers:
             deferred_updates: List[Tuple[Defer, Store]] = []
             for path in layer:
-                step = self.step_paths[path]
+                step = self.step_paths.get(path)
                 if not step:
                     # Step was deleted by a previous step.
                     continue
@@ -1529,8 +1547,8 @@ class TestStepGraph:
 
         layers = list(tg.get_execution_layers())
         expected_layers = [
-            {('a',), ('b',)},
             {('c',)},
+            {('a',), ('b',)},
         ]
         assert layers == expected_layers
 
