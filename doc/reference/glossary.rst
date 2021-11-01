@@ -59,13 +59,7 @@ Glossary
     deriver
     Derivers
     derivers
-        Derivers run after all processes have run for a
-        :term:`timepoint` and compute values from the state of the
-        model. These computed values are generally stored in the
-        ``global`` :term:`store`. For example, one common deriver uses
-        the cell's mass and density to compute the volume. Derivers are
-        written just like processes, except with a different superclass,
-        :py:class:`vivarium.core.process.Deriver`.
+        Derivers have been deprecated in favor of :term:`steps`.
 
     Divider
     divider
@@ -152,6 +146,32 @@ Glossary
         the :term:`tree`. Each node, except for the top-most node, has one
         outer node that it exists within. The reciprocal relationship is an
         :term:`inner`, but a node can have many inners.
+
+    Path
+    path
+    Paths
+    paths
+        In its most general form, a path specifies an item in a nested
+        dictionary as a tuple of dictionary keys. For example, consider
+        the following nested dictionary:
+
+        .. code-block:: python
+
+           {
+               'a': {
+                   'b': {
+                       'c': None,
+                   },
+                   'd': {},
+               },
+           }
+
+        In this example, the path ``('a', 'b', 'c')`` points to
+        ``None``.
+
+        In Vivarium, we often use paths to identify nodes within the
+        :term:`hierarchy`. This works because the hierarchy is just a
+        collection of nested dictionaries.
 
     Path Timeseries
     Path timeseries
@@ -250,6 +270,18 @@ Glossary
         A serializer is an object that converts data of a certain type
         into a format that can transmitted and stored.
 
+    Step
+    step
+    Steps
+    steps
+        Steps run after all processes have run for a :term:`timepoint`
+        and compute values from the state of the model. These steps may
+        have dependencies on each other, and these dependencies are
+        specified in the ``flow`` key of
+        :py:class:`vivarium.core.composer.Composite` dictionaries. For
+        more information, see the documentation for
+        :py:class:`vivarium.core.composer.Composer`.
+
     Store
     store
     Stores
@@ -260,6 +292,11 @@ Glossary
         for the proteins in the cytoplasm, another for the transcripts
         in the cytoplasm, and one for the transcripts in the nucleus.
         Each :term:`variable` must belong to exactly one store.
+
+    Store API
+    store API
+        An experimental API that allows for simulations to be built up
+        from :term:`stores`.
 
     Template
     template

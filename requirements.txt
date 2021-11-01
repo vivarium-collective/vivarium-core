@@ -1,6 +1,6 @@
 # library imports
 matplotlib==3.3.2
-networkx==2.5
+networkx==2.6.3
 numpy==1.19.4
 Pint==0.16.1
 pymongo==3.11.0

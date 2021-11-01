@@ -16,18 +16,20 @@ from pint import Quantity
 from typing import Optional
 
 from vivarium import divider_registry, serializer_registry, updater_registry
-from vivarium.core.process import Process
-from vivarium.library.dict_utils import deep_merge, MULTI_UPDATE_KEY
+from vivarium.core.process import Process, Step
+from vivarium.library.dict_utils import deep_merge, deep_merge_check, MULTI_UPDATE_KEY
 from vivarium.library.topology import without, dict_to_paths, get_in
-from vivarium.core.types import Processes, Topology, State
+from vivarium.core.types import Processes, Topology, State, Steps, Flow
 
-EMPTY_UPDATES = None, None, None
+EMPTY_UPDATES = None, None, None, None, None
 
 
 def generate_state(
         processes: Processes,
         topology: Topology,
         initial_state: Optional[State],
+        steps: Optional[Steps] = None,
+        flow: Optional[Flow] = None,
 ) -> 'Store':
     """Initialize a simulation's state.
 
@@ -41,10 +43,8 @@ def generate_state(
         Initialized state.
     """
     store = Store({})
-    store.generate_paths(processes, topology)
-    store.apply_subschemas()
-    store.set_value(initial_state)
-    store.apply_defaults()
+    steps = steps or {}
+    store.generate(tuple(), processes, steps, flow, topology, initial_state)
 
     return store
 
@@ -119,9 +119,6 @@ def topology_path(topology, path):
                         return subtopology['_path'], tail
                 else:
                     return topology_path(subtopology, tail)
-
-def topology_length(topology):
-    pass
 
 def insert_topology(topology, port_path, target_path):
     assert isinstance(port_path, tuple)
@@ -206,14 +203,46 @@ class Store:
         self.leaf = False
         self.serializer = None
         self.topology = {}
+        # self.flow is None when this node has no flow (either because
+        # it is not a Step or because it is a Step treated like a
+        # Deriver) and a list when this node holds a Step with
+        # dependencies. The list is empty if the Step has no
+        # dependencies but should not be treated like a Deriver.
+        self.flow = None
 
         self.apply_config(config, source)
 
     def __getitem__(self, path):
+        '''Retrieve a :term:`hierarchy` node by its :term:`path`.
+
+        .. WARNING:
+
+           This function is **experimental** and part of the
+           :term:`store API`.
+
+        Args:
+            path: Path, relative to ``self``, of the store to retrieve.
+
+        Returns:
+            The store at ``path``. Note that the store is returned, not
+            the value of that store.
+        '''
         path = convert_path(path)
         return self.get_path(path)
 
     def __setitem__(self, path, value):
+        '''Set a :term:`hierarchy` node's value by its :term:`path`.
+
+        .. WARNING:
+
+           This function is **experimental** and part of the
+           :term:`store API`.
+
+        Args:
+            path: Path, relative to ``self``, of the store to modify.
+            value: The value to be stored as the value of the store at
+                ``path``.
+        '''
         path = convert_path(path)
         self.set_path(path, value)
 
@@ -236,13 +265,33 @@ class Store:
         return store
 
     def connect(self, path, value, absolute=False):
+        '''Wire a store's process to another store.
+
+        This function must not be used unless ``self`` holds a
+        :term:`process`.
+
+        .. WARNING:
+
+           This function is **experimental** and part of the
+           :term:`store API`.
+
+        Args:
+            path: Path of the port to connect.
+            value: The store (or the path to the store) to connect to
+                the port at ``path``.
+
+        Raises:
+            AssertionError: If ``self.value`` is not an instance of
+                :py:class:`vivarium.core.process.Process`.
+            Exception: If ``value`` is a :py:class:`Store` that is in a
+                different tree than ``self``.
+        '''
         path = convert_path(path)
         assert isinstance(self.value, Process), \
             f'cannot connect non-process {self.value} at {self.path_for()} to {path}'
 
         if isinstance(value, Store):
             target_store = value
-            assert isinstance(target_store, Store)
             if self.independent_store(target_store):
                 raise Exception(
                     f"the store being inserted at {path} is from a different tree "
@@ -257,8 +306,20 @@ class Store:
         # update the topology
         self.update_topology(path, target_store)
 
-
     def set_path(self, path, value):
+        '''Set a value at a path in the hierarchy.
+
+        .. WARNING:
+
+           This function is **experimental** and part of the
+           :term:`store API`.
+
+        Args:
+            path: The :term:`path` relative to ``self`` where the value
+                should be set.
+            value: The value to set. The store node at ``path`` will
+                hold ``value`` when this function returns.
+        '''
 
         # this case only when called directly
         if len(path) == 0:
@@ -311,8 +372,22 @@ class Store:
             raise Exception("this should never happen")
 
     def update_topology(self, port_path, target_store):
-        """
-        Can only be at a process node
+        """Update the topology with a new port-path pair.
+
+        To use this function ``self`` must hold a :term:`process`.
+
+        .. WARNING:
+
+           This function is **experimental** and part of the
+           :term:`store API`.
+
+        Args:
+            port_path: Port of the new topology entry.
+            target_store: The store to wire to ``port_path``.
+
+        Raises:
+            AssertionError: If ``self.value`` is not an instance of
+                :py:class:`vivarium.core.process.Process`.
         """
 
         assert isinstance(self.value, Process), \
@@ -445,6 +520,14 @@ class Store:
           here.
         * _subtopology - The subschema is informed by the subtopology to
           map the process perspective to the actual tree structure.
+        * _topology - If this node stores a :term:`process`, then the
+          process's topology must be provided under this key. This key
+          may only be provided if the node stores a :term:`process`.
+        * _flow - If this node stores a :term:`step`, then the step's
+          dependencies must be specified under this key as a list of
+          :term:`paths` relative to the step's parent node in the
+          :term:`hierarchy`. This key must not be provided unless the
+          node holds a step.
         """
 
         if '*' in config:
@@ -464,6 +547,11 @@ class Store:
         if '_topology' in config:
             self.topology = config['_topology']
             config = without(config, '_topology')
+
+        if '_flow' in config:
+            flow = config.pop('_flow')
+            if flow != {}:
+                self.flow = flow
 
         if '_divider' in config:
             self.divider = config['_divider']
@@ -540,6 +628,18 @@ class Store:
                     self.inner[key] = Store(child, outer=self, source=source)
                 else:
                     self.inner[key].apply_config(child, source=source)
+
+        if self.topology and not isinstance(self.value, Process):
+            raise ValueError(
+                f'Attempting to create Store at {self.path_for()} '
+                f'with topology {self.topology}, which is not allowed '
+                f'because the Store value ({self.value}) is not a '
+                'Process.')
+        if self.flow and not isinstance(self.value, Step):
+            raise ValueError(
+                f'Attempting to create Store at {self.path_for()} '
+                f'with flow {self.flow}, which is not allowed because '
+                f'the Store value ({self.value}) is not a Step.')
 
     def get_updater(self, update):
         """Get the updater to use for an update applied to this store.
@@ -642,7 +742,7 @@ class Store:
 
     def get_processes(self):
         """
-        Get all processes in this store.
+        Get all processes in this store. Does not include steps.
         """
 
         if self.inner:
@@ -652,12 +752,33 @@ class Store:
                     child_processes = child.get_processes()
                     if child_processes:
                         inner_processes[key] = child_processes
-                elif isinstance(child.value, Process):
+                elif (
+                        isinstance(child.value, Process)
+                        and not isinstance(child.value, Step)):
                     inner_processes[key] = child.value
             if inner_processes:
                 return inner_processes
         elif isinstance(self.value, Process):
             return self.value
+        return None
+
+    def get_steps(self):
+        """Get all steps under this store."""
+        if self.inner:
+            inner_processes = {}
+            for key, child in self.inner.items():
+                if child.inner:
+                    child_processes = child.get_steps()
+                    if child_processes:
+                        inner_processes[key] = child_processes
+                elif isinstance(child.value, Step):
+                    inner_processes[key] = child.value
+            if inner_processes:
+                return inner_processes
+        elif isinstance(self.value, Process):
+            return self.value
+        return None
+
 
     def get_topology(self):
         """
@@ -674,6 +795,60 @@ class Store:
                 return inner_topology
         elif self.topology:
             return self.topology
+        return None
+
+    def get_flow(self):
+        """Get the flow for all :term:`steps` under this node.
+
+        For example:
+
+        >>> from vivarium.core.store import Store
+        >>> from vivarium.core.process import Step
+        >>> class MyStep(Step):
+        ...     def ports_schema(self):
+        ...         return {
+        ...             'port': ['variable'],
+        ...         }
+        ...     def next_update(self, timestep, states):
+        ...         return {}
+        >>> schema = {
+        ...     'agent1': {
+        ...         'store': {
+        ...             'variable': {
+        ...                 '_default': 0,
+        ...             },
+        ...         },
+        ...         'step1': {
+        ...             '_value': MyStep(),
+        ...             '_topology': {
+        ...                 'port': ('store',),
+        ...             },
+        ...             '_flow': [],
+        ...         },
+        ...         'step2': {
+        ...             '_value': MyStep(),
+        ...             '_topology': {
+        ...                 'port': ('store',),
+        ...             },
+        ...             '_flow': [('step1',)],
+        ...         },
+        ...     },
+        ... }
+        >>> store = Store(schema)
+        >>> store.get_flow()
+        {'agent1': {'step1': [], 'step2': [('step1',)]}}
+        """
+        if self.inner:
+            inner_flow = {}
+            for key, child in self.inner.items():
+                child_flow = child.get_flow()
+                if child_flow is not None:
+                    inner_flow[key] = child_flow
+            if inner_flow:
+                return inner_flow
+        elif self.flow is not None:
+            return self.flow
+        return None
 
     def get_path(self, path):
         """
@@ -862,8 +1037,8 @@ class Store:
 
     def generate_value(self, value):
         """
-        generate the structure for this value that don't exist, 
-        but don't overwrite any existing values. 
+        generate the structure for this value that don't exist,
+        but don't overwrite any existing values.
         """
 
         if self.inner or self.subschema:
@@ -914,7 +1089,16 @@ class Store:
         target.set_value(added_state)
 
     def move(self, move, process_store):
+        '''
+        .. WARNING:
+
+           While this function is used internally by :py:class:`Store`,
+           using it as a public method is **experimental** and part of
+           the :term:`store API`.
+        '''
         process_updates = []
+        step_updates = []
+        flow_updates = []
         topology_updates = []
         deletions = []
 
@@ -936,10 +1120,18 @@ class Store:
 
         # find the process and topology updates
         for path, process in source_process_paths:
+            process_path = target_path + path
             process_updates.append((
-                target_path + path, process.value))
+                process_path, process.value))
             topology_updates.append((
-                target_path + path, process.topology))
+                process_path, process.topology))
+            if isinstance(process, Step):
+                step_updates.append((
+                    process_path, process.value))
+                # Note that process.flow may be None, indicating no
+                # flow.
+                flow_updates.append((
+                    process_path, process.flow))
 
         self.delete_path(source_path)
 
@@ -947,20 +1139,32 @@ class Store:
         source_absolute = tuple(here + source_path)
         deletions.append(source_absolute)
 
-        return process_updates, topology_updates, deletions
+        return (
+            process_updates, step_updates, flow_updates,
+            topology_updates, deletions)
 
     def insert(self, insertion):
+        '''
+        .. WARNING:
+
+           While this function is used internally by :py:class:`Store`,
+           using it as a public method is **experimental** and part of
+           the :term:`store API`.
+        '''
         process_updates = []
+        step_updates = []
+        flow_updates = []
         topology_updates = []
 
         key = insertion.get('key')
         path = (key,) if key else tuple()
-
         here = self.path_for()
 
         self.generate(
             path,
             insertion['processes'],
+            insertion.get('steps', {}),
+            insertion.get('flow'),
             insertion['topology'],
             insertion['initial_state'])
 
@@ -968,18 +1172,36 @@ class Store:
         process_paths = dict_to_paths(root, insertion['processes'])
         process_updates.extend(process_paths)
 
+        step_paths = dict_to_paths(root, insertion.get('steps', {}))
+        step_updates.extend(step_paths)
+
         topology_paths = [
             (root + (key,), topology)
             for key, topology in insertion['topology'].items()]
         topology_updates.extend(topology_paths)
 
+        flow_paths = [
+            (root + (key,), flow)
+            for key, flow in insertion.get('flow', {}).items()]
+        flow_updates.extend(flow_paths)
+
         self.apply_subschema_path(path)
         self.get_path(path).apply_defaults()
 
-        return process_updates, topology_updates
+        return process_updates, step_updates, flow_updates, topology_updates
 
     def divide(self, divide):
+        '''
+        .. WARNING:
+
+           While this function is used internally by :py:class:`Store`,
+           using it as a public method is **experimental** and part of
+           the :term:`store API`.
+        '''
+        process_and_step_updates = []
         process_updates = []
+        step_updates = []
+        flow_updates = []
         topology_updates = []
         deletions = []
 
@@ -1006,8 +1228,9 @@ class Store:
             daughter_path = (daughter_key,)
 
             # get the daughter processes
-            if 'processes' in daughter:
-                processes = daughter['processes']
+            if 'processes' in daughter or 'steps' in daughter:
+                processes = copy.deepcopy(daughter['processes'])
+                deep_merge_check(processes, daughter.get('steps', {}))
             else:
                 # if no processes provided, copy the mother's processes
                 mother_processes = self.get_path(mother_path).get_processes()
@@ -1023,15 +1246,29 @@ class Store:
                 topology = copy.deepcopy(mother_topology)
                 topology = topology or {}
 
+            # get the daughter flow
+            if 'flow' in daughter:
+                flow = daughter['flow']
+            else:
+                # if no flow provided, copy the mother's flow
+                mother_flow = self.get_path(mother_path).get_flow()
+                flow = copy.deepcopy(mother_flow)
+                flow = flow or {}
+
             self.generate(
                 daughter_path,
                 processes,
+                {},
+                flow,
                 topology,
                 initial_state)
 
             root = here + daughter_path
             process_paths = dict_to_paths(root, processes)
-            process_updates.extend(process_paths)
+            process_and_step_updates.extend(process_paths)
+
+            flow_paths = dict_to_paths(root, flow)
+            flow_updates.extend(flow_paths)
 
             topology_paths = [
                 (root + (key,), ports)
@@ -1047,9 +1284,24 @@ class Store:
         self.delete_path(mother_path)
         deletions.append(tuple(here + mother_path))
 
-        return process_updates, topology_updates, deletions
+        for path, process in process_and_step_updates:
+            if isinstance(process, Step):
+                step_updates.append((path, process))
+            else:
+                process_updates.append((path, process))
+
+        return (
+            process_updates, step_updates, flow_updates,
+            topology_updates, deletions)
 
     def delete(self, key, here=None):
+        '''
+        .. WARNING:
+
+           While this function is used internally by :py:class:`Store`,
+           using it as a public method is **experimental** and part of
+           the :term:`store API`.
+        '''
         if here is None:
             here = self.path_for()
         deletions = []
@@ -1136,8 +1388,12 @@ class Store:
 
         if self.inner or self.subschema:
             # Branch update: this node has an inner
+            process_updates = []
+            step_updates = []
+            flow_updates = []
+            topology_updates = []
+            deletions = []
 
-            process_updates, topology_updates, deletions = [], [], []
             update = dict(update)  # avoid mutating the caller's dict
 
             add_entries = update.pop('_add', None)
@@ -1150,8 +1406,13 @@ class Store:
             if move_entries is not None:
                 # move nodes from source to target path
                 for move in move_entries:
-                    move_processes, move_topology, move_deletions = self.move(move, state)
+                    (
+                        move_processes, move_step, move_flow,
+                        move_topology, move_deletions
+                    ) = self.move(move, state)
                     process_updates.extend(move_processes)
+                    step_updates.extend(move_step)
+                    flow_updates.extend(move_flow)
                     topology_updates.extend(move_topology)
                     deletions.extend(move_deletions)
 
@@ -1159,14 +1420,24 @@ class Store:
             if generate_entries is not None:
                 # generate a list of new processes
                 for generate in generate_entries:
-                    insert_processes, insert_topology = self.insert(generate)
+                    (
+                        insert_processes, insert_steps, insert_flows,
+                        insert_topology
+                    ) = self.insert(generate)
                     process_updates.extend(insert_processes)
+                    step_updates.extend(insert_steps)
+                    flow_updates.extend(insert_flows)
                     topology_updates.extend(insert_topology)
 
             divide = update.pop('_divide', None)
             if divide is not None:
-                divide_processes, divide_topology, divide_deletions = self.divide(divide)
+                (
+                    divide_processes, divide_steps, divide_flow,
+                    divide_topology, divide_deletions
+                ) = self.divide(divide)
                 process_updates.extend(divide_processes)
+                step_updates.extend(divide_steps)
+                flow_updates.extend(divide_flow)
                 topology_updates.extend(divide_topology)
                 deletions.extend(divide_deletions)
 
@@ -1175,18 +1446,21 @@ class Store:
             for key, value in update.items():
                 if key in self.inner:
                     inner = self.inner[key]
-                    inner_topology, inner_processes, inner_deletions = \
-                        inner.apply_update(value, state)
+                    (
+                        inner_topology, inner_processes, inner_steps,
+                        inner_flows, inner_deletions
+                    ) = inner.apply_update(value, state)
 
                     if inner_topology:
                         topology_updates.extend(inner_topology)
                     if inner_processes:
                         process_updates.extend(inner_processes)
+                    if inner_steps:
+                        step_updates.extend(inner_steps)
+                    if inner_flows:
+                        flow_updates.extend(inner_flows)
                     if inner_deletions:
                         deletions.extend(inner_deletions)
-
-                # elif key == '..':
-                #     self.outer.apply_update(value, state)
 
             if delete_keys is not None:
                 # delete a list of paths
@@ -1195,7 +1469,9 @@ class Store:
                     delete_deletions = self.delete(key, here)
                     deletions.extend(delete_deletions)
 
-            return topology_updates, process_updates, deletions
+            return (
+                topology_updates, process_updates, step_updates,
+                flow_updates, deletions)
 
         # Leaf update: this node has no inner
 
@@ -1519,24 +1795,43 @@ class Store:
                         subschema,
                         source=source)
 
-    def generate_paths(self, processes, topology):
-        """Set up state hierarchy with stores.
+    def _generate_paths(
+            self, processes: Processes, flow: Flow, topology: Topology):
+        """Set up state :term:`hierarchy` with stores.
 
         Recursively creates the entire state hierarchy rooted at
         ``self``.
 
+        .. WARNING::
+
+           This method is public since it is used by
+           :py:func:`generate_state`, but it should not be used from
+           outside this module. It is not part of the supported API.
+
         Args:
-            processes: Map from process names to process objects.
+            processes: Map from process names to process objects,
+                embedded within nested dictionaries representing the
+                hierarchy nodes rooted at ``self``. Note that steps
+                should be included here too.
+            flow: Map from step names to relative paths to step
+                dependencies, embedded within nested dictionaries
+                representing the hierarchy nodes rooted at ``self``.
             topology: The topology.
         """
         for key, subprocess in processes.items():
             subtopology = topology[key]
+            subflow = flow.get(key) if flow else None
             if isinstance(subprocess, Process):
-                process_state = Store({
+                schema = {
                     '_value': subprocess,
                     '_updater': 'set',
                     '_topology': subtopology,
-                    '_serializer': 'process'}, outer=self)
+                    '_serializer': 'process'
+                }
+                if subflow is not None:
+                    schema['_flow'] = subflow
+                process_state = Store(schema, outer=self)
+
                 self.inner[key] = process_state
 
                 subprocess.schema = subprocess.get_schema()
@@ -1547,11 +1842,13 @@ class Store:
             else:
                 if key not in self.inner:
                     self.inner[key] = Store({}, outer=self)
-                self.inner[key].generate_paths(
+                self.inner[key]._generate_paths(
                     subprocess,
-                    subtopology)
+                    subflow,
+                    subtopology,
+                )
 
-    def generate(self, path, processes, topology, initial_state):
+    def generate(self, path, processes, steps, flow, topology, initial_state):
         """
         Generate a subtree of this store at the given path.
         The processes will be mapped into locations in the tree by the
@@ -1560,8 +1857,8 @@ class Store:
         """
 
         target = self.establish_path(path, {})
-        target.generate_paths(processes, topology)
+        target._generate_paths(processes, flow, topology)
+        target._generate_paths(steps, flow, topology)
         target.generate_value(initial_state)
-        # target.set_value(initial_state)
         target.apply_subschemas()
         target.apply_defaults()

@@ -73,7 +73,7 @@ def assoc_path(d, path, value):
 
 
 def without(d, removing):
-    '''Get a copy of ``d`` without the keys in ``removing``.'''
+    '''Get a copy of ``d`` without the key specified by ``removing``.'''
     return {
         key: value
         for key, value in d.items()

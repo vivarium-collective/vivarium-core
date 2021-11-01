@@ -26,6 +26,7 @@ Pipfile.lock
 ###################
 *.pyc
 __pycache__
+/doc/notebooks/
 
 # OS generated files #
 ######################
