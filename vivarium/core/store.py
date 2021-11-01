@@ -17,7 +17,7 @@ from typing import Optional
 
 from vivarium import divider_registry, serializer_registry, updater_registry
 from vivarium.core.process import Process, Step
-from vivarium.library.dict_utils import deep_merge, MULTI_UPDATE_KEY
+from vivarium.library.dict_utils import deep_merge, deep_merge_check, MULTI_UPDATE_KEY
 from vivarium.library.topology import without, dict_to_paths, get_in
 from vivarium.core.types import Processes, Topology, State, Steps, Flow
 
@@ -1228,8 +1228,9 @@ class Store:
             daughter_path = (daughter_key,)
 
             # get the daughter processes
-            if 'processes' in daughter:
-                processes = daughter['processes']
+            if 'processes' in daughter or 'steps' in daughter:
+                processes = copy.deepcopy(daughter['processes'])
+                deep_merge_check(processes, daughter.get('steps', {}))
             else:
                 # if no processes provided, copy the mother's processes
                 mother_processes = self.get_path(mother_path).get_processes()

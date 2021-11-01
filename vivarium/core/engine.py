@@ -1511,20 +1511,40 @@ def test_custom_divider() -> None:
     composer = ToyDivider({
         'agent_id': agent_id,
         'divider': {
-            'x_default': 3,
-            'x_division_threshold': 25,
+            'x_division_threshold': 3,
         }
     })
     composite = composer.generate(path=('agents', agent_id))
 
     experiment = Engine(
         processes=composite.processes,
+        steps=composite.steps,
+        flow=composite.flow,
         topology=composite.topology,
     )
 
-    experiment.update(80)
+    experiment.update(8)
     data = experiment.emitter.get_data()
-    print(pf(data))
+
+    expected_data = {
+        0.0: {'agents': {'1': {'variable': {'x': 0, '2x': 0}}}},
+        1.0: {'agents': {'1': {'variable': {'x': 1, '2x': 2}}}},
+        2.0: {'agents': {'1': {'variable': {'x': 2, '2x': 4}}}},
+        3.0: {'agents': {'1': {'variable': {'x': 3, '2x': 6}}}},
+        4.0: {'agents': {'1': {'variable': {'x': 4, '2x': 8}}}},
+        5.0: { 'agents': { '10': {'variable': {'x': 2.0, '2x': 4.0}},
+                           '11': {'variable': {'x': 2.0, '2x': 4.0}}}},
+        6.0: { 'agents': { '10': {'variable': {'x': 3.0, '2x': 6.0}},
+                           '11': {'variable': {'x': 3.0, '2x': 6.0}}}},
+        7.0: { 'agents': { '10': {'variable': {'x': 4.0, '2x': 8.0}},
+                           '11': {'variable': {'x': 4.0, '2x': 8.0}}}},
+        8.0: { 'agents': { '100': {'variable': {'x': 2.0, '2x': 4.0}},
+                           '101': {'variable': {'x': 2.0, '2x': 4.0}},
+                           '110': {'variable': {'x': 2.0, '2x': 4.0}},
+                           '111': {'variable': {'x': 2.0, '2x': 4.0}}}}
+    }
+    assert data == expected_data
+
 
 
 class TestStepGraph:

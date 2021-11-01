@@ -4,7 +4,7 @@ from typing import Optional, Dict, Any, Union
 import numpy as np
 
 from vivarium.core.process import (
-    Process, Deriver)
+    Process, Deriver, Step)
 from vivarium.core.composer import Composer, MetaComposer, Composite
 from vivarium.core.types import State, Schema, Update, Topology
 from vivarium.processes.division import get_divide_update
@@ -771,15 +771,13 @@ def test_aggregate_composer() -> None:
 
 
 
-def set_random_int_divider(_, config):
-    return [
-        np.random.randint(0, high=config['max']),
-        np.random.randint(0, high=config['max'])]
+def split_divider(value, config):
+    return [value * config['fraction']] * 2
 
 
 class ToyDividerProcess(Process):
     defaults = {
-        'x_initial_max': 5,
+        'x_fraction': 0.5,
         'x_division_threshold': 10}
     def __init__(self, parameters = None):
         super().__init__(parameters)
@@ -793,9 +791,9 @@ class ToyDividerProcess(Process):
                     '_default': 0,
                     '_emit': True,
                     '_divider': {
-                        'divider': set_random_int_divider,
+                        'divider': split_divider,
                         'config': {
-                            'max': self.parameters['x_initial_max']}
+                            'fraction': self.parameters['x_fraction']}
                     }
                 }},
             'agents': {'*': {}}}
@@ -813,10 +811,35 @@ class ToyDividerProcess(Process):
         return {'variable': {'x': 1}}
 
 
+class ToyDividerStep(Step):
+    def ports_schema(self):
+        return {
+            'variable': {
+                'x': {
+                    '_default': 0,
+                },
+                '2x': {
+                    '_default': 0,
+                    '_emit': True,
+                    '_updater': 'set',
+                },
+            },
+        }
+    def next_update(self, timestep, states):
+        x = states['variable']['x']
+        return {
+            'variable': {
+                '2x': 2 * x,
+            },
+        }
+
+
 class ToyDivider(Composer):
     defaults: Dict[str, Any] = {'divider': {}}
+
     def __init__(self, config):
         super().__init__(config)
+
     def generate_processes(self, config):
         agent_id = config['agent_id']
         division_config = dict(
@@ -824,12 +847,29 @@ class ToyDivider(Composer):
             agent_id=agent_id,
             composer=self)
         return {
-            'divider': ToyDividerProcess(division_config)}
+            'divider': ToyDividerProcess(division_config),
+        }
+
+    def generate_steps(self, config):
+        return {
+            'step': ToyDividerStep(),
+        }
+
+    def generate_flow(self, config):
+        return {
+            'step': [],
+        }
+
     def generate_topology(self, config):
         return {
             'divider': {
                 'variable': ('variable',),
-                'agents': ('..', '..', 'agents')}}
+                'agents': ('..', '..', 'agents'),
+            },
+            'step': {
+                'variable': ('variable',),
+            },
+        }
 
 
 if __name__ == '__main__':
