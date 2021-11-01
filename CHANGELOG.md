@@ -7,7 +7,6 @@
   * `Composite`s now have 2 more keys: `steps` and `flow`.
   * `Engine.run_derivers()` has been replaced by `Engine._run_steps()`.
   * `Engine.deriver_paths` has been replaced by `Engine._step_paths`.
-  * `Engine.process_paths` is now private (`Engine._process_paths`).
   * New lists of step and flow updates have been added to the tuple returned by `Store.apply_update()`.
   * `Store.EMPTY_UPDATES` has two more `None` values and is now private (`Store._EMPTY_UPDATES`).
   * `Store.get_processes()` no longer returns steps (formerly "derivers"). Instead, these are returned by `get_steps()`.

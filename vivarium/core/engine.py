@@ -454,7 +454,7 @@ class Engine:
         self.parallel: Dict[HierarchyPath, ParallelProcess] = {}
 
         # get a mapping of all paths to processes
-        self._process_paths: Dict[HierarchyPath, Process] = {}
+        self.process_paths: Dict[HierarchyPath, Process] = {}
         self._step_graph = _StepGraph()
         self._step_paths: Dict[HierarchyPath, Process] = {}
         self._find_process_paths(self.processes, self.flow)
@@ -527,7 +527,7 @@ class Engine:
             name = path[-1]
             self._add_step_path(step, path, flow.get(name))
         else:
-            self._process_paths[path] = process
+            self.process_paths[path] = process
 
     def _find_process_paths(
             self,
@@ -763,9 +763,9 @@ class Engine:
         delete_in(self.processes, deletion)
         delete_in(self.topology, deletion)
 
-        for path in list(self._process_paths.keys()):
+        for path in list(self.process_paths.keys()):
             if starts_with(path, deletion):
-                del self._process_paths[path]
+                del self.process_paths[path]
 
         for path in list(self._step_paths):
             if starts_with(path, deletion):
@@ -840,7 +840,7 @@ class Engine:
 
             # find any parallel processes that were removed and terminate them
             for terminated in self.parallel.keys() - (
-                    self._process_paths.keys() | self._step_paths.keys()):
+                    self.process_paths.keys() | self._step_paths.keys()):
                 self.parallel[terminated].end()
                 del self.parallel[terminated]
 
@@ -848,13 +848,13 @@ class Engine:
             front = {
                 path: progress
                 for path, progress in front.items()
-                if path in self._process_paths}
+                if path in self.process_paths}
 
             quiet_paths = []
 
             # go through each process and find those that are able to update
             # based on their current time being less than the global time.
-            for path, process in self._process_paths.items():
+            for path, process in self.process_paths.items():
                 if path not in front:
                     front[path] = empty_front(time)
                 process_time = front[path]['time']
