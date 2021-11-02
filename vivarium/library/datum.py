@@ -3,8 +3,9 @@
 Datum
 =====
 '''
+import copy
 
-from typing import Any, Callable, Dict, List
+from typing import Any, Callable, Dict
 
 
 class Datum(dict):
@@ -28,7 +29,7 @@ class Datum(dict):
     def __init__(self, config):
         defaults = {
             key: value() if callable(value) else value
-            for key, value in self.defaults.items()}
+            for key, value in copy.deepcopy(self.defaults).items()}
 
         super().__init__(defaults)
         self.update(config)

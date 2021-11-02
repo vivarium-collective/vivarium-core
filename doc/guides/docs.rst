@@ -115,6 +115,9 @@ documentation:
 
          ``.. WARNING::``
 
+      These are also appropriate for warning users about experimental
+      APIs.
+
     * We use notes to highlight important points. These should *not* be
       used for asides that aren't important enough to integrate directly
       into the text.

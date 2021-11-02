@@ -5,7 +5,7 @@ from distutils.core import setup
 _ = setuptools  # don't warn about this unused import; it might have side effects
 
 
-VERSION = '0.3.14'
+VERSION = '0.4.0'
 
 
 if __name__ == '__main__':
@@ -55,7 +55,7 @@ if __name__ == '__main__':
         python_requires='>=3.6, <4',
         install_requires=[
             'matplotlib',
-            'networkx',
+            'networkx>=2.6.3',
             'numpy',
             'Pint',
             'pymongo',

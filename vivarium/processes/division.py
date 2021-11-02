@@ -25,6 +25,8 @@ def get_divide_update(daughter_composer, mother_id, daughter_ids):
         daughter_updates.append({
             'key': daughter_id,
             'processes': composer['processes'],
+            'steps': composer['steps'],
+            'flow': composer['flow'],
             'topology': composer['topology'],
             'initial_state': {}})
     return {
