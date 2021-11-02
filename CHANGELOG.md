@@ -12,6 +12,7 @@
   * `Store.get_processes()` no longer returns steps (formerly "derivers"). Instead, these are returned by `get_steps()`.
   * Makes `Store.generate_paths()` private (now `Store._generate_paths()`).
   * Adds required `step` and `flow` arguments to `Store.generate()`.
+  * Adds `metadata` argument to `Engine`.
 
 * Fixes a bug where parallel derivers were re-instantiated every timestep.
 * Marks the Store API as experimental, including the public use of `Store.move()`, `Store.insert()`, `Store.divide()`, and `Store.delete()`.
