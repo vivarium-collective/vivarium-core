@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.4.1
+
+* Fix a bug in `Store.generate()` that caused conflicts between a user-provided initial state and a schema to raise an error instead of the initial state taking priority.
+
 ## v0.4.0
 
 * Replaces `Deriver`s with `Step`s. While derivers were executed sequentially, steps are executed in topological generations according to a dependency graph. This lets some derivers run in parallel. This change mostly preserves backwards-compatibility since `Deriver` is now an alias for `Step`, and we still support legacy derivers that are specified without dependencies. These legacy derivers are executed sequentially before any steps. However, the minor version is incremented because the following public interfaces have changed (though we don't expect this to break dependent code):

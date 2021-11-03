@@ -1859,6 +1859,6 @@ class Store:
         target = self.establish_path(path, {})
         target._generate_paths(processes, flow, topology)
         target._generate_paths(steps, flow, topology)
-        target.generate_value(initial_state)
         target.apply_subschemas()
+        target.generate_value(initial_state)
         target.apply_defaults()
