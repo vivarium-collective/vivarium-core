@@ -496,7 +496,8 @@ class Engine:
 
         # translate the values from the tree structure into the form
         # that this process expects, based on its declared topology
-        states = store.outer.schema_serialize(process.schema, store.topology)
+        states = store.topology_view
+        assert states, "store does not have topology_view"
 
         return store, states
 

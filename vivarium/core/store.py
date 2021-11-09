@@ -10,8 +10,6 @@ import copy
 import logging as log
 from pprint import pformat
 import uuid
-import functools
-import orjson
 
 import numpy as np
 from pint import Quantity
@@ -20,7 +18,7 @@ from typing import Optional
 from vivarium import divider_registry, serializer_registry, updater_registry
 from vivarium.core.process import Process
 from vivarium.library.dict_utils import deep_merge, MULTI_UPDATE_KEY
-from vivarium.library.topology import without, dict_to_paths, get_in
+from vivarium.library.topology import without, dict_to_paths
 from vivarium.core.types import Processes, Topology, State
 
 EMPTY_UPDATES = None, None, None
@@ -218,6 +216,7 @@ class Store:
         self.leaf = False
         self.serializer = None
         self.topology = {}
+        self.topology_view = None
 
         self.apply_config(config, source)
 
@@ -340,6 +339,11 @@ class Store:
             self.value.schema,
             self.topology,
             source=self.path_for())
+
+        # cache the process's view
+        self.topology_view = self.schema_topology(
+            self.value.schema,
+            self.topology)
 
     def independent_store(self, store):
         return self.top() != store.top()
@@ -1277,21 +1281,6 @@ class Store:
                 state[key] = self.get_path(path).get_value()
         return state
 
-    def schema_serialize(self, *args):
-        '''
-        make schema_topology arguments hashable for lru_cache
-        '''
-        args = tuple(orjson.dumps(arg, default=default, option=orjson.OPT_SERIALIZE_NUMPY | orjson.OPT_NON_STR_KEYS) for arg in args)
-        return self.schema_deserialize(args)
-    
-    @functools.lru_cache
-    def schema_deserialize(self, args):
-        '''
-        wrapper around schema_topology to deserialize arguments
-        '''
-        args = tuple(orjson.loads(arg) for arg in args)
-        return self.schema_topology(*args)
-
     def schema_topology(self, schema, topology):
         """
         Fill in the structure of the given schema with the values
@@ -1571,6 +1560,11 @@ class Store:
                     subprocess.schema,
                     subtopology,
                     source=self.path_for() + (key,))
+
+                # cache the process's view after the required states have been generated
+                process_state.topology_view = self.schema_topology(
+                    subprocess.schema,
+                    process_state.topology)
             else:
                 if key not in self.inner:
                     self.inner[key] = Store({}, outer=self)
