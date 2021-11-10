@@ -1,5 +1,30 @@
 # Changelog
 
+## v0.4.1
+
+* Fix a bug in `Store.generate()` that caused conflicts between a user-provided initial state and a schema to raise an error instead of the initial state taking priority.
+
+## v0.4.0
+
+* Replaces `Deriver`s with `Step`s. While derivers were executed sequentially, steps are executed in topological generations according to a dependency graph. This lets some derivers run in parallel. This change mostly preserves backwards-compatibility since `Deriver` is now an alias for `Step`, and we still support legacy derivers that are specified without dependencies. These legacy derivers are executed sequentially before any steps. However, the minor version is incremented because the following public interfaces have changed (though we don't expect this to break dependent code):
+
+  * `Composite`s now have 2 more keys: `steps` and `flow`.
+  * `Engine.run_derivers()` has been replaced by `Engine._run_steps()`.
+  * `Engine.deriver_paths` has been replaced by `Engine._step_paths`.
+  * New lists of step and flow updates have been added to the tuple returned by `Store.apply_update()`.
+  * `Store.EMPTY_UPDATES` has two more `None` values and is now private (`Store._EMPTY_UPDATES`).
+  * `Store.get_processes()` no longer returns steps (formerly "derivers"). Instead, these are returned by `get_steps()`.
+  * Makes `Store.generate_paths()` private (now `Store._generate_paths()`).
+  * Adds required `step` and `flow` arguments to `Store.generate()`.
+  * Adds `metadata` argument to `Engine`.
+
+* Fixes a bug where parallel derivers were re-instantiated every timestep.
+* Marks the Store API as experimental, including the public use of `Store.move()`, `Store.insert()`, `Store.divide()`, and `Store.delete()`.
+
+## v0.3.14
+
+* De/serializer for np.bool_
+
 ## v0.3.13
 
 * Fix topology plot to avoid using `plt.figure` so that plots work correctly when other plotting functions are used in the same Python session (e.g. Jupyter notebooks).

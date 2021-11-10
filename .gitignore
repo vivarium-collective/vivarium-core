@@ -17,15 +17,16 @@ out/
 user/*
 !user/user.txt
 *.cprof
-.env
 Pipfile
 Pipfile.lock
 .vscode/*
+.env
 
 # Compiled source #
 ###################
 *.pyc
 __pycache__
+/doc/notebooks/
 
 # OS generated files #
 ######################

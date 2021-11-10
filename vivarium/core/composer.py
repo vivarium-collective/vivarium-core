@@ -13,24 +13,27 @@ from vivarium.core.process import (
 from vivarium.core.store import (
     Store, generate_state)
 from vivarium.core.types import (
-    Processes, Topology, HierarchyPath, State, Schema)
+    Processes, Topology, HierarchyPath, State, Schema, Steps, Flow)
 from vivarium.library.datum import Datum
-from vivarium.library.dict_utils import deep_merge
+from vivarium.library.dict_utils import deep_merge, deep_merge_check
 from vivarium.library.topology import inverse_topology
 
 
 def _get_composite_state(
-        processes: Dict[str, 'Process'],
+        processes: Processes,
+        steps: Steps,
         topology: Any,
         state_type: Optional[str] = 'initial',
         path: Optional[HierarchyPath] = None,
         initial_state: Optional[State] = None,
         config: Optional[dict] = None,
 ) -> Optional[State]:
-
     path = path or tuple()
     initial_state = initial_state or {}
     config = config or {}
+
+    processes = copy.deepcopy(processes)
+    deep_merge_check(processes, steps)
 
     for key, node in processes.items():
         subpath = path + (key,)
@@ -39,6 +42,7 @@ def _get_composite_state(
         if isinstance(node, dict):
             state = _get_composite_state(
                 processes=node,
+                steps={},
                 topology=subtopology,
                 state_type=state_type,
                 path=subpath,
@@ -64,11 +68,16 @@ class Composite(Datum):
 
     Contains keys for processes and topology
     """
-    processes: Dict[str, Any] = {}
-    topology: Dict[str, Any] = {}
+    processes: Processes = {}
+    steps: Steps = {}
+    flow: Flow = {}
+    topology: Topology = {}
     defaults: Dict[str, Any] = {
-        'processes': dict,
-        'topology': dict}
+        'processes': {},
+        'steps': {},
+        'flow': {},
+        'topology': {},
+    }
 
     def __init__(
             self,
@@ -99,6 +108,7 @@ class Composite(Datum):
         """
         return _get_composite_state(
             processes=self.processes,
+            steps=self.steps,
             topology=self.topology,
             state_type='initial',
             config=config)
@@ -115,6 +125,7 @@ class Composite(Datum):
         """
         return _get_composite_state(
             processes=self.processes,
+            steps=self.steps,
             topology=self.topology,
             state_type='default',
             config=config)
@@ -192,7 +203,10 @@ class Composer(metaclass=abc.ABCMeta):
             config: Optional[dict]) -> Processes:
         """Generate processes dictionary.
 
-        Every subclass must override this method.
+        Every subclass must override this method. For backwards
+        compatibility, :py:class:`vivarium.core.process.Step` objects
+        may be included in the returned dictionary, but this practice is
+        discouraged and may be disallowed in a future release.
 
         Args:
             config: A dictionary of configuration options. All
@@ -201,9 +215,51 @@ class Composer(metaclass=abc.ABCMeta):
 
         Returns:
             Subclass implementations must return a dictionary
-            mapping process names to instantiated and configured process
-            objects.
+            mapping process names to instantiated and configured
+            :py:class:`vivarium.core.process.Process` objects.
         """
+        return {}  # pragma: no cover
+
+    def generate_steps(self, config: Optional[dict]) -> Steps:
+        '''Generate the steps dictionary.
+
+        Subclasses that want to include :term:`steps` should override
+        this method. This method is the preferred way to specify steps,
+        though they may also be returned by
+        :py:meth:`generate_processes`.
+
+        Args:
+            config: A dictionary of configuration options. All
+                subclass implementation must accept this parameter, but
+                some may ignore it.
+
+        Returns:
+            Subclass implementations should return a dictionary mapping
+            step names to instantiated and configured
+            :py:class:`vivarium.core.process.Step` objects.
+        '''
+        _ = config
+        return {}  # pragma: no cover
+
+    def generate_flow(self, config: Optional[dict]) -> Flow:
+        '''Generate the flow of :term:`step` dependencies.
+
+        Args:
+            config: A dictionary of configuration options. All
+                subclass implementation must accept this parameter, but
+                some may ignore it.
+
+        Returns:
+            Subclass implementations should return a dictionary mapping
+            step names to sequences (e.g. lists or tuples) of
+            :term:`paths`. **Steps with no dependencies must be
+            included,** but they should be mapped to an empty sequence.
+            Any steps returned by :py:meth:`generate_steps` or
+            :py:meth:`generate_processes` that are not included in the
+            flow will be treated as if they depend on every step
+            previously added to the :term:`engine`.
+        '''
+        _ = config
         return {}  # pragma: no cover
 
     @abc.abstractmethod
@@ -236,10 +292,15 @@ class Composer(metaclass=abc.ABCMeta):
                 the processes and topology at this level.
 
         Returns:
-            Dictionary with keys ``processes``, which has a value of a
-            processes dictionary, and ``topology``, which has a value of
-            a topology dictionary. Both are suitable to be passed to the
-            constructor for
+            Dictionary with the following keys
+
+            * ``processes``: Generated by :py:meth:`generate_processes`.
+            * ``steps``: Generated by :py:meth:`generate_steps`.
+            * ``flow``: Generated by :py:meth:`generate_flow`.
+            * ``topology``: Generated by :py:meth:`generate_topology`.
+
+            The values of these keys are all dictionaries suitable to be
+            passed to the constructor for
             :py:class:`vivarium.core.engine.Engine`.
         """
         if config is None:
@@ -249,11 +310,15 @@ class Composer(metaclass=abc.ABCMeta):
             config = deep_merge(default, config)
 
         processes = self.generate_processes(config)
+        steps = self.generate_steps(config)
+        flow = self.generate_flow(config)
         topology = self.generate_topology(config)
         _override_schemas(self.schema_override, processes)
 
         return Composite({
             'processes': assoc_in({}, path, processes),
+            'steps': assoc_in({}, path, steps),
+            'flow': assoc_in({}, path, flow),
             'topology': assoc_in({}, path, topology),
         })
 
@@ -304,36 +369,47 @@ class MetaComposer(Composer):
         super().__init__(config)
         self.composers: List = list(composers)
 
+    def _generate(
+            self, config: Optional[dict], method: str
+    ) -> Dict[str, Any]:
+        combined: Dict = {}
+        for composer in self.composers:
+            func = getattr(composer, method)
+            composer_config = copy.deepcopy(composer.config)
+            deep_merge(composer_config, config)
+            new = func(composer_config)
+            if set(combined.keys()) & set(new.keys()):
+                raise ValueError(
+                    f"{set(combined.keys())} and "
+                    f"{set(new.keys())} "
+                    f"contain overlapping keys. "
+                    f"They were produced by Composer.{method}()")
+            combined.update(new)
+        return combined
+
     def generate_processes(
             self,
             config: Optional[dict] = None
     ) -> Dict[str, Any]:
-        # TODO(Eran)-- override composite.config with config
-        processes: Dict = {}
-        for composer in self.composers:
-            new_processes = composer.generate_processes(composer.config)
-            if set(processes.keys()) & set(new_processes.keys()):
-                raise ValueError(
-                    f"{set(processes.keys())} and "
-                    f"{set(new_processes.keys())} "
-                    f"in contain overlapping keys")
-            processes.update(new_processes)
-        return processes
+        return self._generate(config, 'generate_processes')
+
+    def generate_steps(
+            self,
+            config: Optional[dict] = None
+    ) -> Dict[str, Any]:
+        return self._generate(config, 'generate_steps')
+
+    def generate_flow(
+            self,
+            config: Optional[dict] = None
+    ) -> Dict[str, Any]:
+        return self._generate(config, 'generate_flow')
 
     def generate_topology(
             self,
             config: Optional[dict] = None
     ) -> Topology:
-        """Do not override this method."""
-        topology: Topology = {}
-        for composer in self.composers:
-            new_topology = composer.generate_topology(composer.config)
-            if set(topology.keys()) & set(new_topology.keys()):
-                raise ValueError(
-                    f"{set(topology.keys())} and {set(new_topology.keys())} "
-                    f"contain overlapping keys")
-            topology.update(new_topology)
-        return topology
+        return self._generate(config, 'generate_topology')
 
     def add_composer(
             self,
