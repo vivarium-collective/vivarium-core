@@ -406,7 +406,7 @@ class UnitsSerializer(Serializer):
 class ProcessSerializer(Serializer):
     """Serializer for processes.
 
-    Currently only supports serialization (for emtting simulation
+    Currently only supports serialization (for emitting simulation
     configs).
     """
     def serialize(self, data):
