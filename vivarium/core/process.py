@@ -423,3 +423,59 @@ class ParallelProcess:
         """End the child process."""
         self.parent.send((-1, None))
         self.multiprocess.join()
+
+
+class KafkaProcess:
+    def __init__(self, process: Process) -> None:
+        """Wraps a :py:class:`Process` for multiprocessing.
+
+        To run a simulation distributed across multiple processors, we
+        use Python's multiprocessing tools. This object runs in the main
+        process and manages communication between the main (parent)
+        process and the child process with the :py:class:`Process` that
+        this object manages.
+
+        Args:
+            process: The Process to manage.
+        """
+        self.process = process
+        self.local = KafkaProducer()
+        self.remote = KafkaConsumer()
+        serialized_process = serialize_process(self.process)
+        self.local.send({
+            'id': self.remote.id,
+            'command': 'initialize',
+            'process': serialized_process})
+
+    def update(
+            self, interval: Union[float, int], states: State) -> None:
+        """Request an update from the process.
+
+        Args:
+            interval: The length of the timestep for which the update
+                should be computed.
+            states: The pre-update state of the simulation.
+        """
+        self.local.send({
+            'id': self.remote.id,
+            'command': 'update',
+            'interval': interval,
+            'states': states})
+
+    def get(self) -> Update:
+        """Get an update from the process.
+
+        Returns:
+            The update from the process.
+        """
+
+        while True:
+            message = self.remote.receive()
+            if message['id'] == self.remote.id:
+                return message['update']
+
+    def end(self) -> None:
+        """End the remote process."""
+        self.local.send({
+            'id': self.remote.id,
+            'command': 'end'})
