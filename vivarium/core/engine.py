@@ -131,6 +131,15 @@ def invoke_process(
 
     return process.next_update(interval, states)
 
+def view_values(
+        states: dict
+) -> State:
+    state_values = {}
+    if isinstance(states, Store):
+        return states.get_value()
+    for key, value in states.items():
+        state_values[key] = view_values(value)
+    return state_values
 
 class Defer:
     def __init__(
@@ -666,7 +675,6 @@ class Engine:
     def process_state(
             self,
             path: HierarchyPath,
-            process: Process,
     ) -> Tuple[Store, State]:
         """Get the simulation state for a process's ``next_update``.
 
@@ -675,17 +683,18 @@ class Engine:
 
         Args:
             path: Path to the process.
-            process: The process.
 
         Returns:
             Tuple of the store at ``path`` and a collection of state
             variables in the form the process expects.
         """
         store = self.state.get_path(path)
+        assert isinstance(store.value, Process)
 
         # translate the values from the tree structure into the form
         # that this process expects, based on its declared topology
-        states = store.outer.schema_topology(process.schema, store.topology)
+        states = store.topology_view
+        assert states, f"store at path {path} does not have a topology_view"
 
         return store, states
 
@@ -706,7 +715,8 @@ class Engine:
             Tuple of the deferred update (relative to the root of
             ``path``) and the store at ``path``.
         """
-        store, states = self.process_state(path, process)
+        store, states = self.process_state(path)
+        states = view_values(states)
         if process.update_condition(interval, states):
             return self._process_update(
                 path, process, store, states, interval)
@@ -867,7 +877,8 @@ class Engine:
                 if process_time <= time:
 
                     # get the time step
-                    store, states = self.process_state(path, process)
+                    store, states = self.process_state(path)
+                    states = view_values(states)
                     requested_timestep = process.calculate_timestep(states)
 
                     # progress only to the end of interval

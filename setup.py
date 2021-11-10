@@ -59,7 +59,7 @@ if __name__ == '__main__':
             'numpy',
             'Pint',
             'pymongo',
-            'scipy',
+            'scipy'
         ],
         classifiers=[
             'Development Status :: 4 - Beta',

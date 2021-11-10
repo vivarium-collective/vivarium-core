@@ -18,7 +18,7 @@ from typing import Optional
 from vivarium import divider_registry, serializer_registry, updater_registry
 from vivarium.core.process import Process, Step
 from vivarium.library.dict_utils import deep_merge, deep_merge_check, MULTI_UPDATE_KEY
-from vivarium.library.topology import without, dict_to_paths, get_in
+from vivarium.library.topology import without, dict_to_paths
 from vivarium.core.types import Processes, Topology, State, Steps, Flow
 
 _EMPTY_UPDATES = None, None, None, None, None
@@ -203,6 +203,7 @@ class Store:
         self.leaf = False
         self.serializer = None
         self.topology = {}
+        self.topology_view = None
         # self.flow is None when this node has no flow (either because
         # it is not a Step or because it is a Step treated like a
         # Deriver) and a list when this node holds a Step with
@@ -403,6 +404,11 @@ class Store:
             self.value.schema,
             self.topology,
             source=self.path_for())
+
+        # cache the process's view
+        self.topology_view = self.schema_topology(
+            self.value.schema,
+            self.topology)
 
     def independent_store(self, store):
         return self.top() != store.top()
@@ -1550,7 +1556,7 @@ class Store:
         state = {}
 
         if self.leaf:
-            state = self.get_value()
+            state = self
         else:
             for key, subschema in schema.items():
                 path = topology.get(key)
@@ -1839,6 +1845,11 @@ class Store:
                     subprocess.schema,
                     subtopology,
                     source=self.path_for() + (key,))
+
+                # cache the process's view after the required states have been generated
+                process_state.topology_view = self.schema_topology(
+                    subprocess.schema,
+                    process_state.topology)
             else:
                 if key not in self.inner:
                     self.inner[key] = Store({}, outer=self)

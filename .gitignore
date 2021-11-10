@@ -17,9 +17,9 @@ out/
 user/*
 !user/user.txt
 *.cprof
-.vscode/*
 Pipfile
 Pipfile.lock
+.vscode/*
 .env
 
 # Compiled source #
