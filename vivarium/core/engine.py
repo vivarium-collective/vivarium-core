@@ -715,8 +715,8 @@ class Engine:
             Tuple of the deferred update (relative to the root of
             ``path``) and the store at ``path``.
         """
-        store, states = self.process_state(path)
-        states = view_values(states)
+        store, topology_view = self.process_state(path)
+        states = view_values(topology_view)
         if process.update_condition(interval, states):
             return self._process_update(
                 path, process, store, states, interval)
