@@ -1567,11 +1567,10 @@ class Store:
                             state[child] = child_node.schema_topology(
                                 subschema, path)
                     else:
-                        state = self
-                        # node = self.get_path(path)
-                        # for child, child_node in node.inner.items():
-                        #     state[child] = child_node.schema_topology(
-                        #         subschema, {})
+                        node = self.get_path(path)
+                        for child, child_node in node.inner.items():
+                            state[child] = child_node.schema_topology(
+                                subschema, {})
                 elif key == '_divider':
                     pass
                 elif isinstance(path, dict):
@@ -1587,6 +1586,8 @@ class Store:
                         # node is None, it was likely deleted
                         print('{} is None'.format(path))
 
+        if state == {}:
+            state = self
         return state
 
     def state_for(self, path, keys):
