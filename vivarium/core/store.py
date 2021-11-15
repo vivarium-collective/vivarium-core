@@ -1549,8 +1549,8 @@ class Store:
 
     def schema_topology(self, schema, topology):
         """
-        Fill in the structure of the given schema with the values
-        located according to the given topology.
+        Fill in the structure of the given schema with the connected stores
+        according to the given topology.
         """
 
         state = {}
