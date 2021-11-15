@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.4.2
+
+* Add `topology_view` caching in `Store` to improve performance.
+
 ## v0.4.1
 
 * Fix a bug in `Store.generate()` that caused conflicts between a user-provided initial state and a schema to raise an error instead of the initial state taking priority.
