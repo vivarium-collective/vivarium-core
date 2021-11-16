@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.4.3
+
+* Bug fix in the new `topology_view`, return `Store` for `'*'` schema.
+
 ## v0.4.2
 
 * Add `topology_view` caching in `Store` to improve performance.
