@@ -1549,8 +1549,8 @@ class Store:
 
     def schema_topology(self, schema, topology):
         """
-        Fill in the structure of the given schema with the values
-        located according to the given topology.
+        Fill in the structure of the given schema with the connected stores
+        according to the given topology.
         """
 
         state = {}
@@ -1586,6 +1586,8 @@ class Store:
                         # node is None, it was likely deleted
                         print('{} is None'.format(path))
 
+        if state == {}:
+            state = self
         return state
 
     def state_for(self, path, keys):
