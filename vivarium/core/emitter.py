@@ -386,10 +386,24 @@ def assemble_data(data: list) -> dict:
 
 
 def get_history_data_db(
-        history_collection: Any, experiment_id: Any) -> Dict[float, dict]:
+        history_collection: Any,
+        experiment_id: Any,
+        query=None,
+) -> Dict[float, dict]:
     """Query MongoDB for history data."""
+
+    projection = None
+    if query:
+        projection = {f"data.{field}": 1 for field in query}
+        projection['data.time'] = 1
+
     query = {'experiment_id': experiment_id}
-    raw_data = list(history_collection.find(query))
+
+    cursor = history_collection.find(query, projection)
+    raw_data = []
+    for document in cursor:
+        if document['data'].get('time'):
+            raw_data.append(document)
 
     # re-assemble data
     assembly = assemble_data(raw_data)
@@ -422,7 +436,11 @@ def get_local_client(host: str, port: Any, database_name: str) -> Any:
     return client[database_name]
 
 
-def data_from_database(experiment_id: str, client: Any) -> Tuple[dict, Any]:
+def data_from_database(
+        experiment_id: str,
+        client: Any,
+        query: list =None,
+) -> Tuple[dict, Any]:
     """Fetch something from a MongoDB."""
 
     # Retrieve environment config
@@ -438,7 +456,7 @@ def data_from_database(experiment_id: str, client: Any) -> Tuple[dict, Any]:
 
     # Retrieve timepoint data
     history = client.history
-    data = get_history_data_db(history, experiment_id)
+    data = get_history_data_db(history, experiment_id, query)
 
     return data, experiment_config
 
