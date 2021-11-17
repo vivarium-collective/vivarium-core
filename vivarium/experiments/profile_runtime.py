@@ -22,6 +22,10 @@ from vivarium.core.composer import Composer
 from vivarium.core.control import run_library_cli
 
 
+PROCESS_UPDATE_MARKER = 'b.'
+VIVARIUM_OVERHEAD_MARKER = 'r.'
+
+
 class ManyVariablesProcess(Process):
     defaults = {
         'number_of_ports': 1,
@@ -58,9 +62,11 @@ class ManyVariablesProcess(Process):
         time.sleep(self.parameters['process_sleep'])
         return update
 
+
 class ManyVariablesComposite(Composer):
     defaults = {
         'number_of_processes': 10,
+        'number_of_parallel_processes': 0,
         'number_of_stores': 10,
         'number_of_ports': 1,
         'variables_per_process_port': 10,
@@ -73,6 +79,9 @@ class ManyVariablesComposite(Composer):
         self.process_ids = [
             f'process_{key}' for key
             in range(self.config['number_of_processes'])]
+        self.parallel_process_ids = [
+            process_id for process_idx, process_id in enumerate(self.process_ids, 1)
+            if process_idx <= self.config['number_of_parallel_processes']]
         self.store_ids = [
             f'store_{key}' for key
             in range(self.config['number_of_stores'])]
@@ -84,6 +93,7 @@ class ManyVariablesComposite(Composer):
                 'number_of_ports': self.config['number_of_ports'],
                 'variables_per_port': self.config['variables_per_process_port'],
                 'process_sleep': self.config['process_sleep'],
+                '_parallel': True if process_id in self.parallel_process_ids else False,
             })
             for process_id in self.process_ids}
 
@@ -116,6 +126,7 @@ class ComplexModelSim:
 
     # model complexity
     number_of_processes = 10
+    number_of_parallel_processes = 0
     number_of_stores = 10
     number_of_ports = 1
     variables_per_port = 10
@@ -158,6 +169,7 @@ class ComplexModelSim:
     def set_parameters(
             self,
             number_of_processes=None,
+            number_of_parallel_processes=None,
             number_of_stores=None,
             number_of_ports=None,
             variables_per_port=None,
@@ -168,6 +180,8 @@ class ComplexModelSim:
     ):
         self.number_of_processes = \
             number_of_processes or self.number_of_processes
+        self.number_of_parallel_processes = \
+            number_of_parallel_processes or self.number_of_parallel_processes
         self.number_of_ports = \
             number_of_ports or self.number_of_ports
         self.variables_per_port = \
@@ -186,6 +200,8 @@ class ComplexModelSim:
     def _generate_composite(self, **kwargs):
         number_of_processes = kwargs.get(
             'number_of_processes', self.number_of_processes)
+        number_of_parallel_processes = kwargs.get(
+            'number_of_parallel_processes', self.number_of_parallel_processes)
         number_of_stores = kwargs.get(
             'number_of_stores', self.number_of_stores)
         number_of_ports = kwargs.get(
@@ -199,6 +215,7 @@ class ComplexModelSim:
 
         composer = ManyVariablesComposite({
             'number_of_processes': number_of_processes,
+            'number_of_parallel_processes': number_of_parallel_processes,
             'number_of_stores': number_of_stores,
             'number_of_ports': number_of_ports,
             'variables_per_port': variables_per_port,
@@ -295,6 +312,7 @@ class ComplexModelSim:
 
         return process_update_time, store_update_time
 
+
 def run_scan(
     sim=None,
     scan_values=None,
@@ -303,6 +321,7 @@ def run_scan(
     scan_values = scan_values or [{
         'number_of_stores': 10,
         'number_of_processes': 10,
+        'number_of_parallel_processes': 0,
         'variables_per_port': 10,
         'number_of_ports': 1,
         'hierarchy_depth': 1,
@@ -311,6 +330,7 @@ def run_scan(
     saved_stats = []
     for scan_dict in scan_values:
         n_processes = scan_dict.get('number_of_processes', 10)
+        n_parallel_processes = scan_dict.get('number_of_parallel_processes', 0)
         n_stores = scan_dict.get('number_of_stores', 10)
         n_vars = scan_dict.get('variables_per_port', n_stores)
         n_ports = scan_dict.get('number_of_ports', 1)
@@ -319,6 +339,7 @@ def run_scan(
         # set the parameters
         sim.set_parameters(
             number_of_processes=n_processes,
+            number_of_parallel_processes=n_parallel_processes,
             number_of_stores=n_stores,
             number_of_ports=n_ports,
             variables_per_port=n_vars,
@@ -362,8 +383,6 @@ def make_axis(fig, grid, plot_n, patches, label=''):
         bbox_to_anchor=(0.5, 1.2), )
     return ax
 
-PROCESS_UPDATE_MARKER = 'b.'
-VIVARIUM_OVERHEAD_MARKER = 'r.'
 
 def get_patches():
     patches = []
@@ -376,7 +395,6 @@ def get_patches():
             color=VIVARIUM_OVERHEAD_MARKER[0],
             label="vivarium overhead"))
     return patches
-
 
 
 def plot_scan_results(
@@ -485,6 +503,7 @@ def plot_scan_results(
 
     # adjustments
     plt.subplots_adjust(hspace=0.5)
+    plt.figtext(0, -0.1, filename, size=8)
 
     # save
     os.makedirs(out_dir, exist_ok=True)
@@ -509,6 +528,7 @@ def scan_stores():
                       var_plot=True,
                       filename='scan_stores')
 
+
 def scan_processes():
     n_processes = [2, 4, 8, 16, 32, 64, 128, 256, 512]
     scan_values = [{'number_of_processes': n} for n in n_processes]
@@ -522,6 +542,27 @@ def scan_processes():
                       plot_all=False,
                       process_plot=True,
                       filename='scan_processes')
+
+
+def scan_parallel_processes():
+    total_processes = 8
+    n_parallel_processes = [i for i in range(total_processes)]
+    scan_values = [
+        {
+            'number_of_processes': total_processes,
+            'number_of_parallel_processes': n
+        } for n in n_parallel_processes
+    ]
+
+    sim = ComplexModelSim()
+    sim.experiment_time = 100
+    sim.process_sleep = 1e-5
+    saved_stats = run_scan(sim,
+                           scan_values=scan_values)
+    plot_scan_results(saved_stats,
+                      plot_all=False,
+                      process_plot=True,
+                      filename='scan_parallel_processes')
 
 
 def scan_processes_variables():
@@ -547,6 +588,7 @@ def scan_processes_variables():
                       process_plot=True,
                       var_plot=True,
                       filename='scan_processes_variables')
+
 
 def scan_number_of_ports():
     n_ports = [1, 2, 4, 8, 16, 32, 64]
@@ -600,7 +642,10 @@ scans_library = {
     '2': scan_processes_variables,
     '3': scan_number_of_ports,
     '4': scan_hierarchy_depth,
+    '5': scan_parallel_processes,
 }
 
+# python vivarium/experiments/profile_runtime.py
+# -n [name]
 if __name__ == '__main__':
     run_library_cli(scans_library)
