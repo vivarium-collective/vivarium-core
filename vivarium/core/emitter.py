@@ -388,9 +388,19 @@ def assemble_data(data: list) -> dict:
 def get_history_data_db(
         history_collection: Any,
         experiment_id: Any,
-        query=None,
+        query: list = None,
 ) -> Dict[float, dict]:
-    """Query MongoDB for history data."""
+    """Query MongoDB for history data.
+
+    Args:
+        history_collection: a MongoDB collection
+        experiment_id: the experiment id which is being retrieved
+        query: a list of strings pointing to fields within the experiment data.
+            In the format: ['path.to.field1', 'path.to.field2']
+
+    Returns:
+        data (dict)
+    """
 
     experiment_query = {'experiment_id': experiment_id}
 
