@@ -323,8 +323,8 @@ class DatabaseEmitter(Emitter):
             d['assembly_id'] = assembly_id
             table.insert_one(d)
 
-    def get_data(self) -> dict:
-        return get_history_data_db(self.history, self.experiment_id)
+    def get_data(self, query=None) -> dict:
+        return get_history_data_db(self.history, self.experiment_id, query)
 
 
 def get_experiment_database(
@@ -392,14 +392,14 @@ def get_history_data_db(
 ) -> Dict[float, dict]:
     """Query MongoDB for history data."""
 
+    experiment_query = {'experiment_id': experiment_id}
+
     projection = None
     if query:
         projection = {f"data.{field}": 1 for field in query}
         projection['data.time'] = 1
 
-    query = {'experiment_id': experiment_id}
-
-    cursor = history_collection.find(query, projection)
+    cursor = history_collection.find(experiment_query, projection)
     raw_data = []
     for document in cursor:
         if document['data'].get('time'):
@@ -439,14 +439,14 @@ def get_local_client(host: str, port: Any, database_name: str) -> Any:
 def data_from_database(
         experiment_id: str,
         client: Any,
-        query: list =None,
+        query: list = None,
 ) -> Tuple[dict, Any]:
     """Fetch something from a MongoDB."""
 
     # Retrieve environment config
     config_collection = client.configuration
-    query = {'experiment_id': experiment_id}
-    experiment_configs = list(config_collection.find(query))
+    experiment_query = {'experiment_id': experiment_id}
+    experiment_configs = list(config_collection.find(experiment_query))
 
     # Re-assemble experiment_config
     experiment_assembly = assemble_data(experiment_configs)
