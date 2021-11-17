@@ -1454,6 +1454,10 @@ def test_units() -> None:
                     'b': {
                         '_default': 'string b',
                         '_emit': True,
+                    },
+                    'c': {
+                        '_default': 0,
+                        '_emit': True,
                     }
                 }
             }
@@ -1461,7 +1465,10 @@ def test_units() -> None:
         def next_update(
                 self, timestep: Union[float, int], states: State) -> Update:
             return {
-                'A': {'a': 1 * units.um}}
+                'A': {
+                    'a': 1 * units.um,
+                    'c': 1,
+                }}
 
     class UnitsMillimeter(Process):
         name = 'units_millimeter'
@@ -1520,6 +1527,11 @@ def test_units() -> None:
     data_unitless = exp.emitter.get_data_unitless()
     print('UNITLESS')
     pp(data_unitless)
+
+    query = [('aaa', 'a'), ('aaa', 'c')]
+    query_data = exp.emitter.get_data(query)
+    print('QUERY DATA')
+    pp(query_data)
 
 
 def test_custom_divider() -> None:
