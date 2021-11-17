@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.4.4
+
+* Add queries to `Emitter`, and to `get_history_data_db`. This allows you to selectively retrieve from paths
+ in the data, and can save a lot of time when retrieving data from large experiments.
+
 ## v0.4.3
 
 * Bug fix in the new `topology_view`, return `Store` for `'*'` schema.
