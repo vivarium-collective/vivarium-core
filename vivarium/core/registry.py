@@ -178,6 +178,33 @@ def update_nonnegative_accumulate(current_value, new_value):
         return 0 * updated_value
 
 
+def update_dictionary(current, update):
+    """Dictionary Updater
+    Updater that translates _add and _delete -style updates
+    into operations on a dictionary.
+
+    Expects current to be a dictionary, with no restriction on the types of objects
+    stored within it, and no defaults. For enforcing expectations/defaults, try
+    make_dict_value_updater(**defaults).
+    """
+    result = current
+
+    for key, value in update.items():
+        if key == "_add":
+            for added_value in value:
+                added_key = added_value["key"]
+                added_state = added_value["state"]
+                result[added_key] = added_state
+        elif key == "_delete":
+            for k in value:
+                del result[k]
+        elif key in result:
+            result[key].update(value)
+        else:
+            raise Exception(f"Invalid dict_value_updater key: {key}")
+    return result
+
+
 # Divider functions
 def divide_set(state):
     """Set Divider
