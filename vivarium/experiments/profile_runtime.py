@@ -22,6 +22,12 @@ from vivarium.core.composer import Composer
 from vivarium.core.control import run_library_cli
 
 
+DEFAULT_PROCESS_SLEEP = 1e-3
+DEFAULT_N_PROCESSES = 10
+DEFAULT_N_VARIABLES = 10
+DEFAULT_EXPERIMENT_TIME = 100
+
+
 PROCESS_UPDATE_MARKER = 'b.'
 VIVARIUM_OVERHEAD_MARKER = 'r.'
 SIMULATION_TIME_MARKER = 'g.'
@@ -30,8 +36,8 @@ SIMULATION_TIME_MARKER = 'g.'
 class ManyVariablesProcess(Process):
     defaults = {
         'number_of_ports': 1,
-        'number_of_variables': 10,
-        'process_sleep': 0,
+        'number_of_variables': DEFAULT_N_VARIABLES,
+        'process_sleep': DEFAULT_PROCESS_SLEEP,
     }
 
     def __init__(self, parameters=None):
@@ -77,24 +83,24 @@ class ManyVariablesProcess(Process):
 
 class ManyVariablesComposite(Composer):
     defaults = {
-        'number_of_processes': 10,
+        'number_of_processes': DEFAULT_N_PROCESSES,
+        'number_of_variables': DEFAULT_N_VARIABLES,
+        'process_sleep': DEFAULT_PROCESS_SLEEP,
         'number_of_parallel_processes': 0,
         'number_of_stores': 10,
         'number_of_ports': 1,
-        'number_of_variables': 10,
         'hierarchy_depth': 1,
-        'process_sleep': 0,
     }
 
     def __init__(self, config=None):
         super().__init__(config)
-        self.process_ids = [
+        process_ids = [
             f'process_{key}' for key
             in range(self.config['number_of_processes'])]
-        self.parallel_process_ids = [
-            process_id for process_idx, process_id in enumerate(self.process_ids, 1)
+        parallel_process_ids = [
+            process_id for process_idx, process_id in enumerate(process_ids, 1)
             if process_idx <= self.config['number_of_parallel_processes']]
-        self.store_ids = [
+        store_ids = [
             f'store_{key}' for key
             in range(self.config['number_of_stores'])]
 
@@ -105,16 +111,16 @@ class ManyVariablesComposite(Composer):
                 'number_of_ports': self.config['number_of_ports'],
                 'number_of_variables': self.config['number_of_variables'],
                 'process_sleep': self.config['process_sleep'],
-                '_parallel': process_id in self.parallel_process_ids,
+                '_parallel': process_id in parallel_process_ids,
             })
-            for process_id in self.process_ids}
+            for process_id in process_ids}
 
         # connect the processes' ports to a random store at hierarchy_depth
         self.topology = {}
         for process_id, process in self.processes.items():
             process_ports = {}
             for port_id in process.port_variables.keys():
-                store_id = random.choice(self.store_ids)
+                store_id = random.choice(store_ids)
                 store_path = [
                     store_id for _
                     in range(self.config['hierarchy_depth'])]
@@ -137,14 +143,14 @@ class ComplexModelSim:
     """
 
     # model complexity
-    number_of_processes = 10
+    number_of_processes = DEFAULT_N_PROCESSES
+    number_of_variables = DEFAULT_N_VARIABLES
+    process_sleep = DEFAULT_PROCESS_SLEEP
     number_of_parallel_processes = 0
     number_of_stores = 10
     number_of_ports = 1
-    number_of_variables = 10
     hierarchy_depth = 1
-    process_sleep = 0
-    experiment_time = 100
+    experiment_time = DEFAULT_EXPERIMENT_TIME
 
     # display
     print_top_stats = 4
@@ -258,6 +264,11 @@ class ComplexModelSim:
         return timeseries
 
     def _profile_method(self, method, **kwargs):
+        """The main profiling method and of the simulation steps
+
+        Args
+            method: the simulation step. For example self._run_experiment
+        """
         print_top_stats = kwargs.get(
             'print_top_stats', self.print_top_stats)
         profiler = cProfile.Profile()
@@ -287,7 +298,7 @@ class ComplexModelSim:
         self._profile_method(
             self._get_emitter_data)
 
-    def profile_communication_latency(self, print_report=True):
+    def profile_communication_latency(self):
 
         self._generate_composite()
         self._initialize_experiment(display_info=False)
@@ -318,34 +329,27 @@ class ComplexModelSim:
         # analyze
         store_update_time = experiment_time - process_update_time
 
-        if print_report:
-            print(f"TOTAL EXPERIMENT TIME: {experiment_time}")
-            print(f"PROCESS NEXT_UPDATE: {process_update_time}")
-            print(f"STORE UPDATE: {store_update_time}")
-
         return process_update_time, store_update_time
 
 
 def run_scan(
-    sim=None,
+    sim,
     scan_values=None,
 ):
-    sim = sim or ComplexModelSim()
-    scan_values = scan_values or [{
-        'number_of_stores': 10,
-        'number_of_processes': 10,
-        'number_of_parallel_processes': 0,
-        'number_of_variables': 10,
-        'number_of_ports': 1,
-        'hierarchy_depth': 1,
-    }]
+    """Run a scan
+
+    Args
+        sim: the ComplexModelSim object.
+        scan_values: a list of dicts, with individual scan values.
+    """
+    scan_values = scan_values or []
 
     saved_stats = []
     for scan_dict in scan_values:
-        n_processes = scan_dict.get('number_of_processes', 10)
+        n_processes = scan_dict.get('number_of_processes', DEFAULT_N_PROCESSES)
+        n_vars = scan_dict.get('number_of_variables', DEFAULT_N_VARIABLES)
         n_parallel_processes = scan_dict.get('number_of_parallel_processes', 0)
         n_stores = scan_dict.get('number_of_stores', 10)
-        n_vars = scan_dict.get('number_of_variables', 10)
         n_ports = scan_dict.get('number_of_ports', 1)
         hierarchy_depth = scan_dict.get('hierarchy_depth', 1)
 
@@ -370,7 +374,7 @@ def run_scan(
 
         # run experiment
         process_update_time, store_update_time = \
-            sim.profile_communication_latency(print_report=False)
+            sim.profile_communication_latency()
 
         # save data
         stat_dict = {
@@ -407,17 +411,15 @@ def get_patches(
     patches = []
     if process:
         patches.append(mpatches.Patch(
-            color=PROCESS_UPDATE_MARKER[0],
-            label="process updates"))
+            color=PROCESS_UPDATE_MARKER[0], label="process updates"))
     if overhead:
         patches.append(mpatches.Patch(
-            color=VIVARIUM_OVERHEAD_MARKER[0],
-            label="vivarium overhead"))
+            color=VIVARIUM_OVERHEAD_MARKER[0], label="vivarium overhead"))
     if experiment:
         patches.append(mpatches.Patch(
-            color=SIMULATION_TIME_MARKER[0],
-            label="simulation time"))
+            color=SIMULATION_TIME_MARKER[0], label="simulation time"))
     return patches
+
 
 def plot_scan_results(
         saved_stats,
@@ -449,7 +451,7 @@ def plot_scan_results(
         parallel_plot,
     ])
 
-    ## make figure
+    # make figure
     fig = plt.figure(figsize=(n_cols * 6, n_rows * 3))
     grid = plt.GridSpec(n_rows, n_cols)
 
@@ -555,13 +557,12 @@ def plot_scan_results(
 
 # scan functions
 def scan_stores():
-    n_stores = [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024]
+    n_stores = [n*100 for n in range(10)]
     scan_values = [{
         'number_of_stores': n} for n in n_stores]
 
     sim = ComplexModelSim()
     sim.experiment_time = 100
-    sim.process_sleep = 1e-4
     saved_stats = run_scan(sim,
                            scan_values=scan_values)
     plot_scan_results(saved_stats,
@@ -572,12 +573,12 @@ def scan_stores():
 
 
 def scan_processes():
-    n_processes = [2, 4, 8, 16, 32, 64, 128, 256, 512]
+    n_processes = [n*40 for n in range(10)]
     scan_values = [{'number_of_processes': n} for n in n_processes]
 
     sim = ComplexModelSim()
     sim.experiment_time = 100
-    sim.process_sleep = 1e-5
+    sim.process_sleep = 1e-4
     saved_stats = run_scan(sim,
                            scan_values=scan_values)
     plot_scan_results(saved_stats,
@@ -592,7 +593,6 @@ def scan_variables():
 
     sim = ComplexModelSim()
     sim.experiment_time = 5
-    sim.process_sleep = 1e-5
     saved_stats = run_scan(sim,
                            scan_values=scan_values)
     plot_scan_results(saved_stats,
@@ -601,9 +601,51 @@ def scan_variables():
                       filename='scan_variables')
 
 
+def scan_number_of_ports():
+    n_ports = [n*10 for n in range(10)]
+    scan_values = [
+        {
+            'number_of_processes': 3,
+            'number_of_stores': 10,
+            'number_of_variables': 100,
+            'number_of_ports': n
+        } for n in n_ports
+    ]
+
+    sim = ComplexModelSim()
+    sim.experiment_time = 100
+    saved_stats = run_scan(sim,
+                           scan_values=scan_values)
+    plot_scan_results(saved_stats,
+                      plot_all=False,
+                      port_plot=True,
+                      filename='scan_number_of_ports')
+
+
+def scan_hierarchy_depth():
+    hierarchy_depth = [n*2 for n in range(20)]
+    scan_values = [
+        {
+            'number_of_stores': 10,
+            'number_of_variables': 5,
+            'number_of_ports': 1,
+            'hierarchy_depth': n,
+        } for n in hierarchy_depth
+    ]
+
+    sim = ComplexModelSim()
+    sim.experiment_time = 100
+    saved_stats = run_scan(sim,
+                           scan_values=scan_values)
+    plot_scan_results(saved_stats,
+                      plot_all=False,
+                      hierarchy_plot=True,
+                      filename='scan_hierarchy_depth')
+
+
 def scan_parallel_processes():
-    total_processes = 8
-    n_parallel_processes = [i for i in range(total_processes)]
+    total_processes = 20
+    n_parallel_processes = [i*2 for i in range(int(total_processes/2))]
     scan_values = [
         {
             'number_of_processes': total_processes,
@@ -619,52 +661,7 @@ def scan_parallel_processes():
     plot_scan_results(saved_stats,
                       plot_all=False,
                       parallel_plot=True,
-                      filename='scan_parallel_processes')
-
-
-def scan_number_of_ports():
-    n_ports = [1, 2, 4, 8, 16, 32, 64]
-    scan_values = [
-        {
-            'number_of_processes': 3,
-            'number_of_stores': 10,
-            'number_of_variables': 100,
-            'number_of_ports': n
-        } for n in n_ports
-    ]
-
-    sim = ComplexModelSim()
-    sim.experiment_time = 100
-    sim.process_sleep = 1e-4
-    saved_stats = run_scan(sim,
-                           scan_values=scan_values)
-    plot_scan_results(saved_stats,
-                      plot_all=False,
-                      port_plot=True,
-                      filename='scan_number_of_ports')
-
-
-def scan_hierarchy_depth():
-    hierarchy_depth = [n*2 for n in range(20)]
-    scan_values = [
-        {
-            'number_of_processes': 10,
-            'number_of_stores': 10,
-            'number_of_variables': 5,
-            'number_of_ports': 1,
-            'hierarchy_depth': n,
-        } for n in hierarchy_depth
-    ]
-
-    sim = ComplexModelSim()
-    sim.experiment_time = 100
-    sim.process_sleep = 1e-4
-    saved_stats = run_scan(sim,
-                           scan_values=scan_values)
-    plot_scan_results(saved_stats,
-                      plot_all=False,
-                      hierarchy_plot=True,
-                      filename='scan_hierarchy_depth')
+                      filename=f'scan_parallel_processes_{total_processes}')
 
 
 scans_library = {
