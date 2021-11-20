@@ -24,6 +24,7 @@ from vivarium.core.control import run_library_cli
 
 PROCESS_UPDATE_MARKER = 'b.'
 VIVARIUM_OVERHEAD_MARKER = 'r.'
+SIMULATION_TIME_MARKER = 'g.'
 
 
 class ManyVariablesProcess(Process):
@@ -93,7 +94,7 @@ class ManyVariablesComposite(Composer):
                 'number_of_ports': self.config['number_of_ports'],
                 'variables_per_port': self.config['variables_per_process_port'],
                 'process_sleep': self.config['process_sleep'],
-                '_parallel': True if process_id in self.parallel_process_ids else False,
+                '_parallel': process_id in self.parallel_process_ids,
             })
             for process_id in self.process_ids}
 
@@ -233,6 +234,7 @@ class ComplexModelSim:
 
     def _run_experiment(self, **kwargs):
         self.experiment.update(kwargs['experiment_time'])
+        self.experiment.end()
 
     def _get_emitter_data(self, **kwargs):
         _ = kwargs
@@ -352,6 +354,7 @@ def run_scan(
             f'number_of_ports={n_ports}, '
             f'variables_per_port={n_vars}, '
             f'hierarchy_depth={hierarchy_depth}, '
+            f'number_of_parallel_processes={n_parallel_processes} '
         )
 
         # run experiment
@@ -365,6 +368,7 @@ def run_scan(
             'number_of_ports': n_ports,
             'variables_per_port': n_vars,
             'hierarchy_depth': hierarchy_depth,
+            'number_of_parallel_processes': n_parallel_processes,
             'process_update_time': process_update_time,
             'store_update_time': store_update_time,
         }
@@ -384,18 +388,25 @@ def make_axis(fig, grid, plot_n, patches, label=''):
     return ax
 
 
-def get_patches():
+def get_patches(
+        process=True,
+        overhead=True,
+        experiment=False
+):
     patches = []
-    patches.append(
-        mpatches.Patch(
+    if process:
+        patches.append(mpatches.Patch(
             color=PROCESS_UPDATE_MARKER[0],
             label="process updates"))
-    patches.append(
-        mpatches.Patch(
+    if overhead:
+        patches.append(mpatches.Patch(
             color=VIVARIUM_OVERHEAD_MARKER[0],
             label="vivarium overhead"))
+    if experiment:
+        patches.append(mpatches.Patch(
+            color=SIMULATION_TIME_MARKER[0],
+            label="simulation time"))
     return patches
-
 
 def plot_scan_results(
         saved_stats,
@@ -405,6 +416,7 @@ def plot_scan_results(
         port_plot=False,
         var_plot=False,
         hierarchy_plot=False,
+        parallel_plot=False,
         out_dir='out/experiments',
         filename='profile',
 ):
@@ -414,6 +426,7 @@ def plot_scan_results(
         port_plot = True
         var_plot = True
         hierarchy_plot = True
+        parallel_plot = True
 
     n_cols = 1
     n_rows = sum([
@@ -421,7 +434,9 @@ def plot_scan_results(
         store_plot,
         port_plot,
         var_plot,
-        hierarchy_plot])
+        hierarchy_plot,
+        parallel_plot,
+    ])
 
     ## make figure
     fig = plt.figure(figsize=(n_cols * 6, n_rows * 3))
@@ -461,12 +476,23 @@ def plot_scan_results(
             label='hierarchy depth')
         plot_n += 1
 
+    if parallel_plot:
+        patches = get_patches(
+            process=False,
+            overhead=False,
+            experiment=True)
+        ax_depth = make_axis(
+            fig, grid, plot_n, patches,
+            label='number of parallel processes')
+        plot_n += 1
+
     # plot saved states
     for stat in saved_stats:
         n_processes = stat['number_of_processes']
         n_stores = stat['number_of_stores']
         n_ports = stat['number_of_ports']
         n_vars = stat['variables_per_port']
+        n_parallel_processes = stat['number_of_parallel_processes']
         depth = stat['hierarchy_depth']
         process_update_time = stat['process_update_time']
         store_update_time = stat['store_update_time']
@@ -500,6 +526,11 @@ def plot_scan_results(
                 depth, process_update_time, PROCESS_UPDATE_MARKER)
             ax_depth.plot(
                 depth, store_update_time, VIVARIUM_OVERHEAD_MARKER)
+
+        if parallel_plot:
+            experiment_time = process_update_time + store_update_time
+            ax_depth.plot(
+                n_parallel_processes, experiment_time, SIMULATION_TIME_MARKER)
 
     # adjustments
     plt.subplots_adjust(hspace=0.5)
@@ -556,12 +587,12 @@ def scan_parallel_processes():
 
     sim = ComplexModelSim()
     sim.experiment_time = 100
-    sim.process_sleep = 1e-5
+    sim.process_sleep = 1e-2
     saved_stats = run_scan(sim,
                            scan_values=scan_values)
     plot_scan_results(saved_stats,
                       plot_all=False,
-                      process_plot=True,
+                      parallel_plot=True,
                       filename='scan_parallel_processes')
 
 
