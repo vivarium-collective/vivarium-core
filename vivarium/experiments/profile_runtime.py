@@ -11,7 +11,6 @@ import random
 import time
 import cProfile
 import pstats
-import argparse
 
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
