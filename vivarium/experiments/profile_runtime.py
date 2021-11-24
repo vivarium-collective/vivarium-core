@@ -301,7 +301,8 @@ def run_scan(
         sim.set_parameters(
             number_of_processes=scan_dict.get('number_of_processes'),
             process_sleep=scan_dict.get('process_sleep'),
-            number_of_parallel_processes=scan_dict.get('number_of_parallel_processes'),
+            number_of_parallel_processes=scan_dict.get(
+                'number_of_parallel_processes'),
             number_of_stores=scan_dict.get('number_of_stores'),
             number_of_ports=scan_dict.get('number_of_ports'),
             number_of_variables=scan_dict.get('number_of_variables'),
