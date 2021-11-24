@@ -22,8 +22,8 @@ from vivarium.core.composer import Composer
 from vivarium.core.control import run_library_cli
 
 
-DEFAULT_PROCESS_SLEEP = 1e-3
-DEFAULT_N_PROCESSES = 10
+DEFAULT_PROCESS_SLEEP = 1e-4
+DEFAULT_N_PROCESSES = 5
 DEFAULT_N_VARIABLES = 10
 DEFAULT_EXPERIMENT_TIME = 100
 
@@ -455,35 +455,38 @@ def plot_scan_results(
     fig = plt.figure(figsize=(n_cols * 6, n_rows * 3))
     grid = plt.GridSpec(n_rows, n_cols)
 
-    patches = get_patches()
-
     # initialize axes
     plot_n = 0
     if process_plot:
+        patches = get_patches()
         ax_nprocesses = make_axis(
             fig, grid, plot_n, patches,
             label='number of processes')
         plot_n += 1
 
     if store_plot:
+        patches = get_patches(process=False)
         ax_nstores = make_axis(
             fig, grid, plot_n, patches,
             label='number of stores')
         plot_n += 1
 
     if port_plot:
+        patches = get_patches(process=False)
         ax_nports = make_axis(
             fig, grid, plot_n, patches,
             label='number of ports')
         plot_n += 1
 
     if var_plot:
+        patches = get_patches()
         ax_nvars = make_axis(
             fig, grid, plot_n, patches,
             label='number of variables')
         plot_n += 1
 
     if hierarchy_plot:
+        patches = get_patches(process=False)
         ax_depth = make_axis(
             fig, grid, plot_n, patches,
             label='hierarchy depth')
@@ -518,13 +521,9 @@ def plot_scan_results(
 
         if store_plot:
             ax_nstores.plot(
-                n_stores, process_update_time, PROCESS_UPDATE_MARKER)
-            ax_nstores.plot(
                 n_stores, store_update_time, VIVARIUM_OVERHEAD_MARKER)
 
         if port_plot:
-            ax_nports.plot(
-                n_ports, process_update_time, PROCESS_UPDATE_MARKER)
             ax_nports.plot(
                 n_ports, store_update_time, VIVARIUM_OVERHEAD_MARKER)
 
@@ -535,8 +534,6 @@ def plot_scan_results(
                 n_vars, store_update_time, VIVARIUM_OVERHEAD_MARKER)
 
         if hierarchy_plot:
-            ax_depth.plot(
-                depth, process_update_time, PROCESS_UPDATE_MARKER)
             ax_depth.plot(
                 depth, store_update_time, VIVARIUM_OVERHEAD_MARKER)
 
@@ -550,9 +547,11 @@ def plot_scan_results(
     plt.figtext(0, -0.1, filename, size=8)
 
     # save
-    os.makedirs(out_dir, exist_ok=True)
-    fig_path = os.path.join(out_dir, filename[0:100])
-    fig.savefig(fig_path, bbox_inches='tight')
+    if filename:
+        os.makedirs(out_dir, exist_ok=True)
+        fig_path = os.path.join(out_dir, filename[0:100])
+        fig.savefig(fig_path, bbox_inches='tight')
+    return fig
 
 
 # scan functions
@@ -562,23 +561,21 @@ def scan_stores():
         'number_of_stores': n} for n in n_stores]
 
     sim = ComplexModelSim()
-    sim.experiment_time = 100
     saved_stats = run_scan(sim,
                            scan_values=scan_values)
     plot_scan_results(saved_stats,
                       plot_all=False,
                       store_plot=True,
-                      var_plot=True,
+                      # var_plot=True,
                       filename='scan_stores')
 
 
 def scan_processes():
-    n_processes = [n*40 for n in range(10)]
+    n_processes = [n*20 for n in range(6)]
+    # n_processes = [n * 20 for n in range(10)]
     scan_values = [{'number_of_processes': n} for n in n_processes]
 
     sim = ComplexModelSim()
-    sim.experiment_time = 100
-    sim.process_sleep = 1e-4
     saved_stats = run_scan(sim,
                            scan_values=scan_values)
     plot_scan_results(saved_stats,
@@ -592,7 +589,6 @@ def scan_variables():
     scan_values = [{'number_of_variables': n} for n in n_vars]
 
     sim = ComplexModelSim()
-    sim.experiment_time = 5
     saved_stats = run_scan(sim,
                            scan_values=scan_values)
     plot_scan_results(saved_stats,
@@ -605,15 +601,12 @@ def scan_number_of_ports():
     n_ports = [n*10 for n in range(10)]
     scan_values = [
         {
-            'number_of_processes': 3,
-            'number_of_stores': 10,
             'number_of_variables': 100,
             'number_of_ports': n
         } for n in n_ports
     ]
 
     sim = ComplexModelSim()
-    sim.experiment_time = 100
     saved_stats = run_scan(sim,
                            scan_values=scan_values)
     plot_scan_results(saved_stats,
@@ -626,15 +619,11 @@ def scan_hierarchy_depth():
     hierarchy_depth = [n*2 for n in range(20)]
     scan_values = [
         {
-            'number_of_stores': 10,
-            'number_of_variables': 5,
-            'number_of_ports': 1,
             'hierarchy_depth': n,
         } for n in hierarchy_depth
     ]
 
     sim = ComplexModelSim()
-    sim.experiment_time = 100
     saved_stats = run_scan(sim,
                            scan_values=scan_values)
     plot_scan_results(saved_stats,
@@ -654,7 +643,6 @@ def scan_parallel_processes():
     ]
 
     sim = ComplexModelSim()
-    sim.experiment_time = 100
     sim.process_sleep = 1e-2
     saved_stats = run_scan(sim,
                            scan_values=scan_values)
