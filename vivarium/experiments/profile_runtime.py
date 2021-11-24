@@ -328,10 +328,11 @@ def run_scan(
 # Plotting functions
 ####################
 
-def _make_axis(fig, grid, plot_n, patches, label=''):
+def _make_axis(fig, grid, plot_n, patches, title='', label=''):
     ax = fig.add_subplot(grid[plot_n, 0])
     ax.set_xlabel(label)
     ax.set_ylabel('runtime (s)')
+    ax.set_title(title)
     ax.legend(
         handles=patches,
         # ncol=2,
@@ -397,6 +398,7 @@ def plot_scan_results(
         fig=None,
         grid=None,
         axis_number=0,
+        title=None,
         out_dir='out/experiments',
         filename=None,
 ):
@@ -435,7 +437,7 @@ def plot_scan_results(
     if process_plot:
         patches = _get_patches(process=True, overhead=True)
         ax = _make_axis(
-            fig, grid, axis_number, patches,
+            fig, grid, axis_number, patches, title,
             label='number of processes')
         _add_stats_plot(
             ax=ax, saved_stats=saved_stats,
@@ -525,8 +527,8 @@ def scan_stores():
 
 
 def scan_processes():
-    n_processes = [n*20 for n in range(5)]
-    sleep_times = [0.5e-4, 1e-4, 2e-4]
+    n_processes = [n*20 for n in range(10)]
+    sleep_times = [0.1e-4, 0.75e-4, 1e-4]
 
     n_cols = 1
     n_rows = len(sleep_times)
@@ -551,6 +553,7 @@ def scan_processes():
                           fig=fig,
                           grid=grid,
                           axis_number=idx,
+                          title=f'process update = {s} sec',
                           # filename='scan_processes'
                           )
     plot_scan_results({},
