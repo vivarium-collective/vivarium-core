@@ -74,7 +74,11 @@ class ManyVariablesProcess(Process):
                 for variable in variable_ids}
             update[port_id] = port_update
 
-        time.sleep(self.parameters['process_sleep'])
+        # use while loop for busy wait, to use CPU time
+        current_time = time.time()
+        while time.time() < current_time + self.parameters['process_sleep']:
+            pass
+
         return update
 
 
@@ -604,8 +608,9 @@ def scan_hierarchy_depth():
 
 
 def scan_parallel_processes():
-    total_processes = 20
-    n_parallel_processes = [i*3 for i in range(int(total_processes/3))]
+    total_processes = 40
+    n_scans = 5
+    n_parallel_processes = [i * int(total_processes/n_scans) for i in range(n_scans)]
     scan_values = [
         {
             'number_of_processes': total_processes,
@@ -615,6 +620,7 @@ def scan_parallel_processes():
 
     sim = ComplexModelSim()
     sim.process_sleep = 1e-2
+    sim.experiment_time = 50
     saved_stats = run_scan(sim,
                            scan_values=scan_values)
     plot_scan_results(saved_stats,
