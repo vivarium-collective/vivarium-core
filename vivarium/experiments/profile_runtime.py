@@ -610,7 +610,8 @@ def scan_hierarchy_depth():
 def scan_parallel_processes():
     total_processes = 40
     n_scans = 5
-    n_parallel_processes = [i * int(total_processes/n_scans) for i in range(n_scans)]
+    n_parallel_processes = [
+        i * int(total_processes/n_scans) for i in range(n_scans)]
     scan_values = [
         {
             'number_of_processes': total_processes,
