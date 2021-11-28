@@ -1808,6 +1808,19 @@ def test_glob_schema():
     )
     experiment.update(10)
 
+    # declare processes in reverse order
+    processes_reverse = {
+        'environment': ToyEnvironment(),
+        'agents': {
+            '0': ToyTransport(),
+        },
+    }
+    experiment = Engine(
+        processes=processes_reverse,
+        topology=topology,
+    )
+    experiment.update(10)
+
 
 if __name__ == '__main__':
     # test_recursive_store()
