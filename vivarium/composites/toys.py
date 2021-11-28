@@ -122,6 +122,27 @@ class ToyDeath(Process):
         return update
 
 
+class ToyEnvironment(Process):
+    def __init__(self, parameters=None):
+        super().__init__(parameters)
+    def ports_schema(self):
+        return {
+            'agents': {
+                '*': {
+                    'internal': {'_default': {}},
+                    'external': {'_default': {}},
+                    'membrane': {'_default': {}},
+                }
+            }
+        }
+    def next_update(self, timestep, state):
+        agents = state['agents']
+
+        import ipdb; ipdb.set_trace()
+
+        return {}
+
+
 class ToyCompartment(Composer):
     '''
     a toy compartment for testing
