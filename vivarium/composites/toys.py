@@ -123,24 +123,30 @@ class ToyDeath(Process):
 
 
 class ToyEnvironment(Process):
+    port_ids = ['external', 'membrane']
     def __init__(self, parameters=None):
         super().__init__(parameters)
     def ports_schema(self):
         return {
             'agents': {
                 '*': {
-                    'internal': {'_default': {}},
-                    'external': {'_default': {}},
-                    'membrane': {'_default': {}},
+                    port_id: {
+                        '_default': {}
+                    } for port_id in self.port_ids
                 }
             }
         }
     def next_update(self, timestep, state):
         agents = state['agents']
 
+        agents_update = {}
+        for agent_id, agent_state in agents.items():
+            assert set(agent_state.keys()) == set(self.port_ids), 'view is getting states not in ports_schema'
+            agents_update[agent_id]['external'] = 1
+
         import ipdb; ipdb.set_trace()
 
-        return {}
+        return {'agents': agents_update}
 
 
 class ToyCompartment(Composer):

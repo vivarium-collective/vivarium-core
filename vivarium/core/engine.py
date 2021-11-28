@@ -1786,40 +1786,27 @@ def test_runtime_order() -> None:
 
 def test_glob_schema():
     processes = {
-        'agents': {
-            '0': ToyTransport(),
-        },
-        'environment': ToyEnvironment(),
-    }
+        'agents': {'0': ToyTransport()},
+        'environment': ToyEnvironment()}
     topology = {
-        'environment': {
-            'agents': ('agents',)
-        },
+        'environment': {'agents': ('agents',)},
         'agents': {
             '0': {
                 'internal': ('internal',),
-                'external': ('external',),
-            }
-        }
-    }
+                'external': ('external',)}}}
     experiment = Engine(
         processes=processes,
-        topology=topology,
-    )
+        topology=topology)
     experiment.update(10)
 
     # declare processes in reverse order
     processes_reverse = {
         'environment': ToyEnvironment(),
-        'agents': {
-            '0': ToyTransport(),
-        },
-    }
-    experiment = Engine(
+        'agents': {'0': ToyTransport()}}
+    experiment_reverse = Engine(
         processes=processes_reverse,
-        topology=topology,
-    )
-    experiment.update(10)
+        topology=topology)
+    experiment_reverse.update(10)
 
 
 if __name__ == '__main__':
