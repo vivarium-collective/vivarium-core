@@ -32,7 +32,10 @@ def _get_composite_state(
     initial_state = initial_state or {}
     config = config or {}
 
-    processes = copy.deepcopy(processes)
+    try:
+        processes = copy.deepcopy(processes)
+    except Exception as e:
+        print(e)
     deep_merge_check(processes, steps)
 
     for key, node in processes.items():
