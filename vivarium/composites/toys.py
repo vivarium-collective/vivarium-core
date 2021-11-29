@@ -125,9 +125,6 @@ class ToyDeath(Process):
 class ToyEnvironment(Process):
     port_ids = ['external', 'membrane']
 
-    def __init__(self, parameters=None):
-        super().__init__(parameters)
-
     def ports_schema(self):
         return {
             'agents': {
@@ -139,12 +136,13 @@ class ToyEnvironment(Process):
             }
         }
 
-    def next_update(self, timestep, state):
-        agents = state['agents']
+    def next_update(self, timestep, states):
+        agents = states['agents']
 
         agents_update = {}
         for agent_id, agent_state in agents.items():
-            assert set(agent_state.keys()) == set(self.port_ids), 'view is getting states not in ports_schema'
+            assert set(agent_state.keys()) == set(self.port_ids), \
+                'view is getting states not in ports_schema'
             agents_update[agent_id] = {}
             agents_update[agent_id]['external'] = 1
 

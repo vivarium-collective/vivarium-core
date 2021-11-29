@@ -1784,7 +1784,7 @@ def test_runtime_order() -> None:
             assert set(group) == expected_group
 
 
-def test_glob_schema():
+def test_glob_schema() -> None:
     processes = {
         'agents': {'0': {'transport': ToyTransport()}},
         'environment': ToyEnvironment()}

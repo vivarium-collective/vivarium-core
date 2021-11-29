@@ -34,7 +34,7 @@ def _get_composite_state(
 
     try:
         processes = copy.deepcopy(processes)
-    except Exception as e:
+    except TypeError as e:
         print(e)
     deep_merge_check(processes, steps)
 
