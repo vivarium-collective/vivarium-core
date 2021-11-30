@@ -122,6 +122,33 @@ class ToyDeath(Process):
         return update
 
 
+class ToyEnvironment(Process):
+    port_ids = ['external', 'membrane']
+
+    def ports_schema(self):
+        return {
+            'agents': {
+                '*': {
+                    port_id: {
+                        '_default': 0.0
+                    } for port_id in self.port_ids
+                }
+            }
+        }
+
+    def next_update(self, timestep, states):
+        agents = states['agents']
+
+        agents_update = {}
+        for agent_id, agent_state in agents.items():
+            assert set(agent_state.keys()) == set(self.port_ids), \
+                'view is getting states not in ports_schema'
+            agents_update[agent_id] = {}
+            agents_update[agent_id]['external'] = 1
+
+        return {'agents': agents_update}
+
+
 class ToyCompartment(Composer):
     '''
     a toy compartment for testing

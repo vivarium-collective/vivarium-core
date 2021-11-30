@@ -20,7 +20,8 @@ import warnings
 
 import networkx as nx
 
-from vivarium.composites.toys import Proton, Electron, Sine, PoQo, ToyDivider
+from vivarium.composites.toys import (
+    Proton, Electron, Sine, PoQo, ToyDivider, ToyEnvironment, ToyTransport)
 from vivarium.core.store import hierarchy_depth, Store, generate_state
 from vivarium.core.emitter import get_emitter
 from vivarium.core.process import (
@@ -1783,6 +1784,37 @@ def test_runtime_order() -> None:
             assert set(group) == expected_group
 
 
+def test_glob_schema() -> None:
+    processes = {
+        'agents': {'0': {'transport': ToyTransport()}},
+        'environment': ToyEnvironment()}
+    topology = {
+        'environment': {
+            'agents': {
+                '_path': ('agents',),
+                '*': {
+                    'external': ('external', 'GLC')}}},
+        'agents': {
+            '0': {
+                'transport': {
+                    'internal': ('internal',),
+                    'external': ('external',)}}}}
+    experiment = Engine(
+        processes=processes,
+        topology=topology)
+    experiment.update(10)
+
+    # declare processes in reverse order
+    processes_reverse = {
+        'environment': ToyEnvironment(),
+        'agents': {'0': {'transport': ToyTransport()}}}
+
+    experiment_reverse = Engine(
+        processes=processes_reverse,
+        topology=topology)
+    experiment_reverse.update(10)
+
+
 if __name__ == '__main__':
     # test_recursive_store()
     # test_timescales()
@@ -1794,5 +1826,6 @@ if __name__ == '__main__':
     # test_multi_port_merge()
     # test_2_store_1_port()
     # test_units()
-    test_custom_divider()
+    # test_custom_divider()
     # test_runtime_order()
+    test_glob_schema()

@@ -45,6 +45,7 @@ def generate_state(
     store = Store({})
     steps = steps or {}
     store.generate(tuple(), processes, steps, flow, topology, initial_state)
+    store.build_topology_views()
 
     return store
 
@@ -1430,6 +1431,7 @@ class Store:
                         insert_processes, insert_steps, insert_flows,
                         insert_topology
                     ) = self.insert(generate)
+                    self.build_topology_views()
                     process_updates.extend(insert_processes)
                     step_updates.extend(insert_steps)
                     flow_updates.extend(insert_flows)
@@ -1441,6 +1443,7 @@ class Store:
                     divide_processes, divide_steps, divide_flow,
                     divide_topology, divide_deletions
                 ) = self.divide(divide)
+                self.build_topology_views()
                 process_updates.extend(divide_processes)
                 step_updates.extend(divide_steps)
                 flow_updates.extend(divide_flow)
@@ -1843,15 +1846,11 @@ class Store:
                 self.inner[key] = process_state
 
                 subprocess.schema = subprocess.get_schema()
+
                 self.topology_ports(
                     subprocess.schema,
                     subtopology,
                     source=self.path_for() + (key,))
-
-                # cache the process's view after the required states have been generated
-                process_state.topology_view = self.schema_topology(
-                    subprocess.schema,
-                    process_state.topology)
             else:
                 if key not in self.inner:
                     self.inner[key] = Store({}, outer=self)
@@ -1860,6 +1859,16 @@ class Store:
                     subflow,
                     subtopology,
                 )
+
+    def build_topology_views(self):
+        if self.leaf:
+            if isinstance(self.value, Process):
+                self.topology_view = self.outer.schema_topology(
+                    self.value.schema,
+                    self.topology)
+        else:
+            for inner in self.inner.values():
+                inner.build_topology_views()
 
     def generate(self, path, processes, steps, flow, topology, initial_state):
         """
