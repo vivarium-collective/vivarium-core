@@ -857,7 +857,8 @@ def test_environment_view_with_division() -> None:
                 once_different = True
             else:
                 # the values have been different for more than one update
-                ValueError(f'environment sees {env_agents} instead of {agent_ids}')
+                ValueError(
+                    f'environment sees {env_agents} instead of {agent_ids}')
         else:
             once_different = False
 

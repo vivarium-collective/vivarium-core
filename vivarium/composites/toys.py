@@ -767,7 +767,7 @@ def test_aggregate_composer() -> None:
     }
     aggregate.add_composers(
         composers=[ToyComposer(config2)],
-        config={})
+        config={'two': {}})
     composite2 = aggregate.generate()
 
     # add composer (single)
@@ -778,7 +778,7 @@ def test_aggregate_composer() -> None:
     }
     aggregate.add_composer(
         composer=ToyComposer(config3),
-        config={})
+        config={'three': {}})
     composite3 = aggregate.generate()
 
     assert all(

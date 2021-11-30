@@ -16,7 +16,6 @@ import math
 import datetime
 import time as clock
 import uuid
-import warnings
 
 import networkx as nx
 
