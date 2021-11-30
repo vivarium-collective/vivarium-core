@@ -1227,8 +1227,8 @@ class Store:
         for daughter, daughter_state in \
                 zip(daughters, daughter_states):
             # use initial state as default, merge in divided values
-            initial_state = deep_merge(
-                initial_state,
+            merged_initial_state = deep_merge(
+                copy.deepcopy(initial_state),
                 daughter_state)
 
             daughter_key = daughter['key']
@@ -1268,7 +1268,7 @@ class Store:
                 {},
                 flow,
                 topology,
-                initial_state)
+                merged_initial_state)
 
             root = here + daughter_path
             process_paths = dict_to_paths(root, processes)
@@ -1285,7 +1285,7 @@ class Store:
             self.apply_subschema_path(daughter_path)
             target = self.get_path(daughter_path)
             target.apply_defaults()
-            target.set_value(initial_state)
+            target.set_value(merged_initial_state)
 
 
         self.delete_path(mother_path)
