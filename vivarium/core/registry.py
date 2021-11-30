@@ -58,7 +58,7 @@ the variables in each of the daughter cells.
     For example, a divider splitting an odd, integer-valued value may
     randomly decide which daughter cell receives the remainder.
 """
-
+import copy
 import random
 
 import numpy as np
@@ -129,7 +129,7 @@ def update_merge(current_value, new_value):
     for k, v in current_value.items():
         new = new_value.get(k)
         if isinstance(new, dict):
-            update[k] = deep_merge(dict(v), new)
+            update[k] = deep_merge(copy.deepcopy(v), new)
         else:
             update[k] = new
     return update
