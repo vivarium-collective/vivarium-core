@@ -1236,7 +1236,10 @@ class Store:
 
             # get the daughter processes
             if 'processes' in daughter or 'steps' in daughter:
-                processes = copy.deepcopy(daughter['processes'])
+                try:
+                    processes = copy.deepcopy(daughter['processes'])
+                except:
+                    processes = daughter['processes']
                 deep_merge_check(processes, daughter.get('steps', {}))
             else:
                 # if no processes provided, copy the mother's processes
