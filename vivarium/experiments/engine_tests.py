@@ -848,12 +848,18 @@ def test_environment_view_with_division() -> None:
     data = experiment.emitter.get_data()
 
     # confirm that the environment sees the new agents.
+    once_different = False
     for state in data.values():
         agent_ids = set(state['agents'].keys())
         env_agents = set(state['log_update'].get('agents', {}).keys())
-        if env_agents:
-            assert env_agents == agent_ids, \
-                f'environment sees {env_agents} instead of {agent_ids}'
+        if env_agents != agent_ids:
+            if not once_different:
+                once_different = True
+            else:
+                # the values have been different for more than one update
+                ValueError(f'environment sees {env_agents} instead of {agent_ids}')
+        else:
+            once_different = False
 
 
 engine_tests = {

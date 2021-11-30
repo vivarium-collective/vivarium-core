@@ -737,7 +737,7 @@ class Engine:
 
         (
             topology_updates, process_updates, step_updates,
-            flow_updates, deletions
+            flow_updates, deletions, view_expire_flag
         ) = self.state.apply_update(update, state)
 
         flow_update_dict = dict(flow_updates)
@@ -757,10 +757,13 @@ class Engine:
                 assoc_path(self.steps, path, step)
                 self._add_step_path(step, path, dependencies)
 
-
         if deletions:
             for deletion in deletions:
                 self.delete_path(deletion)
+
+        if view_expire_flag:
+            self.state.build_topology_views()
+            self._run_steps()
 
     def delete_path(
             self,

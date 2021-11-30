@@ -21,7 +21,7 @@ from vivarium.library.dict_utils import deep_merge, deep_merge_check, MULTI_UPDA
 from vivarium.library.topology import without, dict_to_paths
 from vivarium.core.types import Processes, Topology, State, Steps, Flow
 
-_EMPTY_UPDATES = None, None, None, None, None
+_EMPTY_UPDATES = None, None, None, None, None, None
 
 
 def generate_state(
@@ -1387,6 +1387,7 @@ class Store:
               The result of the reduction will be assigned to this point
               in the tree.
         """
+        view_expire_flag = False
 
         if isinstance(update, dict) and MULTI_UPDATE_KEY in update:
             # apply multiple updates to same node
@@ -1434,11 +1435,11 @@ class Store:
                         insert_processes, insert_steps, insert_flows,
                         insert_topology
                     ) = self.insert(generate)
-                    self.build_topology_views()
                     process_updates.extend(insert_processes)
                     step_updates.extend(insert_steps)
                     flow_updates.extend(insert_flows)
                     topology_updates.extend(insert_topology)
+                    view_expire_flag = True
 
             divide = update.pop('_divide', None)
             if divide is not None:
@@ -1446,12 +1447,12 @@ class Store:
                     divide_processes, divide_steps, divide_flow,
                     divide_topology, divide_deletions
                 ) = self.divide(divide)
-                self.build_topology_views()
                 process_updates.extend(divide_processes)
                 step_updates.extend(divide_steps)
                 flow_updates.extend(divide_flow)
                 topology_updates.extend(divide_topology)
                 deletions.extend(divide_deletions)
+                view_expire_flag = True
 
             delete_keys = update.pop('_delete', None)
 
@@ -1460,7 +1461,7 @@ class Store:
                     inner = self.inner[key]
                     (
                         inner_topology, inner_processes, inner_steps,
-                        inner_flows, inner_deletions
+                        inner_flows, inner_deletions, inner_view_expire_flag
                     ) = inner.apply_update(value, state)
 
                     if inner_topology:
@@ -1473,6 +1474,8 @@ class Store:
                         flow_updates.extend(inner_flows)
                     if inner_deletions:
                         deletions.extend(inner_deletions)
+                    if inner_view_expire_flag:
+                        view_expire_flag = inner_view_expire_flag
 
             if delete_keys is not None:
                 # delete a list of paths
@@ -1483,7 +1486,7 @@ class Store:
 
             return (
                 topology_updates, process_updates, step_updates,
-                flow_updates, deletions)
+                flow_updates, deletions, view_expire_flag)
 
         # Leaf update: this node has no inner
 
