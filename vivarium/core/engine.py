@@ -39,6 +39,7 @@ from vivarium.library.topology import (
     normalize_path,
 )
 from vivarium.library.units import units
+from vivarium.library.wrappers import make_logging_process
 from vivarium.core.types import (
     HierarchyPath, Topology, Schema, State, Update, Processes, Steps,
     Flow)
@@ -1815,6 +1816,52 @@ def test_glob_schema() -> None:
     experiment_reverse.update(10)
 
 
+def test_environment_view_with_division() -> None:
+    agent_id = '1'
+    agent_composer = ToyDivider({
+        'agent_id': agent_id,
+        'divider': {
+            'x_division_threshold': 3,
+        }
+    })
+    composite = agent_composer.generate(path=('agents', agent_id))
+
+    environment_process = {
+        'environment': make_logging_process(ToyEnvironment)()
+    }
+    environment_topology = {
+        'environment': {
+            'agents': {
+                '_path': ('agents',),
+                '*': {
+                    'external': ('external', 'GLC')
+                }
+            },
+            'log_update': ('log_update',),
+        }
+    }
+
+    # combine the environment and agent
+    composite.merge(
+        processes=environment_process,
+        topology=environment_topology,
+    )
+
+    experiment = Engine(
+        processes=composite.processes,
+        topology=composite.topology)
+    experiment.update(10)
+    data = experiment.emitter.get_data()
+
+    # confirm that the environment sees the new agents.
+    for t, state in data.items():
+        agent_ids = set(state['agents'].keys())
+        env_agents = set(state['log_update'].get('agents', {}).keys())
+        if env_agents:
+            assert env_agents == agent_ids, \
+                f'environment sees {env_agents} instead of {agent_ids}'
+
+
 if __name__ == '__main__':
     # test_recursive_store()
     # test_timescales()
@@ -1828,4 +1875,5 @@ if __name__ == '__main__':
     # test_units()
     # test_custom_divider()
     # test_runtime_order()
-    test_glob_schema()
+    # test_glob_schema()
+    test_environment_view_with_division()
