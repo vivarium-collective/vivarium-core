@@ -19,6 +19,51 @@ from vivarium.library.dict_utils import deep_merge, deep_merge_check
 from vivarium.library.topology import inverse_topology
 
 
+def _get_composite_state_recur(
+        processes: Processes,
+        steps: Steps,
+        topology: Any,
+        state_type: Optional[str] = 'initial',
+        path: Optional[HierarchyPath] = None,
+        config: Optional[dict] = None,
+) -> Optional[State]:
+    path = path or tuple()
+    config = config or {}
+    processes = processes or {}
+    steps = steps or {}
+
+    state = {}
+    all_keys = set(processes.keys() | steps.keys())
+    for key in all_keys:
+        subpath = path + (key,)
+        subtopology = topology[key]
+        subprocesses = processes.get(key)
+        substeps = steps.get(key)
+
+        if isinstance(subprocesses, dict) or isinstance(substeps, dict):
+            substate = _get_composite_state_recur(
+                processes=subprocesses,
+                steps=substeps,
+                topology=subtopology,
+                state_type=state_type,
+                path=subpath,
+                config=config.get(key),
+            )
+        elif isinstance(subprocesses, Process) or isinstance(substeps, Process):
+            node = subprocesses or substeps
+            if state_type == 'initial':
+                # get the initial state
+                process_state = node.initial_state(config.get(node.name))
+            elif state_type == 'default':
+                # get the default state
+                process_state = node.default_state()
+            substate = inverse_topology(path, process_state, subtopology)
+        else:
+            Exception(f'invalid processes {subprocesses} or steps {substeps}')
+        state = deep_merge(state, substate)
+    return state
+
+
 def _get_composite_state(
         processes: Processes,
         steps: Steps,
@@ -28,39 +73,16 @@ def _get_composite_state(
         initial_state: Optional[State] = None,
         config: Optional[dict] = None,
 ) -> Optional[State]:
-    path = path or tuple()
-    initial_state = initial_state or {}
-    config = config or {}
-
-    processes = copy.deepcopy(processes)
-    deep_merge_check(processes, steps)
-
-    for key, node in processes.items():
-        subpath = path + (key,)
-        subtopology = topology[key]
-
-        if isinstance(node, dict):
-            state = _get_composite_state(
-                processes=node,
-                steps={},
-                topology=subtopology,
-                state_type=state_type,
-                path=subpath,
-                initial_state=initial_state,
-                config=config.get(key),
-            )
-        elif isinstance(node, Process):
-            if state_type == 'initial':
-                # get the initial state
-                process_state = node.initial_state(config.get(node.name))
-            elif state_type == 'default':
-                # get the default state
-                process_state = node.default_state()
-            state = inverse_topology(path, process_state, subtopology)
-
-        initial_state = deep_merge(initial_state, state)
-
-    return initial_state
+    state = _get_composite_state_recur(
+        processes=processes,
+        steps=steps,
+        topology=topology,
+        state_type=state_type,
+        path=path,
+        config=config,
+    )
+    state = deep_merge(state, initial_state)
+    return state
 
 
 class Composite(Datum):

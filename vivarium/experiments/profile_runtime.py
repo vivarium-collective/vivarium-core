@@ -117,6 +117,8 @@ class ManyVariablesComposite(Composer):
             for process_id in process_ids}
 
         # connect the processes' ports to a random store at hierarchy_depth
+        # TODO -- control number of stores at hierarchy depth
+        assert self.config['hierarchy_depth'] <= self.config['number_of_stores']
         self.topology = {}
         for process_id, process in self.processes.items():
             process_ports = {}
@@ -518,21 +520,9 @@ def plot_scan_results(
 # Individual scan functions
 ###########################
 
-def scan_stores():
-    n_stores = [n*100 for n in range(10)]
-    scan_values = [{'number_of_stores': n} for n in n_stores]
-
-    sim = ComplexModelSim()
-    saved_stats = run_scan(sim,
-                           scan_values=scan_values)
-    plot_scan_results(saved_stats,
-                      store_plot=True,
-                      filename='scan_stores')
-
-
 def scan_processes():
     n_processes = [n*20 for n in range(10)]
-    sleep_times = [0.1e-4, 0.75e-4, 1e-4]
+    sleep_times = [0.75e-5, 0.75e-4, 0.75e-3]
 
     n_cols = 1
     n_rows = len(sleep_times)
@@ -630,12 +620,11 @@ def scan_parallel_processes():
 
 
 scans_library = {
-    '0': scan_stores,
-    '1': scan_processes,
-    '2': scan_variables,
-    '3': scan_number_of_ports,
-    '4': scan_hierarchy_depth,
-    '5': scan_parallel_processes,
+    '0': scan_processes,
+    '1': scan_variables,
+    '2': scan_number_of_ports,
+    '3': scan_hierarchy_depth,
+    '4': scan_parallel_processes,
 }
 
 # python vivarium/experiments/profile_runtime.py -n [name]
