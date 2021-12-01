@@ -15,7 +15,7 @@ from vivarium.core.store import (
 from vivarium.core.types import (
     Processes, Topology, HierarchyPath, State, Schema, Steps, Flow)
 from vivarium.library.datum import Datum
-from vivarium.library.dict_utils import deep_merge, deep_merge_check
+from vivarium.library.dict_utils import deep_merge
 from vivarium.library.topology import inverse_topology
 
 
@@ -51,7 +51,8 @@ def _get_composite_state_recur(
                 path=sub_path,
                 config=config.get(key),
             )
-        elif isinstance(sub_processes, Process) or isinstance(sub_steps, Process):
+        elif isinstance(sub_processes, Process) or \
+                isinstance(sub_steps, Process):
             node: Process = sub_processes or sub_steps
             if state_type == 'initial':
                 process_state = node.initial_state(config.get(node.name))

@@ -118,7 +118,6 @@ class ManyVariablesComposite(Composer):
 
         # connect the processes' ports to a random store at hierarchy_depth
         # TODO -- control number of stores at hierarchy depth
-        # assert self.config['hierarchy_depth'] <= self.config['number_of_stores']
         self.topology = {}
         for process_id, process in self.processes.items():
             process_ports = {}

@@ -118,10 +118,17 @@ class Process(metaclass=abc.ABCMeta):
         self.schema: Optional[dict] = None
 
     def __getstate__(self) -> dict:
+        """Return parameters
+
+        This is sufficient to reproduce the Process if there are no
+        hidden states. Processes with hidden states may need to write
+        their own __getstate__.
+        """
         return self.parameters
 
     def __setstate__(self, state: dict) -> None:
-        self.__init__(parameters=state)
+        """Initialize process with parameters"""
+        self.__init__(parameters=state)  # type: ignore
 
     def initial_state(self, config: Optional[dict] = None) -> State:
         """Get initial state in embedded path dictionary.
