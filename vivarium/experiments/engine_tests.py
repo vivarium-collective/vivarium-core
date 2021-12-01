@@ -1,8 +1,10 @@
+import random
 import logging as log
 from typing import Optional, Union, Dict, Any, cast, List
 
 from vivarium.composites.toys import (
-    PoQo, Sine, ToyDivider, ToyTransport, ToyEnvironment, Proton, Electron)
+    PoQo, Sine, ToyDivider, ToyTransport, ToyEnvironment,
+    Proton, Electron, )
 from vivarium.core.composer import Composer
 from vivarium.core.engine import Engine, pf, pp, _StepGraph
 from vivarium.core.process import Process, Step, Deriver
@@ -863,6 +865,86 @@ def test_environment_view_with_division() -> None:
             once_different = False
 
 
+class AddDelete(Process):
+    def ports_schema(self) -> Schema:
+        return {
+            'sub_stores': {
+                '*': {
+                    '_default': 0,
+                    '_emit': True
+                }
+            },
+            'expected': {
+                '_default': [],
+                '_updater': 'set',
+            }
+        }
+
+    def next_update(
+            self, timestep: Union[float, int], states: State) -> Update:
+        sub_stores = set(states['sub_stores'].keys())
+        expected = set(states['expected'])
+
+        assert sub_stores == expected, f"stores don't match expected"
+
+        # delete current stores, and add the same number of stores
+        sub_stores_update = {
+            '_delete': [],
+            '_add': []}
+        new_sub_stores = []
+        for store_id in sub_stores:
+            sub_stores_update['_delete'].append(store_id)
+            new_id = str(random.randint(0, 2 ** 63))
+            new_sub_stores.append(new_id)
+            new_store = {'key': new_id, 'state': 1}
+            sub_stores_update['_add'].append(new_store)
+
+        return {
+            'sub_stores': sub_stores_update,
+            'expected': new_sub_stores,
+        }
+
+
+def test_add_delete():
+
+    process = AddDelete()
+    topology = {
+        'sub_stores': ('sub_stores',),
+        'expected': ('expected',)}
+
+    # initial state
+    n_initial = 10
+    initial_substores = [
+        str(random.randint(0, 2**63)) for _ in range(n_initial)]
+    initial_state = {
+        'sub_stores': {
+            sub_store: 1
+            for sub_store in initial_substores
+        },
+        'expected': initial_substores,
+    }
+
+    experiment = Engine(
+        processes={'process': process},
+        topology={'process': topology},
+        initial_state=initial_state,
+    )
+    experiment.update(10)
+
+    # assert that no overlapping sub store between time steps.
+    # All sub stores should get deleted, and new sub stores added
+    data = experiment.emitter.get_data()
+    times = list(data.keys())
+    n_times = len(times)
+    for t_index in range(n_times):
+        if t_index < n_times - 1:
+            current_time = times[t_index]
+            next_time = times[t_index + 1]
+            current_ids = set(data[current_time]['sub_stores'].keys())
+            next_ids = set(data[next_time]['sub_stores'].keys())
+            assert len(set(current_ids).intersection(set(next_ids))) == 0
+
+
 engine_tests = {
     '0': test_recursive_store,
     '1': test_topology_ports,
@@ -879,6 +961,7 @@ engine_tests = {
     '12': test_runtime_order,
     '13': test_glob_schema,
     '14': test_environment_view_with_division,
+    '15': test_add_delete,
 }
 
 

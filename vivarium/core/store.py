@@ -1409,6 +1409,7 @@ class Store:
                 # add a list of sub-states
                 for added in add_entries:
                     self.add(added)
+                view_expire = True
 
             move_entries = update.pop('_move', None)
             if move_entries is not None:
@@ -1480,6 +1481,7 @@ class Store:
                 for key in delete_keys:
                     delete_deletions = self.delete(key, here)
                     deletions.extend(delete_deletions)
+                view_expire = True
 
             return (
                 topology_updates, process_updates, step_updates,
