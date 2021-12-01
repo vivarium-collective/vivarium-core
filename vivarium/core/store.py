@@ -21,7 +21,7 @@ from vivarium.library.dict_utils import deep_merge, deep_merge_check, MULTI_UPDA
 from vivarium.library.topology import without, dict_to_paths
 from vivarium.core.types import Processes, Topology, State, Steps, Flow
 
-_EMPTY_UPDATES = None, None, None, None, None
+_EMPTY_UPDATES = None, None, None, None, None, None
 
 
 def generate_state(
@@ -45,6 +45,7 @@ def generate_state(
     store = Store({})
     steps = steps or {}
     store.generate(tuple(), processes, steps, flow, topology, initial_state)
+    store.build_topology_views()
 
     return store
 
@@ -1226,8 +1227,8 @@ class Store:
         for daughter, daughter_state in \
                 zip(daughters, daughter_states):
             # use initial state as default, merge in divided values
-            initial_state = deep_merge(
-                initial_state,
+            merged_initial_state = deep_merge(
+                copy.deepcopy(initial_state),
                 daughter_state)
 
             daughter_key = daughter['key']
@@ -1267,7 +1268,7 @@ class Store:
                 {},
                 flow,
                 topology,
-                initial_state)
+                merged_initial_state)
 
             root = here + daughter_path
             process_paths = dict_to_paths(root, processes)
@@ -1284,7 +1285,7 @@ class Store:
             self.apply_subschema_path(daughter_path)
             target = self.get_path(daughter_path)
             target.apply_defaults()
-            target.set_value(initial_state)
+            target.set_value(merged_initial_state)
 
 
         self.delete_path(mother_path)
@@ -1383,6 +1384,7 @@ class Store:
               The result of the reduction will be assigned to this point
               in the tree.
         """
+        view_expire = False
 
         if isinstance(update, dict) and MULTI_UPDATE_KEY in update:
             # apply multiple updates to same node
@@ -1434,6 +1436,7 @@ class Store:
                     step_updates.extend(insert_steps)
                     flow_updates.extend(insert_flows)
                     topology_updates.extend(insert_topology)
+                    view_expire = True
 
             divide = update.pop('_divide', None)
             if divide is not None:
@@ -1446,6 +1449,7 @@ class Store:
                 flow_updates.extend(divide_flow)
                 topology_updates.extend(divide_topology)
                 deletions.extend(divide_deletions)
+                view_expire = True
 
             delete_keys = update.pop('_delete', None)
 
@@ -1454,7 +1458,7 @@ class Store:
                     inner = self.inner[key]
                     (
                         inner_topology, inner_processes, inner_steps,
-                        inner_flows, inner_deletions
+                        inner_flows, inner_deletions, inner_view_expire
                     ) = inner.apply_update(value, state)
 
                     if inner_topology:
@@ -1467,6 +1471,8 @@ class Store:
                         flow_updates.extend(inner_flows)
                     if inner_deletions:
                         deletions.extend(inner_deletions)
+                    if inner_view_expire:
+                        view_expire = inner_view_expire
 
             if delete_keys is not None:
                 # delete a list of paths
@@ -1477,7 +1483,7 @@ class Store:
 
             return (
                 topology_updates, process_updates, step_updates,
-                flow_updates, deletions)
+                flow_updates, deletions, view_expire)
 
         # Leaf update: this node has no inner
 
@@ -1843,15 +1849,11 @@ class Store:
                 self.inner[key] = process_state
 
                 subprocess.schema = subprocess.get_schema()
+
                 self.topology_ports(
                     subprocess.schema,
                     subtopology,
                     source=self.path_for() + (key,))
-
-                # cache the process's view after the required states have been generated
-                process_state.topology_view = self.schema_topology(
-                    subprocess.schema,
-                    process_state.topology)
             else:
                 if key not in self.inner:
                     self.inner[key] = Store({}, outer=self)
@@ -1860,6 +1862,16 @@ class Store:
                     subflow,
                     subtopology,
                 )
+
+    def build_topology_views(self):
+        if self.leaf:
+            if isinstance(self.value, Process):
+                self.topology_view = self.outer.schema_topology(
+                    self.value.schema,
+                    self.topology)
+        else:
+            for inner in self.inner.values():
+                inner.build_topology_views()
 
     def generate(self, path, processes, steps, flow, topology, initial_state):
         """

@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.4.5
+
+* Fixed a major bug introduced by `topology_view` in v0.4.3, which had glob (*) schema unable to view sub-stores.
+* `dict_value` updater added to `updater_registry`.
+
 ## v0.4.4
 
 * Add queries to `Emitter`, and to `get_history_data_db`. This allows you to selectively retrieve from paths

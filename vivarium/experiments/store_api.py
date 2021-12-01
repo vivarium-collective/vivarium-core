@@ -10,9 +10,11 @@ from vivarium.core.control import run_library_cli
 def get_toy_store() -> Store:
     """get a store to test the api with"""
     composer = ToyComposer({})
+    store1 = composer.generate_store()
     composite = composer.generate()
-    store = composite.generate_store()
-    return store
+    store2 = composite.generate_store()
+    assert set(store1.inner.keys()) == set(store2.inner.keys())
+    return store2
 
 
 def test_insert_process() -> Store:

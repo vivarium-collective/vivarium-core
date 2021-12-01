@@ -9,3 +9,4 @@ omit =
     vivarium/composites/*
     vivarium/experiments/*
     vivarium/plots/*
+    vivarium/core/registry.py

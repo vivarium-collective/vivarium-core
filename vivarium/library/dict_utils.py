@@ -26,7 +26,7 @@ def deep_merge_check(dct, merge_dct):
 
     Throws exceptions for conflicting values.
     This mutates dct - the contents of merge_dct are added to dct (which is also returned).
-    If you want to keep dct you could call it like deep_merge(dict(dct), merge_dct)
+    If you want to keep dct you could call it like deep_merge_check(copy.deepcopy(dct), merge_dct)
     """
 
     for k, v in merge_dct.items():
@@ -48,7 +48,7 @@ def deep_merge_combine_lists(dct, merge_dct):
 
     Values that are lists are combined into one list without repeating values.
     This mutates dct - the contents of merge_dct are added to dct (which is also returned).
-    If you want to keep dct you could call it like deep_merge(dict(dct), merge_dct)
+    If you want to keep dct you could call it like deep_merge_combine_lists(copy.deepcopy(dct), merge_dct)
     """
     for k, v in merge_dct.items():
         if (k in dct and isinstance(dct[k], dict)
@@ -106,7 +106,7 @@ def deep_merge(dct, merge_dct):
     """ Recursive dict merge
 
     This mutates dct - the contents of merge_dct are added to dct (which is also returned).
-    If you want to keep dct you could call it like deep_merge(dict(dct), merge_dct)
+    If you want to keep dct you could call it like deep_merge(copy.deepcopy(dct), merge_dct)
     """
     if dct is None:
         dct = {}
