@@ -1424,6 +1424,7 @@ class Store:
                     flow_updates.extend(move_flow)
                     topology_updates.extend(move_topology)
                     deletions.extend(move_deletions)
+                    view_expire = True
 
             generate_entries = update.pop('_generate', None)
             if generate_entries is not None:
