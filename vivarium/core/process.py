@@ -117,17 +117,11 @@ class Process(metaclass=abc.ABCMeta):
         self.parameters.setdefault('time_step', DEFAULT_TIME_STEP)
         self.schema: Optional[dict] = None
 
-    def __getstate__(self):
-        try:
-            return super().__getstate__()
-        except:
-            return self.parameters
+    def __getstate__(self) -> dict:
+        return self.parameters
 
-    def __setstate__(self, state):
-        try:
-            return super().__setstate__(state)
-        except:
-            self.__init__(state)
+    def __setstate__(self, state: dict) -> None:
+        self.__init__(parameters=state)
 
     def initial_state(self, config: Optional[dict] = None) -> State:
         """Get initial state in embedded path dictionary.

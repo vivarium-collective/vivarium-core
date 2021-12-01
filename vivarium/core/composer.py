@@ -31,36 +31,36 @@ def _get_composite_state_recur(
     config = config or {}
     processes = processes or {}
     steps = steps or {}
+    topology = topology or {}
 
-    state = {}
+    state: dict = {}
     all_keys = set(processes.keys() | steps.keys())
     for key in all_keys:
-        subpath = path + (key,)
-        subtopology = topology[key]
-        subprocesses = processes.get(key)
-        substeps = steps.get(key)
+        sub_path: HierarchyPath = path + (key,)
+        sub_topology: Any = topology.get(key)
+        sub_processes: Any = processes.get(key)
+        sub_steps: Any = steps.get(key)
+        sub_state: Any = None
 
-        if isinstance(subprocesses, dict) or isinstance(substeps, dict):
-            substate = _get_composite_state_recur(
-                processes=subprocesses,
-                steps=substeps,
-                topology=subtopology,
+        if isinstance(sub_processes, dict) or isinstance(sub_steps, dict):
+            sub_state = _get_composite_state_recur(
+                processes=sub_processes,
+                steps=sub_steps,
+                topology=sub_topology,
                 state_type=state_type,
-                path=subpath,
+                path=sub_path,
                 config=config.get(key),
             )
-        elif isinstance(subprocesses, Process) or isinstance(substeps, Process):
-            node = subprocesses or substeps
+        elif isinstance(sub_processes, Process) or isinstance(sub_steps, Process):
+            node: Process = sub_processes or sub_steps
             if state_type == 'initial':
-                # get the initial state
                 process_state = node.initial_state(config.get(node.name))
             elif state_type == 'default':
-                # get the default state
                 process_state = node.default_state()
-            substate = inverse_topology(path, process_state, subtopology)
+            sub_state = inverse_topology(path, process_state, sub_topology)
         else:
-            Exception(f'invalid processes {subprocesses} or steps {substeps}')
-        state = deep_merge(state, substate)
+            Exception(f'invalid processes {sub_processes} or steps {sub_steps}')
+        state = deep_merge(state, sub_state)
     return state
 
 
@@ -128,11 +128,14 @@ class Composite(Datum):
             (dict): Subclass implementations must return a dictionary
             mapping state paths to initial values.
         """
+        config = config or {}
+        initial_state = config.get('initial_state', {})
         return _get_composite_state(
             processes=self.processes,
             steps=self.steps,
             topology=self.topology,
             state_type='initial',
+            initial_state=initial_state,
             config=config)
 
     def default_state(self, config: Optional[dict] = None) -> Optional[State]:
