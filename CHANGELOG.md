@@ -1,5 +1,12 @@
 # Changelog
 
+
+## v0.4.6
+
+* deepcopy mother state upon division so daughter states are ensured to not reference the same objects.
+* improve `_get_composite_state` to avoid recursive deepcopy.
+* add `view_expire` flag in `Store.apply_update`, and have `Engine` use this to trigger `self.state.build_topology_views`.
+
 ## v0.4.5
 
 * Fixed a major bug introduced by `topology_view` in v0.4.3, which had glob (*) schema unable to view sub-stores.
