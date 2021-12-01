@@ -1,6 +1,10 @@
 # Changelog
 
 
+## v0.4.7
+
+* `view_expire` flag for `_add` and `_delete` updates as well.
+
 ## v0.4.6
 
 * deepcopy mother state upon division so daughter states are ensured to not reference the same objects.
