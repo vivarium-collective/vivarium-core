@@ -884,11 +884,10 @@ class AddDelete(Process):
             self, timestep: Union[float, int], states: State) -> Update:
         sub_stores = set(states['sub_stores'].keys())
         expected = set(states['expected'])
-
-        assert sub_stores == expected, f"stores don't match expected"
+        assert sub_stores == expected, "stores don't match expected"
 
         # delete current stores, and add the same number of stores
-        sub_stores_update = {
+        sub_stores_update: dict = {
             '_delete': [],
             '_add': []}
         new_sub_stores = []
@@ -905,8 +904,7 @@ class AddDelete(Process):
         }
 
 
-def test_add_delete():
-
+def test_add_delete() -> None:
     process = AddDelete()
     topology = {
         'sub_stores': ('sub_stores',),
