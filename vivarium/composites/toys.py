@@ -502,7 +502,10 @@ def test_composite_initial_state_complex() -> None:
     outer_path = ('universe', 'agent')
     pq = PoQo({})
     pq_composite = pq.generate(path=outer_path)
-    pq_initial = pq_composite.initial_state()
+    pq_initial = pq_composite.initial_state(
+        config={
+            'initial_state': {
+                'universe': {'agent': {'aaa': {'x': 4}}}}})
 
     expected_initial = {
         'universe': {

@@ -15,8 +15,54 @@ from vivarium.core.store import (
 from vivarium.core.types import (
     Processes, Topology, HierarchyPath, State, Schema, Steps, Flow)
 from vivarium.library.datum import Datum
-from vivarium.library.dict_utils import deep_merge, deep_merge_check
+from vivarium.library.dict_utils import deep_merge
 from vivarium.library.topology import inverse_topology
+
+
+def _get_composite_state_recur(
+        processes: Processes,
+        steps: Steps,
+        topology: Any,
+        state_type: Optional[str] = 'initial',
+        path: Optional[HierarchyPath] = None,
+        config: Optional[dict] = None,
+) -> Optional[State]:
+    path = path or tuple()
+    config = config or {}
+    processes = processes or {}
+    steps = steps or {}
+    topology = topology or {}
+
+    state: dict = {}
+    all_keys = set(processes.keys() | steps.keys())
+    for key in all_keys:
+        sub_path: HierarchyPath = path + (key,)
+        sub_topology: Any = topology.get(key)
+        sub_processes: Any = processes.get(key)
+        sub_steps: Any = steps.get(key)
+        sub_state: Any = None
+
+        if isinstance(sub_processes, dict) or isinstance(sub_steps, dict):
+            sub_state = _get_composite_state_recur(
+                processes=sub_processes,
+                steps=sub_steps,
+                topology=sub_topology,
+                state_type=state_type,
+                path=sub_path,
+                config=config.get(key),
+            )
+        elif isinstance(sub_processes, Process) or \
+                isinstance(sub_steps, Process):
+            node: Process = sub_processes or sub_steps
+            if state_type == 'initial':
+                process_state = node.initial_state(config.get(node.name))
+            elif state_type == 'default':
+                process_state = node.default_state()
+            sub_state = inverse_topology(path, process_state, sub_topology)
+        else:
+            Exception(f'invalid processes {sub_processes} or steps {sub_steps}')
+        state = deep_merge(state, sub_state)
+    return state
 
 
 def _get_composite_state(
@@ -28,42 +74,16 @@ def _get_composite_state(
         initial_state: Optional[State] = None,
         config: Optional[dict] = None,
 ) -> Optional[State]:
-    path = path or tuple()
-    initial_state = initial_state or {}
-    config = config or {}
-
-    try:
-        processes = copy.deepcopy(processes)
-    except TypeError as e:
-        print(e)
-    deep_merge_check(processes, steps)
-
-    for key, node in processes.items():
-        subpath = path + (key,)
-        subtopology = topology[key]
-
-        if isinstance(node, dict):
-            state = _get_composite_state(
-                processes=node,
-                steps={},
-                topology=subtopology,
-                state_type=state_type,
-                path=subpath,
-                initial_state=initial_state,
-                config=config.get(key),
-            )
-        elif isinstance(node, Process):
-            if state_type == 'initial':
-                # get the initial state
-                process_state = node.initial_state(config.get(node.name))
-            elif state_type == 'default':
-                # get the default state
-                process_state = node.default_state()
-            state = inverse_topology(path, process_state, subtopology)
-
-        initial_state = deep_merge(initial_state, state)
-
-    return initial_state
+    state = _get_composite_state_recur(
+        processes=processes,
+        steps=steps,
+        topology=topology,
+        state_type=state_type,
+        path=path,
+        config=config,
+    )
+    state = deep_merge(state, initial_state)
+    return state
 
 
 class Composite(Datum):
@@ -109,11 +129,14 @@ class Composite(Datum):
             (dict): Subclass implementations must return a dictionary
             mapping state paths to initial values.
         """
+        config = config or {}
+        initial_state = config.get('initial_state', {})
         return _get_composite_state(
             processes=self.processes,
             steps=self.steps,
             topology=self.topology,
             state_type='initial',
+            initial_state=initial_state,
             config=config)
 
     def default_state(self, config: Optional[dict] = None) -> Optional[State]:
