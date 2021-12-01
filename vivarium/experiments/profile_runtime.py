@@ -118,7 +118,7 @@ class ManyVariablesComposite(Composer):
 
         # connect the processes' ports to a random store at hierarchy_depth
         # TODO -- control number of stores at hierarchy depth
-        assert self.config['hierarchy_depth'] <= self.config['number_of_stores']
+        # assert self.config['hierarchy_depth'] <= self.config['number_of_stores']
         self.topology = {}
         for process_id, process in self.processes.items():
             process_ports = {}
@@ -337,7 +337,7 @@ def run_scan(
 def _make_axis(fig, grid, plot_n, patches, title='', label=''):
     ax = fig.add_subplot(grid[plot_n, 0])
     ax.set_xlabel(label)
-    ax.set_ylabel('runtime (s)')
+    ax.set_ylabel('wall time (s)')
     ax.set_title(title)
     ax.legend(
         handles=patches,
@@ -521,8 +521,8 @@ def plot_scan_results(
 ###########################
 
 def scan_processes():
-    n_processes = [n*20 for n in range(10)]
-    sleep_times = [0.75e-5, 0.75e-4, 0.75e-3]
+    n_processes = [n*15 for n in range(10)]
+    sleep_times = [0.8e-5, 0.8e-4, 0.8e-3]
 
     n_cols = 1
     n_rows = len(sleep_times)
@@ -598,8 +598,8 @@ def scan_hierarchy_depth():
 
 
 def scan_parallel_processes():
-    total_processes = 40
-    n_scans = 5
+    total_processes = 50
+    n_scans = 8
     n_parallel_processes = [
         i * int(total_processes/n_scans) for i in range(n_scans)]
     scan_values = [
