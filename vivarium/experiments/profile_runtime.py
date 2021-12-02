@@ -11,14 +11,18 @@ import random
 import time
 import cProfile
 import pstats
+import json
 
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 
-from vivarium.core.engine import Engine
+from vivarium.core.engine import Engine, timestamp
 from vivarium.core.process import Process
 from vivarium.core.composer import Composer
 from vivarium.core.control import run_library_cli
+from vivarium.core.composition import EXPERIMENT_OUT_DIR
+
+VM_OUT_DIR = os.path.join(EXPERIMENT_OUT_DIR, 'vm_scan_results')
 
 
 DEFAULT_PROCESS_SLEEP = 1e-4
@@ -404,7 +408,7 @@ def plot_scan_results(
         grid=None,
         axis_number=0,
         title=None,
-        out_dir='out/experiments',
+        out_dir=EXPERIMENT_OUT_DIR,
         filename=None,
 ):
     """Plot scan results
@@ -618,12 +622,60 @@ def scan_parallel_processes():
                       filename=f'scan_parallel_processes_{total_processes}')
 
 
+def scan_parallel_save():
+    total_processes = 10
+    n_scans = 2
+    n_parallel_processes = [
+        i * int(total_processes/n_scans) for i in range(n_scans)]
+    scan_values = [
+        {
+            'number_of_processes': total_processes,
+            'number_of_parallel_processes': n
+        } for n in n_parallel_processes
+    ]
+
+    sim = ComplexModelSim()
+    sim.process_sleep = 1e-2
+    sim.experiment_time = 50
+    saved_stats = run_scan(sim,
+                           scan_values=scan_values)
+
+    # save results
+    os.makedirs(VM_OUT_DIR, exist_ok=True)
+    fig_path = os.path.join(VM_OUT_DIR, f'{timestamp()}.json')
+    with open(fig_path, 'w') as outfile:
+        json.dump(saved_stats, outfile)
+
+
+def plot_vm_scan_results():
+    path_to_json = VM_OUT_DIR
+    # finds json files
+    json_files = [
+        pos_json for pos_json in os.listdir(path_to_json)
+        if pos_json.endswith('.json')]
+
+    # load json
+    saved_stats = []
+    for index, js in enumerate(json_files):
+        with open(os.path.join(path_to_json, js)) as json_file:
+            json_text = json.load(json_file)
+            saved_stats.extend(json_text)
+
+    # plot
+    plot_scan_results(saved_stats,
+                      parallel_plot=True,
+                      out_dir=path_to_json,
+                      filename=f'scan_parallel_processes_vm')
+
+
 scans_library = {
     '0': scan_processes,
     '1': scan_variables,
     '2': scan_number_of_ports,
     '3': scan_hierarchy_depth,
     '4': scan_parallel_processes,
+    '5': scan_parallel_save,
+    '6': plot_vm_scan_results,
 }
 
 # python vivarium/experiments/profile_runtime.py -n [name]
