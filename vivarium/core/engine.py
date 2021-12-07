@@ -6,6 +6,8 @@ Engine
 Engine runs the simulation.
 """
 
+import cProfile
+import pstats
 import os
 import logging as log
 import pprint
@@ -372,6 +374,7 @@ class Engine:
             emit_step: float = 1,
             display_info: bool = True,
             progress_bar: bool = False,
+            profile: bool = False,
     ) -> None:
         """Defines simulations
 
@@ -415,11 +418,18 @@ class Engine:
             progress_bar: shows a progress bar
             emit_config: If True, this will emit the serialized
                 processes, topology, and initial state.
+            profile: Whether to profile the simulation with cProfile.
         """
+        if profile:
+            self.profiler = cProfile.Profile()
+            self.profiler.enable()
+        self.stats_objs: List[pstats.Stats] = []
+        self.stats: Optional[pstats.Stats] = None
 
         self.experiment_id = experiment_id or str(uuid.uuid1())
         self.initial_state = initial_state or {}
         self.emit_step = emit_step
+
 
         # get the processes, topology, and store
         if processes and topology and not store:
@@ -617,7 +627,8 @@ class Engine:
         if process.parallel:
             # add parallel process if it doesn't exist
             if path not in self.parallel:
-                self.parallel[path] = ParallelProcess(process)
+                self.parallel[path] = ParallelProcess(
+                    process, bool(self.profiler))
             # trigger the computation of the parallel process
             self.parallel[path].update(interval, states)
 
@@ -855,6 +866,9 @@ class Engine:
             for terminated in self.parallel.keys() - (
                     self.process_paths.keys() | self._step_paths.keys()):
                 self.parallel[terminated].end()
+                stats = self.parallel[terminated].stats
+                if stats:
+                    self.stats_objs.append(stats)
                 del self.parallel[terminated]
 
             # setup a way to track how far each process has simulated in time
@@ -960,10 +974,20 @@ class Engine:
         """Terminate all processes running in parallel.
 
         This MUST be called at the end of any simulation with parallel
-        processes.
+        processes. This function also ends profiling and computes
+        profiling stats, including stats from parallel sub-processes.
+        These stats are stored in ``self.stats``.
         """
         for parallel in self.parallel.values():
             parallel.end()
+            if parallel.stats:
+                self.stats_objs.append(parallel.stats)
+        if self.profiler:
+            self.profiler.disable()
+            total_stats = pstats.Stats(self.profiler)
+            for stats in self.stats_objs:
+                total_stats.add(stats)
+            self.stats = total_stats
 
     def print_display(self) -> None:
         """Print simulation metadata."""

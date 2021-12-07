@@ -6,9 +6,11 @@ Process Classes
 
 import abc
 import copy
+import cProfile
 from multiprocessing import Pipe
 from multiprocessing import Process as Multiprocess
 from multiprocessing.connection import Connection
+import pstats
 from typing import (
     Any, Dict, Optional, Union, List)
 from warnings import warn
@@ -376,7 +378,12 @@ class Step(Process, metaclass=abc.ABCMeta):
 Deriver = Step
 
 
-def _run_update(connection: Connection, process: Process) -> None:
+def _run_update(
+        connection: Connection, process: Process,
+        profile: bool) -> None:
+    if profile:
+        profiler = cProfile.Profile()
+        profiler.enable()
     running = True
 
     while running:
@@ -390,11 +397,16 @@ def _run_update(connection: Connection, process: Process) -> None:
             update = process.next_update(interval, states)
             connection.send(update)
 
+    if profile:
+        profiler.disable()
+        stats = pstats.Stats(profiler)
+        connection.send(stats.stats)
+
     connection.close()
 
 
 class ParallelProcess:
-    def __init__(self, process: Process) -> None:
+    def __init__(self, process: Process, profile: bool = False) -> None:
         """Wraps a :py:class:`Process` for multiprocessing.
 
         To run a simulation distributed across multiple processors, we
@@ -405,12 +417,15 @@ class ParallelProcess:
 
         Args:
             process: The Process to manage.
+            profile: Whether to use cProfile to profile the subprocess.
         """
         self.process = process
+        self.profile = profile
+        self.stats: Optional[pstats.Stats] = None
         self.parent, self.child = Pipe()
         self.multiprocess = Multiprocess(
             target=_run_update,
-            args=(self.child, self.process))
+            args=(self.child, self.process, self.profile))
         self.multiprocess.start()
 
     def update(
@@ -433,6 +448,14 @@ class ParallelProcess:
         return self.parent.recv()
 
     def end(self) -> None:
-        """End the child process."""
+        """End the child process.
+
+        If profiling was enabled, then when the child process ends, it
+        will compile its profiling stats and send those to the parent.
+        The parent then saves those stats in ``self.stats``.
+        """
         self.parent.send((-1, None))
+        if self.profile:
+            self.stats = pstats.Stats()
+            self.stats.stats = self.parent.recv()
         self.multiprocess.join()
