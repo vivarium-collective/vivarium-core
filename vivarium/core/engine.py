@@ -762,7 +762,7 @@ class Engine:
 
         if view_expire:
             self.state.build_topology_views()
-            self._run_steps()
+            # self._run_steps()
 
     def delete_path(
             self,

@@ -1,6 +1,10 @@
 # Changelog
 
 
+## v0.4.8
+
+* Remove `self._run_steps()` from `Engine.apply_update` if `view_expire`.
+
 ## v0.4.7
 
 * `view_expire` flag for `_add` and `_delete` updates as well.
