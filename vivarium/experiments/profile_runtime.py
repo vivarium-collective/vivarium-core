@@ -275,12 +275,18 @@ class ComplexModelSim:
         # get next_update runtime
         next_update_amount = ("next_update",)
         _, stats_list = stats.get_print_list(next_update_amount)
-        cc, nc, tt, ct, callers = stats.stats[stats_list[0]]
-        _ = cc
-        _ = nc
-        _ = tt
-        _ = callers
-        process_update_time = ct
+
+        ct_all = 0
+        for s in stats_list:
+            cc, nc, tt, ct, callers = stats.stats[s]
+            ct_all += ct
+        process_update_time = ct_all
+        # cc, nc, tt, ct, callers = stats.stats[stats_list[0]]
+        # _ = cc
+        # _ = nc
+        # _ = tt
+        # _ = callers
+        # process_update_time = ct
 
         # get runtime
         experiment_time = stats.total_tt
