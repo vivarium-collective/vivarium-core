@@ -552,6 +552,7 @@ def scan_processes():
 
         plot_scan_results(saved_stats,
                           process_plot=True,
+                          row_height=2.5,
                           fig=fig,
                           grid=grid,
                           axis_number=idx,
