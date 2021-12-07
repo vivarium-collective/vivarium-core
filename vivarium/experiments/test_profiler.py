@@ -2,6 +2,7 @@ import time
 
 from vivarium.core.engine import Engine
 from vivarium.core.process import Process
+from vivarium.core.types import Schema, State, Update
 
 
 class ProcessA(Process):
@@ -10,10 +11,10 @@ class ProcessA(Process):
         'sleep': 2,
     }
 
-    def ports_schema(self):
+    def ports_schema(self) -> Schema:
         return {}
 
-    def next_update(self, timestep, states):
+    def next_update(self, timestep: float, states: State) -> Update:
         time.sleep(self.parameters['sleep'])
         return {}
 
@@ -25,15 +26,15 @@ class ProcessB(Process):
         '_parallel': True,
     }
 
-    def ports_schema(self):
+    def ports_schema(self) -> Schema:
         return {}
 
-    def next_update(self, timestep, states):
+    def next_update(self, timestep: float, states: State) -> Update:
         time.sleep(self.parameters['sleep'])
         return {}
 
 
-def test_profiler():
+def test_profiler() -> None:
     engine = Engine(
         processes={
             'processA': ProcessA(),
@@ -47,10 +48,11 @@ def test_profiler():
     )
     engine.update(3)
     engine.end()
+    assert engine.stats is not None
     stats = engine.stats.strip_dirs()
-    process_a_runtime = stats.stats[
+    process_a_runtime = stats.stats[  # type: ignore
         ('test_profiler.py', 16, 'next_update')][3]
-    process_b_runtime = stats.stats[
+    process_b_runtime = stats.stats[  # type: ignore
         ('test_profiler.py', 31, 'next_update')][3]
 
     assert 6 <= process_a_runtime <= 6.1

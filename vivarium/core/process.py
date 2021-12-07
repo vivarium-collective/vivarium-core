@@ -400,7 +400,7 @@ def _run_update(
     if profile:
         profiler.disable()
         stats = pstats.Stats(profiler)
-        connection.send(stats.stats)
+        connection.send(stats.stats)  # type: ignore
 
     connection.close()
 
@@ -457,5 +457,5 @@ class ParallelProcess:
         self.parent.send((-1, None))
         if self.profile:
             self.stats = pstats.Stats()
-            self.stats.stats = self.parent.recv()
+            self.stats.stats = self.parent.recv()  # type: ignore
         self.multiprocess.join()

@@ -420,6 +420,7 @@ class Engine:
                 processes, topology, and initial state.
             profile: Whether to profile the simulation with cProfile.
         """
+        self.profiler: Optional[cProfile.Profile] = None
         if profile:
             self.profiler = cProfile.Profile()
             self.profiler.enable()
