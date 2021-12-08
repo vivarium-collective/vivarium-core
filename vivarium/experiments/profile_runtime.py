@@ -611,16 +611,24 @@ def scan_hierarchy_depth():
 
 
 def scan_parallel_processes():
-    total_processes = 50
+    """
+    Running this scan may require change the computer's process limits.
+     - Check your current limits with: `ulimit -n`
+     - Increase limits: `ulimit -n 10240`
+    """
+
+    total_processes = 80
+    scan_interval = 10
     scan_values = [
         {
             'number_of_processes': total_processes,
             'number_of_parallel_processes': n
-        } for n in range(0, total_processes+1, 10)
+        } for n in range(0, total_processes+1, scan_interval)
     ]
 
     sim = ComplexModelSim()
     sim.process_sleep = 1e-2
+    sim.experiment_time = 60
     saved_stats = run_scan(sim,
                            scan_values=scan_values)
     plot_scan_results(saved_stats,
@@ -635,7 +643,7 @@ scans_library = {
     '1': scan_variables,
     '2': scan_number_of_ports,
     '3': scan_parallel_processes,
-    # '4': scan_hierarchy_depth,
+    '4': scan_hierarchy_depth,
 }
 
 # python vivarium/experiments/profile_runtime.py -n [name]
