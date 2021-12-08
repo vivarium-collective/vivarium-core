@@ -743,8 +743,7 @@ class Engine:
                 the "perspective" from which the update was generated.
 
         Return:
-            view_expire: a bool indicating whether the topology_views
-                expired.
+            a bool indicating whether the topology_views expired.
         """
 
         if not update:
