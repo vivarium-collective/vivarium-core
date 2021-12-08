@@ -272,17 +272,9 @@ class ComplexModelSim:
         next_update_amount = ("next_update",)
         _, stats_list = stats.get_print_list(next_update_amount)
 
-        ct_all = 0
+        process_update_time = 0
         for s in stats_list:
-            cc, nc, tt, ct, callers = stats.stats[s]
-            ct_all += ct
-        process_update_time = ct_all
-        # cc, nc, tt, ct, callers = stats.stats[stats_list[0]]
-        # _ = cc
-        # _ = nc
-        # _ = tt
-        # _ = callers
-        # process_update_time = ct
+            process_update_time += stats.stats[s][3]
 
         # get runtime
         experiment_time = stats.total_tt
@@ -620,24 +612,22 @@ def scan_hierarchy_depth():
 
 def scan_parallel_processes():
     total_processes = 50
-    n_scans = 10
-    n_parallel_processes = [
-        i * int(total_processes/n_scans) for i in range(n_scans)]
     scan_values = [
         {
             'number_of_processes': total_processes,
             'number_of_parallel_processes': n
-        } for n in n_parallel_processes
+        } for n in range(0, total_processes+1, 10)
     ]
 
     sim = ComplexModelSim()
     sim.process_sleep = 1e-2
-    sim.experiment_time = 50
     saved_stats = run_scan(sim,
                            scan_values=scan_values)
     plot_scan_results(saved_stats,
                       parallel_plot=True,
-                      filename=f'scan_parallel_processes_{total_processes}')
+                      title=f'{total_processes} processes, '
+                            f'with n of the running in parallel',
+                      filename='scan_parallel_processes')
 
 
 scans_library = {

@@ -1,11 +1,17 @@
 """
 
-
 Steps:
- - make an image with borealis: `python borealis/gce.py -o image=vivarium-profiling-image3 -o custom-cpu=8 -o custom-memory=8GB -l '' -m 'metadata=True' vivarium-profile-8cpus`
+ - make an image with borealis:
+        `python borealis/gce.py -o image=vivarium-profiling-image3
+        -o custom-cpu=8 -o custom-memory=8GB -l '' -m 'metadata=True'
+        vivarium-profile-8cpus`
  - ssh into new image: `gcloud compute ssh vivarium-profile-8cpus-0`
- - run profile_image.py in the VM instance: `python3 vivarium/experiments/profile_image.py`
- - exit out of VM (ctrl + D) and retrieve results: `gcloud compute scp vivarium-profile-8cpus-0:vivarium-core/out/vm/scan_results.json out/vm/8cpu_results.json`
+ - run profile_image.py in the VM instance:
+        `python3 vivarium/experiments/profile_image.py`
+ - exit out of VM (ctrl + D) and retrieve results:
+        `gcloud compute scp vivarium-profile-8cpus-0:
+        vivarium-core/out/vm/scan_results.json
+        out/vm/8cpu_results.json`
 
 """
 import argparse
@@ -14,12 +20,13 @@ import os
 import multiprocessing
 
 from vivarium.core.composition import BASE_OUT_DIR
-from vivarium.experiments.profile_runtime import ComplexModelSim, run_scan, plot_scan_results
+from vivarium.experiments.profile_runtime import (
+    ComplexModelSim, run_scan, plot_scan_results)
 
 VM_OUT_DIR = os.path.join(BASE_OUT_DIR, 'vm')
 
 
-def scan_parallel_save():
+def scan_parallel_save() -> None:
     n_cpus = multiprocessing.cpu_count()
 
     total_processes = 50
@@ -39,12 +46,12 @@ def scan_parallel_save():
 
     # save results
     os.makedirs(VM_OUT_DIR, exist_ok=True)
-    fig_path = os.path.join(VM_OUT_DIR, f'scan_results.json')
+    fig_path = os.path.join(VM_OUT_DIR, 'scan_results.json')
     with open(fig_path, 'w') as outfile:
         json.dump(saved_stats, outfile)
 
 
-def plot_vm_scan_results():
+def plot_vm_scan_results() -> None:
     path_to_json = VM_OUT_DIR
 
     # finds json files
@@ -54,7 +61,7 @@ def plot_vm_scan_results():
 
     # load json
     saved_stats = []
-    for index, js in enumerate(json_files):
+    for js in json_files:
         with open(os.path.join(path_to_json, js)) as json_file:
             json_text = json.load(json_file)
             saved_stats.extend(json_text)
@@ -71,8 +78,9 @@ def plot_vm_scan_results():
     plot_scan_results(saved_stats,
                       cpus_plot=True,
                       out_dir=path_to_json,
-                      title=f'n vCPUs running {number_of_processes} parallel processes',
-                      filename=f'scan_vCPUs')
+                      title=f'n vCPUs running {number_of_processes} '
+                            f'parallel processes',
+                      filename='scan_vCPUs')
 
 
 # python vivarium/experiments/profile_image.py
