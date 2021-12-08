@@ -51,9 +51,9 @@ def test_profiler() -> None:
     assert engine.stats is not None
     stats = engine.stats.strip_dirs()
     process_a_runtime = stats.stats[  # type: ignore
-        ('test_profiler.py', 16, 'next_update')][3]
+        ('test_profiler.py', 17, 'next_update')][3]
     process_b_runtime = stats.stats[  # type: ignore
-        ('test_profiler.py', 31, 'next_update')][3]
+        ('test_profiler.py', 32, 'next_update')][3]
 
     assert 6 <= process_a_runtime <= 6.1
     assert 3 <= process_b_runtime <= 3.1
