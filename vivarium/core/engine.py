@@ -748,7 +748,7 @@ class Engine:
         """
 
         if not update:
-            return
+            return False
 
         (
             topology_updates, process_updates, step_updates,
