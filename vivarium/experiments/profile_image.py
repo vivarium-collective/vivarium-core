@@ -1,3 +1,14 @@
+"""
+
+
+Steps:
+ - make an image with borealis: `python borealis/gce.py -o image=vivarium-profiling-image3 -o custom-cpu=8 -o custom-memory=8GB -l '' -m 'metadata=True' vivarium-profile-8cpus`
+ - ssh into new image: `gcloud compute ssh vivarium-profile-8cpus-0`
+ - run profile_image.py in the VM instance: `python3 vivarium/experiments/profile_image.py`
+ - exit out of VM (ctrl + D) and retrieve results: `gcloud compute scp vivarium-profile-8cpus-0:vivarium-core/out/vm/scan_results.json out/vm/8cpu_results.json`
+
+"""
+import argparse
 import json
 import os
 import multiprocessing
@@ -35,6 +46,7 @@ def scan_parallel_save():
 
 def plot_vm_scan_results():
     path_to_json = VM_OUT_DIR
+
     # finds json files
     json_files = [
         pos_json for pos_json in os.listdir(path_to_json)
@@ -49,11 +61,20 @@ def plot_vm_scan_results():
 
     # plot
     plot_scan_results(saved_stats,
-                      parallel_plot=True,
+                      cpus_plot=True,
                       out_dir=path_to_json,
-                      filename=f'scan_parallel_processes_vm')
+                      filename=f'scan_vCPUs')
 
 
 # python vivarium/experiments/profile_image.py
 if __name__ == '__main__':
-    scan_parallel_save()
+    parser = argparse.ArgumentParser(
+        description='profile vm instances')
+    parser.add_argument(
+        '--plot', '-p', action='store_true')
+    parser_args = parser.parse_args()
+
+    if parser_args.plot:
+        plot_vm_scan_results()
+    else:
+        scan_parallel_save()

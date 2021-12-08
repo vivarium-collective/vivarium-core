@@ -406,13 +406,13 @@ def _add_stats_plot(
 
 def plot_scan_results(
         saved_stats,
-        plot_all=False,
         process_plot=False,
         store_plot=False,
         port_plot=False,
         var_plot=False,
         hierarchy_plot=False,
         parallel_plot=False,
+        cpus_plot=False,
         fig=None,
         grid=None,
         axis_number=0,
@@ -427,14 +427,6 @@ def plot_scan_results(
         saved_stats (dict): the scan results
         *_plot (bool): whether to add the given plot type
     """
-    if plot_all:
-        process_plot = True
-        store_plot = True
-        port_plot = True
-        var_plot = True
-        hierarchy_plot = True
-        parallel_plot = True
-
     # make figure
     if fig:
         assert grid, "fig must provide grid for subplots"
@@ -447,6 +439,7 @@ def plot_scan_results(
             var_plot,
             hierarchy_plot,
             parallel_plot,
+            cpus_plot,
         ])
 
         fig = plt.figure(figsize=(n_cols * 6, n_rows * row_height))
@@ -514,6 +507,16 @@ def plot_scan_results(
         _add_stats_plot(
             ax=ax, saved_stats=saved_stats,
             variable_name='number_of_parallel_processes',
+            experiment_time=True)
+        axis_number += 1
+
+    if cpus_plot:
+        ax = _make_axis(
+            fig, grid, axis_number, patches, title,
+            label='n vCPUs')
+        _add_stats_plot(
+            ax=ax, saved_stats=saved_stats,
+            variable_name='number_of_cpus',
             experiment_time=True)
         axis_number += 1
 
