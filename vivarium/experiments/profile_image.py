@@ -9,11 +9,14 @@ VM_OUT_DIR = os.path.join(EXPERIMENT_OUT_DIR, 'vm_scan_results')
 
 
 def scan_parallel_save():
+    n_cpus = multiprocessing.cpu_count()
+
     total_processes = 50
     scan_values = [
         {
             'number_of_processes': total_processes,
-            'number_of_parallel_processes': total_processes
+            'number_of_parallel_processes': total_processes,
+            'number_of_cpus': n_cpus,
         }
     ]
 
@@ -23,11 +26,9 @@ def scan_parallel_save():
     saved_stats = run_scan(sim,
                            scan_values=scan_values)
 
-    n_cpus = multiprocessing.cpu_count()
-
     # save results
     os.makedirs(VM_OUT_DIR, exist_ok=True)
-    fig_path = os.path.join(VM_OUT_DIR, f'{n_cpus}cpus.json')
+    fig_path = os.path.join(VM_OUT_DIR, f'scan_results.json')
     with open(fig_path, 'w') as outfile:
         json.dump(saved_stats, outfile)
 
