@@ -733,7 +733,7 @@ class Engine:
             self,
             update: Update,
             state: Store
-    ) -> None:
+    ) -> bool:
         """Apply an update to the simulation state.
 
         Args:
@@ -741,6 +741,10 @@ class Engine:
             state: The store to which the update is relative (usually
                 root of simulation state. We need this so to preserve
                 the "perspective" from which the update was generated.
+
+        Return:
+            view_expire: a bool indicating whether the topology_views
+                expired.
         """
 
         if not update:
@@ -772,9 +776,7 @@ class Engine:
             for deletion in deletions:
                 self.delete_path(deletion)
 
-        if view_expire:
-            self.state.build_topology_views()
-            # self._run_steps()
+        return view_expire
 
     def delete_path(
             self,
@@ -821,8 +823,14 @@ class Engine:
                 update, store = self.calculate_update(
                     path, step, 0)
                 deferred_updates.append((update, store))
+
+            view_expire = False
             for update, store in deferred_updates:
-                self.apply_update(update.get(), store)
+                view_expire_update = self.apply_update(update.get(), store)
+                view_expire = view_expire or view_expire_update
+
+            if view_expire:
+                self.state.build_topology_views()
 
     def send_updates(
             self,
@@ -835,9 +843,14 @@ class Engine:
                 ``state`` is the store from whose perspective the update
                 was generated.
         """
+        view_expire = False
         for update_tuple in update_tuples:
             update, state = update_tuple
-            self.apply_update(update.get(), state)
+            view_expire_update = self.apply_update(update.get(), state)
+            view_expire = view_expire or view_expire_update
+
+        if view_expire:
+            self.state.build_topology_views()
 
         self._run_steps()
 
