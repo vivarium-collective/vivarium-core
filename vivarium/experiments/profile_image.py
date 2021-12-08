@@ -59,10 +59,19 @@ def plot_vm_scan_results():
             json_text = json.load(json_file)
             saved_stats.extend(json_text)
 
+    number_of_processes = None
+    for saved_stat in saved_stats:
+        if number_of_processes:
+            assert number_of_processes == saved_stat['number_of_processes'], \
+                "all scans must have the same number of processes"
+        else:
+            number_of_processes = saved_stat['number_of_processes']
+
     # plot
     plot_scan_results(saved_stats,
                       cpus_plot=True,
                       out_dir=path_to_json,
+                      title=f'n vCPUs running {number_of_processes} parallel processes',
                       filename=f'scan_vCPUs')
 
 
