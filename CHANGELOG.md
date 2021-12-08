@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.4.8
+## v0.4.9
 
 * Add `profile` argument to the `Engine` constructor. When this argument is set to `True`, the simulation, including any parallel processes, will be profiled by `cProfile`. Once `Engine.end()` is called, the profile stats will be saved to `Engine.stats` for analysis.
 
