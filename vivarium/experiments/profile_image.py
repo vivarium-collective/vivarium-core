@@ -2,10 +2,10 @@ import json
 import os
 import multiprocessing
 
-from vivarium.core.composition import EXPERIMENT_OUT_DIR
+from vivarium.core.composition import BASE_OUT_DIR
 from vivarium.experiments.profile_runtime import ComplexModelSim, run_scan, plot_scan_results
 
-VM_OUT_DIR = os.path.join(EXPERIMENT_OUT_DIR, 'vm_scan_results')
+VM_OUT_DIR = os.path.join(BASE_OUT_DIR, 'vm')
 
 
 def scan_parallel_save():
