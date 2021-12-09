@@ -563,16 +563,16 @@ def test_custom_divider() -> None:
         2.0: {'agents': {'1': {'variable': {'x': 2, '2x': 4}}}},
         3.0: {'agents': {'1': {'variable': {'x': 3, '2x': 6}}}},
         4.0: {'agents': {'1': {'variable': {'x': 4, '2x': 8}}}},
-        5.0: {'agents': {'10': {'variable': {'x': 2.0, '2x': 4.0}},
-                         '11': {'variable': {'x': 2.0, '2x': 4.0}}}},
-        6.0: {'agents': {'10': {'variable': {'x': 3.0, '2x': 6.0}},
-                         '11': {'variable': {'x': 3.0, '2x': 6.0}}}},
-        7.0: {'agents': {'10': {'variable': {'x': 4.0, '2x': 8.0}},
-                         '11': {'variable': {'x': 4.0, '2x': 8.0}}}},
-        8.0: {'agents': {'100': {'variable': {'x': 2.0, '2x': 4.0}},
-                         '101': {'variable': {'x': 2.0, '2x': 4.0}},
-                         '110': {'variable': {'x': 2.0, '2x': 4.0}},
-                         '111': {'variable': {'x': 2.0, '2x': 4.0}}}}
+        5.0: {'agents': {'10': {'variable': {'x': 2, '2x': 4}},
+                         '11': {'variable': {'x': 2, '2x': 4}}}},
+        6.0: {'agents': {'10': {'variable': {'x': 3, '2x': 6}},
+                         '11': {'variable': {'x': 3, '2x': 6}}}},
+        7.0: {'agents': {'10': {'variable': {'x': 4, '2x': 8}},
+                         '11': {'variable': {'x': 4, '2x': 8}}}},
+        8.0: {'agents': {'100': {'variable': {'x': 2, '2x': 4}},
+                         '101': {'variable': {'x': 2, '2x': 4}},
+                         '110': {'variable': {'x': 2, '2x': 4}},
+                         '111': {'variable': {'x': 2, '2x': 4}}}}
     }
     assert data == expected_data
 
@@ -945,24 +945,47 @@ def test_add_delete() -> None:
 
 
 def test_hyperdivision():
-    total_time = 20
-    n_agents = 100
+    total_time = 10
+    n_agents = 2
+    division_thresholds = [3, 4, 5, 6]  # what values of x triggers division?
 
     # initialize agent composer
-    agent_composer = ToyDivider({
-        'divider': {
-            'x_division_threshold': 3,
-        }
-    })
+    agent_composer = ToyDivider()
 
-    # make the full composite
+    # make the composite
     composite = Composite()
     agent_ids = [str(agent_idx) for agent_idx in range(n_agents)]
     for agent_id in agent_ids:
+        divider_config = {
+            'divider': {
+                    'x_division_threshold': random.choice(division_thresholds),
+                }}
         agent_composite = agent_composer.generate(
-            config={'agent_id': agent_id},
+            config={
+                'agent_id': agent_id,
+                **divider_config,
+            },
             path=('agents', agent_id))
         composite.merge(agent_composite)
+
+    # add an environment
+    environment_process = {'environment': ToyEnvironment()}
+    environment_topology: Topology = {
+        'environment': {
+            'agents': {
+                '_path': ('agents',),
+                '*': {
+                    'external': ('external', 'GLC')
+                }
+            },
+        }
+    }
+
+    # combine the environment and agent
+    composite.merge(
+        processes=environment_process,
+        topology=environment_topology,
+    )
 
     # make the sim, run the sim, retrieve the data
     experiment = Engine(

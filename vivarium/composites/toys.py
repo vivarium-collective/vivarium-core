@@ -801,14 +801,17 @@ def test_aggregate_composer() -> None:
 
 
 
-def split_divider(value, config):
-    return [value * config['fraction']] * 2
+def split_divider_int(value, config):
+    return [int(value * config['fraction'])] * 2
 
 
 class ToyDividerProcess(Process):
     defaults = {
-        'x_fraction': 0.5,
-        'x_division_threshold': 10}
+        'name': 'divider',
+        'x_growth': 1,
+        'x_division_fraction': 0.5,
+        'x_division_threshold': 10,
+    }
     def __init__(self, parameters = None):
         super().__init__(parameters)
         self.agent_id = self.parameters['agent_id']
@@ -821,24 +824,29 @@ class ToyDividerProcess(Process):
                     '_default': 0,
                     '_emit': True,
                     '_divider': {
-                        'divider': split_divider,
+                        'divider': split_divider_int,
                         'config': {
-                            'fraction': self.parameters['x_fraction']}
+                            'fraction': self.parameters['x_division_fraction']}
                     }
                 }},
             'agents': {'*': {}}}
     def next_update(self, timestep, states):
         x = states['variable']['x']
+        # print(x, self.parameters['x_division_threshold'])
         if x > self.parameters['x_division_threshold']:
+            # print('DIVIDE!')
             daughter_ids = [
                 str(self.agent_id) + '0',
                 str(self.agent_id) + '1']
             divide_update = get_divide_update(
                 self.composer,
                 self.agent_id,
-                daughter_ids)
+                daughter_ids,
+                composer_config={
+                    self.parameters['name']: self.parameters},
+            )
             return {'agents': divide_update}
-        return {'variable': {'x': 1}}
+        return {'variable': {'x': self.parameters['x_growth']}}
 
 
 class ToyDividerStep(Step):
@@ -865,9 +873,10 @@ class ToyDividerStep(Step):
 
 
 class ToyDivider(Composer):
-    defaults: Dict[str, Any] = {'divider': {}}
+    defaults: Dict[str, Any] = {
+        'divider': {'name': 'divider'}}
 
-    def __init__(self, config):
+    def __init__(self, config=None):
         super().__init__(config)
 
     def generate_processes(self, config):
