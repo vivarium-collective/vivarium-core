@@ -19,15 +19,15 @@ from vivarium.core.engine import Engine
 from vivarium.core.process import Process
 from vivarium.core.composer import Composer
 from vivarium.core.control import run_library_cli
-
+from vivarium.core.composition import EXPERIMENT_OUT_DIR
 
 DEFAULT_PROCESS_SLEEP = 1e-4
 DEFAULT_N_PROCESSES = 10
 DEFAULT_N_VARIABLES = 10
 DEFAULT_EXPERIMENT_TIME = 100
-PROCESS_UPDATE_MARKER = 'b.'
-VIVARIUM_OVERHEAD_MARKER = 'r.'
-SIMULATION_TIME_MARKER = 'g.'
+PROCESS_UPDATE_MARKER = 'bD'
+VIVARIUM_OVERHEAD_MARKER = 'rD'
+SIMULATION_TIME_MARKER = 'gD'
 
 
 class ManyVariablesProcess(Process):
@@ -271,12 +271,10 @@ class ComplexModelSim:
         # get next_update runtime
         next_update_amount = ("next_update",)
         _, stats_list = stats.get_print_list(next_update_amount)
-        cc, nc, tt, ct, callers = stats.stats[stats_list[0]]
-        _ = cc
-        _ = nc
-        _ = tt
-        _ = callers
-        process_update_time = ct
+
+        process_update_time = 0
+        for s in stats_list:
+            process_update_time += stats.stats[s][3]
 
         # get runtime
         experiment_time = stats.total_tt
@@ -355,13 +353,16 @@ def _get_patches(
     patches = []
     if process:
         patches.append(mpatches.Patch(
-            color=PROCESS_UPDATE_MARKER[0], label="process updates"))
+            color=PROCESS_UPDATE_MARKER[0],
+            label="process updates"))
     if overhead:
         patches.append(mpatches.Patch(
-            color=VIVARIUM_OVERHEAD_MARKER[0], label="vivarium overhead"))
+            color=VIVARIUM_OVERHEAD_MARKER[0],
+            label="vivarium overhead"))
     if experiment:
         patches.append(mpatches.Patch(
-            color=SIMULATION_TIME_MARKER[0], label="simulation time"))
+            color=SIMULATION_TIME_MARKER[0],
+            label="simulation time"))
     return patches
 
 
@@ -371,7 +372,8 @@ def _add_stats_plot(
         variable_name,
         process_update=False,
         vivarium_overhead=False,
-        experiment_time=False
+        experiment_time=False,
+        markersize=10,
 ):
     # plot saved states
     for stat in saved_stats:
@@ -381,30 +383,34 @@ def _add_stats_plot(
 
         if process_update:
             ax.plot(
-                variable, process_update_time, PROCESS_UPDATE_MARKER)
+                variable, process_update_time,
+                PROCESS_UPDATE_MARKER, markersize=markersize)
         if vivarium_overhead:
             ax.plot(
-                variable, store_update_time, VIVARIUM_OVERHEAD_MARKER)
+                variable, store_update_time,
+                VIVARIUM_OVERHEAD_MARKER, markersize=markersize)
         if experiment_time:
             experiment_time = process_update_time + store_update_time
             ax.plot(
-                variable, experiment_time, SIMULATION_TIME_MARKER)
+                variable, experiment_time,
+                SIMULATION_TIME_MARKER, markersize=markersize)
 
 
 def plot_scan_results(
         saved_stats,
-        plot_all=False,
         process_plot=False,
         store_plot=False,
         port_plot=False,
         var_plot=False,
         hierarchy_plot=False,
         parallel_plot=False,
+        cpus_plot=False,
         fig=None,
         grid=None,
         axis_number=0,
+        row_height=3,
         title=None,
-        out_dir='out/experiments',
+        out_dir=EXPERIMENT_OUT_DIR,
         filename=None,
 ):
     """Plot scan results
@@ -413,14 +419,6 @@ def plot_scan_results(
         saved_stats (dict): the scan results
         *_plot (bool): whether to add the given plot type
     """
-    if plot_all:
-        process_plot = True
-        store_plot = True
-        port_plot = True
-        var_plot = True
-        hierarchy_plot = True
-        parallel_plot = True
-
     # make figure
     if fig:
         assert grid, "fig must provide grid for subplots"
@@ -433,17 +431,20 @@ def plot_scan_results(
             var_plot,
             hierarchy_plot,
             parallel_plot,
+            cpus_plot,
         ])
 
-        fig = plt.figure(figsize=(n_cols * 6, n_rows * 3))
+        fig = plt.figure(figsize=(n_cols * 6, n_rows * row_height))
         grid = plt.GridSpec(n_rows, n_cols)
+
+    patches = _get_patches(
+        process=True, overhead=True, experiment=True)
 
     # initialize axes
     if process_plot:
-        patches = _get_patches(process=True, overhead=True)
         ax = _make_axis(
             fig, grid, axis_number, patches, title,
-            label='number of processes')
+            label='n processes')
         _add_stats_plot(
             ax=ax, saved_stats=saved_stats,
             variable_name='number_of_processes',
@@ -452,10 +453,9 @@ def plot_scan_results(
         axis_number += 1
 
     if store_plot:
-        patches = _get_patches(overhead=True)
         ax = _make_axis(
-            fig, grid, axis_number, patches,
-            label='number of stores')
+            fig, grid, axis_number, patches, title,
+            label='n stores')
         _add_stats_plot(
             ax=ax, saved_stats=saved_stats,
             variable_name='number_of_stores',
@@ -463,10 +463,9 @@ def plot_scan_results(
         axis_number += 1
 
     if port_plot:
-        patches = _get_patches(overhead=True)
         ax = _make_axis(
-            fig, grid, axis_number, patches,
-            label='number of ports')
+            fig, grid, axis_number, patches, title,
+            label='n ports')
         _add_stats_plot(
             ax=ax, saved_stats=saved_stats,
             variable_name='number_of_ports',
@@ -474,10 +473,9 @@ def plot_scan_results(
         axis_number += 1
 
     if var_plot:
-        patches = _get_patches(overhead=True)
         ax = _make_axis(
-            fig, grid, axis_number, patches,
-            label='number of variables')
+            fig, grid, axis_number, patches, title,
+            label='n variables')
         _add_stats_plot(
             ax=ax, saved_stats=saved_stats,
             variable_name='number_of_variables',
@@ -485,9 +483,8 @@ def plot_scan_results(
         axis_number += 1
 
     if hierarchy_plot:
-        patches = _get_patches(overhead=True)
         ax = _make_axis(
-            fig, grid, axis_number, patches,
+            fig, grid, axis_number, patches, title,
             label='hierarchy depth')
         _add_stats_plot(
             ax=ax, saved_stats=saved_stats,
@@ -496,20 +493,29 @@ def plot_scan_results(
         axis_number += 1
 
     if parallel_plot:
-        patches = _get_patches(experiment=True)
         ax = _make_axis(
-            fig, grid, axis_number, patches,
-            label='number of parallel processes')
+            fig, grid, axis_number, patches, title,
+            label='n parallel processes')
         _add_stats_plot(
             ax=ax, saved_stats=saved_stats,
             variable_name='number_of_parallel_processes',
             experiment_time=True)
         axis_number += 1
 
+    if cpus_plot:
+        ax = _make_axis(
+            fig, grid, axis_number, patches, title,
+            label='n vCPUs')
+        _add_stats_plot(
+            ax=ax, saved_stats=saved_stats,
+            variable_name='number_of_cpus',
+            experiment_time=True)
+        axis_number += 1
+
     # save
     if filename:
         plt.subplots_adjust(hspace=0.5)
-        plt.figtext(0, -0.1, filename, size=8)
+        # plt.figtext(0, -0.1, filename, size=8)
         os.makedirs(out_dir, exist_ok=True)
         fig_path = os.path.join(out_dir, filename[0:100])
         fig.savefig(fig_path, bbox_inches='tight')
@@ -543,6 +549,7 @@ def scan_processes():
 
         plot_scan_results(saved_stats,
                           process_plot=True,
+                          row_height=2.5,
                           fig=fig,
                           grid=grid,
                           axis_number=idx,
@@ -555,6 +562,7 @@ def scan_processes():
                       filename='scan_processes'
                       )
 
+
 def scan_variables():
     n_vars = [n*100 for n in range(10)]
     scan_values = [{'number_of_variables': n} for n in n_vars]
@@ -564,11 +572,14 @@ def scan_variables():
                            scan_values=scan_values)
     plot_scan_results(saved_stats,
                       var_plot=True,
-                      filename='scan_variables')
+                      row_height=2,
+                      filename='scan_variables',
+                      title='n variables through 1 port'
+                      )
 
 
 def scan_number_of_ports():
-    n_ports = [n*10 for n in range(10)]
+    n_ports = [n*8 for n in range(10)]
     scan_values = [
         {
             'number_of_variables': 100,
@@ -581,7 +592,10 @@ def scan_number_of_ports():
                            scan_values=scan_values)
     plot_scan_results(saved_stats,
                       port_plot=True,
-                      filename='scan_number_of_ports')
+                      row_height=2,
+                      filename='scan_number_of_ports',
+                      title='100 variables through n ports'
+                      )
 
 
 def scan_hierarchy_depth():
@@ -597,33 +611,39 @@ def scan_hierarchy_depth():
 
 
 def scan_parallel_processes():
-    total_processes = 50
-    n_scans = 8
-    n_parallel_processes = [
-        i * int(total_processes/n_scans) for i in range(n_scans)]
+    """
+    Running this scan may require change the computer's process limits.
+     - Check your current limits with: `ulimit -n`
+     - Increase limits: `ulimit -n 10240`
+    """
+
+    total_processes = 80
+    scan_interval = 10
     scan_values = [
         {
             'number_of_processes': total_processes,
             'number_of_parallel_processes': n
-        } for n in n_parallel_processes
+        } for n in range(0, total_processes+1, scan_interval)
     ]
 
     sim = ComplexModelSim()
     sim.process_sleep = 1e-2
-    sim.experiment_time = 50
+    sim.experiment_time = 60
     saved_stats = run_scan(sim,
                            scan_values=scan_values)
     plot_scan_results(saved_stats,
                       parallel_plot=True,
-                      filename=f'scan_parallel_processes_{total_processes}')
+                      title=f'{total_processes} processes, '
+                            f'with n of the running in parallel',
+                      filename='scan_parallel_processes')
 
 
 scans_library = {
     '0': scan_processes,
     '1': scan_variables,
     '2': scan_number_of_ports,
-    '3': scan_hierarchy_depth,
-    '4': scan_parallel_processes,
+    '3': scan_parallel_processes,
+    '4': scan_hierarchy_depth,
 }
 
 # python vivarium/experiments/profile_runtime.py -n [name]
