@@ -242,20 +242,27 @@ def is_float(element: Any) -> bool:
         return False
 
 
-def _parse_options(options_list: Optional[List[str]]) -> Dict[str, str]:
+def _parse_options(
+        options_list: Optional[List[str]]
+) -> Dict[str, Union[int, float, bool, str]]:
     """Parse the KEY=VALUE or KEY=k=v option strings into a dict."""
     assignments = options_list or []
-    pairs = [a.split('=', 1) + [''] for a in assignments]  # [''] to handle the no-'=' case
+    pairs = [
+        a.split('=', 1) + [''] for a in assignments
+    ]  # [''] to handle the no-'=' case
     options = {}
     for p in pairs:
-        key = p[0].strip()
-        value = p[1].strip()
-        if value.isdigit():
+        key: str = p[0]
+        str_value: str = p[1]
+        value: Any = None
+        if str_value.isdigit():
             value = int(value)
-        elif is_float(value):
+        elif is_float(str_value):
             value = float(value)
-        elif value in ['True', 'False']:
+        elif str_value in ['True', 'False']:
             value = bool(value)
+        else:
+            value = str_value
         options[key] = value
     return options
 
