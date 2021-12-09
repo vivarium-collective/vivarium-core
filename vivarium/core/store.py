@@ -981,7 +981,7 @@ class Store:
         Apply the divider for each node to the value in that node to
         assemble two parallel divided states of this subtree.
         """
-        deepcopy_state = False
+
         if self.divider:
             # divider is either a function or a dict with topology and/or config
             if isinstance(self.divider, dict):
@@ -989,29 +989,24 @@ class Store:
                 if isinstance(divider, str):
                     divider = divider_registry.access(divider)
                 args = {}
-
                 if 'topology' in self.divider:
                     topology = self.divider['topology']
                     args.update({'state': self.topology_state(topology)})
                 if 'config' in self.divider:
                     config = self.divider['config']
                     args.update({'config': config})
-                if self.divider.get('deepcopy_state'):
-                    deepcopy_state = True
-                return divider(self.get_value(), **args), deepcopy_state
 
-            return self.divider(self.get_value()), deepcopy_state
-
+                return divider(self.get_value(), **args)
+            return self.divider(self.get_value())
         if self.inner:
             daughters = [{}, {}]
             for key, child in self.inner.items():
-                division, child_deepcopy_state = child.divide_value()
-                deepcopy_state = deepcopy_state or child_deepcopy_state
+                division = child.divide_value()
                 if division:
                     for daughter, divide in zip(daughters, division):
                         daughter[key] = divide
-            return daughters, deepcopy_state
-        return None, deepcopy_state
+            return daughters
+        return None
 
     def reduce(self, reducer, initial=None):
         """
@@ -1225,21 +1220,16 @@ class Store:
             condition=lambda child: not
             (isinstance(child.value, Process)),
             f=lambda child: copy.deepcopy(child))
-        daughter_states, deepcopy_state = self.inner[mother].divide_value()
+        daughter_states = self.inner[mother].divide_value()
 
         here = self.path_for()
 
         for daughter, daughter_state in \
                 zip(daughters, daughter_states):
             # use initial state as default, merge in divided values
-            if daughter_states:
-                merged_initial_state = deep_merge(
-                    copy.deepcopy(initial_state),
-                    daughter_state)
-            else:
-                merged_initial_state = deep_merge(
-                    dict(initial_state),
-                    daughter_state)
+            merged_initial_state = deep_merge(
+                copy.deepcopy(initial_state),
+                daughter_state)
 
             daughter_key = daughter['key']
             daughter_path = (daughter_key,)
