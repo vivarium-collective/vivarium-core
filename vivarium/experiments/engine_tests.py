@@ -5,7 +5,7 @@ from typing import Optional, Union, Dict, Any, cast, List
 from vivarium.composites.toys import (
     PoQo, Sine, ToyDivider, ToyTransport, ToyEnvironment,
     Proton, Electron, )
-from vivarium.core.composer import Composer
+from vivarium.core.composer import Composer, Composite
 from vivarium.core.engine import Engine, pf, pp, _StepGraph
 from vivarium.core.process import Process, Step, Deriver
 from vivarium.core.store import Store, hierarchy_depth
@@ -537,6 +537,7 @@ def test_units() -> None:
 
 
 def test_custom_divider() -> None:
+    """ToyDividerProcess has a custom `split_divider`"""
     agent_id = '1'
     composer = ToyDivider({
         'agent_id': agent_id,
@@ -943,6 +944,42 @@ def test_add_delete() -> None:
             assert len(set(current_ids).intersection(set(next_ids))) == 0
 
 
+def test_hyperdivision():
+    total_time = 20
+    n_agents = 100
+
+    # initialize agent composer
+    agent_composer = ToyDivider({
+        'divider': {
+            'x_division_threshold': 3,
+        }
+    })
+
+    # make the full composite
+    composite = Composite()
+    agent_ids = [str(agent_idx) for agent_idx in range(n_agents)]
+    for agent_id in agent_ids:
+        agent_composite = agent_composer.generate(
+            config={'agent_id': agent_id},
+            path=('agents', agent_id))
+        composite.merge(agent_composite)
+
+    # make the sim, run the sim, retrieve the data
+    experiment = Engine(
+        processes=composite.processes,
+        steps=composite.steps,
+        flow=composite.flow,
+        topology=composite.topology,
+    )
+    experiment.update(total_time)
+    data = experiment.emitter.get_data()
+
+    print(f"n agents initial: {len(data[total_time]['agents'].keys())}")
+    print(f"n agents final: {n_agents}")
+    # import ipdb; ipdb.set_trace()
+
+
+
 engine_tests = {
     '0': test_recursive_store,
     '1': test_topology_ports,
@@ -960,6 +997,7 @@ engine_tests = {
     '13': test_glob_schema,
     '14': test_environment_view_with_division,
     '15': test_add_delete,
+    '16': test_hyperdivision,
 }
 
 
