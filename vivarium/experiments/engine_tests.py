@@ -999,8 +999,8 @@ def test_hyperdivision(profile: bool = True) -> None:
     experiment.end()
     data = experiment.emitter.get_data()
 
-    print(f"n agents initial: {len(data[total_time]['agents'].keys())}")
-    print(f"n agents final: {n_agents}")
+    print(f"n agents initial: {n_agents}")
+    print(f"n agents final: {len(data[total_time]['agents'].keys())}")
     if profile:
         stats = experiment.stats
         stats.strip_dirs().sort_stats('cumulative', 'cumtime').print_stats(10)
