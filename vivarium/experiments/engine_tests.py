@@ -1,6 +1,7 @@
 import random
 import logging as log
 from typing import Optional, Union, Dict, Any, cast, List
+from pstats import SortKey
 
 from vivarium.composites.toys import (
     PoQo, Sine, ToyDivider, ToyTransport, ToyEnvironment,
@@ -944,10 +945,10 @@ def test_add_delete() -> None:
             assert len(set(current_ids).intersection(set(next_ids))) == 0
 
 
-def test_hyperdivision():
+def test_hyperdivision(profile=True):
     total_time = 10
-    n_agents = 2
-    division_thresholds = [3, 4, 5, 6]  # what values of x triggers division?
+    n_agents = 100
+    division_thresholds = [3, 4, 5, 6, 7]  # what values of x triggers division?
 
     # initialize agent composer
     agent_composer = ToyDivider()
@@ -993,13 +994,18 @@ def test_hyperdivision():
         steps=composite.steps,
         flow=composite.flow,
         topology=composite.topology,
+        profile=profile,
     )
     experiment.update(total_time)
+    experiment.end()
     data = experiment.emitter.get_data()
 
     print(f"n agents initial: {len(data[total_time]['agents'].keys())}")
     print(f"n agents final: {n_agents}")
-    # import ipdb; ipdb.set_trace()
+    if profile:
+        stats = experiment.stats
+        stats.strip_dirs().sort_stats(SortKey.CUMULATIVE).print_stats(10)
+        # import ipdb; ipdb.set_trace()
 
 
 
