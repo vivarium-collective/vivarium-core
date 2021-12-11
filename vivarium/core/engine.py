@@ -564,7 +564,6 @@ class Engine:
     ) -> None:
         tree = hierarchy_depth(steps)
         for path, step in tree.items():
-            name = path[-1]
             self._add_step_path(step, path, get_in(flow, path))
 
     def emit_configuration(self) -> None:
