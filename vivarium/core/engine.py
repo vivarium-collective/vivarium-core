@@ -21,7 +21,7 @@ import uuid
 
 import networkx as nx
 
-from vivarium.core.store import hierarchy_depth, Store, generate_state
+from vivarium.core.store import hierarchy_depth, Store, generate_state, view_values
 from vivarium.core.emitter import get_emitter
 from vivarium.core.process import (
     Process,
@@ -128,15 +128,6 @@ def invoke_process(
 
     return process.next_update(interval, states)
 
-def view_values(
-        states: dict
-) -> State:
-    state_values = {}
-    if isinstance(states, Store):
-        return states.get_value()
-    for key, value in states.items():
-        state_values[key] = view_values(value)
-    return state_values
 
 class Defer:
     def __init__(
@@ -700,8 +691,9 @@ class Engine:
 
         # translate the values from the tree structure into the form
         # that this process expects, based on its declared topology
-        states = store.topology_view
-        assert states, f"store at path {path} does not have a topology_view"
+        topology_view = store.topology_view
+        assert topology_view, f"store at path {path} does not have a topology_view"
+        states = view_values(topology_view)
 
         return store, states
 
@@ -722,8 +714,7 @@ class Engine:
             Tuple of the deferred update (relative to the root of
             ``path``) and the store at ``path``.
         """
-        store, topology_view = self.process_state(path)
-        states = view_values(topology_view)
+        store, states = self.process_state(path)
         if process.update_condition(interval, states):
             return self._process_update(
                 path, process, store, states, interval)
@@ -903,7 +894,6 @@ class Engine:
 
                     # get the time step
                     store, states = self.process_state(path)
-                    states = view_values(states)
                     requested_timestep = process.calculate_timestep(states)
 
                     # progress only to the end of interval

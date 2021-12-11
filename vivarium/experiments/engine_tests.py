@@ -1003,7 +1003,7 @@ def test_hyperdivision(profile: bool = True) -> None:
     print(f"n agents final: {len(data[total_time]['agents'].keys())}")
     if profile:
         stats = experiment.stats
-        stats.strip_dirs().sort_stats('cumulative', 'cumtime').print_stats(10)
+        stats.strip_dirs().sort_stats('cumulative', 'cumtime').print_stats(20)
         # import ipdb; ipdb.set_trace()
 
 
