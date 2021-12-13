@@ -21,7 +21,7 @@ from vivarium.core.composer import Composer
 from vivarium.core.control import run_library_cli
 from vivarium.core.composition import EXPERIMENT_OUT_DIR
 
-DEFAULT_PROCESS_SLEEP = 1e-4
+DEFAULT_PROCESS_SLEEP = 1e-3
 DEFAULT_N_PROCESSES = 10
 DEFAULT_N_VARIABLES = 10
 DEFAULT_EXPERIMENT_TIME = 100
@@ -427,8 +427,8 @@ def plot_scan_results(
         n_rows = sum([
             process_plot,
             store_plot,
-            port_plot,
-            var_plot,
+            port_plot, port_plot,  # two rows
+            var_plot, var_plot,  # two rows
             hierarchy_plot,
             parallel_plot,
             cpus_plot,
@@ -463,23 +463,48 @@ def plot_scan_results(
         axis_number += 1
 
     if port_plot:
+        label = 'n ports'
+        var_name = 'number_of_ports'
         ax = _make_axis(
             fig, grid, axis_number, patches, title,
-            label='n ports')
+            label=label)
         _add_stats_plot(
             ax=ax, saved_stats=saved_stats,
-            variable_name='number_of_ports',
+            variable_name=var_name,
+            # process_update=True,
             vivarium_overhead=True)
         axis_number += 1
 
-    if var_plot:
+        # process time plot
         ax = _make_axis(
-            fig, grid, axis_number, patches, title,
-            label='n variables')
+            fig, grid, axis_number, patches, title='',
+            label=label)
         _add_stats_plot(
             ax=ax, saved_stats=saved_stats,
-            variable_name='number_of_variables',
+            variable_name=var_name,
+            process_update=True)
+        axis_number += 1
+
+    if var_plot:
+        label = 'n variables'
+        var_name = 'number_of_variables'
+        ax = _make_axis(
+            fig, grid, axis_number, patches, title,
+            label=label)
+        _add_stats_plot(
+            ax=ax, saved_stats=saved_stats,
+            variable_name=var_name,
             vivarium_overhead=True)
+        axis_number += 1
+
+        # process time plot
+        ax = _make_axis(
+            fig, grid, axis_number, patches, title='',
+            label=label)
+        _add_stats_plot(
+            ax=ax, saved_stats=saved_stats,
+            variable_name=var_name,
+            process_update=True)
         axis_number += 1
 
     if hierarchy_plot:
@@ -553,7 +578,7 @@ def scan_processes():
                           fig=fig,
                           grid=grid,
                           axis_number=idx,
-                          title=f'process update = {s} sec',
+                          title=f'process update runtime = {s} sec',
                           # filename='scan_processes'
                           )
     plot_scan_results({},
@@ -572,14 +597,14 @@ def scan_variables():
                            scan_values=scan_values)
     plot_scan_results(saved_stats,
                       var_plot=True,
-                      row_height=2,
+                      row_height=1.8,
                       filename='scan_variables',
                       title='n variables through 1 port'
                       )
 
 
 def scan_number_of_ports():
-    n_ports = [n*8 for n in range(10)]
+    n_ports = [n*10 for n in range(10)]
     scan_values = [
         {
             'number_of_variables': 100,
@@ -592,7 +617,7 @@ def scan_number_of_ports():
                            scan_values=scan_values)
     plot_scan_results(saved_stats,
                       port_plot=True,
-                      row_height=2,
+                      row_height=1.8,
                       filename='scan_number_of_ports',
                       title='100 variables through n ports'
                       )
@@ -628,13 +653,13 @@ def scan_parallel_processes():
 
     sim = ComplexModelSim()
     sim.process_sleep = 1e-2
-    sim.experiment_time = 60
     saved_stats = run_scan(sim,
                            scan_values=scan_values)
     plot_scan_results(saved_stats,
                       parallel_plot=True,
+                      row_height=2.5,
                       title=f'{total_processes} processes, '
-                            f'with n of the running in parallel',
+                            f'with n of them running in parallel',
                       filename='scan_parallel_processes')
 
 

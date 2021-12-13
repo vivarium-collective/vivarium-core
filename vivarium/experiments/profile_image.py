@@ -77,6 +77,7 @@ def plot_vm_scan_results() -> None:
     # plot
     plot_scan_results(saved_stats,
                       cpus_plot=True,
+                      row_height=2.5,
                       out_dir=path_to_json,
                       title=f'n vCPUs running {number_of_processes} '
                             f'parallel processes',
