@@ -520,6 +520,7 @@ class Engine:
             # None if deriver, empty list if no dependencies.
             relative_dependencies: Optional[Sequence[HierarchyPath]],
     ) -> None:
+        assert step.is_step()
         self._step_paths[path] = step
         if relative_dependencies is None:
             self._step_graph.add_sequential(path)
