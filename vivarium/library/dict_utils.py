@@ -121,6 +121,15 @@ def deep_merge(dct, merge_dct):
     return dct
 
 
+def deep_copy_internal(d):
+    if not isinstance(d, dict):
+        return d
+    return {
+        key: deep_copy_internal(val)
+        for key, val in d.items()
+    }
+
+
 def flatten_port_dicts(dicts):
     """
     Input:
@@ -303,3 +312,13 @@ def make_path_dict(embedded_dict):
     for path in paths_list:
         path_dict[path] = get_value_from_path(embedded_dict, path)
     return path_dict
+
+
+def test_deep_copy_internal():
+    l = [1, 2, 3]
+    d = {1: {2: l}, 3: True}
+    copy = deep_copy_internal(d)
+    assert copy == d
+    assert copy is not d
+    assert copy[1] is not d[1]
+    assert copy[1][2] is d[1][2]

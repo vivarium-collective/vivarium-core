@@ -15,7 +15,8 @@ from vivarium.core.store import (
 from vivarium.core.types import (
     Processes, Topology, HierarchyPath, State, Schema, Steps, Flow)
 from vivarium.library.datum import Datum
-from vivarium.library.dict_utils import deep_merge
+from vivarium.library.dict_utils import (
+    deep_merge, deep_merge_check, deep_copy_internal)
 from vivarium.library.topology import inverse_topology
 
 
@@ -109,11 +110,8 @@ class Composite(Datum):
         config = config or {}
         super().__init__(config)
         self._schema = config.get('_schema', {})
-        assert not self.processes.keys() & self.steps.keys()
-        processes_and_steps = {
-            **self.processes,
-            **self.steps,
-        }
+        processes_and_steps = deep_copy_internal(self.processes)
+        deep_merge_check(processes_and_steps, self.steps)
         _override_schemas(self._schema, processes_and_steps)
 
     def generate_store(self, config: Optional[dict] = None) -> Store:
@@ -190,11 +188,8 @@ class Composite(Datum):
         deep_merge(self.processes, merge_processes)
         deep_merge(self.topology, merge_topology)
         self._schema.update(schema_override)
-        assert not self.processes.keys() & self.steps.keys()
-        processes_and_steps = {
-            **self.processes,
-            **self.steps,
-        }
+        processes_and_steps = deep_copy_internal(self.processes)
+        deep_merge_check(processes_and_steps, self.steps)
         _override_schemas(self._schema, processes_and_steps)
 
     def get_parameters(self) -> Dict:
@@ -349,11 +344,8 @@ class Composer(metaclass=abc.ABCMeta):
         steps = self.generate_steps(config)
         flow = self.generate_flow(config)
         topology = self.generate_topology(config)
-        assert not processes.keys() & steps.keys()
-        processes_and_steps = {
-            **processes,
-            **steps,
-        }
+        processes_and_steps = deep_copy_internal(processes)
+        deep_merge_check(processes_and_steps, steps)
         _override_schemas(self.schema_override, processes_and_steps)
 
         return Composite({
