@@ -109,7 +109,12 @@ class Composite(Datum):
         config = config or {}
         super().__init__(config)
         self._schema = config.get('_schema', {})
-        _override_schemas(self._schema, self.processes)
+        assert not self.processes.keys() & self.steps.keys()
+        processes_and_steps = {
+            **self.processes,
+            **self.steps,
+        }
+        _override_schemas(self._schema, processes_and_steps)
 
     def generate_store(self, config: Optional[dict] = None) -> Store:
         config = config or {}
@@ -185,7 +190,12 @@ class Composite(Datum):
         deep_merge(self.processes, merge_processes)
         deep_merge(self.topology, merge_topology)
         self._schema.update(schema_override)
-        _override_schemas(self._schema, self.processes)
+        assert not self.processes.keys() & self.steps.keys()
+        processes_and_steps = {
+            **self.processes,
+            **self.steps,
+        }
+        _override_schemas(self._schema, processes_and_steps)
 
     def get_parameters(self) -> Dict:
         """Get the parameters for all :term:`processes`.
@@ -339,7 +349,12 @@ class Composer(metaclass=abc.ABCMeta):
         steps = self.generate_steps(config)
         flow = self.generate_flow(config)
         topology = self.generate_topology(config)
-        _override_schemas(self.schema_override, processes)
+        assert not processes.keys() & steps.keys()
+        processes_and_steps = {
+            **processes,
+            **steps,
+        }
+        _override_schemas(self.schema_override, processes_and_steps)
 
         return Composite({
             'processes': assoc_in({}, path, processes),
