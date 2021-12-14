@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.4.12
+
+* Allow schema overrides to override step schemas.
+
 ## v0.4.11
 
 * Assert that when `Engine` treats a process like a step, that process
