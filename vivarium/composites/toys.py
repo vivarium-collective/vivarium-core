@@ -833,9 +833,7 @@ class ToyDividerProcess(Process):
 
     def next_update(self, timestep, states):
         x = states['variable']['x']
-        # print(x, self.parameters['x_division_threshold'])
         if x > self.parameters['x_division_threshold']:
-            # print('DIVIDE!')
             daughter_ids = [
                 str(self.agent_id) + '0',
                 str(self.agent_id) + '1']
