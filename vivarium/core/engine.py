@@ -21,7 +21,8 @@ import uuid
 
 import networkx as nx
 
-from vivarium.core.store import hierarchy_depth, Store, generate_state, view_values
+from vivarium.core.store import (
+    hierarchy_depth, Store, generate_state, view_values)
 from vivarium.core.emitter import get_emitter
 from vivarium.core.process import (
     Process,
@@ -692,7 +693,8 @@ class Engine:
         # translate the values from the tree structure into the form
         # that this process expects, based on its declared topology
         topology_view = store.topology_view
-        assert topology_view is not None, f"store at path {path} does not have a topology_view"
+        assert topology_view is not None, \
+            f"store at path {path} does not have a topology_view"
         states = view_values(topology_view)
 
         return store, states

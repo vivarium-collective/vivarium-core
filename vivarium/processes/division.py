@@ -61,8 +61,7 @@ class Division(Deriver):
     def ports_schema(self):
         return {
             'variable': {},
-            'agents': {
-                '*': {}}}
+            'agents': {}}
 
     def next_update(self, timestep, states):
         variable = states['variable']

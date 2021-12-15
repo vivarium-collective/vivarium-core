@@ -877,9 +877,6 @@ class ToyDivider(Composer):
     defaults: Dict[str, Any] = {
         'divider': {'name': 'divider'}}
 
-    def __init__(self, config=None):
-        super().__init__(config)
-
     def generate_processes(self, config):
         agent_id = config['agent_id']
         division_config = dict(

@@ -4,12 +4,13 @@ from typing import Optional, Union, Dict, Any, cast, List
 
 from vivarium.composites.toys import (
     PoQo, Sine, ToyDivider, ToyTransport, ToyEnvironment,
-    Proton, Electron, )
+    Proton, Electron)
 from vivarium.core.composer import Composer, Composite
 from vivarium.core.engine import Engine, pf, pp, _StepGraph
 from vivarium.core.process import Process, Step, Deriver
 from vivarium.core.store import Store, hierarchy_depth
-from vivarium.core.types import Schema, State, Update, Topology, Steps
+from vivarium.core.types import (
+    Schema, State, Update, Topology, Steps, Processes)
 from vivarium.library.units import units
 from vivarium.library.wrappers import make_logging_process
 from vivarium.core.control import run_library_cli
@@ -944,7 +945,7 @@ def test_add_delete() -> None:
             assert len(set(current_ids).intersection(set(next_ids))) == 0
 
 
-def test_hyperdivision(profile: bool = True) -> None:
+def test_hyperdivision(profile: bool = False) -> None:
     total_time = 10
     n_agents = 100
     division_thresholds = [3, 4, 5, 6, 7]  # what values of x triggers division?
@@ -969,7 +970,7 @@ def test_hyperdivision(profile: bool = True) -> None:
         composite.merge(agent_composite)
 
     # add an environment
-    environment_process = {'environment': ToyEnvironment()}
+    environment_process: Processes = {'environment': ToyEnvironment()}
     environment_topology: Topology = {
         'environment': {
             'agents': {
@@ -1001,10 +1002,12 @@ def test_hyperdivision(profile: bool = True) -> None:
 
     print(f"n agents initial: {n_agents}")
     print(f"n agents final: {len(data[total_time]['agents'].keys())}")
-    if profile:
-        stats = experiment.stats
-        stats.strip_dirs().sort_stats('cumulative', 'cumtime').print_stats(20)
-        # import ipdb; ipdb.set_trace()
+
+    assert len(data[total_time]['agents'].keys()) >  n_agents
+    # if profile:
+    #     stats = experiment.stats
+    #     stats.strip_dirs().sort_stats(
+    #         'cumulative', 'cumtime').print_stats(20)
 
 
 
