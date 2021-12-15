@@ -1608,8 +1608,6 @@ class Store:
                         # node is None, it was likely deleted
                         print('{} is None'.format(path))
 
-        if state == {}:
-            state = self
         return state
 
     def state_for(self, path, keys):

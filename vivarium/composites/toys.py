@@ -829,7 +829,8 @@ class ToyDividerProcess(Process):
                             'fraction': self.parameters['x_division_fraction']}
                     }
                 }},
-            'agents': {'*': {}}}
+            'agents': {}}
+
     def next_update(self, timestep, states):
         x = states['variable']['x']
         # print(x, self.parameters['x_division_threshold'])
