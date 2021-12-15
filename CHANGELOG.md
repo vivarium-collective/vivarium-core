@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.4.12
+
+* Allow schema overrides to override step schemas.
+
+## v0.4.11
+
+* Assert that when `Engine` treats a process like a step, that process
+  is actually a step.
+* Use `Process.is_step()` to check whether a process is a step instead
+  of using `isinstance`.
+
+## v0.4.10
+
+* Fix `Engine` to support flows that are nested dictionaries.
+
 ## v0.4.9
 
 * Add `profile` argument to the `Engine` constructor. When this argument is set to `True`, the simulation, including any parallel processes, will be profiled by `cProfile`. Once `Engine.end()` is called, the profile stats will be saved to `Engine.stats` for analysis.

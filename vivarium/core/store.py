@@ -653,7 +653,7 @@ class Store:
                 f'with topology {self.topology}, which is not allowed '
                 f'because the Store value ({self.value}) is not a '
                 'Process.')
-        if self.flow and not isinstance(self.value, Step):
+        if self.flow and not self.value.is_step():
             raise ValueError(
                 f'Attempting to create Store at {self.path_for()} '
                 f'with flow {self.flow}, which is not allowed because '
@@ -772,7 +772,7 @@ class Store:
                         inner_processes[key] = child_processes
                 elif (
                         isinstance(child.value, Process)
-                        and not isinstance(child.value, Step)):
+                        and not child.value.is_step()):
                     inner_processes[key] = child.value
             if inner_processes:
                 return inner_processes
@@ -789,7 +789,9 @@ class Store:
                     child_processes = child.get_steps()
                     if child_processes:
                         inner_processes[key] = child_processes
-                elif isinstance(child.value, Step):
+                elif (
+                        isinstance(child.value, Process)
+                        and child.value.is_step()):
                     inner_processes[key] = child.value
             if inner_processes:
                 return inner_processes
@@ -1143,7 +1145,7 @@ class Store:
                 process_path, process.value))
             topology_updates.append((
                 process_path, process.topology))
-            if isinstance(process, Step):
+            if process.value.is_step():
                 step_updates.append((
                     process_path, process.value))
                 # Note that process.flow may be None, indicating no
@@ -1303,7 +1305,7 @@ class Store:
         deletions.append(tuple(here + mother_path))
 
         for path, process in process_and_step_updates:
-            if isinstance(process, Step):
+            if process.is_step():
                 step_updates.append((path, process))
             else:
                 process_updates.append((path, process))

@@ -30,6 +30,7 @@ from vivarium.core.process import (
 )
 from vivarium.core.serialize import serialize_value
 from vivarium.library.topology import (
+    get_in,
     delete_in,
     assoc_path,
     inverse_topology,
@@ -510,6 +511,7 @@ class Engine:
             # None if deriver, empty list if no dependencies.
             relative_dependencies: Optional[Sequence[HierarchyPath]],
     ) -> None:
+        assert step.is_step()
         self._step_paths[path] = step
         if relative_dependencies is None:
             self._step_graph.add_sequential(path)
@@ -534,8 +536,7 @@ class Engine:
             #     category=FutureWarning,
             # )
             step = cast(Step, process)
-            name = path[-1]
-            self._add_step_path(step, path, flow.get(name))
+            self._add_step_path(step, path, get_in(flow, path))
         else:
             self.process_paths[path] = process
 
@@ -555,8 +556,7 @@ class Engine:
     ) -> None:
         tree = hierarchy_depth(steps)
         for path, step in tree.items():
-            name = path[-1]
-            self._add_step_path(step, path, flow.get(name))
+            self._add_step_path(step, path, get_in(flow, path))
 
     def emit_configuration(self) -> None:
         """Emit experiment configuration."""

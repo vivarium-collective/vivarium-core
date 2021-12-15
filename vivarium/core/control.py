@@ -12,7 +12,7 @@ import copy
 
 # typing
 from typing import (
-    Any, Dict, Optional, Union, Sequence)
+    Any, Dict, Optional, Union, Sequence, List)
 from vivarium.core.types import OutputDict
 
 from vivarium.core.engine import timestamp
@@ -234,6 +234,39 @@ def toy_control(
     return control
 
 
+def is_float(element: Any) -> bool:
+    try:
+        float(element)
+        return True
+    except ValueError:
+        return False
+
+
+def _parse_options(
+        options_list: Optional[List[str]]
+) -> Dict[str, Union[int, float, bool, str]]:
+    """Parse the KEY=VALUE or KEY=k=v option strings into a dict."""
+    assignments = options_list or []
+    pairs = [
+        a.split('=', 1) + [''] for a in assignments
+    ]  # [''] to handle the no-'=' case
+    options = {}
+    for p in pairs:
+        key: str = p[0]
+        str_value: str = p[1]
+        value: Any = None
+        if str_value.isdigit():
+            value = int(value)
+        elif is_float(str_value):
+            value = float(value)
+        elif str_value in ['True', 'False']:
+            value = bool(value)
+        else:
+            value = str_value
+        options[key] = value
+    return options
+
+
 def run_library_cli(library: dict, args: Optional[list] = None) -> None:
     """Run experiments from the command line
 
@@ -245,11 +278,15 @@ def run_library_cli(library: dict, args: Optional[list] = None) -> None:
     parser.add_argument(
         '--name', '-n', default=[], nargs='+',
         help='experiment ids to run')
+    parser.add_argument(
+        '--options', '-o', metavar='OPTION_KEY=VALUE',
+        action='append', help='A "KEY=VALUE" option')
     parser_args = parser.parse_args(args)
     run_all = not parser_args.name
+    options = _parse_options(parser_args.options)
 
     for name in parser_args.name:
-        library[name]()
+        library[name](**options)
     if run_all:
         for name, test in library.items():
             test()
