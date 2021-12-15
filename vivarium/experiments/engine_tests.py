@@ -945,7 +945,7 @@ def test_add_delete() -> None:
             assert len(set(current_ids).intersection(set(next_ids))) == 0
 
 
-def test_hyperdivision(profile: bool = False) -> None:
+def test_hyperdivision(profile: bool = True) -> None:
     total_time = 10
     n_agents = 100
     division_thresholds = [3, 4, 5, 6, 7]  # what values of x triggers division?
@@ -1002,13 +1002,20 @@ def test_hyperdivision(profile: bool = False) -> None:
 
     print(f"n agents initial: {n_agents}")
     print(f"n agents final: {len(data[total_time]['agents'].keys())}")
+    assert len(data[total_time]['agents'].keys()) > n_agents
 
-    assert len(data[total_time]['agents'].keys()) >  n_agents
-    # if profile:
-    #     stats = experiment.stats
-    #     stats.strip_dirs().sort_stats(
-    #         'cumulative', 'cumtime').print_stats(20)
+    if profile:
+        stats = experiment.stats
+        stats.strip_dirs().sort_stats(  # type: ignore
+            'cumulative', 'cumtime').print_stats(20)
 
+        # make sure view_values is fast
+        stats_view_values = stats.get_print_list(  # type: ignore
+            ('view_values',))[1]
+        view_values_times = stats.stats[  # type: ignore
+            stats_view_values[0]][3]
+        total_runtime = stats.total_tt  # type: ignore
+        assert view_values_times < 0.1 * total_runtime
 
 
 engine_tests = {

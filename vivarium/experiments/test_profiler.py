@@ -8,7 +8,7 @@ from vivarium.core.types import Schema, State, Update
 class ProcessA(Process):
 
     defaults = {
-        'sleep': 2,
+        'sleep': 0.2,
     }
 
     def ports_schema(self) -> Schema:
@@ -22,7 +22,7 @@ class ProcessA(Process):
 class ProcessB(Process):
 
     defaults = {
-        'sleep': 1,
+        'sleep': 0.1,
         '_parallel': True,
     }
 
@@ -55,5 +55,5 @@ def test_profiler() -> None:
     process_b_runtime = stats.stats[  # type: ignore
         ('test_profiler.py', 32, 'next_update')][3]
 
-    assert 6 <= process_a_runtime <= 6.1
-    assert 3 <= process_b_runtime <= 3.1
+    assert 0.6 <= process_a_runtime <= 0.7
+    assert 0.3 <= process_b_runtime <= 0.4
