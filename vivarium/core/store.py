@@ -50,6 +50,17 @@ def generate_state(
     return store
 
 
+def view_values(
+        states: dict
+) -> State:
+    state_values = {}
+    if isinstance(states, Store):
+        return states.get_value()
+    for key, value in states.items():
+        state_values[key] = view_values(value)
+    return state_values
+
+
 def key_for_value(d, looking):
     """Get the key associated with a value in a dictionary.
 
@@ -1597,8 +1608,6 @@ class Store:
                         # node is None, it was likely deleted
                         print('{} is None'.format(path))
 
-        if state == {}:
-            state = self
         return state
 
     def state_for(self, path, keys):

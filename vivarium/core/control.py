@@ -256,11 +256,11 @@ def _parse_options(
         str_value: str = p[1]
         value: Any = None
         if str_value.isdigit():
-            value = int(value)
+            value = int(str_value)
         elif is_float(str_value):
-            value = float(value)
+            value = float(str_value)
         elif str_value in ['True', 'False']:
-            value = bool(value)
+            value = bool(str_value)
         else:
             value = str_value
         options[key] = value
@@ -293,10 +293,12 @@ def run_library_cli(library: dict, args: Optional[list] = None) -> None:
 
 
 def test_library_cli() -> None:
-    def run_fun() -> dict:
-        return {}
+    def run_fun(key: Any = False) -> dict:
+        return {'key': key}
     lib = {'1': run_fun}
-    run_library_cli(lib, args=['-n', '1'])
+    run_library_cli(lib, args=['-n', '1', '-o', 'key=True'])
+    run_library_cli(lib, args=['-n', '1', '-o', 'key=0.2'])
+    run_library_cli(lib, args=['-n', '1', '-o', 'key=b'])
 
 
 def test_control() -> None:
@@ -306,5 +308,12 @@ def test_control() -> None:
     control.run_workflow('1')
 
 
+fun_lib = {
+    '0': test_library_cli,
+    '1': test_control,
+}
+
+
+# python vivarium/core/control.py -n [test number]
 if __name__ == '__main__':
-    test_control()  # pragma: no cover
+    run_library_cli(fun_lib)
