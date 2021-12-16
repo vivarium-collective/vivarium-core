@@ -1502,7 +1502,7 @@ class Store:
                 initial=reduction['initial'])
 
         if isinstance(update, dict) and \
-                self.schema_keys and set(update.keys()):
+                self.schema_keys & set(update.keys()):
             if '_updater' in update:
                 update = update.get('_value', self.default)
 
