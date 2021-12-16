@@ -1,5 +1,10 @@
 # Changelog
 
+
+## v0.4.13
+
+* Improve `topology_view` caching mechanism to speed up simulations that have a lot of division.
+
 ## v0.4.12
 
 * Allow schema overrides to override step schemas.
