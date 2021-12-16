@@ -66,8 +66,7 @@ class MetaDivision(Deriver):
                     '_updater': 'set',
                     '_divider': divider_set_false,
                 }},
-            'agents': {
-                '*': {}}}
+            'agents': {}}
 
     def next_update(self, timestep, states):
         divide = states['global']['divide']

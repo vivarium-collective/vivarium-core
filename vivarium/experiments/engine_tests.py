@@ -4,12 +4,13 @@ from typing import Optional, Union, Dict, Any, cast, List
 
 from vivarium.composites.toys import (
     PoQo, Sine, ToyDivider, ToyTransport, ToyEnvironment,
-    Proton, Electron, )
-from vivarium.core.composer import Composer
+    Proton, Electron)
+from vivarium.core.composer import Composer, Composite
 from vivarium.core.engine import Engine, pf, pp, _StepGraph
 from vivarium.core.process import Process, Step, Deriver
 from vivarium.core.store import Store, hierarchy_depth
-from vivarium.core.types import Schema, State, Update, Topology, Steps
+from vivarium.core.types import (
+    Schema, State, Update, Topology, Steps, Processes)
 from vivarium.library.units import units
 from vivarium.library.wrappers import make_logging_process
 from vivarium.core.control import run_library_cli
@@ -537,6 +538,7 @@ def test_units() -> None:
 
 
 def test_custom_divider() -> None:
+    """ToyDividerProcess has a custom `split_divider`"""
     agent_id = '1'
     composer = ToyDivider({
         'agent_id': agent_id,
@@ -562,16 +564,16 @@ def test_custom_divider() -> None:
         2.0: {'agents': {'1': {'variable': {'x': 2, '2x': 4}}}},
         3.0: {'agents': {'1': {'variable': {'x': 3, '2x': 6}}}},
         4.0: {'agents': {'1': {'variable': {'x': 4, '2x': 8}}}},
-        5.0: {'agents': {'10': {'variable': {'x': 2.0, '2x': 4.0}},
-                         '11': {'variable': {'x': 2.0, '2x': 4.0}}}},
-        6.0: {'agents': {'10': {'variable': {'x': 3.0, '2x': 6.0}},
-                         '11': {'variable': {'x': 3.0, '2x': 6.0}}}},
-        7.0: {'agents': {'10': {'variable': {'x': 4.0, '2x': 8.0}},
-                         '11': {'variable': {'x': 4.0, '2x': 8.0}}}},
-        8.0: {'agents': {'100': {'variable': {'x': 2.0, '2x': 4.0}},
-                         '101': {'variable': {'x': 2.0, '2x': 4.0}},
-                         '110': {'variable': {'x': 2.0, '2x': 4.0}},
-                         '111': {'variable': {'x': 2.0, '2x': 4.0}}}}
+        5.0: {'agents': {'10': {'variable': {'x': 2, '2x': 4}},
+                         '11': {'variable': {'x': 2, '2x': 4}}}},
+        6.0: {'agents': {'10': {'variable': {'x': 3, '2x': 6}},
+                         '11': {'variable': {'x': 3, '2x': 6}}}},
+        7.0: {'agents': {'10': {'variable': {'x': 4, '2x': 8}},
+                         '11': {'variable': {'x': 4, '2x': 8}}}},
+        8.0: {'agents': {'100': {'variable': {'x': 2, '2x': 4}},
+                         '101': {'variable': {'x': 2, '2x': 4}},
+                         '110': {'variable': {'x': 2, '2x': 4}},
+                         '111': {'variable': {'x': 2, '2x': 4}}}}
     }
     assert data == expected_data
 
@@ -943,6 +945,79 @@ def test_add_delete() -> None:
             assert len(set(current_ids).intersection(set(next_ids))) == 0
 
 
+def test_hyperdivision(profile: bool = True) -> None:
+    total_time = 10
+    n_agents = 100
+    division_thresholds = [3, 4, 5, 6, 7]  # what values of x triggers division?
+
+    # initialize agent composer
+    agent_composer = ToyDivider()
+
+    # make the composite
+    composite = Composite()
+    agent_ids = [str(agent_idx) for agent_idx in range(n_agents)]
+    for agent_id in agent_ids:
+        divider_config = {
+            'divider': {
+                    'x_division_threshold': random.choice(division_thresholds),
+                }}
+        agent_composite = agent_composer.generate(
+            config={
+                'agent_id': agent_id,
+                **divider_config,
+            },
+            path=('agents', agent_id))
+        composite.merge(agent_composite)
+
+    # add an environment
+    environment_process: Processes = {'environment': ToyEnvironment()}
+    environment_topology: Topology = {
+        'environment': {
+            'agents': {
+                '_path': ('agents',),
+                '*': {
+                    'external': ('external', 'GLC')
+                }
+            },
+        }
+    }
+
+    # combine the environment and agent
+    composite.merge(
+        processes=environment_process,
+        topology=environment_topology,
+    )
+
+    # make the sim, run the sim, retrieve the data
+    experiment = Engine(
+        processes=composite.processes,
+        steps=composite.steps,
+        flow=composite.flow,
+        topology=composite.topology,
+        profile=profile,
+    )
+    experiment.update(total_time)
+    experiment.end()
+    data = experiment.emitter.get_data()
+
+    print(f"n agents initial: {n_agents}")
+    print(f"n agents final: {len(data[total_time]['agents'].keys())}")
+    assert len(data[total_time]['agents'].keys()) > n_agents
+
+    if profile:
+        stats = experiment.stats
+        stats.strip_dirs().sort_stats(  # type: ignore
+            'cumulative', 'cumtime').print_stats(20)
+
+        # make sure view_values is fast
+        stats_view_values = stats.get_print_list(  # type: ignore
+            ('view_values',))[1]
+        view_values_times = stats.stats[  # type: ignore
+            stats_view_values[0]][3]
+        total_runtime = stats.total_tt  # type: ignore
+        assert view_values_times < 0.1 * total_runtime
+
+
 engine_tests = {
     '0': test_recursive_store,
     '1': test_topology_ports,
@@ -960,6 +1035,7 @@ engine_tests = {
     '13': test_glob_schema,
     '14': test_environment_view_with_division,
     '15': test_add_delete,
+    '16': test_hyperdivision,
 }
 
 

@@ -21,7 +21,8 @@ import uuid
 
 import networkx as nx
 
-from vivarium.core.store import hierarchy_depth, Store, generate_state
+from vivarium.core.store import (
+    hierarchy_depth, Store, generate_state, view_values)
 from vivarium.core.emitter import get_emitter
 from vivarium.core.process import (
     Process,
@@ -129,15 +130,6 @@ def invoke_process(
 
     return process.next_update(interval, states)
 
-def view_values(
-        states: dict
-) -> State:
-    state_values = {}
-    if isinstance(states, Store):
-        return states.get_value()
-    for key, value in states.items():
-        state_values[key] = view_values(value)
-    return state_values
 
 class Defer:
     def __init__(
@@ -700,8 +692,10 @@ class Engine:
 
         # translate the values from the tree structure into the form
         # that this process expects, based on its declared topology
-        states = store.topology_view
-        assert states, f"store at path {path} does not have a topology_view"
+        topology_view = store.topology_view
+        assert topology_view is not None, \
+            f"store at path {path} does not have a topology_view"
+        states = view_values(topology_view)
 
         return store, states
 
@@ -722,8 +716,7 @@ class Engine:
             Tuple of the deferred update (relative to the root of
             ``path``) and the store at ``path``.
         """
-        store, topology_view = self.process_state(path)
-        states = view_values(topology_view)
+        store, states = self.process_state(path)
         if process.update_condition(interval, states):
             return self._process_update(
                 path, process, store, states, interval)
@@ -733,7 +726,7 @@ class Engine:
             self,
             update: Update,
             state: Store
-    ) -> None:
+    ) -> bool:
         """Apply an update to the simulation state.
 
         Args:
@@ -741,10 +734,13 @@ class Engine:
             state: The store to which the update is relative (usually
                 root of simulation state. We need this so to preserve
                 the "perspective" from which the update was generated.
+
+        Return:
+            a bool indicating whether the topology_views expired.
         """
 
         if not update:
-            return
+            return False
 
         (
             topology_updates, process_updates, step_updates,
@@ -772,9 +768,7 @@ class Engine:
             for deletion in deletions:
                 self.delete_path(deletion)
 
-        if view_expire:
-            self.state.build_topology_views()
-            # self._run_steps()
+        return view_expire
 
     def delete_path(
             self,
@@ -821,8 +815,14 @@ class Engine:
                 update, store = self.calculate_update(
                     path, step, 0)
                 deferred_updates.append((update, store))
+
+            view_expire = False
             for update, store in deferred_updates:
-                self.apply_update(update.get(), store)
+                view_expire_update = self.apply_update(update.get(), store)
+                view_expire = view_expire or view_expire_update
+
+            if view_expire:
+                self.state.build_topology_views()
 
     def send_updates(
             self,
@@ -835,9 +835,14 @@ class Engine:
                 ``state`` is the store from whose perspective the update
                 was generated.
         """
+        view_expire = False
         for update_tuple in update_tuples:
             update, state = update_tuple
-            self.apply_update(update.get(), state)
+            view_expire_update = self.apply_update(update.get(), state)
+            view_expire = view_expire or view_expire_update
+
+        if view_expire:
+            self.state.build_topology_views()
 
         self._run_steps()
 
@@ -891,7 +896,6 @@ class Engine:
 
                     # get the time step
                     store, states = self.process_state(path)
-                    states = view_values(states)
                     requested_timestep = process.calculate_timestep(states)
 
                     # progress only to the end of interval
