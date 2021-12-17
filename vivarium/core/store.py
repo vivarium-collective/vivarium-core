@@ -1229,10 +1229,6 @@ class Store:
         mother = divide['mother']
         mother_path = (mother,)
         daughters = divide['daughters']
-        initial_state = self.inner[mother].get_value(
-            condition=lambda child: not
-            (isinstance(child.value, Process)),
-            f=lambda child: copy.deepcopy(child))
         daughter_states = self.inner[mother].divide_value()
 
         here = self.path_for()
@@ -1241,8 +1237,7 @@ class Store:
                 zip(daughters, daughter_states):
             # use initial state as default, merge in divided values
             merged_initial_state = deep_merge(
-                copy.deepcopy(initial_state),
-                daughter_state)
+                daughter_state, daughter.get('initial_state', {}))
 
             daughter_key = daughter['key']
             daughter_path = (daughter_key,)
