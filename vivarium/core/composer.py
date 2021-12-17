@@ -164,30 +164,46 @@ class Composite(Datum):
             composite: Optional['Composite'] = None,
             processes: Optional[Dict[str, 'Process']] = None,
             topology: Optional[Topology] = None,
+            steps: Optional[Steps] = None,
+            flow: Optional[Flow] = None,
             path: Optional[HierarchyPath] = None,
             schema_override: Optional[Schema] = None,
     ) -> None:
         composite = composite or Composite({})
         processes = processes or {}
         topology = topology or {}
+        steps = steps or {}
+        flow = flow or {}
         path = path or tuple()
         schema_override = schema_override or {}
 
         # get the processes and topology to merge
         merge_processes = {}
         merge_topology = {}
+        merge_steps = {}
+        merge_flow = {}
         if composite:
             merge_processes.update(composite['processes'])
             merge_topology.update(composite['topology'])
+            merge_steps.update(composite['steps'])
+            merge_flow.update(composite['flow'])
+
         deep_merge(merge_processes, processes)
         deep_merge(merge_topology, topology)
+        deep_merge(merge_steps, steps)
+        deep_merge(merge_flow, flow)
         merge_processes = assoc_in({}, path, merge_processes)
         merge_topology = assoc_in({}, path, merge_topology)
+        merge_steps = assoc_in({}, path, merge_steps)
+        merge_flow = assoc_in({}, path, merge_flow)
 
         # merge with instance processes and topology
         deep_merge(self.processes, merge_processes)
         deep_merge(self.topology, merge_topology)
+        deep_merge(self.steps, merge_steps)
+        deep_merge(self.flow, merge_flow)
         self._schema.update(schema_override)
+
         processes_and_steps = deep_copy_internal(self.processes)
         deep_merge_check(processes_and_steps, self.steps)
         _override_schemas(self._schema, processes_and_steps)
