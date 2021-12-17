@@ -164,7 +164,7 @@ class Composite(Datum):
             composite: Optional['Composite'] = None,
             processes: Optional[Dict[str, 'Process']] = None,
             topology: Optional[Topology] = None,
-            steps: Optional[Dict[str, 'Step']] = None,
+            steps: Optional[Steps] = None,
             flow: Optional[Flow] = None,
             path: Optional[HierarchyPath] = None,
             schema_override: Optional[Schema] = None,
