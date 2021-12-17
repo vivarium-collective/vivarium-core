@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.4.14
+
+* (#121) Fix a bug in `Store.divide()` where daughter cell states were
+  by default the mother cell state. Instead, add support for an
+  `initial_state` key in the `_divide` dictionary.
 
 ## v0.4.13
 
