@@ -1579,7 +1579,7 @@ class Store:
 
         if self.leaf:
             state = self
-        else:
+        elif not schema.get('_output'):
             for key, subschema in schema.items():
                 path = topology.get(key)
                 if key == '*':
