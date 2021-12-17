@@ -11,6 +11,7 @@ from vivarium.core.process import Process, Step, Deriver
 from vivarium.core.store import Store, hierarchy_depth
 from vivarium.core.types import (
     Schema, State, Update, Topology, Steps, Processes)
+from vivarium.core.composition import simulate_process
 from vivarium.library.units import units
 from vivarium.library.wrappers import make_logging_process
 from vivarium.core.control import run_library_cli
@@ -1017,6 +1018,39 @@ def test_hyperdivision(profile: bool = True) -> None:
         total_runtime = stats.total_tt  # type: ignore
         assert view_values_times < 0.1 * total_runtime
 
+def test_output_port() -> None:
+    a_default = 1
+    b_default = 2
+
+    class InputOutput(Process):
+        def ports_schema(self) -> Schema:
+            return {
+                'input': {
+                    'A': {
+                        '_default': a_default,
+                        '_emit': True,
+                    }
+                },
+                'output': {
+                    '_output': True,
+                    'B': {
+                        '_default': b_default,
+                        '_emit': True,
+                    }
+                }
+            }
+        def next_update(
+                self,
+                timestep: Union[float, int],
+                states: State) -> Update:
+            assert not states['output'], 'outputs should be masked'
+            return {}
+
+    total_time = 10
+    data = simulate_process(InputOutput(), {'total_time': total_time})
+    assert data['input']['A'] == [a_default for _ in range(total_time + 1)]
+    assert data['output']['B'] == [b_default for _ in range(total_time + 1)]
+
 
 engine_tests = {
     '0': test_recursive_store,
@@ -1036,6 +1070,7 @@ engine_tests = {
     '14': test_environment_view_with_division,
     '15': test_add_delete,
     '16': test_hyperdivision,
+    '17': test_output_port,
 }
 
 
