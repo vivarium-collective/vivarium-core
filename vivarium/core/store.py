@@ -548,6 +548,9 @@ class Store:
           node holds a step.
         """
 
+        # remove _output special key. This is used only by schema_topology.
+        config = without(config, '_output')
+
         if '*' in config:
             self.apply_subschema_config(config['*'])
             config = without(config, '*')
@@ -1574,7 +1577,7 @@ class Store:
 
         if self.leaf:
             state = self
-        else:
+        elif not schema.get('_output'):
             for key, subschema in schema.items():
                 path = topology.get(key)
                 if key == '*':

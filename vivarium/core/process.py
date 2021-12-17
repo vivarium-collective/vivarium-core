@@ -317,7 +317,9 @@ class Process(metaclass=abc.ABCMeta):
             A dictionary that declares which states are expected by the
             processes, and how each state will behave. State keys can be
             assigned properties through schema_keys declared in
-            :py:class:`vivarium.core.store.Store`.
+            :py:class:`vivarium.core.store.Store`. Ports flagged with
+            {'_output': True} make it an output-only port, that won't
+            be viewed through the next_update's states.
         """
         return {}  # pragma: no cover
 
