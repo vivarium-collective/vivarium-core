@@ -627,6 +627,11 @@ class Store:
                 self.updater or 'accumulate',
             )
 
+            # All leaf nodes must have a divider, even though a divider
+            # on a branch node higher in the tree will take precedence.
+            # By default, we use the ``set`` divider.
+            self.divider = self.divider or divider_registry.access('set')
+
             self.properties = deep_merge(
                 self.properties,
                 config.get('_properties', {}))
