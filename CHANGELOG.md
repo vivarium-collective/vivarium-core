@@ -1,11 +1,16 @@
 # Changelog
 
+## v0.4.15
+
+* (#123) Extend `Composite.merge` to use steps and flows.
+* (#124) Use `set` divider by default.
+
 ## v0.4.14
 
 * (#121) Fix a bug in `Store.divide()` where daughter cell states were
   by default the mother cell state. Instead, add support for an
   `initial_state` key in the `_divide` dictionary.
-* Add an `_output` flag option to `Process.ports_schema`, which marks ports as output-only.
+* (#122) Add an `_output` flag option to `Process.ports_schema`, which marks ports as output-only.
 
 ## v0.4.13
 
