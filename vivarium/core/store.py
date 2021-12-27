@@ -629,8 +629,13 @@ class Store:
 
             # All leaf nodes must have a divider, even though a divider
             # on a branch node higher in the tree will take precedence.
-            # By default, we use the ``set`` divider.
-            self.divider = self.divider or divider_registry.access('set')
+            # By default, we use the ``set`` divider, except in the case
+            # of processes, where we use the ``null`` divider by
+            # default.
+            if self.topology:
+                self.divider = self.divider or divider_registry.access('null')
+            else:
+                self.divider = self.divider or divider_registry.access('set')
 
             self.properties = deep_merge(
                 self.properties,

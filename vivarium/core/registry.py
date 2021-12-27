@@ -27,7 +27,7 @@ Each :term:`updater` is defined as a function whose name begins with
 Updater API
 ===========
 
-An updater function MUST have a name that begins with ``update_``. The
+An updater function SHOULD have a name that begins with ``update_``. The
 function MUST accept exactly three positional arguments: the first MUST
 be the current value of the variable (i.e. before applying the update),
 the second MUST be the value associated with the variable in the update,
@@ -48,11 +48,14 @@ states from the mother cell's state. Divider names are registered in
 Divider API
 ===========
 
-Each divider function MUST have a name prefixed with ``_divide``. The
+Each divider function SHOULD have a name prefixed with ``divide_``. The
 function MUST accept a single positional argument, the value of the
 variable in the mother cell. It SHOULD accept no other arguments. The
-function MUST return a :py:class:`list` with two elements: the values of
-the variables in each of the daughter cells.
+function MUST return either:
+
+1. A :py:class:`list` with two elements: the values of the variables in
+   each of the daughter cells.
+2. ``None``, in which case division will be skipped for that variable.
 
 .. note:: Dividers MAY not be deterministic and MAY not be symmetric.
     For example, a divider splitting an odd, integer-valued value may
@@ -302,6 +305,17 @@ def assert_no_divide(state):
         AssertionError: If the variable is divided
     """
     raise AssertionError('Variable cannot be divided')
+
+
+def divide_null(state):
+    """Divider that causes the variable to be skipped during division.
+
+    Returns:
+        ``None`` so that no divided values are provided to the daughter
+        cells. This is useful for process objects, which are handled
+        separately during division.
+    """
+    return None
 
 
 # Serializers
