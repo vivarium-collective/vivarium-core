@@ -862,17 +862,28 @@ class Engine:
     ) -> None:
         """Run each process for the given interval and update the states.
         """
-        self.run_for(interval)
+        clock_start = clock.time()
+
+        time = self.run_for(interval)
+
+        # post-simulation
+        for advance in self.front.values():
+            assert advance['time'] == time == interval
+            assert len(advance['update']) == 0
+
+        clock_finish = clock.time() - clock_start
+
+        if self.display_info:
+            self.print_summary(clock_finish)
 
     def run_for(
             self,
             interval: float
-    ) -> None:
+    ) -> float:
         """Run each process within the given interval and update the states.
         """
         time = 0.0
         emit_time = self.emit_step
-        clock_start = clock.time()
 
         while time < interval:
             full_step = math.inf
@@ -892,10 +903,12 @@ class Engine:
                 for path, progress in self.front.items()
                 if path in self.process_paths}
 
+            # processes at quiet paths don't meet their execution condition,
+            # but still advance in time
             quiet_paths = []
 
             # go through each process and find those that are able to update
-            # based on their current time being less than the global time.
+            # based on their most recent time being less than the current time.
             for path, process in self.process_paths.items():
                 if path not in self.front:
                     self.front[path] = empty_front(time)
@@ -947,8 +960,7 @@ class Engine:
                 time += full_step
                 self.experiment_time += full_step
 
-                # advance all existing paths that didn't meet
-                # their execution condition to current time
+                # advance all quiet processes to current time
                 for quiet in quiet_paths:
                     self.front[quiet]['time'] = time
 
@@ -973,16 +985,7 @@ class Engine:
                     while emit_time <= time:
                         self.emit_data()
                         emit_time += self.emit_step
-
-        # post-simulation
-        for advance in self.front.values():
-            assert advance['time'] == time == interval
-            assert len(advance['update']) == 0
-
-        clock_finish = clock.time() - clock_start
-
-        if self.display_info:
-            self.print_summary(clock_finish)
+        return time
 
     def end(self) -> None:
         """Terminate all processes running in parallel.
