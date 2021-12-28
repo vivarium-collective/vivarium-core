@@ -878,6 +878,9 @@ class Engine:
             self.print_summary(clock_finish)
 
     def complete(self) -> None:
+        """
+        Force all processes on the front to complete at the current global time
+        """
         self.run_for(interval=0, force_complete=True)
 
     def run_for(
@@ -954,7 +957,7 @@ class Engine:
                             self.front[path]['update'] = update
 
                         else:
-                            # mark this path as "quiet" so its time can be advanced
+                            # mark this path "quiet" so its time can be advanced
                             self.front[path]['update'] = (EmptyDefer(), store)
                             quiet_paths.append(path)
 
@@ -985,7 +988,8 @@ class Engine:
                 updates = []
                 paths = []
                 for path, advance in self.front.items():
-                    if advance['time'] <= self.global_time and advance['update']:
+                    if advance['time'] <= self.global_time \
+                            and advance['update']:
                         new_update = advance['update']
                         updates.append(new_update)
                         advance['update'] = {}

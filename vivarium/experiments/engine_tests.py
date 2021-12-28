@@ -1052,7 +1052,7 @@ def test_output_port() -> None:
     assert data['output']['B'] == [b_default for _ in range(total_time + 1)]
 
 
-def test_engine_run_for():
+def test_engine_run_for() -> None:
     total_time = 10.0
     time_interval = 1.0
     timestep1 = 0.75
