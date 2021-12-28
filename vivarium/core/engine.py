@@ -865,16 +865,20 @@ class Engine:
         clock_start = clock.time()
 
         time = self.run_for(interval)
-
-        # post-simulation
-        for advance in self.front.values():
-            assert advance['time'] == time == interval
-            assert len(advance['update']) == 0
+        self.complete()
 
         clock_finish = clock.time() - clock_start
 
         if self.display_info:
             self.print_summary(clock_finish)
+
+    def complete(self):
+
+        # # post-simulation
+        # for advance in self.front.values():
+        #     assert advance['time'] == time == interval
+        #     assert len(advance['update']) == 0
+        pass
 
     def run_for(
             self,
@@ -918,11 +922,8 @@ class Engine:
 
                     # get the time step
                     store, states = self.process_state(path)
-                    requested_timestep = process.calculate_timestep(states)
-
-                    # progress only to the end of interval
-                    future = min(process_time + requested_timestep, interval)
-                    process_timestep = future - process_time
+                    process_timestep = process.calculate_timestep(states)
+                    future = process_time + process_timestep
 
                     # calculate the update for this process
                     if process.update_condition(process_timestep, states):
@@ -941,6 +942,7 @@ class Engine:
                         # mark this path as "quiet" so its time can be advanced
                         self.front[path]['update'] = (EmptyDefer(), store)
                         quiet_paths.append(path)
+
                 else:
                     # don't shoot past processes that didn't run this time
                     process_delay = process_time - time
@@ -969,7 +971,6 @@ class Engine:
                 for path, advance in self.front.items():
                     if advance['time'] <= time:
                         new_update = advance['update']
-                        # new_update['_path'] = path
                         updates.append(new_update)
                         advance['update'] = {}
                         paths.append(path)
