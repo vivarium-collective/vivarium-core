@@ -860,31 +860,36 @@ class Engine:
             self,
             interval: float
     ) -> None:
-        """Run each process for the given interval and update the states.
         """
+        Run each process for the given interval and update the states.
+        """
+        current_time = self.experiment_time
+        end_time = current_time + interval
+
         clock_start = clock.time()
-
-        self.run_for(interval)
-        self.complete()
-
+        self.run_for(interval, True)
         clock_finish = clock.time() - clock_start
+
+        # post-simulation
+        for advance in self.front.values():
+            assert advance['time'] == end_time
+            assert len(advance['update']) == 0
 
         if self.display_info:
             self.print_summary(clock_finish)
 
-    def complete(self):
-
-        # # post-simulation
-        # for advance in self.front.values():
-        #     assert advance['time'] == time == interval
-        #     assert len(advance['update']) == 0
-        pass
-
     def run_for(
             self,
-            interval: float
+            interval: float,
+            force_complete: bool = False,
     ) -> None:
-        """Run each process within the given interval and update the states.
+        """
+        Run each process within the given interval and update the states.
+
+        Args:
+            interval: the amount of time to simulate the composite.
+            force_complete: a bool indicating whether to force processes
+                to complete at the end of the interval.
         """
         current_time = self.experiment_time
         end_time = current_time + interval
@@ -924,7 +929,12 @@ class Engine:
                     # get the time step
                     store, states = self.process_state(path)
                     process_timestep = process.calculate_timestep(states)
-                    future = process_time + process_timestep
+
+                    if force_complete:
+                        # make the process complete at end_time
+                        future = min(process_time + process_timestep, end_time)
+                    else:
+                        future = process_time + process_timestep
 
                     # calculate the update for this process
                     if process.update_condition(process_timestep, states):
