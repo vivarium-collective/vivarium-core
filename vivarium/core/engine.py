@@ -131,6 +131,12 @@ def invoke_process(
     return process.next_update(interval, states)
 
 
+def empty_front(t: float) -> Dict[str, Union[float, dict]]:
+    return {
+        'time': t,
+        'update': {}}
+
+
 class Defer:
     def __init__(
             self,
@@ -424,7 +430,6 @@ class Engine:
         self.initial_state = initial_state or {}
         self.emit_step = emit_step
 
-
         # get the processes, topology, and store
         if processes and topology and not store:
             self.processes = processes
@@ -487,6 +492,11 @@ class Engine:
 
         # initialize global time
         self.experiment_time = 0.0
+
+        # front tracks how far each process has been simulated in time
+        self.front: Dict = {
+            path: empty_front(self.experiment_time)
+            for path in self.process_paths}
 
         # run the steps
         self._run_steps()
@@ -852,18 +862,17 @@ class Engine:
     ) -> None:
         """Run each process for the given interval and update the states.
         """
+        self.run_for(interval)
 
+    def run_for(
+            self,
+            interval: float
+    ) -> None:
+        """Run each process within the given interval and update the states.
+        """
         time = 0.0
         emit_time = self.emit_step
         clock_start = clock.time()
-
-        def empty_front(t: float) -> Dict[str, Union[float, dict]]:
-            return {
-                'time': t,
-                'update': {}}
-
-        # keep track of which processes have simulated until when
-        front: Dict = {}
 
         while time < interval:
             full_step = math.inf
@@ -878,9 +887,9 @@ class Engine:
                 del self.parallel[terminated]
 
             # setup a way to track how far each process has simulated in time
-            front = {
+            self.front = {
                 path: progress
-                for path, progress in front.items()
+                for path, progress in self.front.items()
                 if path in self.process_paths}
 
             quiet_paths = []
@@ -888,9 +897,9 @@ class Engine:
             # go through each process and find those that are able to update
             # based on their current time being less than the global time.
             for path, process in self.process_paths.items():
-                if path not in front:
-                    front[path] = empty_front(time)
-                process_time = front[path]['time']
+                if path not in self.front:
+                    self.front[path] = empty_front(time)
+                process_time = self.front[path]['time']
 
                 if process_time <= time:
 
@@ -908,8 +917,8 @@ class Engine:
                             path, process, store, states, process_timestep)
 
                         # store the update to apply at its projected time
-                        front[path]['time'] = future
-                        front[path]['update'] = update
+                        self.front[path]['time'] = future
+                        self.front[path]['update'] = update
 
                         # absolute timestep
                         timestep = future - time
@@ -917,7 +926,7 @@ class Engine:
                             full_step = timestep
                     else:
                         # mark this path as "quiet" so its time can be advanced
-                        front[path]['update'] = (EmptyDefer(), store)
+                        self.front[path]['update'] = (EmptyDefer(), store)
                         quiet_paths.append(path)
                 else:
                     # don't shoot past processes that didn't run this time
@@ -928,9 +937,9 @@ class Engine:
             if full_step == math.inf:
                 # no processes ran, jump to next process
                 next_event = interval
-                for path in front.keys():
-                    if front[path]['time'] < next_event:
-                        next_event = front[path]['time']
+                for path in self.front.keys():
+                    if self.front[path]['time'] < next_event:
+                        next_event = self.front[path]['time']
                 time = next_event
             else:
                 # at least one process ran
@@ -941,11 +950,11 @@ class Engine:
                 # advance all existing paths that didn't meet
                 # their execution condition to current time
                 for quiet in quiet_paths:
-                    front[quiet]['time'] = time
+                    self.front[quiet]['time'] = time
 
                 updates = []
                 paths = []
-                for path, advance in front.items():
+                for path, advance in self.front.items():
                     if advance['time'] <= time:
                         new_update = advance['update']
                         # new_update['_path'] = path
@@ -966,7 +975,7 @@ class Engine:
                         emit_time += self.emit_step
 
         # post-simulation
-        for advance in front.values():
+        for advance in self.front.values():
             assert advance['time'] == time == interval
             assert len(advance['update']) == 0
 
