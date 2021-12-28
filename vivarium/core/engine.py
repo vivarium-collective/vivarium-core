@@ -491,11 +491,11 @@ class Engine:
         self.emit_config = emit_config
 
         # initialize global time
-        self.experiment_time = 0.0
+        self.global_time = 0.0
 
         # front tracks how far each process has been simulated in time
         self.front: Dict = {
-            path: empty_front(self.experiment_time)
+            path: empty_front(self.global_time)
             for path in self.process_paths}
 
         # run the steps
@@ -595,7 +595,7 @@ class Engine:
         """
         data = self.state.emit_data()
         data.update({
-            'time': self.experiment_time})
+            'time': self.global_time})
         emit_config = {
             'table': 'history',
             'data': serialize_value(data)}
@@ -863,7 +863,7 @@ class Engine:
         """
         Run each process for the given interval and update the states.
         """
-        current_time = self.experiment_time
+        current_time = self.global_time
         end_time = current_time + interval
 
         clock_start = clock.time()
@@ -891,7 +891,7 @@ class Engine:
             force_complete: a bool indicating whether to force processes
                 to complete at the end of the interval.
         """
-        current_time = self.experiment_time
+        current_time = self.global_time
         end_time = current_time + interval
         emit_time = current_time + self.emit_step
 
@@ -972,7 +972,7 @@ class Engine:
                 # at least one process ran within the interval
                 # increase the time, apply updates, and continue
                 current_time += full_step
-                self.experiment_time += full_step
+                self.global_time += full_step
 
                 # advance all quiet processes to current time
                 for quiet in quiet_paths:
@@ -1002,7 +1002,7 @@ class Engine:
             else:
                 # all processes have run past the interval
                 current_time = end_time
-                self.experiment_time = end_time
+                self.global_time = end_time
 
     def end(self) -> None:
         """Terminate all processes running in parallel.
