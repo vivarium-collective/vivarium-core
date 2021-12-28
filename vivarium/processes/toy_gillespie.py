@@ -225,6 +225,7 @@ def test_gillespie_process(total_time=1000):
     gillespie_data = gillespie_experiment.emitter.get_timeseries()
     return gillespie_data
 
+
 def test_gillespie_composite(total_time=10000):
     stochastic_tsc_trl = StochasticTscTrl().generate()
 

@@ -863,11 +863,10 @@ class Engine:
         """
         Run each process for the given interval and update the states.
         """
-        current_time = self.global_time
-        end_time = current_time + interval
+        end_time = self.global_time + interval
 
         clock_start = clock.time()
-        self.run_for(interval, True)
+        self.run_for(interval=interval, force_complete=True)
         clock_finish = clock.time() - clock_start
 
         # post-simulation
@@ -877,6 +876,9 @@ class Engine:
 
         if self.display_info:
             self.print_summary(clock_finish)
+
+    def complete(self) -> None:
+        self.run_for(interval=0, force_complete=True)
 
     def run_for(
             self,
@@ -891,11 +893,11 @@ class Engine:
             force_complete: a bool indicating whether to force processes
                 to complete at the end of the interval.
         """
-        current_time = self.global_time
-        end_time = current_time + interval
-        emit_time = current_time + self.emit_step
+        end_time = self.global_time + interval
+        emit_time = self.global_time + self.emit_step
+        run_complete = False
 
-        while current_time < end_time:
+        while not run_complete:
             full_step = math.inf
 
             # find any parallel processes that were removed and terminate them
@@ -921,10 +923,10 @@ class Engine:
             # based on their most recent time being less than the current time.
             for path, process in self.process_paths.items():
                 if path not in self.front:
-                    self.front[path] = empty_front(current_time)
+                    self.front[path] = empty_front(self.global_time)
                 process_time = self.front[path]['time']
 
-                if process_time <= current_time:
+                if process_time <= self.global_time:
 
                     # get the time step
                     store, states = self.process_state(path)
@@ -936,52 +938,54 @@ class Engine:
                     else:
                         future = process_time + process_timestep
 
-                    # calculate the update for this process
-                    if process.update_condition(process_timestep, states):
-                        update = self._process_update(
-                            path, process, store, states, process_timestep)
+                    # absolute timestep
+                    timestep = future - self.global_time
+                    if timestep < full_step:
+                        full_step = timestep
 
-                        # store the update to apply at its projected time
-                        self.front[path]['time'] = future
-                        self.front[path]['update'] = update
+                    if future <= end_time:
+                        # calculate the update for this process
+                        if process.update_condition(process_timestep, states):
+                            update = self._process_update(
+                                path, process, store, states, process_timestep)
 
-                        # absolute timestep
-                        timestep = future - current_time
-                        if timestep < full_step:
-                            full_step = timestep
-                    else:
-                        # mark this path as "quiet" so its time can be advanced
-                        self.front[path]['update'] = (EmptyDefer(), store)
-                        quiet_paths.append(path)
+                            # store the update to apply at its projected time
+                            self.front[path]['time'] = future
+                            self.front[path]['update'] = update
+
+                        else:
+                            # mark this path as "quiet" so its time can be advanced
+                            self.front[path]['update'] = (EmptyDefer(), store)
+                            quiet_paths.append(path)
 
                 else:
                     # don't shoot past processes that didn't run this time
-                    process_delay = process_time - current_time
+                    process_delay = process_time - self.global_time
                     if process_delay < full_step:
                         full_step = process_delay
 
+            # apply updates based on process times in self.front
             if full_step == math.inf:
                 # no processes ran, jump to next process
                 next_event = end_time
                 for path in self.front.keys():
                     if self.front[path]['time'] < next_event:
                         next_event = self.front[path]['time']
-                current_time = next_event
+                self.global_time = next_event
 
-            elif full_step <= end_time:
+            elif self.global_time + full_step <= end_time:
                 # at least one process ran within the interval
                 # increase the time, apply updates, and continue
-                current_time += full_step
                 self.global_time += full_step
 
                 # advance all quiet processes to current time
                 for quiet in quiet_paths:
-                    self.front[quiet]['time'] = current_time
+                    self.front[quiet]['time'] = self.global_time
 
                 updates = []
                 paths = []
                 for path, advance in self.front.items():
-                    if advance['time'] <= current_time:
+                    if advance['time'] <= self.global_time and advance['update']:
                         new_update = advance['update']
                         updates.append(new_update)
                         advance['update'] = {}
@@ -991,18 +995,21 @@ class Engine:
 
                 # display and emit
                 if self.progress_bar:
-                    print_progress_bar(current_time, end_time)
+                    print_progress_bar(self.global_time, end_time)
                 if self.emit_step == 1:
                     self.emit_data()
-                elif emit_time <= current_time:
-                    while emit_time <= current_time:
+                elif emit_time <= self.global_time:
+                    while emit_time <= self.global_time:
                         self.emit_data()
                         emit_time += self.emit_step
 
             else:
                 # all processes have run past the interval
-                current_time = end_time
                 self.global_time = end_time
+
+            # end time reached, run complete
+            if self.global_time == end_time:
+                run_complete = True
 
     def end(self) -> None:
         """Terminate all processes running in parallel.
