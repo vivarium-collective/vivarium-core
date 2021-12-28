@@ -956,8 +956,9 @@ class Engine:
                     if self.front[path]['time'] < next_event:
                         next_event = self.front[path]['time']
                 time = next_event
-            else:
-                # at least one process ran
+
+            elif full_step <= interval:
+                # at least one process ran within the interval
                 # increase the time, apply updates, and continue
                 time += full_step
                 self.experiment_time += full_step
@@ -986,6 +987,12 @@ class Engine:
                     while emit_time <= time:
                         self.emit_data()
                         emit_time += self.emit_step
+                        
+            else:
+                # all processes have run past the interval
+                time = interval
+                self.experiment_time = interval
+
         return time
 
     def end(self) -> None:
