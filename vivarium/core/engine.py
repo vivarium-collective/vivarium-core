@@ -224,7 +224,7 @@ class InvokeProcess:
 
 
 class _StepGraph:
-    '''A dependency graph of :term:`steps`.
+    """A dependency graph of :term:`steps`.
 
     A step is just a Process object that has dependencies on other
     steps. Unlike processes, which can be run in any order, steps run
@@ -245,7 +245,7 @@ class _StepGraph:
             sequentially and before the steps in ``graph``. This is
             where we store legacy :term:`derivers` for
             backwards-compatibility.
-    '''
+    """
 
     def __init__(
             self,
@@ -271,7 +271,7 @@ class _StepGraph:
             self,
             path: HierarchyPath,
             dependencies: Iterable[HierarchyPath]) -> None:
-        '''Add a step to the graph.
+        """Add a step to the graph.
 
         Args:
             path: The step object's path in the hierarchy.
@@ -280,7 +280,7 @@ class _StepGraph:
         Raises:
             ValueError: If the graph produced by adding the step is not
                 a DAG.
-        '''
+        """
         self._graph.add_node(path)
         for dependency in dependencies:
             self._graph.add_edge(dependency, path)
@@ -289,7 +289,7 @@ class _StepGraph:
     def add_sequential(
             self,
             path: HierarchyPath) -> None:
-        '''Add a step that is meant to run sequentially.
+        """Add a step that is meant to run sequentially.
 
         Legacy steps (:term:`derivers`) were meant to run sequentially
         instead of being provided as a dependency graph. To support
@@ -299,12 +299,12 @@ class _StepGraph:
 
         Args:
             path: The path to the step in the hierarchy.
-        '''
+        """
         self._sequential_steps.append(path)
         self._validate()
 
     def get_execution_layers(self) -> List[Set[HierarchyPath]]:
-        '''Get step execution layers, with steps represnted by paths.
+        """Get step execution layers, with steps represnted by paths.
 
         An execution layer is a set of steps that can be executed in
         parallel. The graph's execution layers are an ordered list of
@@ -321,18 +321,18 @@ class _StepGraph:
         Returns:
             An ordered list of the execution layers, with each step
             represented by its path.
-        '''
+        """
         layers = nx.topological_generations(self._graph)
         to_return = [set([step]) for step in self._sequential_steps]
         to_return += [set(layer) for layer in layers]
         return to_return
 
     def remove(self, path: HierarchyPath) -> None:
-        '''Delete a step based on its path.
+        """Delete a step based on its path.
 
         Args:
             path: Hierarhcy path of the step to delete.
-        '''
+        """
         if path in self._sequential_steps:
             self._sequential_steps.remove(path)
             return
@@ -342,11 +342,11 @@ class _StepGraph:
             self._graph.remove_node(path_to_delete)
 
     def copy(self) -> '_StepGraph':
-        '''Create a copy of self.
+        """Create a copy of self.
 
         Returns:
             A new _StepGraph with a copy of self's graph.
-        '''
+        """
         new = self.__class__(
             self._graph.copy(), self._sequential_steps.copy())
         return new
@@ -493,7 +493,8 @@ class Engine:
         # initialize global time
         self.global_time = 0.0
 
-        # front tracks how far each process has been simulated in time
+        # front tracks how far each process has been simulated in time,
+        # and also holds the processes' updates before they are applied.
         self.front: Dict = {
             path: empty_front(self.global_time)
             for path in self.process_paths}
@@ -513,7 +514,6 @@ class Engine:
 
         log.info('\nTOPOLOGY:')
         log.info(pf(self.topology))
-
 
     def _add_step_path(
             self,
@@ -808,7 +808,7 @@ class Engine:
                 del self._step_paths[path]
 
     def _run_steps(self) -> None:
-        '''Run all the steps in the simulation.'''
+        """Run all the steps in the simulation."""
         layers = self._step_graph.get_execution_layers()
         for layer in layers:
             deferred_updates: List[Tuple[Defer, Store]] = []
@@ -861,7 +861,8 @@ class Engine:
             interval: float
     ) -> None:
         """
-        Run each process for the given interval and update the states.
+        Run each process for the given interval and force them to complete
+        at the end of the interval.
         """
         clock_start = clock.time()
         self.run_for(interval=interval, force_complete=True)
@@ -871,15 +872,12 @@ class Engine:
             self.print_summary(runtime)
 
     def complete(self) -> None:
-        """
-        Force all processes on the front to complete at the current global time
-        """
+        """Force all processes to complete at the current global time"""
         self.run_for(interval=0, force_complete=True)
         self.check_complete()
 
     def check_complete(self) -> None:
-        """Check that all processes completed
-        """
+        """Check that all processes completed"""
         for advance in self.front.values():
             assert advance['time'] == self.global_time
             assert len(advance['update']) == 0
@@ -889,8 +887,7 @@ class Engine:
             interval: float,
             force_complete: bool = False,
     ) -> None:
-        """
-        Run each process within the given interval and update the states.
+        """Run each process within the given interval and update their states.
 
         Args:
             interval: the amount of time to simulate the composite.
