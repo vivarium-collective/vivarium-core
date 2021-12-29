@@ -225,12 +225,12 @@ def test_gillespie_process(total_time=1000):
 
         # check that process remains behind global time
         front = gillespie_experiment.front
-        front[('process',)]['time'] < gillespie_experiment.global_time
+        assert front[('process',)]['time'] < gillespie_experiment.global_time
 
     # complete
     gillespie_experiment.complete()
     front = gillespie_experiment.front
-    front[('process',)]['time'] == gillespie_experiment.global_time
+    assert front[('process',)]['time'] == gillespie_experiment.global_time
 
     gillespie_data = gillespie_experiment.emitter.get_timeseries()
     return gillespie_data
