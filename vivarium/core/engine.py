@@ -910,7 +910,7 @@ class Engine:
                     self.stats_objs.append(stats)
                 del self.parallel[terminated]
 
-            # setup a way to track how far each process has simulated in time
+            # remove deleted process paths from the front
             self.front = {
                 path: progress
                 for path, progress in self.front.items()
@@ -921,7 +921,7 @@ class Engine:
             quiet_paths = []
 
             # go through each process and find those that are able to update
-            # based on their most recent time being less than the current time.
+            # based on their most recent update time being less than global time
             for path, process in self.process_paths.items():
                 if path not in self.front:
                     self.front[path] = empty_front(self.global_time)
@@ -934,15 +934,10 @@ class Engine:
                     process_timestep = process.calculate_timestep(states)
 
                     if force_complete:
-                        # make the process complete at end_time
+                        # force the process to complete at end_time
                         future = min(process_time + process_timestep, end_time)
                     else:
                         future = process_time + process_timestep
-
-                    # absolute timestep
-                    timestep = future - self.global_time
-                    if timestep < full_step:
-                        full_step = timestep
 
                     if future <= end_time:
                         # calculate the update for this process
@@ -950,7 +945,7 @@ class Engine:
                             update = self._process_update(
                                 path, process, store, states, process_timestep)
 
-                            # store the update to apply at its projected time
+                            # update front, to be applied at its projected time
                             self.front[path]['time'] = future
                             self.front[path]['update'] = update
 
@@ -959,6 +954,10 @@ class Engine:
                             self.front[path]['update'] = (EmptyDefer(), store)
                             quiet_paths.append(path)
 
+                    # absolute timestep
+                    timestep = future - self.global_time
+                    if timestep < full_step:
+                        full_step = timestep
                 else:
                     # don't shoot past processes that didn't run this time
                     process_delay = process_time - self.global_time
@@ -1061,7 +1060,7 @@ def print_progress_bar(
         decimals: float = 1,
         length: int = 50,
 ) -> None:
-    """Call in a loop to create terminal progress bar
+    """Create terminal progress bar
 
     Args:
         iteration: Current iteration
