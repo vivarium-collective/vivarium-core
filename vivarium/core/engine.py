@@ -866,9 +866,9 @@ class Engine:
         clock_start = clock.time()
         self.run_for(interval=interval, force_complete=True)
         self.check_complete()
-        clock_finish = clock.time() - clock_start
+        runtime = clock.time() - clock_start
         if self.display_info:
-            self.print_summary(clock_finish)
+            self.print_summary(runtime)
 
     def complete(self) -> None:
         """
@@ -1049,13 +1049,13 @@ class Engine:
 
     def print_summary(
             self,
-            clock_finish: float
+            runtime: float
     ) -> None:
         """Print summary of simulation runtime."""
-        if clock_finish < 1:
-            print('Completed in {:.6f} seconds'.format(clock_finish))
+        if runtime < 1:
+            print('Completed in {:.6f} seconds'.format(runtime))
         else:
-            print('Completed in {:.2f} seconds'.format(clock_finish))
+            print('Completed in {:.2f} seconds'.format(runtime))
 
 
 def print_progress_bar(
