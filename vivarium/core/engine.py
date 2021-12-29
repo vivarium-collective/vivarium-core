@@ -863,17 +863,10 @@ class Engine:
         """
         Run each process for the given interval and update the states.
         """
-        end_time = self.global_time + interval
-
         clock_start = clock.time()
         self.run_for(interval=interval, force_complete=True)
+        self.check_complete()
         clock_finish = clock.time() - clock_start
-
-        # post-simulation
-        for advance in self.front.values():
-            assert advance['time'] == end_time
-            assert len(advance['update']) == 0
-
         if self.display_info:
             self.print_summary(clock_finish)
 
@@ -882,6 +875,14 @@ class Engine:
         Force all processes on the front to complete at the current global time
         """
         self.run_for(interval=0, force_complete=True)
+        self.check_complete()
+
+    def check_complete(self) -> None:
+        """Check that all processes completed
+        """
+        for advance in self.front.values():
+            assert advance['time'] == self.global_time
+            assert len(advance['update']) == 0
 
     def run_for(
             self,
