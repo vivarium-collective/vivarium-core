@@ -878,9 +878,12 @@ class Engine:
 
     def check_complete(self) -> None:
         """Check that all processes completed"""
-        for advance in self.front.values():
-            assert advance['time'] == self.global_time
-            assert len(advance['update']) == 0
+        for path, advance in self.front.items():
+            assert advance['time'] == self.global_time, \
+                f"the process at path {path} is at time {advance['time']} " \
+                f"instead of completing at global time {self.global_time}"
+            assert len(advance['update']) == 0, \
+                f"the process at path {path} is an unapplied update"
 
     def run_for(
             self,
@@ -896,9 +899,8 @@ class Engine:
         """
         end_time = self.global_time + interval
         emit_time = self.global_time + self.emit_step
-        run_complete = False
 
-        while not run_complete:
+        while self.global_time < end_time or force_complete:
             full_step = math.inf
 
             # find any parallel processes that were removed and terminate them
@@ -982,6 +984,7 @@ class Engine:
                 for quiet in quiet_paths:
                     self.front[quiet]['time'] = self.global_time
 
+                # apply updates that are behind global time
                 updates = []
                 paths = []
                 for path, advance in self.front.items():
@@ -1008,9 +1011,8 @@ class Engine:
                 # all processes have run past the interval
                 self.global_time = end_time
 
-            # end time reached, run complete
-            if self.global_time == end_time:
-                run_complete = True
+            if force_complete and self.global_time == end_time:
+                force_complete = False
 
     def end(self) -> None:
         """Terminate all processes running in parallel.
