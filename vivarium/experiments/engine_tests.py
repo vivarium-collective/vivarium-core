@@ -1052,6 +1052,64 @@ def test_output_port() -> None:
     assert data['output']['B'] == [b_default for _ in range(total_time + 1)]
 
 
+def test_engine_run_for() -> None:
+    total_time = 10.0
+    time_interval = 1.0
+    timestep1 = 0.75
+    timestep2 = 1.25
+
+    topo = {
+        'external': ('external',),
+        'internal': ('internal',),
+    }
+    composite = Composite({
+        'processes': {
+            'process1': ToyTransport({'time_step': timestep1}),
+            'process2': ToyTransport({'time_step': timestep2}),
+        },
+        'topology': {
+            'process1': topo,
+            'process2': topo,
+        }
+    })
+    initial_state = {
+        'external': {'GLC': 100},
+    }
+
+    sim = Engine(
+        processes=composite.processes,
+        topology=composite.topology,
+        initial_state=initial_state)
+
+    time = 0.0
+    while sim.global_time < total_time:
+        sim.run_for(time_interval)
+        time += time_interval
+        assert sim.global_time == time
+
+        # check that the front has advanced correctly
+        front = sim.front
+        for path, advance in front.items():
+            expected_time = 0.0
+            if path[0] == 'process1':
+                expected_time = int(time / timestep1) * timestep1
+            elif path[0] == 'process2':
+                expected_time = int(time / timestep2) * timestep2
+            assert advance['time'] == expected_time, \
+                f"front time {advance['time']} " \
+                f"is not expected {expected_time}"
+
+    # make all the processes complete
+    sim.complete()
+    final_time = time
+    assert sim.global_time == final_time
+
+    front = sim.front
+    for path, advance in front.items():
+        assert advance['time'] == sim.global_time, \
+            f"process at path {path} did not complete"
+
+
 engine_tests = {
     '0': test_recursive_store,
     '1': test_topology_ports,
@@ -1071,6 +1129,7 @@ engine_tests = {
     '15': test_add_delete,
     '16': test_hyperdivision,
     '17': test_output_port,
+    '18': test_engine_run_for,
 }
 
 

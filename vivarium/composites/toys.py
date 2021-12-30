@@ -19,14 +19,12 @@ electron_orbitals = [
 
 class ToyTransport(Process):
     name = 'toy_transport'
+    defaults = {'intake_rate': 2}
 
     def __init__(
             self,
-            initial_parameters: Optional[Dict[str, Any]] = None
+            parameters: Optional[Dict[str, Any]] = None
     ):
-        initial_parameters = initial_parameters or {}
-        parameters = {'intake_rate': 2}
-        parameters.update(initial_parameters)
         super().__init__(parameters)
 
     def ports_schema(self):

@@ -218,12 +218,23 @@ def test_gillespie_process(total_time=1000):
         gillespie_process,
         exp_settings)
 
-    # run the experiment in increments
+    # run the experiment in large increments
+    increment = 10
     for _ in range(total_time):
-        gillespie_experiment.update(1)
+        gillespie_experiment.run_for(increment)
+
+        # check that process remains behind global time
+        front = gillespie_experiment.front
+        assert front[('process',)]['time'] < gillespie_experiment.global_time
+
+    # complete
+    gillespie_experiment.complete()
+    front = gillespie_experiment.front
+    assert front[('process',)]['time'] == gillespie_experiment.global_time
 
     gillespie_data = gillespie_experiment.emitter.get_timeseries()
     return gillespie_data
+
 
 def test_gillespie_composite(total_time=10000):
     stochastic_tsc_trl = StochasticTscTrl().generate()

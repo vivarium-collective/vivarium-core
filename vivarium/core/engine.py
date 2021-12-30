@@ -131,6 +131,12 @@ def invoke_process(
     return process.next_update(interval, states)
 
 
+def empty_front(t: float) -> Dict[str, Union[float, dict]]:
+    return {
+        'time': t,
+        'update': {}}
+
+
 class Defer:
     def __init__(
             self,
@@ -218,7 +224,7 @@ class InvokeProcess:
 
 
 class _StepGraph:
-    '''A dependency graph of :term:`steps`.
+    """A dependency graph of :term:`steps`.
 
     A step is just a Process object that has dependencies on other
     steps. Unlike processes, which can be run in any order, steps run
@@ -239,7 +245,7 @@ class _StepGraph:
             sequentially and before the steps in ``graph``. This is
             where we store legacy :term:`derivers` for
             backwards-compatibility.
-    '''
+    """
 
     def __init__(
             self,
@@ -265,7 +271,7 @@ class _StepGraph:
             self,
             path: HierarchyPath,
             dependencies: Iterable[HierarchyPath]) -> None:
-        '''Add a step to the graph.
+        """Add a step to the graph.
 
         Args:
             path: The step object's path in the hierarchy.
@@ -274,7 +280,7 @@ class _StepGraph:
         Raises:
             ValueError: If the graph produced by adding the step is not
                 a DAG.
-        '''
+        """
         self._graph.add_node(path)
         for dependency in dependencies:
             self._graph.add_edge(dependency, path)
@@ -283,7 +289,7 @@ class _StepGraph:
     def add_sequential(
             self,
             path: HierarchyPath) -> None:
-        '''Add a step that is meant to run sequentially.
+        """Add a step that is meant to run sequentially.
 
         Legacy steps (:term:`derivers`) were meant to run sequentially
         instead of being provided as a dependency graph. To support
@@ -293,12 +299,12 @@ class _StepGraph:
 
         Args:
             path: The path to the step in the hierarchy.
-        '''
+        """
         self._sequential_steps.append(path)
         self._validate()
 
     def get_execution_layers(self) -> List[Set[HierarchyPath]]:
-        '''Get step execution layers, with steps represnted by paths.
+        """Get step execution layers, with steps represnted by paths.
 
         An execution layer is a set of steps that can be executed in
         parallel. The graph's execution layers are an ordered list of
@@ -315,18 +321,18 @@ class _StepGraph:
         Returns:
             An ordered list of the execution layers, with each step
             represented by its path.
-        '''
+        """
         layers = nx.topological_generations(self._graph)
         to_return = [set([step]) for step in self._sequential_steps]
         to_return += [set(layer) for layer in layers]
         return to_return
 
     def remove(self, path: HierarchyPath) -> None:
-        '''Delete a step based on its path.
+        """Delete a step based on its path.
 
         Args:
             path: Hierarhcy path of the step to delete.
-        '''
+        """
         if path in self._sequential_steps:
             self._sequential_steps.remove(path)
             return
@@ -336,11 +342,11 @@ class _StepGraph:
             self._graph.remove_node(path_to_delete)
 
     def copy(self) -> '_StepGraph':
-        '''Create a copy of self.
+        """Create a copy of self.
 
         Returns:
             A new _StepGraph with a copy of self's graph.
-        '''
+        """
         new = self.__class__(
             self._graph.copy(), self._sequential_steps.copy())
         return new
@@ -424,7 +430,6 @@ class Engine:
         self.initial_state = initial_state or {}
         self.emit_step = emit_step
 
-
         # get the processes, topology, and store
         if processes and topology and not store:
             self.processes = processes
@@ -486,7 +491,13 @@ class Engine:
         self.emit_config = emit_config
 
         # initialize global time
-        self.experiment_time = 0.0
+        self.global_time = 0.0
+
+        # front tracks how far each process has been simulated in time,
+        # and also holds the processes' updates before they are applied.
+        self.front: Dict = {
+            path: empty_front(self.global_time)
+            for path in self.process_paths}
 
         # run the steps
         self._run_steps()
@@ -503,7 +514,6 @@ class Engine:
 
         log.info('\nTOPOLOGY:')
         log.info(pf(self.topology))
-
 
     def _add_step_path(
             self,
@@ -585,7 +595,7 @@ class Engine:
         """
         data = self.state.emit_data()
         data.update({
-            'time': self.experiment_time})
+            'time': self.global_time})
         emit_config = {
             'table': 'history',
             'data': serialize_value(data)}
@@ -798,7 +808,7 @@ class Engine:
                 del self._step_paths[path]
 
     def _run_steps(self) -> None:
-        '''Run all the steps in the simulation.'''
+        """Run all the steps in the simulation."""
         layers = self._step_graph.get_execution_layers()
         for layer in layers:
             deferred_updates: List[Tuple[Defer, Store]] = []
@@ -850,22 +860,47 @@ class Engine:
             self,
             interval: float
     ) -> None:
-        """Run each process for the given interval and update the states.
         """
-
-        time = 0.0
-        emit_time = self.emit_step
+        Run each process for the given interval and force them to complete
+        at the end of the interval.
+        """
         clock_start = clock.time()
+        self.run_for(interval=interval, force_complete=True)
+        self.check_complete()
+        runtime = clock.time() - clock_start
+        if self.display_info:
+            self.print_summary(runtime)
 
-        def empty_front(t: float) -> Dict[str, Union[float, dict]]:
-            return {
-                'time': t,
-                'update': {}}
+    def complete(self) -> None:
+        """Force all processes to complete at the current global time"""
+        self.run_for(interval=0, force_complete=True)
+        self.check_complete()
 
-        # keep track of which processes have simulated until when
-        front: Dict = {}
+    def check_complete(self) -> None:
+        """Check that all processes completed"""
+        for path, advance in self.front.items():
+            assert advance['time'] == self.global_time, \
+                f"the process at path {path} is at time {advance['time']} " \
+                f"instead of completing at global time {self.global_time}"
+            assert len(advance['update']) == 0, \
+                f"the process at path {path} is an unapplied update"
 
-        while time < interval:
+    def run_for(
+            self,
+            interval: float,
+            force_complete: bool = False,
+    ) -> None:
+        """Run each process within the given interval and update their states.
+
+        Args:
+            interval: the amount of time to simulate the composite.
+            force_complete: a bool indicating whether to force processes
+                to complete at the end of the interval.
+        """
+        end_time = self.global_time + interval
+        emit_time = self.global_time + self.emit_step
+
+        while self.global_time < end_time or force_complete:
             full_step = math.inf
 
             # find any parallel processes that were removed and terminate them
@@ -877,78 +912,85 @@ class Engine:
                     self.stats_objs.append(stats)
                 del self.parallel[terminated]
 
-            # setup a way to track how far each process has simulated in time
-            front = {
+            # remove deleted process paths from the front
+            self.front = {
                 path: progress
-                for path, progress in front.items()
+                for path, progress in self.front.items()
                 if path in self.process_paths}
 
+            # processes at quiet paths don't meet their execution condition,
+            # but still advance in time
             quiet_paths = []
 
             # go through each process and find those that are able to update
-            # based on their current time being less than the global time.
+            # based on their most recent update time being less than global time
             for path, process in self.process_paths.items():
-                if path not in front:
-                    front[path] = empty_front(time)
-                process_time = front[path]['time']
+                if path not in self.front:
+                    self.front[path] = empty_front(self.global_time)
+                process_time = self.front[path]['time']
 
-                if process_time <= time:
+                if process_time <= self.global_time:
 
                     # get the time step
                     store, states = self.process_state(path)
-                    requested_timestep = process.calculate_timestep(states)
+                    process_timestep = process.calculate_timestep(states)
 
-                    # progress only to the end of interval
-                    future = min(process_time + requested_timestep, interval)
-                    process_timestep = future - process_time
-
-                    # calculate the update for this process
-                    if process.update_condition(process_timestep, states):
-                        update = self._process_update(
-                            path, process, store, states, process_timestep)
-
-                        # store the update to apply at its projected time
-                        front[path]['time'] = future
-                        front[path]['update'] = update
-
-                        # absolute timestep
-                        timestep = future - time
-                        if timestep < full_step:
-                            full_step = timestep
+                    if force_complete:
+                        # force the process to complete at end_time
+                        future = min(process_time + process_timestep, end_time)
                     else:
-                        # mark this path as "quiet" so its time can be advanced
-                        front[path]['update'] = (EmptyDefer(), store)
-                        quiet_paths.append(path)
+                        future = process_time + process_timestep
+
+                    if future <= end_time:
+                        # calculate the update for this process
+                        if process.update_condition(process_timestep, states):
+                            update = self._process_update(
+                                path, process, store, states, process_timestep)
+
+                            # update front, to be applied at its projected time
+                            self.front[path]['time'] = future
+                            self.front[path]['update'] = update
+
+                        else:
+                            # mark this path "quiet" so its time can be advanced
+                            self.front[path]['update'] = (EmptyDefer(), store)
+                            quiet_paths.append(path)
+
+                    # absolute timestep
+                    timestep = future - self.global_time
+                    if timestep < full_step:
+                        full_step = timestep
                 else:
                     # don't shoot past processes that didn't run this time
-                    process_delay = process_time - time
+                    process_delay = process_time - self.global_time
                     if process_delay < full_step:
                         full_step = process_delay
 
+            # apply updates based on process times in self.front
             if full_step == math.inf:
                 # no processes ran, jump to next process
-                next_event = interval
-                for path in front.keys():
-                    if front[path]['time'] < next_event:
-                        next_event = front[path]['time']
-                time = next_event
-            else:
-                # at least one process ran
+                next_event = end_time
+                for path in self.front.keys():
+                    if self.front[path]['time'] < next_event:
+                        next_event = self.front[path]['time']
+                self.global_time = next_event
+
+            elif self.global_time + full_step <= end_time:
+                # at least one process ran within the interval
                 # increase the time, apply updates, and continue
-                time += full_step
-                self.experiment_time += full_step
+                self.global_time += full_step
 
-                # advance all existing paths that didn't meet
-                # their execution condition to current time
+                # advance all quiet processes to current time
                 for quiet in quiet_paths:
-                    front[quiet]['time'] = time
+                    self.front[quiet]['time'] = self.global_time
 
+                # apply updates that are behind global time
                 updates = []
                 paths = []
-                for path, advance in front.items():
-                    if advance['time'] <= time:
+                for path, advance in self.front.items():
+                    if advance['time'] <= self.global_time \
+                            and advance['update']:
                         new_update = advance['update']
-                        # new_update['_path'] = path
                         updates.append(new_update)
                         advance['update'] = {}
                         paths.append(path)
@@ -957,23 +999,20 @@ class Engine:
 
                 # display and emit
                 if self.progress_bar:
-                    print_progress_bar(time, interval)
+                    print_progress_bar(self.global_time, end_time)
                 if self.emit_step == 1:
                     self.emit_data()
-                elif emit_time <= time:
-                    while emit_time <= time:
+                elif emit_time <= self.global_time:
+                    while emit_time <= self.global_time:
                         self.emit_data()
                         emit_time += self.emit_step
 
-        # post-simulation
-        for advance in front.values():
-            assert advance['time'] == time == interval
-            assert len(advance['update']) == 0
+            else:
+                # all processes have run past the interval
+                self.global_time = end_time
 
-        clock_finish = clock.time() - clock_start
-
-        if self.display_info:
-            self.print_summary(clock_finish)
+            if force_complete and self.global_time == end_time:
+                force_complete = False
 
     def end(self) -> None:
         """Terminate all processes running in parallel.
@@ -1008,13 +1047,13 @@ class Engine:
 
     def print_summary(
             self,
-            clock_finish: float
+            runtime: float
     ) -> None:
         """Print summary of simulation runtime."""
-        if clock_finish < 1:
-            print('Completed in {:.6f} seconds'.format(clock_finish))
+        if runtime < 1:
+            print('Completed in {:.6f} seconds'.format(runtime))
         else:
-            print('Completed in {:.2f} seconds'.format(clock_finish))
+            print('Completed in {:.2f} seconds'.format(runtime))
 
 
 def print_progress_bar(
@@ -1023,7 +1062,7 @@ def print_progress_bar(
         decimals: float = 1,
         length: int = 50,
 ) -> None:
-    """Call in a loop to create terminal progress bar
+    """Create terminal progress bar
 
     Args:
         iteration: Current iteration
