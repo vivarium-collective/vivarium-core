@@ -163,6 +163,7 @@ def test_run_store_in_experiment() -> None:
 
     print(data)
 
+
 def test_run_inserted_store() -> None:
     """Make a store using the API, run it as a simulation"""
     store = Store({})
@@ -171,7 +172,6 @@ def test_run_inserted_store() -> None:
     sim = Engine(store = store)
     sim.update(1.0)
 
-    assert "I do not know what a proper check should be here" == True
 
 def test_run_rewired_store() -> None:
     """Make a store using the API, run it as a simulation"""
@@ -181,8 +181,6 @@ def test_run_rewired_store() -> None:
     store["p1"].connect(('port1',), store['p2', "port2"])
     sim = Engine(store = store)
     sim.update(1.0)
-
-    assert "I do not know what a proper check should be here" == True
 
 
 def test_divide_store() -> None:
@@ -279,8 +277,11 @@ test_library = {
     '10': test_update_schema,
     '11': test_port_connect,
     '12': test_add_store,
+    '13': test_run_inserted_store,
+    '14': test_run_rewired_store,
 }
 
 
+# python vivarium/experiments/store_api.py -n [test number]
 if __name__ == '__main__':
     run_library_cli(test_library)
