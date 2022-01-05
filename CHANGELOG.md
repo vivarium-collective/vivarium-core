@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.4.17
+## v0.4.18
 
 * (#127) build a `store` argument's topology views in `Engine` constructor to support the store API.
 

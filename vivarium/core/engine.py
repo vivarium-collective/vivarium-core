@@ -447,7 +447,7 @@ class Engine:
 
         elif store:
             self.state = store
-            # build the process' views
+            # build the processes' views
             self.state.build_topology_views()
             # get processes and topology from the store
             self.processes = self.state.get_processes()
