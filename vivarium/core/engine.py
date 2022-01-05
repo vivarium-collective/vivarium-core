@@ -41,7 +41,7 @@ from vivarium.core.types import (
     HierarchyPath, Topology, State, Update, Processes, Steps,
     Flow)
 
-pretty = pprint.PrettyPrinter(indent=2, sort_dicts=False)
+pretty = pprint.PrettyPrinter(indent=2)
 
 
 def pp(x: Any) -> None:
@@ -447,6 +447,8 @@ class Engine:
 
         elif store:
             self.state = store
+            # build the process' views
+            self.state.build_topology_views()
             # get processes and topology from the store
             self.processes = self.state.get_processes()
             self.steps = self.state.get_steps() or {}
