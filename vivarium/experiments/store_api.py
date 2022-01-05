@@ -59,6 +59,9 @@ def test_rewire_ports() -> None:
     # store['process2', 'port2', 'var_a'] = store['store_A', 'var_b']
     assert store['process2', 'port2', 'var_a'] == store['store_A', 'var_b']
 
+    sim = Engine(store = store)
+    sim.update(1.0)
+
 
 def test_embedded_rewire_ports() -> None:
     """rewire process ports embedded down in the hierarchy"""
@@ -94,7 +97,6 @@ def test_replace_process() -> None:
     store['process1'] = ToyProcess({})
     assert store['A', 'a'].value == 11
 
-
 def test_disconnected_store_failure() -> None:
     """Test that inserting a Store into the tree results in an exception"""
     store = get_toy_store()
@@ -105,6 +107,8 @@ def test_disconnected_store_failure() -> None:
 
     with pytest.raises(Exception):
         store['process1', 'port1'] = Store({'_value': 'NEW STORE'})
+
+
 
 
 # def test_connect_to_new_store() -> None:
@@ -158,6 +162,27 @@ def test_run_store_in_experiment() -> None:
     assert data[10.0] != data[0.0]
 
     print(data)
+
+def test_run_inserted_store() -> None:
+    """Make a store using the API, run it as a simulation"""
+    store = Store({})
+    store["p1"] = ToyProcess({'name': 'p1'})
+    store["p2"] = ToyProcess({'name': 'p2'})
+    sim = Engine(store = store)
+    sim.update(1.0)
+
+    assert "I do not know what a proper check should be here" == True
+
+def test_run_rewired_store() -> None:
+    """Make a store using the API, run it as a simulation"""
+    store = Store({})
+    store["p1"] = ToyProcess({'name': 'p1'})
+    store["p2"] = ToyProcess({'name': 'p2'})
+    store["p1"].connect(('port1',), store['p2', "port2"])
+    sim = Engine(store = store)
+    sim.update(1.0)
+
+    assert "I do not know what a proper check should be here" == True
 
 
 def test_divide_store() -> None:

@@ -41,7 +41,7 @@ from vivarium.core.types import (
     HierarchyPath, Topology, State, Update, Processes, Steps,
     Flow)
 
-pretty = pprint.PrettyPrinter(indent=2, sort_dicts=False)
+pretty = pprint.PrettyPrinter(indent=2)
 
 
 def pp(x: Any) -> None:
