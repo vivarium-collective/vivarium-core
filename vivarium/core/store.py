@@ -22,6 +22,7 @@ from vivarium.library.topology import without, dict_to_paths
 from vivarium.core.types import Processes, Topology, State, Steps, Flow
 
 _EMPTY_UPDATES = None, None, None, None, None, None
+DEFAULT_DIVIDER = '_default'
 
 
 def generate_state(
@@ -575,13 +576,22 @@ class Store:
                 self.flow = flow
 
         if '_divider' in config:
-            self.divider = config['_divider']
-            if isinstance(self.divider, str):
-                self.divider = divider_registry.access(self.divider)
-            if isinstance(self.divider, dict) and isinstance(
-                    self.divider['divider'], str):
-                self.divider['divider'] = divider_registry.access(
-                    self.divider['divider'])
+            new_divider = config['_divider']
+            if isinstance(new_divider, str):
+                new_divider = divider_registry.access(new_divider)
+            if isinstance(new_divider, dict) and isinstance(
+                    new_divider['divider'], str):
+                new_divider['divider'] = divider_registry.access(
+                    new_divider['divider'])
+            if (
+                    self.divider
+                    and self.divider != DEFAULT_DIVIDER
+                    and self.divider != new_divider):
+                raise ValueError(
+                    f'Trying to assign divider {new_divider} to '
+                    f'{self.path_for()}, which already has divider '
+                    f'{self.divider}.')
+            self.divider = new_divider
             config = without(config, '_divider')
 
         if self.schema_keys & set(config.keys()):
@@ -629,13 +639,7 @@ class Store:
 
             # All leaf nodes must have a divider, even though a divider
             # on a branch node higher in the tree will take precedence.
-            # By default, we use the ``set`` divider, except in the case
-            # of processes, where we use the ``null`` divider by
-            # default.
-            if self.topology:
-                self.divider = self.divider or divider_registry.access('null')
-            else:
-                self.divider = self.divider or divider_registry.access('set')
+            self.divider = self.divider or DEFAULT_DIVIDER
 
             self.properties = deep_merge(
                 self.properties,
@@ -691,6 +695,15 @@ class Store:
             updater = updater_registry.access(updater)
         return updater
 
+    def get_divider(self):
+        if self.divider == DEFAULT_DIVIDER:
+            if self.topology:
+                # For processes, we use a null divider by default.
+                return divider_registry.access('null')
+            # For all other nodes, by default we use a 'set' divider.
+            return divider_registry.access('set')
+        return self.divider
+
     def get_config(self, sources=False):
         """
         Assemble a dictionary representation of the config for this node.
@@ -706,7 +719,7 @@ class Store:
             config['_subschema'] = self.subschema
         if self.subtopology:
             config['_subtopology'] = self.subtopology
-        if self.divider:
+        if self.divider and self.divider != DEFAULT_DIVIDER:
             config['_divider'] = self.divider
 
         if sources and self.sources:
@@ -1007,23 +1020,24 @@ class Store:
         Apply the divider for each node to the value in that node to
         assemble two parallel divided states of this subtree.
         """
-
-        if self.divider:
+        divider = self.get_divider()
+        if divider:
             # divider is either a function or a dict with topology and/or config
-            if isinstance(self.divider, dict):
-                divider = self.divider['divider']
+            if isinstance(divider, dict):
+                divider_dict = divider
+                divider = divider['divider']
                 if isinstance(divider, str):
                     divider = divider_registry.access(divider)
                 args = {}
-                if 'topology' in self.divider:
-                    topology = self.divider['topology']
+                if 'topology' in divider_dict:
+                    topology = divider_dict['topology']
                     args.update({'state': self.topology_state(topology)})
-                if 'config' in self.divider:
-                    config = self.divider['config']
+                if 'config' in divider_dict:
+                    config = divider_dict['config']
                     args.update({'config': config})
 
                 return divider(self.get_value(), **args)
-            return self.divider(self.get_value())
+            return divider(self.get_value())
         if self.inner:
             daughters = [{}, {}]
             for key, child in self.inner.items():
