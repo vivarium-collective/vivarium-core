@@ -11,6 +11,7 @@ from multiprocessing import Pipe
 from multiprocessing import Process as Multiprocess
 from multiprocessing.connection import Connection
 import pstats
+import pickle
 from typing import (
     Any, Dict, Optional, Union, List)
 from warnings import warn
@@ -503,8 +504,6 @@ class ToySerializedProcess(Process):
 
 
 def test_serialize_process() -> None:
-    import pickle
-
     proc = ToySerializedProcess()
     proc_pickle = pickle.loads(pickle.dumps(proc))
 
