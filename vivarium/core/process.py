@@ -90,12 +90,26 @@ class Process(metaclass=abc.ABCMeta):
         class can provide a ``defaults`` class variable to specify the
         process defaults as a dictionary.
 
+        Note that subclasses should call the superclass init function
+        first. This allows the superclass to correctly save the initial
+        parameters before they are mutated by subclass constructor code.
+        We need access to the original parameters for serialization to
+        work properly.
+
         Args:
             parameters: Override the class defaults. If this contains a
                 ``_register`` key, the process will register itself in
                 the process registry.
         """
         parameters = parameters or {}
+        try:
+            self._original_parameters: Optional[dict] = copy.deepcopy(
+                parameters)
+        except TypeError:
+            # Copying the parameters failed because some parameters do
+            # not support being copied.
+            self._original_parameters = None
+
         if 'name' in parameters:
             self.name = parameters['name']
         elif not hasattr(self, 'name'):
@@ -125,8 +139,16 @@ class Process(metaclass=abc.ABCMeta):
         This is sufficient to reproduce the Process if there are no
         hidden states. Processes with hidden states may need to write
         their own __getstate__.
+
+        The original parameters saved by the constructor are used here,
+        so any later changes to the parameters will be lost during
+        serialization.
         """
-        return self.parameters
+        if self._original_parameters is None:
+            raise TypeError(
+                'Parameters could not be copied, so serialization is '
+                'not supported.')
+        return self._original_parameters
 
     def __setstate__(self, state: dict) -> None:
         """Initialize process with parameters"""
@@ -461,3 +483,32 @@ class ParallelProcess:
             self.stats = pstats.Stats()
             self.stats.stats = self.parent.recv()  # type: ignore
         self.multiprocess.join()
+
+
+class ToySerializedProcess(Process):
+
+    defaults: Dict[str, list] = {
+        'list': [],
+    }
+
+    def __init__(self, parameters: Optional[dict] = None) -> None:
+        super().__init__(parameters)
+        self.parameters['list'].append(1)
+
+    def ports_schema(self) -> Schema:
+        return {}
+
+    def next_update(self, timestep: float, states: State) -> Update:
+        return {}
+
+
+def test_serialize_process() -> None:
+    import pickle
+
+    proc = ToySerializedProcess()
+    proc_pickle = pickle.loads(pickle.dumps(proc))
+
+    assert proc.parameters['list'] == [1]
+    # If we pickled using `self.parameters` instead of
+    # `self._original_parameters`, this list would be [1, 1].
+    assert proc_pickle.parameters['list'] == [1]
