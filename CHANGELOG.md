@@ -1,15 +1,22 @@
 # Changelog
 
+## v0.4.19
+
+* (#130) Raise an exception when a user specifies two different dividers
+  for the same variable, and when serializing a process, use its
+  original parameters without any changes that may have occurred since
+  the process was initialized.
+
 ## v0.4.18
 
 * (#127) build a `store` argument's topology views in `Engine` constructor to support the store API.
 
 ## v0.4.17
 
-* (#126) A new method, `Engine.run_for`, can be called iteratively without completing 
+* (#126) A new method, `Engine.run_for`, can be called iteratively without completing
   processes on the front. `Engine.update` keeps the same behavior as before. `Engine.complete`
   forces all processes to complete at the current global time.
-  
+
 ## v0.4.16
 
 * (#125) Use the `null` divider by default for processes so that upon
