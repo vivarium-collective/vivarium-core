@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.4.20
+
+* `deep_merge_combine_lists` recursive call.
+
 ## v0.4.19
 
 * (#130) Raise an exception when a user specifies two different dividers

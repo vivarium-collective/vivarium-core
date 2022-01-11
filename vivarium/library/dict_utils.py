@@ -53,7 +53,7 @@ def deep_merge_combine_lists(dct, merge_dct):
     for k, v in merge_dct.items():
         if (k in dct and isinstance(dct[k], dict)
                 and isinstance(merge_dct[k], collections.abc.Mapping)):
-            deep_merge(dct[k], merge_dct[k])
+            deep_merge_combine_lists(dct[k], merge_dct[k])
         elif k in dct and isinstance(dct[k], list) and isinstance(v, list):
             for i in v:
                 if i not in dct[k]:
