@@ -362,8 +362,6 @@ class Store:
                 self.insert({
                     'processes': value.generate_processes({'name': final}),
                     'topology': value.generate_topology({'name': final}),
-                    # If a process's initial_state is expected, this will need to use inverse_topology
-                    # 'initial_state': value.initial_state()
                     'initial_state': {},
                 })
 
