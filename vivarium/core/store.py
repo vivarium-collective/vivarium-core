@@ -362,7 +362,8 @@ class Store:
                 self.insert({
                     'processes': value.generate_processes({'name': final}),
                     'topology': value.generate_topology({'name': final}),
-                    'initial_state': value.initial_state()})
+                    'initial_state': {},
+                })
 
             else:
                 down = self.get_path((final,))
