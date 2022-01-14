@@ -243,19 +243,6 @@ class Process(metaclass=abc.ABCMeta):
             port: list(states.keys())
             for port, states in ports_schema.items()}
 
-    def local_timestep(self) -> Union[float, int]:
-        """Get a process's favored timestep.
-
-        The timestep may change over the course of the simulation.
-        Processes must not assume that their favored timestep will
-        actually be used. To customize their timestep, processes can
-        override this method.
-
-        Returns:
-            Favored timestep.
-        """
-        return self.parameters['time_step']
-
     def calculate_timestep(self, states: Optional[State]) -> Union[float, int]:
         """Return the next process time step
 
