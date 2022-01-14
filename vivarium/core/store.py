@@ -917,7 +917,9 @@ class Store:
                     target = self.outer.get_path(towards[0])
                     return target.get_path(towards[1])
             else:
-                raise Exception(f"there is no path from leaf node {self.path_for()} to {path}")
+                raise Exception(
+                    f'{path} is not a valid path from '
+                    f'{self.path_for()}')
         return self
 
     def get_paths(self, paths):
