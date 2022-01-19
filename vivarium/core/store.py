@@ -550,6 +550,9 @@ class Store:
           node holds a step.
         """
 
+        if config == '**':
+            config = {}  # config needs to be a dict
+
         # remove _output special key. This is used only by schema_topology.
         config = without(config, '_output')
 
@@ -1602,7 +1605,7 @@ class Store:
 
         state = {}
 
-        if self.leaf:
+        if self.leaf or schema == '**':
             state = self
         elif not schema.get('_output'):
             for key, subschema in schema.items():

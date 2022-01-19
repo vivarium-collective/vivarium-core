@@ -3,6 +3,7 @@ from vivarium.core.control import run_library_cli
 from vivarium.experiments.engine_tests import get_env_view_composite
 from vivarium.core.process import Step
 
+
 class TopView(Step):
     defaults = {}
 
@@ -11,10 +12,9 @@ class TopView(Step):
 
     def ports_schema(self):
         return {
-            'top': {
-                '_default': {}
-            }
-        },
+            'top': '**',
+            'log': {}
+        }
 
     def next_update(self, timestep, states):
         top = states['top']
@@ -28,6 +28,7 @@ def test_bigraph_view():
     top_view_topology = {
         'top_view': {
             'top': (),  # connect to the top
+            'log': ('log_update',),
         }
     }
 
