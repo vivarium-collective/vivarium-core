@@ -355,6 +355,7 @@ class _StepGraph:
 class Engine:
     def __init__(
             self,
+            composite: Optional[Topology] = None,
             processes: Optional[Processes] = None,
             steps: Optional[Steps] = None,
             flow: Optional[Flow] = None,
@@ -378,6 +379,10 @@ class Engine:
         """Defines simulations
 
         Args:
+            composite: A :term:`Composite`, which specifies the processes,
+                steps, flow, and topology. This is an alternative to passing
+                in processes and topology dict, which can not be loaded
+                at the same time.
             processes: A dictionary that maps :term:`process` names to
                 process objects. You will usually get this from the
                 ``processes`` key of the dictionary from
@@ -436,6 +441,20 @@ class Engine:
             self.steps = steps or {}
             self.flow = flow or {}
             self.topology = topology
+            # initialize the store
+            self.state: Store = generate_state(
+                self.processes,
+                self.topology,
+                self.initial_state,
+                self.steps,
+                self.flow,
+            )
+
+        elif composite:
+            self.processes = composite.processes
+            self.steps = composite.steps
+            self.flow = composite.flow
+            self.topology = composite.topology
             # initialize the store
             self.state: Store = generate_state(
                 self.processes,
