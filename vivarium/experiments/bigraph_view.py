@@ -2,9 +2,8 @@ from vivarium.core.engine import Engine, pf
 from vivarium.core.control import run_library_cli
 from vivarium.experiments.engine_tests import get_toy_transport_in_env_composite
 from vivarium.core.process import Step
-from typing import Optional, Dict, Any, Union
 from vivarium.core.types import (
-    Schema, Update, State, Flow, Topology)
+    Schema, Union, Update, State, Flow, Topology)
 from vivarium.processes.meta_division import daughter_phylogeny_id
 
 
@@ -13,12 +12,6 @@ class TopView(Step):
     defaults = {
         'division_threshold': 6.0
     }
-
-    def __init__(
-            self,
-            parameters: Optional[Dict[str, Any]] = None
-    ):
-        super().__init__(parameters)
 
     def ports_schema(self) -> Schema:
         return {
