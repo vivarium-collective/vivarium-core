@@ -2,12 +2,23 @@ from vivarium.core.engine import Engine, pf
 from vivarium.core.control import run_library_cli
 from vivarium.experiments.engine_tests import get_toy_transport_in_env_composite
 from vivarium.core.process import Step
+from typing import Optional, Dict, Any, Union
 from vivarium.core.types import (
-    Schema, Update, Union, State, Flow, Topology)
+    Schema, Update, State, Flow, Topology)
 from vivarium.processes.meta_division import daughter_phylogeny_id
 
 
 class TopView(Step):
+
+    defaults = {
+        'division_threshold': 6.0
+    }
+
+    def __init__(
+            self,
+            parameters: Optional[Dict[str, Any]] = None
+    ):
+        super().__init__(parameters)
 
     def ports_schema(self) -> Schema:
         return {
@@ -23,11 +34,11 @@ class TopView(Step):
         top = states['top']
         agents = top['agents']
 
-        # update the bigraph directly
+        # update the bigraph directly by dividing agents
         update: Update = {'top': {'agents': {}}}
         for agent_id, agent_state in agents.items():
             internal_glc = agent_state['internal']['GLC']
-            if internal_glc >= 6.0:
+            if internal_glc >= self.parameters['division_threshold']:
                 # trigger division
                 daughter_ids = daughter_phylogeny_id(agent_id)
                 daughter_updates = [
@@ -37,6 +48,15 @@ class TopView(Step):
                     '_divide': {
                         'mother': agent_id,
                         'daughters': daughter_updates}}
+
+        # examine agent processes
+        for agent_id, agent_state in agents.items():
+            transport = agent_state['transport']
+            transport_process = transport['_process']
+            transport_topology = transport['_topology']
+            assert transport_process
+            assert transport_topology
+
         return update
 
 

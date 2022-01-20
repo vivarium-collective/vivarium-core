@@ -786,6 +786,12 @@ class Store:
                 if condition(child)}
         if self.subschema:
             return {}
+        elif self.topology:
+            # this is a process, return it in a dict with the topology
+            return {
+                '_process': self.value,
+                '_topology': self.topology
+            }
         return self.value
 
     def get_processes(self):
