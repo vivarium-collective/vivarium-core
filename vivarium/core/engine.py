@@ -509,8 +509,9 @@ class Engine:
     ) -> None:
         """
         If a :term:`Store` is provided, retrieve the :term:`Processes`,
-        :term:`Steps`, :term:`Flow`, and :term:`Topology`. If a :term:`Composite`
-        or its attributes are provided, create a store. These are interchangeable.
+        :term:`Steps`, :term:`Flow`, and :term:`Topology`. If a
+        :term:`Composite` or its attributes are provided, create a
+        store. These are interchangeable.
         """
         if not store:
             if processes and topology:
