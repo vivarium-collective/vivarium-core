@@ -1,51 +1,72 @@
-from vivarium.core.engine import Engine
+from vivarium.core.engine import Engine, pf
 from vivarium.core.control import run_library_cli
-from vivarium.experiments.engine_tests import get_env_view_composite
+from vivarium.experiments.engine_tests import get_toy_transport_in_env_composite
 from vivarium.core.process import Step
+from vivarium.processes.meta_division import daughter_phylogeny_id
 
 
 class TopView(Step):
-    defaults = {}
-
-    def __init__(self, parameters=None):
-        super().__init__(parameters)
 
     def ports_schema(self):
         return {
             'top': '**',
-            'log': {}
+            'other': {
+                '_default': 2.0
+            }
         }
 
     def next_update(self, timestep, states):
+        assert states['other'] == 2.0, 'not getting access to other state'
         top = states['top']
-        import ipdb; ipdb.set_trace()
-        return {}
+        agents = top['agents']
+
+        # update the bigraph directly
+        update = {'top': {'agents': {}}}
+        for agent_id, agent_state in agents.items():
+            internal_glc = agent_state['internal']['GLC']
+            if internal_glc >= 6.0:
+                # trigger division
+                daughter_ids = daughter_phylogeny_id(agent_id)
+                daughter_updates = [
+                    {'key': daughter_id}
+                    for daughter_id in daughter_ids]
+                update['top']['agents'] = {
+                    '_divide': {
+                        'mother': agent_id,
+                        'daughters': daughter_updates}}
+        return update
 
 
 def test_bigraph_view():
+    agent_id = '1'
+
     top_view_steps = {'top_view': TopView()}
     top_view_flow = {'top_view': []}
     top_view_topology = {
         'top_view': {
             'top': (),  # connect to the top
-            'log': ('log_update',),
+            'other': ('other',),
         }
     }
 
-    composite = get_env_view_composite()
+    composite = get_toy_transport_in_env_composite(agent_id=agent_id)
     composite.merge(
         steps=top_view_steps,
         topology=top_view_topology,
-        flow=top_view_flow,
-    )
+        flow=top_view_flow)
 
     # run the simulation
-    experiment = Engine(composite=composite)
-    experiment.update(20)
-    data = experiment.emitter.get_data()
+    sim = Engine(
+        composite=composite,
+        initial_state={
+            'agents': {agent_id: {'external': {'GLC': 10.0}}}}
+    )
+    sim.update(20)
+    data = sim.emitter.get_data()
 
-    import ipdb;
-    ipdb.set_trace()
+    print(pf(data))
+    len(data[20.0]['agents'])
+    # import ipdb; ipdb.set_trace()
 
 
 scans_library = {

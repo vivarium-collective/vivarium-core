@@ -1927,5 +1927,5 @@ class Store:
         target._generate_paths(processes, flow, topology)
         target._generate_paths(steps, flow, topology)
         target.apply_subschemas()
-        target.generate_value(initial_state)
+        target.set_value(initial_state)
         target.apply_defaults()

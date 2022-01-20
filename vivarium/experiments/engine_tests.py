@@ -784,9 +784,9 @@ def test_runtime_order() -> None:
             assert set(group) == expected_group
 
 
-def get_toy_transport_in_env_composite() -> Composite:
+def get_toy_transport_in_env_composite(agent_id='0') -> Composite:
     processes = {
-        'agents': {'0': {'transport': ToyTransport()}},
+        'agents': {agent_id: {'transport': ToyTransport()}},
         'environment': ToyEnvironment()}
     topology = {
         'environment': {
@@ -795,7 +795,7 @@ def get_toy_transport_in_env_composite() -> Composite:
                 '*': {
                     'external': ('external', 'GLC')}}},
         'agents': {
-            '0': {
+            agent_id: {
                 'transport': {
                     'internal': ('internal',),
                     'external': ('external',)}}}}
@@ -823,8 +823,7 @@ def test_glob_schema() -> None:
     experiment_reverse.update(10)
 
 
-def get_env_view_composite() -> Composite:
-    agent_id = '1'
+def get_env_view_composite(agent_id='1') -> Composite:
     agent_composer = ToyDivider({
         'agent_id': agent_id,
         'divider': {
