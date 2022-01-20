@@ -2,12 +2,14 @@ from vivarium.core.engine import Engine, pf
 from vivarium.core.control import run_library_cli
 from vivarium.experiments.engine_tests import get_toy_transport_in_env_composite
 from vivarium.core.process import Step
+from vivarium.core.types import (
+    Schema, Update, Union, State, Flow, Topology)
 from vivarium.processes.meta_division import daughter_phylogeny_id
 
 
 class TopView(Step):
 
-    def ports_schema(self):
+    def ports_schema(self) -> Schema:
         return {
             'top': '**',
             'other': {
@@ -15,13 +17,14 @@ class TopView(Step):
             }
         }
 
-    def next_update(self, timestep, states):
+    def next_update(
+            self, timestep: Union[float, int], states: State) -> Update:
         assert states['other'] == 2.0, 'not getting access to other state'
         top = states['top']
         agents = top['agents']
 
         # update the bigraph directly
-        update = {'top': {'agents': {}}}
+        update: Update = {'top': {'agents': {}}}
         for agent_id, agent_state in agents.items():
             internal_glc = agent_state['internal']['GLC']
             if internal_glc >= 6.0:
@@ -37,12 +40,12 @@ class TopView(Step):
         return update
 
 
-def test_bigraph_view():
+def test_bigraph_view() -> None:
     agent_id = '1'
 
     top_view_steps = {'top_view': TopView()}
-    top_view_flow = {'top_view': []}
-    top_view_topology = {
+    top_view_flow: Flow = {'top_view': []}
+    top_view_topology: Topology = {
         'top_view': {
             'top': (),  # connect to the top
             'other': ('other',),
@@ -66,7 +69,6 @@ def test_bigraph_view():
 
     print(pf(data))
     len(data[20.0]['agents'])
-    # import ipdb; ipdb.set_trace()
 
 
 scans_library = {

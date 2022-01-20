@@ -23,12 +23,13 @@ import networkx as nx
 
 from vivarium.core.store import (
     hierarchy_depth, Store, generate_state, view_values)
-from vivarium.core.emitter import get_emitter
+from vivarium.core.emitter import get_emitter, Emitter
 from vivarium.core.process import (
     Process,
     ParallelProcess,
     Step,
 )
+from vivarium.core.composer import Composite
 from vivarium.core.serialize import serialize_value
 from vivarium.library.topology import (
     get_in,
@@ -355,7 +356,7 @@ class _StepGraph:
 class Engine:
     def __init__(
             self,
-            composite: Optional[Topology] = None,
+            composite: Optional[Composite] = None,
             processes: Optional[Processes] = None,
             steps: Optional[Steps] = None,
             flow: Optional[Flow] = None,
@@ -435,47 +436,8 @@ class Engine:
         self.initial_state = initial_state or {}
         self.emit_step = emit_step
 
-        # get the processes, topology, and store
-        if processes and topology and not store:
-            self.processes = processes
-            self.steps = steps or {}
-            self.flow = flow or {}
-            self.topology = topology
-            # initialize the store
-            self.state: Store = generate_state(
-                self.processes,
-                self.topology,
-                self.initial_state,
-                self.steps,
-                self.flow,
-            )
-
-        elif composite:
-            self.processes = composite.processes
-            self.steps = composite.steps
-            self.flow = composite.flow
-            self.topology = composite.topology
-            # initialize the store
-            self.state: Store = generate_state(
-                self.processes,
-                self.topology,
-                self.initial_state,
-                self.steps,
-                self.flow,
-            )
-
-        elif store:
-            self.state = store
-            # build the processes' views
-            self.state.build_topology_views()
-            # get processes and topology from the store
-            self.processes = self.state.get_processes()
-            self.steps = self.state.get_steps() or {}
-            self.flow = self.state.get_flow() or {}
-            self.topology = self.state.get_topology()
-        else:
-            raise Exception(
-                'load either store or (processes and topology) into Engine')
+        # make the processes, topology, steps, flow, and store
+        self._make_store(store, composite, processes, steps, flow, topology)
 
         # display settings
         self.experiment_name = experiment_name or self.experiment_id
@@ -505,7 +467,7 @@ class Engine:
         else:
             emitter_config = dict(emitter_config)
         emitter_config['experiment_id'] = self.experiment_id
-        self.emitter = get_emitter(emitter_config)
+        self.emitter: Emitter = get_emitter(emitter_config)
 
         self.emit_topology = emit_topology
         self.emit_processes = emit_processes
@@ -535,6 +497,55 @@ class Engine:
 
         log.info('\nTOPOLOGY:')
         log.info(pf(self.topology))
+
+    def _make_store(
+            self,
+            store: Store = None,
+            composite: Composite = None,
+            processes: Processes = None,
+            steps: Steps = None,
+            flow: Flow = None,
+            topology: Topology = None,
+    ) -> None:
+        """
+        If a :term:`Store` is provided, retrieve the :term:`Processes`,
+        :term:`Steps`, :term:`Flow`, and :term:`Topology`. If a :term:`Composite`
+        or its attributes are provided, create a store. These are interchangeable.
+        """
+        if not store:
+            if processes and topology:
+                self.processes = processes
+                self.steps = steps or {}
+                self.flow = flow or {}
+                self.topology = topology
+            elif composite:
+                self.processes = composite.processes
+                self.steps = composite.steps
+                self.flow = composite.flow
+                self.topology = composite.topology
+            else:
+                raise Exception(
+                    'load either composite, store, or '
+                    '(processes and topology) into Engine')
+
+            # initialize the store
+            self.state: Store = generate_state(
+                self.processes,
+                self.topology,
+                self.initial_state,
+                self.steps,
+                self.flow,
+            )
+
+        else:
+            self.state = store
+            # build the processes' views
+            self.state.build_topology_views()
+            # get processes and topology from the store
+            self.processes = self.state.get_processes()
+            self.steps = self.state.get_steps() or {}
+            self.flow = self.state.get_flow() or {}
+            self.topology = self.state.get_topology()
 
     def _add_step_path(
             self,
