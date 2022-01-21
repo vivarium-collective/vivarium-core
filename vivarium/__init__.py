@@ -38,9 +38,9 @@ from vivarium.processes.mass_adaptor import (
 # import updaters, dividers, serializers
 from vivarium.core.registry import (
     update_accumulate, update_set, update_merge, update_null,
-    update_nonnegative_accumulate, divide_set, divide_split,
-    divide_split_dict, divide_zero, assert_no_divide, divide_binomial,
-    divide_set_value,
+    update_nonnegative_accumulate, update_dictionary,
+    divide_set, divide_split, divide_split_dict, divide_zero,
+    assert_no_divide, divide_null, divide_binomial, divide_set_value,
     NumpySerializer, NumpyScalarSerializer, UnitsSerializer,
     ProcessSerializer, ComposerSerializer, FunctionSerializer,
 )
@@ -77,6 +77,7 @@ updater_registry.register('null', update_null)
 updater_registry.register('merge', update_merge)
 updater_registry.register(
     'nonnegative_accumulate', update_nonnegative_accumulate)
+updater_registry.register('dict_value', update_dictionary)
 
 # register dividers
 divider_registry.register('binomial', divide_binomial)
@@ -86,6 +87,7 @@ divider_registry.register('split_dict', divide_split_dict)
 divider_registry.register('zero', divide_zero)
 divider_registry.register('no_divide', assert_no_divide)
 divider_registry.register('set_value', divide_set_value)
+divider_registry.register('null', divide_null)
 
 # register serializers
 serializer_registry.register('numpy', NumpySerializer())

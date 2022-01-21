@@ -19,7 +19,7 @@ from vivarium.library.dict_utils import (
     make_path_dict,
     deep_merge,
 )
-from vivarium.library.topology import assoc_path
+from vivarium.library.topology import assoc_path, get_in, paths_to_dict
 from vivarium.core.serialize import deserialize_value
 from vivarium.core.registry import emitter_registry
 
@@ -174,7 +174,7 @@ class Emitter:
         """
         print(data)
 
-    def get_data(self) -> dict:
+    def get_data(self, query: list = None) -> dict:
         """Get the emitted data.
 
         Returns:
@@ -182,9 +182,10 @@ class Emitter:
             :term:`raw data` format. For this particular class, an empty
             dictionary is returned.
         """
+        _ = query
         return {}
 
-    def get_data_deserialized(self) -> Any:
+    def get_data_deserialized(self, query: list = None) -> Any:
         """Get the emitted data with variable values deserialized.
 
         Returns:
@@ -192,9 +193,9 @@ class Emitter:
             :term:`raw data` format. Before being returned, serialized
             values in the data are deserialized.
         """
-        return deserialize_value(self.get_data())
+        return deserialize_value(self.get_data(query))
 
-    def get_data_unitless(self) -> Any:
+    def get_data_unitless(self, query: list = None) -> Any:
         """Get the emitted data with units stripped from variable values.
 
         Returns:
@@ -202,25 +203,25 @@ class Emitter:
             :term:`raw data` format. Before being returned, units are
             stripped from values.
         """
-        return remove_units(self.get_data_deserialized())
+        return remove_units(self.get_data_deserialized(query))
 
-    def get_path_timeseries(self) -> dict:
+    def get_path_timeseries(self, query: list = None) -> dict:
         """Get the deserialized data as a :term:`path timeseries`.
 
         Returns:
             The deserialized emitted data, formatted as a
             :term:`path timeseries`.
         """
-        return path_timeseries_from_data(self.get_data_deserialized())
+        return path_timeseries_from_data(self.get_data_deserialized(query))
 
-    def get_timeseries(self) -> dict:
+    def get_timeseries(self, query: list = None) -> dict:
         """Get the deserialized data as an :term:`embedded timeseries`.
 
         Returns:
             The deserialized emitted data, formatted as an
             :term:`embedded timeseries`.
         """
-        return timeseries_from_data(self.get_data_deserialized())
+        return timeseries_from_data(self.get_data_deserialized(query))
 
 
 class NullEmitter(Emitter):
@@ -254,8 +255,17 @@ class RAMEmitter(Emitter):
                 key: value for key, value in emit_data.items()
                 if key not in ['time']}
 
-    def get_data(self) -> dict:
+    def get_data(self, query: list = None) -> dict:
         """ Return the accumulated timeseries history of "emitted" data. """
+        if query:
+            returned_data = {}
+            for t, data in self.saved_data.items():
+                paths_data = []
+                for path in query:
+                    path_data = (path, get_in(data, path))
+                    paths_data.append(path_data)
+                returned_data[t] = paths_to_dict(paths_data)
+            return returned_data
         return self.saved_data
 
 
@@ -323,8 +333,8 @@ class DatabaseEmitter(Emitter):
             d['assembly_id'] = assembly_id
             table.insert_one(d)
 
-    def get_data(self) -> dict:
-        return get_history_data_db(self.history, self.experiment_id)
+    def get_data(self, query: list = None) -> dict:
+        return get_history_data_db(self.history, self.experiment_id, query)
 
 
 def get_experiment_database(
@@ -386,10 +396,34 @@ def assemble_data(data: list) -> dict:
 
 
 def get_history_data_db(
-        history_collection: Any, experiment_id: Any) -> Dict[float, dict]:
-    """Query MongoDB for history data."""
-    query = {'experiment_id': experiment_id}
-    raw_data = list(history_collection.find(query))
+        history_collection: Any,
+        experiment_id: Any,
+        query: list = None,
+) -> Dict[float, dict]:
+    """Query MongoDB for history data.
+
+    Args:
+        history_collection: a MongoDB collection
+        experiment_id: the experiment id which is being retrieved
+        query: a list of tuples pointing to fields within the experiment data.
+            In the format: [('path', 'to', 'field1'), ('path', 'to', 'field2')]
+
+    Returns:
+        data (dict)
+    """
+
+    experiment_query = {'experiment_id': experiment_id}
+
+    projection = None
+    if query:
+        projection = {f"data.{'.'.join(field)}": 1 for field in query}
+        projection['data.time'] = 1
+
+    cursor = history_collection.find(experiment_query, projection)
+    raw_data = []
+    for document in cursor:
+        if document['data'].get('time'):
+            raw_data.append(document)
 
     # re-assemble data
     assembly = assemble_data(raw_data)
@@ -422,13 +456,17 @@ def get_local_client(host: str, port: Any, database_name: str) -> Any:
     return client[database_name]
 
 
-def data_from_database(experiment_id: str, client: Any) -> Tuple[dict, Any]:
+def data_from_database(
+        experiment_id: str,
+        client: Any,
+        query: list = None,
+) -> Tuple[dict, Any]:
     """Fetch something from a MongoDB."""
 
     # Retrieve environment config
     config_collection = client.configuration
-    query = {'experiment_id': experiment_id}
-    experiment_configs = list(config_collection.find(query))
+    experiment_query = {'experiment_id': experiment_id}
+    experiment_configs = list(config_collection.find(experiment_query))
 
     # Re-assemble experiment_config
     experiment_assembly = assemble_data(experiment_configs)
@@ -438,7 +476,7 @@ def data_from_database(experiment_id: str, client: Any) -> Tuple[dict, Any]:
 
     # Retrieve timepoint data
     history = client.history
-    data = get_history_data_db(history, experiment_id)
+    data = get_history_data_db(history, experiment_id, query)
 
     return data, experiment_config
 

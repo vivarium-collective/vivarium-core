@@ -27,7 +27,7 @@ Each :term:`updater` is defined as a function whose name begins with
 Updater API
 ===========
 
-An updater function MUST have a name that begins with ``update_``. The
+An updater function SHOULD have a name that begins with ``update_``. The
 function MUST accept exactly three positional arguments: the first MUST
 be the current value of the variable (i.e. before applying the update),
 the second MUST be the value associated with the variable in the update,
@@ -48,17 +48,20 @@ states from the mother cell's state. Divider names are registered in
 Divider API
 ===========
 
-Each divider function MUST have a name prefixed with ``_divide``. The
+Each divider function SHOULD have a name prefixed with ``divide_``. The
 function MUST accept a single positional argument, the value of the
 variable in the mother cell. It SHOULD accept no other arguments. The
-function MUST return a :py:class:`list` with two elements: the values of
-the variables in each of the daughter cells.
+function MUST return either:
+
+1. A :py:class:`list` with two elements: the values of the variables in
+   each of the daughter cells.
+2. ``None``, in which case division will be skipped for that variable.
 
 .. note:: Dividers MAY not be deterministic and MAY not be symmetric.
     For example, a divider splitting an odd, integer-valued value may
     randomly decide which daughter cell receives the remainder.
 """
-
+import copy
 import random
 
 import numpy as np
@@ -129,7 +132,7 @@ def update_merge(current_value, new_value):
     for k, v in current_value.items():
         new = new_value.get(k)
         if isinstance(new, dict):
-            update[k] = deep_merge(dict(v), new)
+            update[k] = deep_merge(copy.deepcopy(v), new)
         else:
             update[k] = new
     return update
@@ -176,6 +179,32 @@ def update_nonnegative_accumulate(current_value, new_value):
         return updated_value
     else:
         return 0 * updated_value
+
+
+def update_dictionary(current, update):
+    """Dictionary Updater
+    Updater that translates _add and _delete -style updates
+    into operations on a dictionary.
+
+    Expects current to be a dictionary, with no restriction on the types of objects
+    stored within it, and no defaults values.
+    """
+    result = current
+
+    for key, value in update.items():
+        if key == "_add":
+            for added_value in value:
+                added_key = added_value["key"]
+                added_state = added_value["state"]
+                result[added_key] = added_state
+        elif key == "_delete":
+            for k in value:
+                del result[k]
+        elif key in result:
+            result[key].update(value)
+        else:
+            raise Exception(f"Invalid dict_value_updater key: {key}")
+    return result
 
 
 # Divider functions
@@ -276,6 +305,17 @@ def assert_no_divide(state):
         AssertionError: If the variable is divided
     """
     raise AssertionError('Variable cannot be divided')
+
+
+def divide_null(state):
+    """Divider that causes the variable to be skipped during division.
+
+    Returns:
+        ``None`` so that no divided values are provided to the daughter
+        cells. This is useful for process objects, which are handled
+        separately during division.
+    """
+    return None
 
 
 # Serializers
@@ -406,7 +446,7 @@ class UnitsSerializer(Serializer):
 class ProcessSerializer(Serializer):
     """Serializer for processes.
 
-    Currently only supports serialization (for emtting simulation
+    Currently only supports serialization (for emitting simulation
     configs).
     """
     def serialize(self, data):

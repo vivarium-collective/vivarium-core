@@ -164,7 +164,6 @@ def inverse_topology(outer, update, topology, inverse=None):
 
     for key, path in topology.items():
         if key == '*':
-
             if isinstance(path, dict):
                 node = inverse
                 if '_path' in path:
@@ -199,7 +198,7 @@ def inverse_topology(outer, update, topology, inverse=None):
                     path = without(path, '_path')
 
                     for update_key in update[key].keys():
-                        if update_key not in path:
+                        if update_key not in path and '*' not in path:
                             path[update_key] = (update_key,)
                 else:
                     inner = outer

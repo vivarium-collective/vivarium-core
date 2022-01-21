@@ -6,6 +6,8 @@ Engine
 Engine runs the simulation.
 """
 
+import cProfile
+import pstats
 import os
 import logging as log
 import pprint
@@ -16,33 +18,31 @@ import math
 import datetime
 import time as clock
 import uuid
-import warnings
 
 import networkx as nx
 
-from vivarium.composites.toys import Proton, Electron, Sine, PoQo, ToyDivider
-from vivarium.core.store import hierarchy_depth, Store, generate_state
-from vivarium.core.emitter import get_emitter
+from vivarium.core.store import (
+    hierarchy_depth, Store, generate_state, view_values)
+from vivarium.core.emitter import get_emitter, Emitter
 from vivarium.core.process import (
     Process,
     ParallelProcess,
     Step,
-    Deriver,
 )
+from vivarium.core.composer import Composite
 from vivarium.core.serialize import serialize_value
-from vivarium.core.composer import Composer
 from vivarium.library.topology import (
+    get_in,
     delete_in,
     assoc_path,
     inverse_topology,
     normalize_path,
 )
-from vivarium.library.units import units
 from vivarium.core.types import (
-    HierarchyPath, Topology, Schema, State, Update, Processes, Steps,
+    HierarchyPath, Topology, State, Update, Processes, Steps,
     Flow)
 
-pretty = pprint.PrettyPrinter(indent=2, sort_dicts=False)
+pretty = pprint.PrettyPrinter(indent=2)
 
 
 def pp(x: Any) -> None:
@@ -132,6 +132,12 @@ def invoke_process(
     return process.next_update(interval, states)
 
 
+def empty_front(t: float) -> Dict[str, Union[float, dict]]:
+    return {
+        'time': t,
+        'update': {}}
+
+
 class Defer:
     def __init__(
             self,
@@ -219,7 +225,7 @@ class InvokeProcess:
 
 
 class _StepGraph:
-    '''A dependency graph of :term:`steps`.
+    """A dependency graph of :term:`steps`.
 
     A step is just a Process object that has dependencies on other
     steps. Unlike processes, which can be run in any order, steps run
@@ -240,7 +246,7 @@ class _StepGraph:
             sequentially and before the steps in ``graph``. This is
             where we store legacy :term:`derivers` for
             backwards-compatibility.
-    '''
+    """
 
     def __init__(
             self,
@@ -266,7 +272,7 @@ class _StepGraph:
             self,
             path: HierarchyPath,
             dependencies: Iterable[HierarchyPath]) -> None:
-        '''Add a step to the graph.
+        """Add a step to the graph.
 
         Args:
             path: The step object's path in the hierarchy.
@@ -275,7 +281,7 @@ class _StepGraph:
         Raises:
             ValueError: If the graph produced by adding the step is not
                 a DAG.
-        '''
+        """
         self._graph.add_node(path)
         for dependency in dependencies:
             self._graph.add_edge(dependency, path)
@@ -284,7 +290,7 @@ class _StepGraph:
     def add_sequential(
             self,
             path: HierarchyPath) -> None:
-        '''Add a step that is meant to run sequentially.
+        """Add a step that is meant to run sequentially.
 
         Legacy steps (:term:`derivers`) were meant to run sequentially
         instead of being provided as a dependency graph. To support
@@ -294,12 +300,12 @@ class _StepGraph:
 
         Args:
             path: The path to the step in the hierarchy.
-        '''
+        """
         self._sequential_steps.append(path)
         self._validate()
 
     def get_execution_layers(self) -> List[Set[HierarchyPath]]:
-        '''Get step execution layers, with steps represnted by paths.
+        """Get step execution layers, with steps represnted by paths.
 
         An execution layer is a set of steps that can be executed in
         parallel. The graph's execution layers are an ordered list of
@@ -316,18 +322,18 @@ class _StepGraph:
         Returns:
             An ordered list of the execution layers, with each step
             represented by its path.
-        '''
+        """
         layers = nx.topological_generations(self._graph)
         to_return = [set([step]) for step in self._sequential_steps]
         to_return += [set(layer) for layer in layers]
         return to_return
 
     def remove(self, path: HierarchyPath) -> None:
-        '''Delete a step based on its path.
+        """Delete a step based on its path.
 
         Args:
             path: Hierarhcy path of the step to delete.
-        '''
+        """
         if path in self._sequential_steps:
             self._sequential_steps.remove(path)
             return
@@ -337,11 +343,11 @@ class _StepGraph:
             self._graph.remove_node(path_to_delete)
 
     def copy(self) -> '_StepGraph':
-        '''Create a copy of self.
+        """Create a copy of self.
 
         Returns:
             A new _StepGraph with a copy of self's graph.
-        '''
+        """
         new = self.__class__(
             self._graph.copy(), self._sequential_steps.copy())
         return new
@@ -350,6 +356,7 @@ class _StepGraph:
 class Engine:
     def __init__(
             self,
+            composite: Optional[Composite] = None,
             processes: Optional[Processes] = None,
             steps: Optional[Steps] = None,
             flow: Optional[Flow] = None,
@@ -368,10 +375,15 @@ class Engine:
             emit_step: float = 1,
             display_info: bool = True,
             progress_bar: bool = False,
+            profile: bool = False,
     ) -> None:
         """Defines simulations
 
         Args:
+            composite: A :term:`Composite`, which specifies the processes,
+                steps, flow, and topology. This is an alternative to passing
+                in processes and topology dict, which can not be loaded
+                at the same time.
             processes: A dictionary that maps :term:`process` names to
                 process objects. You will usually get this from the
                 ``processes`` key of the dictionary from
@@ -411,37 +423,21 @@ class Engine:
             progress_bar: shows a progress bar
             emit_config: If True, this will emit the serialized
                 processes, topology, and initial state.
+            profile: Whether to profile the simulation with cProfile.
         """
+        self.profiler: Optional[cProfile.Profile] = None
+        if profile:
+            self.profiler = cProfile.Profile()
+            self.profiler.enable()
+        self.stats_objs: List[pstats.Stats] = []
+        self.stats: Optional[pstats.Stats] = None
 
         self.experiment_id = experiment_id or str(uuid.uuid1())
         self.initial_state = initial_state or {}
         self.emit_step = emit_step
 
-        # get the processes, topology, and store
-        if processes and topology and not store:
-            self.processes = processes
-            self.steps = steps or {}
-            self.flow = flow or {}
-            self.topology = topology
-            # initialize the store
-            self.state: Store = generate_state(
-                self.processes,
-                self.topology,
-                self.initial_state,
-                self.steps,
-                self.flow,
-            )
-
-        elif store:
-            self.state = store
-            # get processes and topology from the store
-            self.processes = self.state.get_processes()
-            self.steps = self.state.get_steps() or {}
-            self.flow = self.state.get_flow() or {}
-            self.topology = self.state.get_topology()
-        else:
-            raise Exception(
-                'load either store or (processes and topology) into Engine')
+        # make the processes, topology, steps, flow, and store
+        self._make_store(store, composite, processes, steps, flow, topology)
 
         # display settings
         self.experiment_name = experiment_name or self.experiment_id
@@ -471,14 +467,20 @@ class Engine:
         else:
             emitter_config = dict(emitter_config)
         emitter_config['experiment_id'] = self.experiment_id
-        self.emitter = get_emitter(emitter_config)
+        self.emitter: Emitter = get_emitter(emitter_config)
 
         self.emit_topology = emit_topology
         self.emit_processes = emit_processes
         self.emit_config = emit_config
 
         # initialize global time
-        self.experiment_time = 0.0
+        self.global_time = 0.0
+
+        # front tracks how far each process has been simulated in time,
+        # and also holds the processes' updates before they are applied.
+        self.front: Dict = {
+            path: empty_front(self.global_time)
+            for path in self.process_paths}
 
         # run the steps
         self._run_steps()
@@ -496,6 +498,55 @@ class Engine:
         log.info('\nTOPOLOGY:')
         log.info(pf(self.topology))
 
+    def _make_store(
+            self,
+            store: Store = None,
+            composite: Composite = None,
+            processes: Processes = None,
+            steps: Steps = None,
+            flow: Flow = None,
+            topology: Topology = None,
+    ) -> None:
+        """
+        If a :term:`Store` is provided, retrieve the :term:`Processes`,
+        :term:`Steps`, :term:`Flow`, and :term:`Topology`. If a
+        :term:`Composite` or its attributes are provided, create a
+        store. These are interchangeable.
+        """
+        if not store:
+            if processes and topology:
+                self.processes = processes
+                self.steps = steps or {}
+                self.flow = flow or {}
+                self.topology = topology
+            elif composite:
+                self.processes = composite.processes
+                self.steps = composite.steps
+                self.flow = composite.flow
+                self.topology = composite.topology
+            else:
+                raise Exception(
+                    'load either composite, store, or '
+                    '(processes and topology) into Engine')
+
+            # initialize the store
+            self.state: Store = generate_state(
+                self.processes,
+                self.topology,
+                self.initial_state,
+                self.steps,
+                self.flow,
+            )
+
+        else:
+            self.state = store
+            # build the processes' views
+            self.state.build_topology_views()
+            # get processes and topology from the store
+            self.processes = self.state.get_processes()
+            self.steps = self.state.get_steps() or {}
+            self.flow = self.state.get_flow() or {}
+            self.topology = self.state.get_topology()
 
     def _add_step_path(
             self,
@@ -504,6 +555,7 @@ class Engine:
             # None if deriver, empty list if no dependencies.
             relative_dependencies: Optional[Sequence[HierarchyPath]],
     ) -> None:
+        assert step.is_step()
         self._step_paths[path] = step
         if relative_dependencies is None:
             self._step_graph.add_sequential(path)
@@ -521,15 +573,14 @@ class Engine:
             flow: Flow,
     ) -> None:
         if process.is_step():
-            warnings.warn(
-                f'Found a step {path} in the processes dict. This is '
-                'deprecated. Steps should be specified in the steps '
-                'dict instead.',
-                category=FutureWarning,
-            )
+            # warnings.warn(
+            #     f'Found a step {path} in the processes dict. This is '
+            #     'deprecated. Steps should be specified in the steps '
+            #     'dict instead.',
+            #     category=FutureWarning,
+            # )
             step = cast(Step, process)
-            name = path[-1]
-            self._add_step_path(step, path, flow.get(name))
+            self._add_step_path(step, path, get_in(flow, path))
         else:
             self.process_paths[path] = process
 
@@ -549,8 +600,7 @@ class Engine:
     ) -> None:
         tree = hierarchy_depth(steps)
         for path, step in tree.items():
-            name = path[-1]
-            self._add_step_path(step, path, flow.get(name))
+            self._add_step_path(step, path, get_in(flow, path))
 
     def emit_configuration(self) -> None:
         """Emit experiment configuration."""
@@ -578,7 +628,7 @@ class Engine:
         """
         data = self.state.emit_data()
         data.update({
-            'time': self.experiment_time})
+            'time': self.global_time})
         emit_config = {
             'table': 'history',
             'data': serialize_value(data)}
@@ -613,7 +663,8 @@ class Engine:
         if process.parallel:
             # add parallel process if it doesn't exist
             if path not in self.parallel:
-                self.parallel[path] = ParallelProcess(process)
+                self.parallel[path] = ParallelProcess(
+                    process, bool(self.profiler))
             # trigger the computation of the parallel process
             self.parallel[path].update(interval, states)
 
@@ -666,7 +717,6 @@ class Engine:
     def process_state(
             self,
             path: HierarchyPath,
-            process: Process,
     ) -> Tuple[Store, State]:
         """Get the simulation state for a process's ``next_update``.
 
@@ -675,17 +725,20 @@ class Engine:
 
         Args:
             path: Path to the process.
-            process: The process.
 
         Returns:
             Tuple of the store at ``path`` and a collection of state
             variables in the form the process expects.
         """
         store = self.state.get_path(path)
+        assert isinstance(store.value, Process)
 
         # translate the values from the tree structure into the form
         # that this process expects, based on its declared topology
-        states = store.outer.schema_topology(process.schema, store.topology)
+        topology_view = store.topology_view
+        assert topology_view is not None, \
+            f"store at path {path} does not have a topology_view"
+        states = view_values(topology_view)
 
         return store, states
 
@@ -706,7 +759,7 @@ class Engine:
             Tuple of the deferred update (relative to the root of
             ``path``) and the store at ``path``.
         """
-        store, states = self.process_state(path, process)
+        store, states = self.process_state(path)
         if process.update_condition(interval, states):
             return self._process_update(
                 path, process, store, states, interval)
@@ -716,7 +769,7 @@ class Engine:
             self,
             update: Update,
             state: Store
-    ) -> None:
+    ) -> bool:
         """Apply an update to the simulation state.
 
         Args:
@@ -724,14 +777,17 @@ class Engine:
             state: The store to which the update is relative (usually
                 root of simulation state. We need this so to preserve
                 the "perspective" from which the update was generated.
+
+        Return:
+            a bool indicating whether the topology_views expired.
         """
 
         if not update:
-            return
+            return False
 
         (
             topology_updates, process_updates, step_updates,
-            flow_updates, deletions
+            flow_updates, deletions, view_expire
         ) = self.state.apply_update(update, state)
 
         flow_update_dict = dict(flow_updates)
@@ -751,10 +807,11 @@ class Engine:
                 assoc_path(self.steps, path, step)
                 self._add_step_path(step, path, dependencies)
 
-
         if deletions:
             for deletion in deletions:
                 self.delete_path(deletion)
+
+        return view_expire
 
     def delete_path(
             self,
@@ -784,7 +841,7 @@ class Engine:
                 del self._step_paths[path]
 
     def _run_steps(self) -> None:
-        '''Run all the steps in the simulation.'''
+        """Run all the steps in the simulation."""
         layers = self._step_graph.get_execution_layers()
         for layer in layers:
             deferred_updates: List[Tuple[Defer, Store]] = []
@@ -801,8 +858,14 @@ class Engine:
                 update, store = self.calculate_update(
                     path, step, 0)
                 deferred_updates.append((update, store))
+
+            view_expire = False
             for update, store in deferred_updates:
-                self.apply_update(update.get(), store)
+                view_expire_update = self.apply_update(update.get(), store)
+                view_expire = view_expire or view_expire_update
+
+            if view_expire:
+                self.state.build_topology_views()
 
     def send_updates(
             self,
@@ -815,9 +878,14 @@ class Engine:
                 ``state`` is the store from whose perspective the update
                 was generated.
         """
+        view_expire = False
         for update_tuple in update_tuples:
             update, state = update_tuple
-            self.apply_update(update.get(), state)
+            view_expire_update = self.apply_update(update.get(), state)
+            view_expire = view_expire or view_expire_update
+
+        if view_expire:
+            self.state.build_topology_views()
 
         self._run_steps()
 
@@ -825,102 +893,137 @@ class Engine:
             self,
             interval: float
     ) -> None:
-        """Run each process for the given interval and update the states.
         """
-
-        time = 0.0
-        emit_time = self.emit_step
+        Run each process for the given interval and force them to complete
+        at the end of the interval.
+        """
         clock_start = clock.time()
+        self.run_for(interval=interval, force_complete=True)
+        self.check_complete()
+        runtime = clock.time() - clock_start
+        if self.display_info:
+            self.print_summary(runtime)
 
-        def empty_front(t: float) -> Dict[str, Union[float, dict]]:
-            return {
-                'time': t,
-                'update': {}}
+    def complete(self) -> None:
+        """Force all processes to complete at the current global time"""
+        self.run_for(interval=0, force_complete=True)
+        self.check_complete()
 
-        # keep track of which processes have simulated until when
-        front: Dict = {}
+    def check_complete(self) -> None:
+        """Check that all processes completed"""
+        for path, advance in self.front.items():
+            assert advance['time'] == self.global_time, \
+                f"the process at path {path} is at time {advance['time']} " \
+                f"instead of completing at global time {self.global_time}"
+            assert len(advance['update']) == 0, \
+                f"the process at path {path} is an unapplied update"
 
-        while time < interval:
+    def run_for(
+            self,
+            interval: float,
+            force_complete: bool = False,
+    ) -> None:
+        """Run each process within the given interval and update their states.
+
+        Args:
+            interval: the amount of time to simulate the composite.
+            force_complete: a bool indicating whether to force processes
+                to complete at the end of the interval.
+        """
+        end_time = self.global_time + interval
+        emit_time = self.global_time + self.emit_step
+
+        while self.global_time < end_time or force_complete:
             full_step = math.inf
 
             # find any parallel processes that were removed and terminate them
             for terminated in self.parallel.keys() - (
                     self.process_paths.keys() | self._step_paths.keys()):
                 self.parallel[terminated].end()
+                stats = self.parallel[terminated].stats
+                if stats:
+                    self.stats_objs.append(stats)
                 del self.parallel[terminated]
 
-            # setup a way to track how far each process has simulated in time
-            front = {
+            # remove deleted process paths from the front
+            self.front = {
                 path: progress
-                for path, progress in front.items()
+                for path, progress in self.front.items()
                 if path in self.process_paths}
 
+            # processes at quiet paths don't meet their execution condition,
+            # but still advance in time
             quiet_paths = []
 
             # go through each process and find those that are able to update
-            # based on their current time being less than the global time.
+            # based on their most recent update time being less than global time
             for path, process in self.process_paths.items():
-                if path not in front:
-                    front[path] = empty_front(time)
-                process_time = front[path]['time']
+                if path not in self.front:
+                    self.front[path] = empty_front(self.global_time)
+                process_time = self.front[path]['time']
 
-                if process_time <= time:
+                if process_time <= self.global_time:
 
                     # get the time step
-                    store, states = self.process_state(path, process)
-                    requested_timestep = process.calculate_timestep(states)
+                    store, states = self.process_state(path)
+                    process_timestep = process.calculate_timestep(states)
 
-                    # progress only to the end of interval
-                    future = min(process_time + requested_timestep, interval)
-                    process_timestep = future - process_time
-
-                    # calculate the update for this process
-                    if process.update_condition(process_timestep, states):
-                        update = self._process_update(
-                            path, process, store, states, process_timestep)
-
-                        # store the update to apply at its projected time
-                        front[path]['time'] = future
-                        front[path]['update'] = update
-
-                        # absolute timestep
-                        timestep = future - time
-                        if timestep < full_step:
-                            full_step = timestep
+                    if force_complete:
+                        # force the process to complete at end_time
+                        future = min(process_time + process_timestep, end_time)
                     else:
-                        # mark this path as "quiet" so its time can be advanced
-                        front[path]['update'] = (EmptyDefer(), store)
-                        quiet_paths.append(path)
+                        future = process_time + process_timestep
+
+                    if future <= end_time:
+                        # calculate the update for this process
+                        if process.update_condition(process_timestep, states):
+                            update = self._process_update(
+                                path, process, store, states, process_timestep)
+
+                            # update front, to be applied at its projected time
+                            self.front[path]['time'] = future
+                            self.front[path]['update'] = update
+
+                        else:
+                            # mark this path "quiet" so its time can be advanced
+                            self.front[path]['update'] = (EmptyDefer(), store)
+                            quiet_paths.append(path)
+
+                    # absolute timestep
+                    timestep = future - self.global_time
+                    if timestep < full_step:
+                        full_step = timestep
                 else:
                     # don't shoot past processes that didn't run this time
-                    process_delay = process_time - time
+                    process_delay = process_time - self.global_time
                     if process_delay < full_step:
                         full_step = process_delay
 
+            # apply updates based on process times in self.front
             if full_step == math.inf:
                 # no processes ran, jump to next process
-                next_event = interval
-                for path in front.keys():
-                    if front[path]['time'] < next_event:
-                        next_event = front[path]['time']
-                time = next_event
-            else:
-                # at least one process ran
+                next_event = end_time
+                for path in self.front.keys():
+                    if self.front[path]['time'] < next_event:
+                        next_event = self.front[path]['time']
+                self.global_time = next_event
+
+            elif self.global_time + full_step <= end_time:
+                # at least one process ran within the interval
                 # increase the time, apply updates, and continue
-                time += full_step
-                self.experiment_time += full_step
+                self.global_time += full_step
 
-                # advance all existing paths that didn't meet
-                # their execution condition to current time
+                # advance all quiet processes to current time
                 for quiet in quiet_paths:
-                    front[quiet]['time'] = time
+                    self.front[quiet]['time'] = self.global_time
 
+                # apply updates that are behind global time
                 updates = []
                 paths = []
-                for path, advance in front.items():
-                    if advance['time'] <= time:
+                for path, advance in self.front.items():
+                    if advance['time'] <= self.global_time \
+                            and advance['update']:
                         new_update = advance['update']
-                        # new_update['_path'] = path
                         updates.append(new_update)
                         advance['update'] = {}
                         paths.append(path)
@@ -929,32 +1032,39 @@ class Engine:
 
                 # display and emit
                 if self.progress_bar:
-                    print_progress_bar(time, interval)
+                    print_progress_bar(self.global_time, end_time)
                 if self.emit_step == 1:
                     self.emit_data()
-                elif emit_time <= time:
-                    while emit_time <= time:
+                elif emit_time <= self.global_time:
+                    while emit_time <= self.global_time:
                         self.emit_data()
                         emit_time += self.emit_step
 
-        # post-simulation
-        for advance in front.values():
-            assert advance['time'] == time == interval
-            assert len(advance['update']) == 0
+            else:
+                # all processes have run past the interval
+                self.global_time = end_time
 
-        clock_finish = clock.time() - clock_start
-
-        if self.display_info:
-            self.print_summary(clock_finish)
+            if force_complete and self.global_time == end_time:
+                force_complete = False
 
     def end(self) -> None:
         """Terminate all processes running in parallel.
 
         This MUST be called at the end of any simulation with parallel
-        processes.
+        processes. This function also ends profiling and computes
+        profiling stats, including stats from parallel sub-processes.
+        These stats are stored in ``self.stats``.
         """
         for parallel in self.parallel.values():
             parallel.end()
+            if parallel.stats:
+                self.stats_objs.append(parallel.stats)
+        if self.profiler:
+            self.profiler.disable()
+            total_stats = pstats.Stats(self.profiler)
+            for stats in self.stats_objs:
+                total_stats.add(stats)
+            self.stats = total_stats
 
     def print_display(self) -> None:
         """Print simulation metadata."""
@@ -970,13 +1080,13 @@ class Engine:
 
     def print_summary(
             self,
-            clock_finish: float
+            runtime: float
     ) -> None:
         """Print summary of simulation runtime."""
-        if clock_finish < 1:
-            print('Completed in {:.6f} seconds'.format(clock_finish))
+        if runtime < 1:
+            print('Completed in {:.6f} seconds'.format(runtime))
         else:
-            print('Completed in {:.2f} seconds'.format(clock_finish))
+            print('Completed in {:.2f} seconds'.format(runtime))
 
 
 def print_progress_bar(
@@ -985,7 +1095,7 @@ def print_progress_bar(
         decimals: float = 1,
         length: int = 50,
 ) -> None:
-    """Call in a loop to create terminal progress bar
+    """Create terminal progress bar
 
     Args:
         iteration: Current iteration
@@ -1002,774 +1112,3 @@ def print_progress_bar(
     # Print New Line on Complete
     if iteration == total:
         print()
-
-
-def _make_proton(
-        parallel: bool = False
-) -> Dict[str, Any]:
-    processes = {
-        'proton': Proton({'_parallel': parallel}),
-        'electrons': {
-            'a': {
-                'electron': Electron({'_parallel': parallel})},
-            'b': {
-                'electron': Electron()}}}
-
-    spin_path = ('internal', 'spin')
-    radius_path = ('structure', 'radius')
-
-    topology = {
-        'proton': {
-            'radius': radius_path,
-            'quarks': ('internal', 'quarks'),
-            'electrons': {
-                '_path': ('electrons',),
-                '*': {
-                    'orbital': ('shell', 'orbital'),
-                    'spin': spin_path}}},
-        'electrons': {
-            'a': {
-                'electron': {
-                    'spin': spin_path,
-                    'proton': {
-                        '_path': ('..', '..'),
-                        'radius': radius_path}}},
-            'b': {
-                'electron': {
-                    'spin': spin_path,
-                    'proton': {
-                        '_path': ('..', '..'),
-                        'radius': radius_path}}}}}
-
-    initial_state = {
-        'structure': {
-            'radius': 0.7},
-        'internal': {
-            'quarks': {
-                'x': {
-                    'color': 'green',
-                    'spin': 'up'},
-                'y': {
-                    'color': 'red',
-                    'spin': 'up'},
-                'z': {
-                    'color': 'blue',
-                    'spin': 'down'}}}}
-
-    return {
-        'processes': processes,
-        'topology': topology,
-        'initial_state': initial_state}
-
-
-def test_recursive_store() -> None:
-    environment_config = {
-        'environment': {
-            'temperature': {
-                '_default': 0.0,
-                '_updater': 'accumulate'},
-            'fields': {
-                (0, 1): {
-                    'enzymeX': {
-                        '_default': 0.0,
-                        '_updater': 'set'},
-                    'enzymeY': {
-                        '_default': 0.0,
-                        '_updater': 'set'}},
-                (0, 2): {
-                    'enzymeX': {
-                        '_default': 0.0,
-                        '_updater': 'set'},
-                    'enzymeY': {
-                        '_default': 0.0,
-                        '_updater': 'set'}}},
-            'agents': {
-                '1': {
-                    'location': {
-                        '_default': (0, 0),
-                        '_updater': 'set'},
-                    'boundary': {
-                        'external': {
-                            '_default': 0.0,
-                            '_updater': 'set'},
-                        'internal': {
-                            '_default': 0.0,
-                            '_updater': 'set'}},
-                    'transcripts': {
-                        'flhDC': {
-                            '_default': 0,
-                            '_updater': 'accumulate'},
-                        'fliA': {
-                            '_default': 0,
-                            '_updater': 'accumulate'}},
-                    'proteins': {
-                        'ribosome': {
-                            '_default': 0,
-                            '_updater': 'set'},
-                        'flagella': {
-                            '_default': 0,
-                            '_updater': 'accumulate'}}},
-                '2': {
-                    'location': {
-                        '_default': (0, 0),
-                        '_updater': 'set'},
-                    'boundary': {
-                        'external': {
-                            '_default': 0.0,
-                            '_updater': 'set'},
-                        'internal': {
-                            '_default': 0.0,
-                            '_updater': 'set'}},
-                    'transcripts': {
-                        'flhDC': {
-                            '_default': 0,
-                            '_updater': 'accumulate'},
-                        'fliA': {
-                            '_default': 0,
-                            '_updater': 'accumulate'}},
-                    'proteins': {
-                        'ribosome': {
-                            '_default': 0,
-                            '_updater': 'set'},
-                        'flagella': {
-                            '_default': 0,
-                            '_updater': 'accumulate'}}}}}}
-
-    state = Store(environment_config)
-    state.apply_update({})
-    state.state_for(['environment'], ['temperature'])
-
-
-def test_topology_ports() -> None:
-    proton = _make_proton()
-
-    experiment = Engine(**proton)
-
-    log.debug(pf(experiment.state.get_config(True)))
-
-    experiment.update(10.0)
-
-    log.debug(pf(experiment.state.get_config(True)))
-    log.debug(pf(experiment.state.divide_value()))
-
-
-def test_timescales() -> None:
-    class Slow(Process):
-        name = 'slow'
-        defaults = {'timestep': 3.0}
-
-        def __init__(self, config: Optional[dict] = None) -> None:
-            super().__init__(config)
-
-        def ports_schema(self) -> Schema:
-            return {
-                'state': {
-                    'base': {
-                        '_default': 1.0}}}
-
-        def next_update(
-                self,
-                timestep: Union[float, int],
-                states: State) -> Update:
-            base = states['state']['base']
-            next_base = timestep * base * 0.1
-
-            return {
-                'state': {'base': next_base}}
-
-    class Fast(Process):
-        name = 'fast'
-        defaults = {'timestep': 0.3}
-
-        def __init__(self, config: Optional[dict] = None) -> None:
-            super().__init__(config)
-
-        def ports_schema(self) -> Schema:
-            return {
-                'state': {
-                    'base': {
-                        '_default': 1.0},
-                    'motion': {
-                        '_default': 0.0}}}
-
-        def next_update(
-                self,
-                timestep: Union[float, int],
-                states: State) -> Update:
-            base = states['state']['base']
-            motion = timestep * base * 0.001
-
-            return {
-                'state': {'motion': motion}}
-
-    processes = {
-        'slow': Slow(),
-        'fast': Fast()}
-
-    states = {
-        'state': {
-            'base': 1.0,
-            'motion': 0.0}}
-
-    topology: Topology = {
-        'slow': {'state': ('state',)},
-        'fast': {'state': ('state',)}}
-
-    emitter = {'type': 'null'}
-    experiment = Engine(
-        processes=processes,
-        topology=topology,
-        emitter=emitter,
-        initial_state=states)
-
-    experiment.update(10.0)
-
-
-def test_2_store_1_port() -> None:
-    """
-    Split one port of a processes into two stores
-    """
-    class OnePort(Process):
-        name = 'one_port'
-
-        def ports_schema(self) -> Schema:
-            return {
-                'A': {
-                    'a': {
-                        '_default': 0,
-                        '_emit': True},
-                    'b': {
-                        '_default': 0,
-                        '_emit': True}
-                }
-            }
-
-        def next_update(
-                self,
-                timestep: Union[float, int],
-                states: State) -> Update:
-            return {
-                'A': {
-                    'a': 1,
-                    'b': 2}}
-
-    class SplitPort(Composer):
-        """splits OnePort's ports into two stores"""
-        name = 'split_port_composer'
-
-        def generate_processes(
-                self, config: Optional[dict]) -> Dict[str, Any]:
-            return {
-                'one_port': OnePort({})}
-
-        def generate_topology(self, config: Optional[dict]) -> Topology:
-            return {
-                'one_port': {
-                    'A': {
-                        'a': ('internal', 'a',),
-                        'b': ('external', 'a',)
-                    }
-                }}
-
-    # run experiment
-    split_port = SplitPort({})
-    network = split_port.generate()
-    exp = Engine(**{
-        'processes': network['processes'],
-        'topology': network['topology']})
-
-    exp.update(2)
-    output = exp.emitter.get_timeseries()
-    expected_output = {
-        'external': {'a': [0, 2, 4]},
-        'internal': {'a': [0, 1, 2]},
-        'time': [0.0, 1.0, 2.0]}
-    assert output == expected_output
-
-class MultiPort(Process):
-    name = 'multi_port'
-
-    def ports_schema(self) -> Schema:
-        return {
-            'A': {
-                'a': {
-                    '_default': 0,
-                    '_emit': True}},
-            'B': {
-                'a': {
-                    '_default': 0,
-                    '_emit': True}},
-            'C': {
-                'a': {
-                    '_default': 0,
-                    '_emit': True}}}
-
-    def next_update(
-            self,
-            timestep: Union[float, int],
-            states: State) -> Update:
-        return {
-            'A': {'a': 1},
-            'B': {'a': 1},
-            'C': {'a': 1}}
-
-class MergePort(Composer):
-    """combines both of MultiPort's ports into one store"""
-    name = 'multi_port_composer'
-
-    def generate_processes(
-            self, config: Optional[dict]) -> Dict[str, Any]:
-        return {
-            'multi_port': MultiPort({})}
-
-    def generate_topology(self, config: Optional[dict]) -> Topology:
-        return {
-            'multi_port': {
-                'A': ('aaa',),
-                'B': ('aaa',),
-                'C': ('aaa',)}}
-
-
-def test_multi_port_merge() -> None:
-    # run experiment
-    merge_port = MergePort({})
-    network = merge_port.generate()
-    exp = Engine(**{
-        'processes': network['processes'],
-        'topology': network['topology']})
-
-    exp.update(2)
-    output = exp.emitter.get_timeseries()
-    expected_output = {
-        'aaa': {'a': [0, 3, 6]},
-        'time': [0.0, 1.0, 2.0]}
-
-    assert output == expected_output
-
-
-def test_emit_config() -> None:
-    # test alternate emit options
-    merge_port = MergePort({})
-    network = merge_port.generate()
-    exp1 = Engine(
-        processes=network['processes'],
-        topology=network['topology'],
-        emit_topology=False,
-        emit_processes=True,
-        emit_config=True,
-        progress_bar=True,
-        emit_step=2,
-    )
-
-    exp1.update(10)
-
-
-def test_complex_topology() -> None:
-
-    # make the experiment
-    outer_path = ('universe', 'agent')
-    pq = PoQo({})
-    pq_composite = pq.generate(path=outer_path)
-    pq_composite.pop('_schema')
-    experiment = Engine(**pq_composite)
-
-    # get the initial state
-    initial_state = experiment.state.get_value()
-    print('time 0:')
-    pp(initial_state)
-
-    # simulate for 1 second
-    experiment.update(1)
-
-    next_state = experiment.state.get_value()
-    print('time 1:')
-    pp(next_state)
-
-    # pull out the agent state
-    initial_agent_state = initial_state['universe']['agent']
-    agent_state = next_state['universe']['agent']
-
-    assert agent_state['aaa']['a1'] == initial_agent_state['aaa']['a1'] + 1
-    assert agent_state['aaa']['x'] == initial_agent_state['aaa']['x'] - 9
-    assert agent_state['ccc']['a3'] == initial_agent_state['ccc']['a3'] + 1
-
-
-def test_parallel() -> None:
-    proton = _make_proton(parallel=True)
-    experiment = Engine(**proton)
-
-    log.debug(pf(experiment.state.get_config(True)))
-
-    experiment.update(10.0)
-
-    log.debug(pf(experiment.state.get_config(True)))
-    log.debug(pf(experiment.state.divide_value()))
-
-    experiment.end()
-
-
-def test_depth() -> None:
-    nested = {
-        'A': {
-            'AA': 5,
-            'AB': {
-                'ABC': 11}},
-        'B': {
-            'BA': 6}}
-
-    dissected = hierarchy_depth(nested)
-    assert len(dissected) == 3
-    assert dissected[('A', 'AB', 'ABC')] == 11
-
-
-def test_sine() -> None:
-    sine = Sine()
-    print(sine.next_update(0.25 / 440.0, {
-        'frequency': 440.0,
-        'amplitude': 0.1,
-        'phase': 1.5}))
-
-
-def test_units() -> None:
-    class UnitsMicrometer(Process):
-        name = 'units_micrometer'
-
-        def ports_schema(self) -> Schema:
-            return {
-                'A': {
-                    'a': {
-                        '_default': 0 * units.um,
-                        '_emit': True},
-                    'b': {
-                        '_default': 'string b',
-                        '_emit': True,
-                    }
-                }
-            }
-
-        def next_update(
-                self, timestep: Union[float, int], states: State) -> Update:
-            return {
-                'A': {'a': 1 * units.um}}
-
-    class UnitsMillimeter(Process):
-        name = 'units_millimeter'
-
-        def ports_schema(self) -> Schema:
-            return {
-                'A': {
-                    'a': {
-                        # '_default': 0 * units.mm,
-                        '_emit': True}}}
-
-        def next_update(
-                self, timestep: Union[float, int], states: State) -> Update:
-            return {
-                'A': {'a': 1 * units.mm}}
-
-    class MultiUnits(Composer):
-        name = 'multi_units_composer'
-
-        def generate_processes(
-                self,
-                config: Optional[dict]) -> Dict[str, Any]:
-            return {
-                'units_micrometer':
-                    UnitsMicrometer({}),
-                'units_millimeter':
-                    UnitsMillimeter({})}
-
-        def generate_topology(self, config: Optional[dict]) -> Topology:
-            return {
-                'units_micrometer': {
-                    'A': ('aaa',)},
-                'units_millimeter': {
-                    'A': ('aaa',)}}
-
-    # run experiment
-    multi_unit = MultiUnits({})
-    network = multi_unit.generate()
-    exp = Engine(**{
-        'processes': network['processes'],
-        'topology': network['topology']})
-
-    exp.update(5)
-    timeseries = exp.emitter.get_timeseries()
-    print('TIMESERIES')
-    pp(timeseries)
-
-    data = exp.emitter.get_data()
-    print('DATA')
-    pp(data)
-
-    data_deserialized = exp.emitter.get_data_deserialized()
-    print('DESERIALIZED')
-    pp(data_deserialized)
-
-    data_unitless = exp.emitter.get_data_unitless()
-    print('UNITLESS')
-    pp(data_unitless)
-
-
-def test_custom_divider() -> None:
-    agent_id = '1'
-    composer = ToyDivider({
-        'agent_id': agent_id,
-        'divider': {
-            'x_division_threshold': 3,
-        }
-    })
-    composite = composer.generate(path=('agents', agent_id))
-
-    experiment = Engine(
-        processes=composite.processes,
-        steps=composite.steps,
-        flow=composite.flow,
-        topology=composite.topology,
-    )
-
-    experiment.update(8)
-    data = experiment.emitter.get_data()
-
-    expected_data = {
-        0.0: {'agents': {'1': {'variable': {'x': 0, '2x': 0}}}},
-        1.0: {'agents': {'1': {'variable': {'x': 1, '2x': 2}}}},
-        2.0: {'agents': {'1': {'variable': {'x': 2, '2x': 4}}}},
-        3.0: {'agents': {'1': {'variable': {'x': 3, '2x': 6}}}},
-        4.0: {'agents': {'1': {'variable': {'x': 4, '2x': 8}}}},
-        5.0: { 'agents': { '10': {'variable': {'x': 2.0, '2x': 4.0}},
-                           '11': {'variable': {'x': 2.0, '2x': 4.0}}}},
-        6.0: { 'agents': { '10': {'variable': {'x': 3.0, '2x': 6.0}},
-                           '11': {'variable': {'x': 3.0, '2x': 6.0}}}},
-        7.0: { 'agents': { '10': {'variable': {'x': 4.0, '2x': 8.0}},
-                           '11': {'variable': {'x': 4.0, '2x': 8.0}}}},
-        8.0: { 'agents': { '100': {'variable': {'x': 2.0, '2x': 4.0}},
-                           '101': {'variable': {'x': 2.0, '2x': 4.0}},
-                           '110': {'variable': {'x': 2.0, '2x': 4.0}},
-                           '111': {'variable': {'x': 2.0, '2x': 4.0}}}}
-    }
-    assert data == expected_data
-
-
-
-class TestStepGraph:
-
-    @staticmethod
-    def test_step_graph_execution_layers() -> None:
-        tg = _StepGraph()
-        tg.add(('a',), [])
-        tg.add(('b',), [])
-        tg.add(('c',), [('a',), ('b',)])
-        tg.add(('d',), [('c',)])
-
-        layers = list(tg.get_execution_layers())
-        expected_layers = [
-            {('a',), ('b',)},
-            {('c',)},
-            {('d',)},
-        ]
-        assert layers == expected_layers
-
-    @staticmethod
-    def test_step_graph_sequential() -> None:
-        tg = _StepGraph()
-        tg.add(('a',), [])
-        tg.add(('b',), [])
-        tg.add_sequential(('c',))
-
-        layers = list(tg.get_execution_layers())
-        expected_layers = [
-            {('c',)},
-            {('a',), ('b',)},
-        ]
-        assert layers == expected_layers
-
-    @staticmethod
-    def test_step_graph_removal() -> None:
-        tg = _StepGraph()
-        tg.add(('a',), [])
-        tg.add(('b',), [('a',)])
-        tg.add(('c',), [('b',)])
-
-        tg.remove(('a',))
-        layers = list(tg.get_execution_layers())
-
-        assert layers == []
-
-
-def test_runtime_order() -> None:
-
-    class RuntimeOrderProcess(Process):
-
-        def ports_schema(self) -> Schema:
-            return {
-                'store': {
-                    'var': {
-                        '_default': 0
-                    }
-                }
-            }
-
-        def next_update(self, timestep: float, states: State) -> Update:
-            _ = states
-            self.parameters['execution_log'].append(self.name)
-            return {}
-
-
-    class RuntimeOrderStep(Step):
-
-        def ports_schema(self) -> Schema:
-            return {
-                'store': {
-                    'var': {
-                        '_default': 0
-                    }
-                }
-            }
-
-        def next_update(self, timestep: float, states: State) -> Update:
-            _ = states
-            self.parameters['execution_log'].append(self.name)
-            return {}
-
-    class RuntimeOrderDeriver(Deriver):
-
-        def ports_schema(self) -> Schema:
-            return {
-                'store': {
-                    'var': {
-                        '_default': 0
-                    }
-                }
-            }
-
-        def next_update(self, timestep: float, states: State) -> Update:
-            _ = states
-            self.parameters['execution_log'].append(self.name)
-            return {}
-
-    class RuntimeOrderComposer(Composer):
-
-        def generate_processes(
-                self, config: Optional[dict]) -> Dict[str, Any]:
-            config = cast(dict, config or {})
-            proc1 = RuntimeOrderProcess({
-                'name': 'process1',
-                'time_step': 1,
-                'execution_log': config['execution_log'],
-            })
-            proc2 = RuntimeOrderProcess({
-                'name': 'process2',
-                'time_step': 2,
-                'execution_log': config['execution_log'],
-            })
-            deriver = RuntimeOrderDeriver({
-                'name': 'deriver',
-                'execution_log': config['execution_log'],
-            })
-            return {
-                'p1': proc1,
-                'p2': proc2,
-                'd': deriver,
-            }
-
-        def generate_steps(self, config: Optional[dict]) -> Steps:
-            config = config or {}
-            step1 = RuntimeOrderStep({
-                'name': 'step1',
-                'execution_log': config['execution_log'],
-            })
-            step2 = RuntimeOrderStep({
-                'name': 'step2',
-                'execution_log': config['execution_log'],
-            })
-            step3 = RuntimeOrderStep({
-                'name': 'step3',
-                'execution_log': config['execution_log'],
-            })
-            return {
-                's1': step1,
-                's2': step2,
-                's3': step3,
-            }
-
-        def generate_flow(self, config: Optional[dict]) -> Steps:
-            config = config or {}
-            return {
-                's1': [],
-                's2': [('s1',)],
-                's3': [('s1',)],
-            }
-
-
-        def generate_topology(self, config: Optional[dict]) -> Topology:
-            return {
-                'p1': {
-                    'store': ('store',),
-                },
-                'p2': {
-                    'store': ('store',),
-                },
-                'd': {
-                    'store': ('store',),
-                },
-                's1': {
-                    'store': ('store',),
-                },
-                's2': {
-                    'store': ('store',),
-                },
-                's3': {
-                    'store': ('store',),
-                },
-            }
-
-    execution_log: List[str] = []
-    composer = RuntimeOrderComposer()
-    composite = composer.generate({'execution_log': execution_log})
-    experiment = Engine(
-        processes=composite.processes,
-        steps=composite.steps,
-        flow=composite.flow,
-        topology=composite.topology,
-    )
-    experiment.update(4)
-    expected_log = [
-        ('deriver', 'step1'),
-        {'step2', 'step3'},
-        {'process1', 'process2'},
-        ('deriver', 'step1'),
-        {'step2', 'step3'},
-        {'process1'},
-        ('deriver', 'step1'),
-        {'step2', 'step3'},
-        {'process1', 'process2'},
-        ('deriver', 'step1'),
-        {'step2', 'step3'},
-        {'process1'},
-        ('deriver', 'step1'),
-        {'step2', 'step3'},
-    ]
-    for expected_group in expected_log:
-        num = len(expected_group)
-        group = execution_log[0:num]
-        execution_log = execution_log[num:]
-        if isinstance(expected_group, tuple):
-            assert tuple(group) == expected_group
-        elif isinstance(expected_group, set):
-            assert set(group) == expected_group
-
-
-if __name__ == '__main__':
-    # test_recursive_store()
-    # test_timescales()
-    # test_topology_ports()
-    # test_multi()
-    # test_sine()
-    # test_parallel()
-    # test_complex_topology()
-    # test_multi_port_merge()
-    # test_2_store_1_port()
-    # test_units()
-    test_custom_divider()
-    # test_runtime_order()

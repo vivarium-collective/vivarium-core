@@ -18,10 +18,11 @@ from typing import Optional
 from vivarium import divider_registry, serializer_registry, updater_registry
 from vivarium.core.process import Process, Step
 from vivarium.library.dict_utils import deep_merge, deep_merge_check, MULTI_UPDATE_KEY
-from vivarium.library.topology import without, dict_to_paths, get_in
+from vivarium.library.topology import without, dict_to_paths
 from vivarium.core.types import Processes, Topology, State, Steps, Flow
 
-_EMPTY_UPDATES = None, None, None, None, None
+_EMPTY_UPDATES = None, None, None, None, None, None
+DEFAULT_DIVIDER = '_default'
 
 
 def generate_state(
@@ -45,8 +46,20 @@ def generate_state(
     store = Store({})
     steps = steps or {}
     store.generate(tuple(), processes, steps, flow, topology, initial_state)
+    store.build_topology_views()
 
     return store
+
+
+def view_values(
+        states: dict
+) -> State:
+    state_values = {}
+    if isinstance(states, Store):
+        return states.get_value()
+    for key, value in states.items():
+        state_values[key] = view_values(value)
+    return state_values
 
 
 def key_for_value(d, looking):
@@ -203,6 +216,7 @@ class Store:
         self.leaf = False
         self.serializer = None
         self.topology = {}
+        self.topology_view = None
         # self.flow is None when this node has no flow (either because
         # it is not a Step or because it is a Step treated like a
         # Deriver) and a list when this node holds a Step with
@@ -348,7 +362,8 @@ class Store:
                 self.insert({
                     'processes': value.generate_processes({'name': final}),
                     'topology': value.generate_topology({'name': final}),
-                    'initial_state': value.initial_state()})
+                    'initial_state': {},
+                })
 
             else:
                 down = self.get_path((final,))
@@ -403,6 +418,11 @@ class Store:
             self.value.schema,
             self.topology,
             source=self.path_for())
+
+        # cache the process's view
+        self.topology_view = self.schema_topology(
+            self.value.schema,
+            self.topology)
 
     def independent_store(self, store):
         return self.top() != store.top()
@@ -530,6 +550,12 @@ class Store:
           node holds a step.
         """
 
+        if config == '**':
+            config = {}  # config needs to be a dict
+
+        # remove _output special key. This is used only by schema_topology.
+        config = without(config, '_output')
+
         if '*' in config:
             self.apply_subschema_config(config['*'])
             config = without(config, '*')
@@ -554,13 +580,22 @@ class Store:
                 self.flow = flow
 
         if '_divider' in config:
-            self.divider = config['_divider']
-            if isinstance(self.divider, str):
-                self.divider = divider_registry.access(self.divider)
-            if isinstance(self.divider, dict) and isinstance(
-                    self.divider['divider'], str):
-                self.divider['divider'] = divider_registry.access(
-                    self.divider['divider'])
+            new_divider = config['_divider']
+            if isinstance(new_divider, str):
+                new_divider = divider_registry.access(new_divider)
+            if isinstance(new_divider, dict) and isinstance(
+                    new_divider['divider'], str):
+                new_divider['divider'] = divider_registry.access(
+                    new_divider['divider'])
+            if (
+                    self.divider
+                    and self.divider != DEFAULT_DIVIDER
+                    and self.divider != new_divider):
+                raise ValueError(
+                    f'Trying to assign divider {new_divider} to '
+                    f'{self.path_for()}, which already has divider '
+                    f'{self.divider}.')
+            self.divider = new_divider
             config = without(config, '_divider')
 
         if self.schema_keys & set(config.keys()):
@@ -606,6 +641,10 @@ class Store:
                 self.updater or 'accumulate',
             )
 
+            # All leaf nodes must have a divider, even though a divider
+            # on a branch node higher in the tree will take precedence.
+            self.divider = self.divider or DEFAULT_DIVIDER
+
             self.properties = deep_merge(
                 self.properties,
                 config.get('_properties', {}))
@@ -635,7 +674,7 @@ class Store:
                 f'with topology {self.topology}, which is not allowed '
                 f'because the Store value ({self.value}) is not a '
                 'Process.')
-        if self.flow and not isinstance(self.value, Step):
+        if self.flow and not self.value.is_step():
             raise ValueError(
                 f'Attempting to create Store at {self.path_for()} '
                 f'with flow {self.flow}, which is not allowed because '
@@ -660,6 +699,15 @@ class Store:
             updater = updater_registry.access(updater)
         return updater
 
+    def get_divider(self):
+        if self.divider == DEFAULT_DIVIDER:
+            if self.topology:
+                # For processes, we use a null divider by default.
+                return divider_registry.access('null')
+            # For all other nodes, by default we use a 'set' divider.
+            return divider_registry.access('set')
+        return self.divider
+
     def get_config(self, sources=False):
         """
         Assemble a dictionary representation of the config for this node.
@@ -675,7 +723,7 @@ class Store:
             config['_subschema'] = self.subschema
         if self.subtopology:
             config['_subtopology'] = self.subtopology
-        if self.divider:
+        if self.divider and self.divider != DEFAULT_DIVIDER:
             config['_divider'] = self.divider
 
         if sources and self.sources:
@@ -738,6 +786,9 @@ class Store:
                 if condition(child)}
         if self.subschema:
             return {}
+        elif self.topology:
+            # this is a process, return it with the topology
+            return (self.value, self.topology)
         return self.value
 
     def get_processes(self):
@@ -754,7 +805,7 @@ class Store:
                         inner_processes[key] = child_processes
                 elif (
                         isinstance(child.value, Process)
-                        and not isinstance(child.value, Step)):
+                        and not child.value.is_step()):
                     inner_processes[key] = child.value
             if inner_processes:
                 return inner_processes
@@ -771,7 +822,9 @@ class Store:
                     child_processes = child.get_steps()
                     if child_processes:
                         inner_processes[key] = child_processes
-                elif isinstance(child.value, Step):
+                elif (
+                        isinstance(child.value, Process)
+                        and child.value.is_step()):
                     inner_processes[key] = child.value
             if inner_processes:
                 return inner_processes
@@ -870,7 +923,9 @@ class Store:
                     target = self.outer.get_path(towards[0])
                     return target.get_path(towards[1])
             else:
-                raise Exception(f"there is no path from leaf node {self.path_for()} to {path}")
+                raise Exception(
+                    f'{path} is not a valid path from '
+                    f'{self.path_for()}')
         return self
 
     def get_paths(self, paths):
@@ -974,23 +1029,24 @@ class Store:
         Apply the divider for each node to the value in that node to
         assemble two parallel divided states of this subtree.
         """
-
-        if self.divider:
+        divider = self.get_divider()
+        if divider:
             # divider is either a function or a dict with topology and/or config
-            if isinstance(self.divider, dict):
-                divider = self.divider['divider']
+            if isinstance(divider, dict):
+                divider_dict = divider
+                divider = divider['divider']
                 if isinstance(divider, str):
                     divider = divider_registry.access(divider)
                 args = {}
-                if 'topology' in self.divider:
-                    topology = self.divider['topology']
+                if 'topology' in divider_dict:
+                    topology = divider_dict['topology']
                     args.update({'state': self.topology_state(topology)})
-                if 'config' in self.divider:
-                    config = self.divider['config']
+                if 'config' in divider_dict:
+                    config = divider_dict['config']
                     args.update({'config': config})
 
                 return divider(self.get_value(), **args)
-            return self.divider(self.get_value())
+            return divider(self.get_value())
         if self.inner:
             daughters = [{}, {}]
             for key, child in self.inner.items():
@@ -1125,7 +1181,7 @@ class Store:
                 process_path, process.value))
             topology_updates.append((
                 process_path, process.topology))
-            if isinstance(process, Step):
+            if process.value.is_step():
                 step_updates.append((
                     process_path, process.value))
                 # Note that process.flow may be None, indicating no
@@ -1209,10 +1265,6 @@ class Store:
         mother = divide['mother']
         mother_path = (mother,)
         daughters = divide['daughters']
-        initial_state = self.inner[mother].get_value(
-            condition=lambda child: not
-            (isinstance(child.value, Process)),
-            f=lambda child: copy.deepcopy(child))
         daughter_states = self.inner[mother].divide_value()
 
         here = self.path_for()
@@ -1220,16 +1272,15 @@ class Store:
         for daughter, daughter_state in \
                 zip(daughters, daughter_states):
             # use initial state as default, merge in divided values
-            initial_state = deep_merge(
-                initial_state,
-                daughter_state)
+            merged_initial_state = deep_merge(
+                daughter_state, daughter.get('initial_state', {}))
 
             daughter_key = daughter['key']
             daughter_path = (daughter_key,)
 
             # get the daughter processes
             if 'processes' in daughter or 'steps' in daughter:
-                processes = copy.deepcopy(daughter['processes'])
+                processes = daughter['processes']
                 deep_merge_check(processes, daughter.get('steps', {}))
             else:
                 # if no processes provided, copy the mother's processes
@@ -1261,7 +1312,7 @@ class Store:
                 {},
                 flow,
                 topology,
-                initial_state)
+                merged_initial_state)
 
             root = here + daughter_path
             process_paths = dict_to_paths(root, processes)
@@ -1278,14 +1329,14 @@ class Store:
             self.apply_subschema_path(daughter_path)
             target = self.get_path(daughter_path)
             target.apply_defaults()
-            target.set_value(initial_state)
+            target.set_value(merged_initial_state)
 
 
         self.delete_path(mother_path)
         deletions.append(tuple(here + mother_path))
 
         for path, process in process_and_step_updates:
-            if isinstance(process, Step):
+            if process.is_step():
                 step_updates.append((path, process))
             else:
                 process_updates.append((path, process))
@@ -1377,6 +1428,7 @@ class Store:
               The result of the reduction will be assigned to this point
               in the tree.
         """
+        view_expire = False
 
         if isinstance(update, dict) and MULTI_UPDATE_KEY in update:
             # apply multiple updates to same node
@@ -1401,6 +1453,7 @@ class Store:
                 # add a list of sub-states
                 for added in add_entries:
                     self.add(added)
+                view_expire = True
 
             move_entries = update.pop('_move', None)
             if move_entries is not None:
@@ -1415,6 +1468,7 @@ class Store:
                     flow_updates.extend(move_flow)
                     topology_updates.extend(move_topology)
                     deletions.extend(move_deletions)
+                    view_expire = True
 
             generate_entries = update.pop('_generate', None)
             if generate_entries is not None:
@@ -1428,6 +1482,7 @@ class Store:
                     step_updates.extend(insert_steps)
                     flow_updates.extend(insert_flows)
                     topology_updates.extend(insert_topology)
+                    view_expire = True
 
             divide = update.pop('_divide', None)
             if divide is not None:
@@ -1440,6 +1495,7 @@ class Store:
                 flow_updates.extend(divide_flow)
                 topology_updates.extend(divide_topology)
                 deletions.extend(divide_deletions)
+                view_expire = True
 
             delete_keys = update.pop('_delete', None)
 
@@ -1448,7 +1504,7 @@ class Store:
                     inner = self.inner[key]
                     (
                         inner_topology, inner_processes, inner_steps,
-                        inner_flows, inner_deletions
+                        inner_flows, inner_deletions, inner_view_expire
                     ) = inner.apply_update(value, state)
 
                     if inner_topology:
@@ -1461,6 +1517,8 @@ class Store:
                         flow_updates.extend(inner_flows)
                     if inner_deletions:
                         deletions.extend(inner_deletions)
+                    if inner_view_expire:
+                        view_expire = inner_view_expire
 
             if delete_keys is not None:
                 # delete a list of paths
@@ -1468,10 +1526,11 @@ class Store:
                 for key in delete_keys:
                     delete_deletions = self.delete(key, here)
                     deletions.extend(delete_deletions)
+                view_expire = True
 
             return (
                 topology_updates, process_updates, step_updates,
-                flow_updates, deletions)
+                flow_updates, deletions, view_expire)
 
         # Leaf update: this node has no inner
 
@@ -1485,7 +1544,7 @@ class Store:
                 initial=reduction['initial'])
 
         if isinstance(update, dict) and \
-                self.schema_keys and set(update.keys()):
+                self.schema_keys & set(update.keys()):
             if '_updater' in update:
                 update = update.get('_value', self.default)
 
@@ -1543,15 +1602,15 @@ class Store:
 
     def schema_topology(self, schema, topology):
         """
-        Fill in the structure of the given schema with the values
-        located according to the given topology.
+        Fill in the structure of the given schema with the connected stores
+        according to the given topology.
         """
 
         state = {}
 
-        if self.leaf:
-            state = self.get_value()
-        else:
+        if self.leaf or schema == '**':
+            state = self
+        elif not schema.get('_output'):
             for key, subschema in schema.items():
                 path = topology.get(key)
                 if key == '*':
@@ -1835,6 +1894,7 @@ class Store:
                 self.inner[key] = process_state
 
                 subprocess.schema = subprocess.get_schema()
+
                 self.topology_ports(
                     subprocess.schema,
                     subtopology,
@@ -1848,6 +1908,16 @@ class Store:
                     subtopology,
                 )
 
+    def build_topology_views(self):
+        if self.leaf:
+            if isinstance(self.value, Process):
+                self.topology_view = self.outer.schema_topology(
+                    self.value.schema,
+                    self.topology)
+        else:
+            for inner in self.inner.values():
+                inner.build_topology_views()
+
     def generate(self, path, processes, steps, flow, topology, initial_state):
         """
         Generate a subtree of this store at the given path.
@@ -1860,5 +1930,5 @@ class Store:
         target._generate_paths(processes, flow, topology)
         target._generate_paths(steps, flow, topology)
         target.apply_subschemas()
-        target.generate_value(initial_state)
+        target.set_value(initial_state)
         target.apply_defaults()

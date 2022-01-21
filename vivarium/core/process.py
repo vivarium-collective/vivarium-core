@@ -6,9 +6,12 @@ Process Classes
 
 import abc
 import copy
+import cProfile
 from multiprocessing import Pipe
 from multiprocessing import Process as Multiprocess
 from multiprocessing.connection import Connection
+import pstats
+import pickle
 from typing import (
     Any, Dict, Optional, Union, List)
 from warnings import warn
@@ -88,12 +91,26 @@ class Process(metaclass=abc.ABCMeta):
         class can provide a ``defaults`` class variable to specify the
         process defaults as a dictionary.
 
+        Note that subclasses should call the superclass init function
+        first. This allows the superclass to correctly save the initial
+        parameters before they are mutated by subclass constructor code.
+        We need access to the original parameters for serialization to
+        work properly.
+
         Args:
             parameters: Override the class defaults. If this contains a
                 ``_register`` key, the process will register itself in
                 the process registry.
         """
         parameters = parameters or {}
+        try:
+            self._original_parameters: Optional[dict] = copy.deepcopy(
+                parameters)
+        except TypeError:
+            # Copying the parameters failed because some parameters do
+            # not support being copied.
+            self._original_parameters = None
+
         if 'name' in parameters:
             self.name = parameters['name']
         elif not hasattr(self, 'name'):
@@ -116,6 +133,27 @@ class Process(metaclass=abc.ABCMeta):
 
         self.parameters.setdefault('time_step', DEFAULT_TIME_STEP)
         self.schema: Optional[dict] = None
+
+    def __getstate__(self) -> dict:
+        """Return parameters
+
+        This is sufficient to reproduce the Process if there are no
+        hidden states. Processes with hidden states may need to write
+        their own __getstate__.
+
+        The original parameters saved by the constructor are used here,
+        so any later changes to the parameters will be lost during
+        serialization.
+        """
+        if self._original_parameters is None:
+            raise TypeError(
+                'Parameters could not be copied, so serialization is '
+                'not supported.')
+        return self._original_parameters
+
+    def __setstate__(self, state: dict) -> None:
+        """Initialize process with parameters"""
+        self.__init__(parameters=state)  # type: ignore
 
     def initial_state(self, config: Optional[dict] = None) -> State:
         """Get initial state in embedded path dictionary.
@@ -205,19 +243,6 @@ class Process(metaclass=abc.ABCMeta):
             port: list(states.keys())
             for port, states in ports_schema.items()}
 
-    def local_timestep(self) -> Union[float, int]:
-        """Get a process's favored timestep.
-
-        The timestep may change over the course of the simulation.
-        Processes must not assume that their favored timestep will
-        actually be used. To customize their timestep, processes can
-        override this method.
-
-        Returns:
-            Favored timestep.
-        """
-        return self.parameters['time_step']
-
     def calculate_timestep(self, states: Optional[State]) -> Union[float, int]:
         """Return the next process time step
 
@@ -298,6 +323,40 @@ class Process(metaclass=abc.ABCMeta):
 
         This must be overridden by any subclasses.
 
+        Use the glob '*' schema to declare expected sub-store structure,
+        and view all child values of the store:
+
+          .. code-block:: python
+
+            schema = {
+                'port1': {
+                    '*': {
+                        '_default': 1.0
+                    }
+                }
+            }
+
+        Use the glob '**' schema to connect to an entire sub-branch, including
+        child nodes, grandchild nodes, etc:
+
+          .. code-block:: python
+
+            schema = {
+                'port1': '**'
+            }
+
+        Ports flagged as output-only won't be viewed through the next_update's
+        states, which can save some overhead time:
+
+          .. code-block:: python
+
+            schema = {
+              'port1': {
+                 '_output': True,
+                 'A': {'_default': 1.0},
+              }
+            }
+
         Returns:
             A dictionary that declares which states are expected by the
             processes, and how each state will behave. State keys can be
@@ -363,7 +422,12 @@ class Step(Process, metaclass=abc.ABCMeta):
 Deriver = Step
 
 
-def _run_update(connection: Connection, process: Process) -> None:
+def _run_update(
+        connection: Connection, process: Process,
+        profile: bool) -> None:
+    if profile:
+        profiler = cProfile.Profile()
+        profiler.enable()
     running = True
 
     while running:
@@ -377,11 +441,16 @@ def _run_update(connection: Connection, process: Process) -> None:
             update = process.next_update(interval, states)
             connection.send(update)
 
+    if profile:
+        profiler.disable()
+        stats = pstats.Stats(profiler)
+        connection.send(stats.stats)  # type: ignore
+
     connection.close()
 
 
 class ParallelProcess:
-    def __init__(self, process: Process) -> None:
+    def __init__(self, process: Process, profile: bool = False) -> None:
         """Wraps a :py:class:`Process` for multiprocessing.
 
         To run a simulation distributed across multiple processors, we
@@ -392,12 +461,15 @@ class ParallelProcess:
 
         Args:
             process: The Process to manage.
+            profile: Whether to use cProfile to profile the subprocess.
         """
         self.process = process
+        self.profile = profile
+        self.stats: Optional[pstats.Stats] = None
         self.parent, self.child = Pipe()
         self.multiprocess = Multiprocess(
             target=_run_update,
-            args=(self.child, self.process))
+            args=(self.child, self.process, self.profile))
         self.multiprocess.start()
 
     def update(
@@ -420,8 +492,16 @@ class ParallelProcess:
         return self.parent.recv()
 
     def end(self) -> None:
-        """End the child process."""
+        """End the child process.
+
+        If profiling was enabled, then when the child process ends, it
+        will compile its profiling stats and send those to the parent.
+        The parent then saves those stats in ``self.stats``.
+        """
         self.parent.send((-1, None))
+        if self.profile:
+            self.stats = pstats.Stats()
+            self.stats.stats = self.parent.recv()  # type: ignore
         self.multiprocess.join()
 
 

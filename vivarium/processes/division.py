@@ -17,11 +17,14 @@ def pass_threshold(value, config):
     return False
 
 
-def get_divide_update(daughter_composer, mother_id, daughter_ids):
+def get_divide_update(
+        daughter_composer, mother_id, daughter_ids, composer_config=None):
+    composer_config = composer_config or {}
     daughter_updates = []
     for daughter_id in daughter_ids:
         composer = daughter_composer.generate({
-            'agent_id': daughter_id})
+            'agent_id': daughter_id,
+            **composer_config})
         daughter_updates.append({
             'key': daughter_id,
             'processes': composer['processes'],
@@ -58,8 +61,7 @@ class Division(Deriver):
     def ports_schema(self):
         return {
             'variable': {},
-            'agents': {
-                '*': {}}}
+            'agents': {}}
 
     def next_update(self, timestep, states):
         variable = states['variable']

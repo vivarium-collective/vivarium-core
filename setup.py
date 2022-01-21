@@ -5,7 +5,7 @@ from distutils.core import setup
 _ = setuptools  # don't warn about this unused import; it might have side effects
 
 
-VERSION = '0.4.1'
+VERSION = '0.4.20'
 
 
 if __name__ == '__main__':
@@ -59,7 +59,7 @@ if __name__ == '__main__':
             'numpy',
             'Pint',
             'pymongo',
-            'scipy',
+            'scipy'
         ],
         classifiers=[
             'Development Status :: 4 - Beta',

@@ -10,9 +10,11 @@ from vivarium.core.control import run_library_cli
 def get_toy_store() -> Store:
     """get a store to test the api with"""
     composer = ToyComposer({})
+    store1 = composer.generate_store()
     composite = composer.generate()
-    store = composite.generate_store()
-    return store
+    store2 = composite.generate_store()
+    assert set(store1.inner.keys()) == set(store2.inner.keys())
+    return store2
 
 
 def test_insert_process() -> Store:
@@ -57,6 +59,9 @@ def test_rewire_ports() -> None:
     # store['process2', 'port2', 'var_a'] = store['store_A', 'var_b']
     assert store['process2', 'port2', 'var_a'] == store['store_A', 'var_b']
 
+    sim = Engine(store = store)
+    sim.update(1.0)
+
 
 def test_embedded_rewire_ports() -> None:
     """rewire process ports embedded down in the hierarchy"""
@@ -92,7 +97,6 @@ def test_replace_process() -> None:
     store['process1'] = ToyProcess({})
     assert store['A', 'a'].value == 11
 
-
 def test_disconnected_store_failure() -> None:
     """Test that inserting a Store into the tree results in an exception"""
     store = get_toy_store()
@@ -103,6 +107,8 @@ def test_disconnected_store_failure() -> None:
 
     with pytest.raises(Exception):
         store['process1', 'port1'] = Store({'_value': 'NEW STORE'})
+
+
 
 
 # def test_connect_to_new_store() -> None:
@@ -156,6 +162,25 @@ def test_run_store_in_experiment() -> None:
     assert data[10.0] != data[0.0]
 
     print(data)
+
+
+def test_run_inserted_store() -> None:
+    """Make a store using the API, run it as a simulation"""
+    store = Store({})
+    store["p1"] = ToyProcess({'name': 'p1'})
+    store["p2"] = ToyProcess({'name': 'p2'})
+    sim = Engine(store = store)
+    sim.update(1.0)
+
+
+def test_run_rewired_store() -> None:
+    """Make a store using the API, run it as a simulation"""
+    store = Store({})
+    store["p1"] = ToyProcess({'name': 'p1'})
+    store["p2"] = ToyProcess({'name': 'p2'})
+    store["p1"].connect(('port1',), store['p2', "port2"])
+    sim = Engine(store = store)
+    sim.update(1.0)
 
 
 def test_divide_store() -> None:
@@ -252,8 +277,11 @@ test_library = {
     '10': test_update_schema,
     '11': test_port_connect,
     '12': test_add_store,
+    '13': test_run_inserted_store,
+    '14': test_run_rewired_store,
 }
 
 
+# python vivarium/experiments/store_api.py -n [test number]
 if __name__ == '__main__':
     run_library_cli(test_library)

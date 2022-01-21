@@ -70,7 +70,7 @@ def run_large_initial_emit():
         'emitter': 'database',
     }
 
-    experiment = Engine({
+    experiment = Engine(**{
         'processes': composite['processes'],
         'topology': composite['topology'],
         **settings})

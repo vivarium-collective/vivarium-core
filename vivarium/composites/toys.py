@@ -19,27 +19,26 @@ electron_orbitals = [
 
 class ToyTransport(Process):
     name = 'toy_transport'
+    defaults = {'intake_rate': 2}
 
     def __init__(
             self,
-            initial_parameters: Optional[Dict[str, Any]] = None
+            parameters: Optional[Dict[str, Any]] = None
     ):
-        initial_parameters = initial_parameters or {}
-        parameters = {'intake_rate': 2}
-        parameters.update(initial_parameters)
         super().__init__(parameters)
 
     def ports_schema(self):
-        ports = {
-            'external': ['GLC'],
-            'internal': ['GLC']}
         return {
-            port_id: {
-                key: {
+            'external': {
+                'GLC': {
                     '_default': 0.0,
-                    '_emit': True}
-                for key in keys}
-            for port_id, keys in ports.items()}
+                    '_emit': True,
+                    '_divider': 'set'}},
+            'internal': {
+                'GLC': {
+                    '_default': 0.0,
+                    '_emit': True,
+                    '_divider': 'split'}}}
 
     def next_update(self, timestep, states):
         update = {}
@@ -120,6 +119,33 @@ class ToyDeath(Process):
                         for target in self.targets]}}
 
         return update
+
+
+class ToyEnvironment(Process):
+    port_ids = ['external', 'membrane']
+
+    def ports_schema(self):
+        return {
+            'agents': {
+                '*': {
+                    port_id: {
+                        '_default': 0.0
+                    } for port_id in self.port_ids
+                }
+            }
+        }
+
+    def next_update(self, timestep, states):
+        agents = states['agents']
+
+        agents_update = {}
+        for agent_id, agent_state in agents.items():
+            assert set(agent_state.keys()) == set(self.port_ids), \
+                'view is getting states not in ports_schema'
+            agents_update[agent_id] = {}
+            agents_update[agent_id]['external'] = 1
+
+        return {'agents': agents_update}
 
 
 class ToyCompartment(Composer):
@@ -475,7 +501,10 @@ def test_composite_initial_state_complex() -> None:
     outer_path = ('universe', 'agent')
     pq = PoQo({})
     pq_composite = pq.generate(path=outer_path)
-    pq_initial = pq_composite.initial_state()
+    pq_initial = pq_composite.initial_state(
+        config={
+            'initial_state': {
+                'universe': {'agent': {'aaa': {'x': 4}}}}})
 
     expected_initial = {
         'universe': {
@@ -740,7 +769,7 @@ def test_aggregate_composer() -> None:
     }
     aggregate.add_composers(
         composers=[ToyComposer(config2)],
-        config={})
+        config={'two': {}})
     composite2 = aggregate.generate()
 
     # add composer (single)
@@ -751,7 +780,7 @@ def test_aggregate_composer() -> None:
     }
     aggregate.add_composer(
         composer=ToyComposer(config3),
-        config={})
+        config={'three': {}})
     composite3 = aggregate.generate()
 
     assert all(
@@ -771,14 +800,17 @@ def test_aggregate_composer() -> None:
 
 
 
-def split_divider(value, config):
-    return [value * config['fraction']] * 2
+def split_divider_int(value, config):
+    return [int(value * config['fraction'])] * 2
 
 
 class ToyDividerProcess(Process):
     defaults = {
-        'x_fraction': 0.5,
-        'x_division_threshold': 10}
+        'name': 'divider',
+        'x_growth': 1,
+        'x_division_fraction': 0.5,
+        'x_division_threshold': 10,
+    }
     def __init__(self, parameters = None):
         super().__init__(parameters)
         self.agent_id = self.parameters['agent_id']
@@ -791,12 +823,13 @@ class ToyDividerProcess(Process):
                     '_default': 0,
                     '_emit': True,
                     '_divider': {
-                        'divider': split_divider,
+                        'divider': split_divider_int,
                         'config': {
-                            'fraction': self.parameters['x_fraction']}
+                            'fraction': self.parameters['x_division_fraction']}
                     }
                 }},
-            'agents': {'*': {}}}
+            'agents': {}}
+
     def next_update(self, timestep, states):
         x = states['variable']['x']
         if x > self.parameters['x_division_threshold']:
@@ -806,9 +839,12 @@ class ToyDividerProcess(Process):
             divide_update = get_divide_update(
                 self.composer,
                 self.agent_id,
-                daughter_ids)
+                daughter_ids,
+                composer_config={
+                    self.parameters['name']: self.parameters},
+            )
             return {'agents': divide_update}
-        return {'variable': {'x': 1}}
+        return {'variable': {'x': self.parameters['x_growth']}}
 
 
 class ToyDividerStep(Step):
@@ -835,10 +871,8 @@ class ToyDividerStep(Step):
 
 
 class ToyDivider(Composer):
-    defaults: Dict[str, Any] = {'divider': {}}
-
-    def __init__(self, config):
-        super().__init__(config)
+    defaults: Dict[str, Any] = {
+        'divider': {'name': 'divider'}}
 
     def generate_processes(self, config):
         agent_id = config['agent_id']

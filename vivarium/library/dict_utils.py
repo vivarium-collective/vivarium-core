@@ -26,7 +26,7 @@ def deep_merge_check(dct, merge_dct):
 
     Throws exceptions for conflicting values.
     This mutates dct - the contents of merge_dct are added to dct (which is also returned).
-    If you want to keep dct you could call it like deep_merge(dict(dct), merge_dct)
+    If you want to keep dct you could call it like deep_merge_check(copy.deepcopy(dct), merge_dct)
     """
 
     for k, v in merge_dct.items():
@@ -48,12 +48,12 @@ def deep_merge_combine_lists(dct, merge_dct):
 
     Values that are lists are combined into one list without repeating values.
     This mutates dct - the contents of merge_dct are added to dct (which is also returned).
-    If you want to keep dct you could call it like deep_merge(dict(dct), merge_dct)
+    If you want to keep dct you could call it like deep_merge_combine_lists(copy.deepcopy(dct), merge_dct)
     """
     for k, v in merge_dct.items():
         if (k in dct and isinstance(dct[k], dict)
                 and isinstance(merge_dct[k], collections.abc.Mapping)):
-            deep_merge(dct[k], merge_dct[k])
+            deep_merge_combine_lists(dct[k], merge_dct[k])
         elif k in dct and isinstance(dct[k], list) and isinstance(v, list):
             for i in v:
                 if i not in dct[k]:
@@ -106,7 +106,7 @@ def deep_merge(dct, merge_dct):
     """ Recursive dict merge
 
     This mutates dct - the contents of merge_dct are added to dct (which is also returned).
-    If you want to keep dct you could call it like deep_merge(dict(dct), merge_dct)
+    If you want to keep dct you could call it like deep_merge(copy.deepcopy(dct), merge_dct)
     """
     if dct is None:
         dct = {}
@@ -119,6 +119,15 @@ def deep_merge(dct, merge_dct):
         else:
             dct[k] = merge_dct[k]
     return dct
+
+
+def deep_copy_internal(d):
+    if not isinstance(d, dict):
+        return d
+    return {
+        key: deep_copy_internal(val)
+        for key, val in d.items()
+    }
 
 
 def flatten_port_dicts(dicts):
@@ -303,3 +312,13 @@ def make_path_dict(embedded_dict):
     for path in paths_list:
         path_dict[path] = get_value_from_path(embedded_dict, path)
     return path_dict
+
+
+def test_deep_copy_internal():
+    l = [1, 2, 3]
+    d = {1: {2: l}, 3: True}
+    copy = deep_copy_internal(d)
+    assert copy == d
+    assert copy is not d
+    assert copy[1] is not d[1]
+    assert copy[1][2] is d[1][2]

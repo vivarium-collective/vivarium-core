@@ -15,8 +15,55 @@ from vivarium.core.store import (
 from vivarium.core.types import (
     Processes, Topology, HierarchyPath, State, Schema, Steps, Flow)
 from vivarium.library.datum import Datum
-from vivarium.library.dict_utils import deep_merge, deep_merge_check
+from vivarium.library.dict_utils import (
+    deep_merge, deep_merge_check, deep_copy_internal)
 from vivarium.library.topology import inverse_topology
+
+
+def _get_composite_state_recur(
+        processes: Processes,
+        steps: Steps,
+        topology: Any,
+        state_type: Optional[str] = 'initial',
+        path: Optional[HierarchyPath] = None,
+        config: Optional[dict] = None,
+) -> Optional[State]:
+    path = path or tuple()
+    config = config or {}
+    processes = processes or {}
+    steps = steps or {}
+    topology = topology or {}
+
+    state: dict = {}
+    all_keys = set(processes.keys() | steps.keys())
+    for key in all_keys:
+        sub_path: HierarchyPath = path + (key,)
+        sub_topology: Any = topology.get(key)
+        sub_processes: Any = processes.get(key)
+        sub_steps: Any = steps.get(key)
+        sub_state: Any = None
+
+        if isinstance(sub_processes, dict) or isinstance(sub_steps, dict):
+            sub_state = _get_composite_state_recur(
+                processes=sub_processes,
+                steps=sub_steps,
+                topology=sub_topology,
+                state_type=state_type,
+                path=sub_path,
+                config=config.get(key),
+            )
+        elif isinstance(sub_processes, Process) or \
+                isinstance(sub_steps, Process):
+            node: Process = sub_processes or sub_steps
+            if state_type == 'initial':
+                process_state = node.initial_state(config.get(node.name))
+            elif state_type == 'default':
+                process_state = node.default_state()
+            sub_state = inverse_topology(path, process_state, sub_topology)
+        else:
+            Exception(f'invalid processes {sub_processes} or steps {sub_steps}')
+        state = deep_merge(state, sub_state)
+    return state
 
 
 def _get_composite_state(
@@ -28,39 +75,16 @@ def _get_composite_state(
         initial_state: Optional[State] = None,
         config: Optional[dict] = None,
 ) -> Optional[State]:
-    path = path or tuple()
-    initial_state = initial_state or {}
-    config = config or {}
-
-    processes = copy.deepcopy(processes)
-    deep_merge_check(processes, steps)
-
-    for key, node in processes.items():
-        subpath = path + (key,)
-        subtopology = topology[key]
-
-        if isinstance(node, dict):
-            state = _get_composite_state(
-                processes=node,
-                steps={},
-                topology=subtopology,
-                state_type=state_type,
-                path=subpath,
-                initial_state=initial_state,
-                config=config.get(key),
-            )
-        elif isinstance(node, Process):
-            if state_type == 'initial':
-                # get the initial state
-                process_state = node.initial_state(config.get(node.name))
-            elif state_type == 'default':
-                # get the default state
-                process_state = node.default_state()
-            state = inverse_topology(path, process_state, subtopology)
-
-        initial_state = deep_merge(initial_state, state)
-
-    return initial_state
+    state = _get_composite_state_recur(
+        processes=processes,
+        steps=steps,
+        topology=topology,
+        state_type=state_type,
+        path=path,
+        config=config,
+    )
+    state = deep_merge(state, initial_state)
+    return state
 
 
 class Composite(Datum):
@@ -86,7 +110,9 @@ class Composite(Datum):
         config = config or {}
         super().__init__(config)
         self._schema = config.get('_schema', {})
-        _override_schemas(self._schema, self.processes)
+        processes_and_steps = deep_copy_internal(self.processes)
+        deep_merge_check(processes_and_steps, self.steps)
+        _override_schemas(self._schema, processes_and_steps)
 
     def generate_store(self, config: Optional[dict] = None) -> Store:
         config = config or {}
@@ -106,11 +132,14 @@ class Composite(Datum):
             (dict): Subclass implementations must return a dictionary
             mapping state paths to initial values.
         """
+        config = config or {}
+        initial_state = config.get('initial_state', {})
         return _get_composite_state(
             processes=self.processes,
             steps=self.steps,
             topology=self.topology,
             state_type='initial',
+            initial_state=initial_state,
             config=config)
 
     def default_state(self, config: Optional[dict] = None) -> Optional[State]:
@@ -135,31 +164,49 @@ class Composite(Datum):
             composite: Optional['Composite'] = None,
             processes: Optional[Dict[str, 'Process']] = None,
             topology: Optional[Topology] = None,
+            steps: Optional[Steps] = None,
+            flow: Optional[Flow] = None,
             path: Optional[HierarchyPath] = None,
             schema_override: Optional[Schema] = None,
     ) -> None:
         composite = composite or Composite({})
         processes = processes or {}
         topology = topology or {}
+        steps = steps or {}
+        flow = flow or {}
         path = path or tuple()
         schema_override = schema_override or {}
 
         # get the processes and topology to merge
         merge_processes = {}
         merge_topology = {}
+        merge_steps = {}
+        merge_flow = {}
         if composite:
             merge_processes.update(composite['processes'])
             merge_topology.update(composite['topology'])
+            merge_steps.update(composite['steps'])
+            merge_flow.update(composite['flow'])
+
         deep_merge(merge_processes, processes)
         deep_merge(merge_topology, topology)
+        deep_merge(merge_steps, steps)
+        deep_merge(merge_flow, flow)
         merge_processes = assoc_in({}, path, merge_processes)
         merge_topology = assoc_in({}, path, merge_topology)
+        merge_steps = assoc_in({}, path, merge_steps)
+        merge_flow = assoc_in({}, path, merge_flow)
 
         # merge with instance processes and topology
         deep_merge(self.processes, merge_processes)
         deep_merge(self.topology, merge_topology)
+        deep_merge(self.steps, merge_steps)
+        deep_merge(self.flow, merge_flow)
         self._schema.update(schema_override)
-        _override_schemas(self._schema, self.processes)
+
+        processes_and_steps = deep_copy_internal(self.processes)
+        deep_merge_check(processes_and_steps, self.steps)
+        _override_schemas(self._schema, processes_and_steps)
 
     def get_parameters(self) -> Dict:
         """Get the parameters for all :term:`processes`.
@@ -313,7 +360,9 @@ class Composer(metaclass=abc.ABCMeta):
         steps = self.generate_steps(config)
         flow = self.generate_flow(config)
         topology = self.generate_topology(config)
-        _override_schemas(self.schema_override, processes)
+        processes_and_steps = deep_copy_internal(processes)
+        deep_merge_check(processes_and_steps, steps)
+        _override_schemas(self.schema_override, processes_and_steps)
 
         return Composite({
             'processes': assoc_in({}, path, processes),
