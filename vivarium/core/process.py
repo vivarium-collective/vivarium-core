@@ -323,13 +323,45 @@ class Process(metaclass=abc.ABCMeta):
 
         This must be overridden by any subclasses.
 
+        Use the glob '*' schema to declare expected sub-store structure,
+        and view all child values of the store:
+
+          .. code-block:: python
+
+            schema = {
+                'port1': {
+                    '*': {
+                        '_default': 1.0
+                    }
+                }
+            }
+
+        Use the glob '**' schema to connect to an entire sub-branch, including
+        child nodes, grandchild nodes, etc:
+
+          .. code-block:: python
+
+            schema = {
+                'port1': '**'
+            }
+
+        Ports flagged as output-only won't be viewed through the next_update's
+        states, which can save some overhead time:
+
+          .. code-block:: python
+
+            schema = {
+              'port1': {
+                 '_output': True,
+                 'A': {'_default': 1.0},
+              }
+            }
+
         Returns:
             A dictionary that declares which states are expected by the
             processes, and how each state will behave. State keys can be
             assigned properties through schema_keys declared in
-            :py:class:`vivarium.core.store.Store`. Ports flagged with
-            {'_output': True} make it an output-only port, that won't
-            be viewed through the next_update's states.
+            :py:class:`vivarium.core.store.Store`.
         """
         return {}  # pragma: no cover
 

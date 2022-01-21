@@ -28,16 +28,17 @@ class ToyTransport(Process):
         super().__init__(parameters)
 
     def ports_schema(self):
-        ports = {
-            'external': ['GLC'],
-            'internal': ['GLC']}
         return {
-            port_id: {
-                key: {
+            'external': {
+                'GLC': {
                     '_default': 0.0,
-                    '_emit': True}
-                for key in keys}
-            for port_id, keys in ports.items()}
+                    '_emit': True,
+                    '_divider': 'set'}},
+            'internal': {
+                'GLC': {
+                    '_default': 0.0,
+                    '_emit': True,
+                    '_divider': 'split'}}}
 
     def next_update(self, timestep, states):
         update = {}

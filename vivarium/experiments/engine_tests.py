@@ -784,9 +784,9 @@ def test_runtime_order() -> None:
             assert set(group) == expected_group
 
 
-def test_glob_schema() -> None:
+def get_toy_transport_in_env_composite(agent_id: Any = '0') -> Composite:
     processes = {
-        'agents': {'0': {'transport': ToyTransport()}},
+        'agents': {agent_id: {'transport': ToyTransport()}},
         'environment': ToyEnvironment()}
     topology = {
         'environment': {
@@ -795,13 +795,21 @@ def test_glob_schema() -> None:
                 '*': {
                     'external': ('external', 'GLC')}}},
         'agents': {
-            '0': {
+            agent_id: {
                 'transport': {
                     'internal': ('internal',),
                     'external': ('external',)}}}}
+    return Composite({
+        'processes': processes,
+        'topology': topology,
+    })
+
+
+def test_glob_schema() -> None:
+    composite = get_toy_transport_in_env_composite()
     experiment = Engine(
-        processes=processes,
-        topology=topology)
+        processes=composite.processes,
+        topology=composite.topology)
     experiment.update(10)
 
     # declare processes in reverse order
@@ -811,12 +819,11 @@ def test_glob_schema() -> None:
 
     experiment_reverse = Engine(
         processes=processes_reverse,
-        topology=topology)
+        topology=composite.topology)
     experiment_reverse.update(10)
 
 
-def test_environment_view_with_division() -> None:
-    agent_id = '1'
+def get_env_view_composite(agent_id: Any = '1') -> Composite:
     agent_composer = ToyDivider({
         'agent_id': agent_id,
         'divider': {
@@ -845,7 +852,11 @@ def test_environment_view_with_division() -> None:
         processes=environment_process,
         topology=environment_topology,
     )
+    return composite
 
+
+def test_environment_view_with_division() -> None:
+    composite = get_env_view_composite()
     experiment = Engine(
         processes=composite.processes,
         topology=composite.topology)

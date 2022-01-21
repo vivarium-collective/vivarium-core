@@ -550,6 +550,9 @@ class Store:
           node holds a step.
         """
 
+        if config == '**':
+            config = {}  # config needs to be a dict
+
         # remove _output special key. This is used only by schema_topology.
         config = without(config, '_output')
 
@@ -783,6 +786,9 @@ class Store:
                 if condition(child)}
         if self.subschema:
             return {}
+        elif self.topology:
+            # this is a process, return it with the topology
+            return (self.value, self.topology)
         return self.value
 
     def get_processes(self):
@@ -1602,7 +1608,7 @@ class Store:
 
         state = {}
 
-        if self.leaf:
+        if self.leaf or schema == '**':
             state = self
         elif not schema.get('_output'):
             for key, subschema in schema.items():
@@ -1924,5 +1930,5 @@ class Store:
         target._generate_paths(processes, flow, topology)
         target._generate_paths(steps, flow, topology)
         target.apply_subschemas()
-        target.generate_value(initial_state)
+        target.set_value(initial_state)
         target.apply_defaults()
