@@ -1,7 +1,7 @@
 from vivarium.core.engine import Engine, pf
 from vivarium.core.control import run_library_cli
 from vivarium.experiments.engine_tests import get_toy_transport_in_env_composite
-from vivarium.core.process import Step
+from vivarium.core.process import Process, Step
 from vivarium.core.types import (
     Schema, Union, Update, State, Flow, Topology)
 from vivarium.processes.meta_division import daughter_phylogeny_id
@@ -45,10 +45,10 @@ class TopView(Step):
         # examine agent processes
         for agent_id, agent_state in agents.items():
             transport = agent_state['transport']
-            transport_process = transport['_process']
-            transport_topology = transport['_topology']
-            assert transport_process
-            assert transport_topology
+            transport_process = transport[0]
+            transport_topology = transport[1]
+            assert isinstance(transport_process, Process)
+            assert isinstance(transport_topology, dict)
 
         return update
 
