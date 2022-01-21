@@ -505,6 +505,33 @@ class ParallelProcess:
         self.multiprocess.join()
 
 
+class ToySerializedProcess(Process):
+
+    defaults: Dict[str, list] = {
+        'list': [],
+    }
+
+    def __init__(self, parameters: Optional[dict] = None) -> None:
+        super().__init__(parameters)
+        self.parameters['list'].append(1)
+
+    def ports_schema(self) -> Schema:
+        return {}
+
+    def next_update(self, timestep: float, states: State) -> Update:
+        return {}
+
+
+def test_serialize_process() -> None:
+    proc = ToySerializedProcess()
+    proc_pickle = pickle.loads(pickle.dumps(proc))
+
+    assert proc.parameters['list'] == [1]
+    # If we pickled using `self.parameters` instead of
+    # `self._original_parameters`, this list would be [1, 1].
+    assert proc_pickle.parameters['list'] == [1]
+
+
 class KafkaProcess:
     def __init__(self, process: Process) -> None:
         """Wraps a :py:class:`Process` for multiprocessing.
