@@ -3,7 +3,8 @@
 Vivarium-core provides a process interface and simulation engine for composing and executing integrative multi-scale models.
 
 ## Documentation and Tutorials
-Visit [Vivarium documentation](https://vivarium-core.readthedocs.io/).
+ - [Vivarium documentation](https://vivarium-core.readthedocs.io/)
+ - [Tutorial Notebook](https://vivarium-core.readthedocs.io/en/latest/tutorials.html)
 
 ## Installation
 vivarium-core can be used as a python library. To install:
