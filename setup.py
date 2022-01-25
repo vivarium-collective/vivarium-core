@@ -54,12 +54,12 @@ if __name__ == '__main__':
         include_package_data=True,
         python_requires='>=3.8.*, <=3.10.*',
         install_requires=[
-            'matplotlib',
+            'matplotlib>=3.5.1',
             'networkx>=2.6.3',
             'numpy>=1.22.1',
-            'Pint',
-            'pymongo',
-            'scipy'
+            'Pint>=0.18',
+            'pymongo>=4.0.1',
+            'scipy>=1.7.3'
         ],
         classifiers=[
             'Development Status :: 4 - Beta',
@@ -72,6 +72,7 @@ if __name__ == '__main__':
             'Programming Language :: Python :: 3',
             'Programming Language :: Python :: 3.8',
             'Programming Language :: Python :: 3.9',
+            'Programming Language :: Python :: 3.10',
             'Topic :: Scientific/Engineering',
         ],
         keywords='vivarium multi-scale computational-biology biology simulation framework',
