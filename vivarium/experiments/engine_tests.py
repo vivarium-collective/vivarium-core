@@ -621,7 +621,7 @@ class TestStepGraph:
         tg.remove(('a',))
         layers = list(tg.get_execution_layers())
 
-        assert layers == []
+        assert not layers
 
 
 def test_runtime_order() -> None:

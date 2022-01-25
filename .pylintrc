@@ -70,6 +70,8 @@ disable=print-statement,
         unsupported-assignment-operation,  # Buggy with NewType objects
         unsubscriptable-object,  # Buggy with NewType objects
         no-member,  # Buggy with NewType objects
+        consider-using-f-string,
+        unspecified-encoding,
 ignore=injected_glc_phosphorylation.py,
        ecoli_shape_deriver.py,
        injector.py,
