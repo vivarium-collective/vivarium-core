@@ -56,7 +56,7 @@ if __name__ == '__main__':
         install_requires=[
             'matplotlib',
             'networkx>=2.6.3',
-            'numpy',
+            'numpy>=1.22.1',
             'Pint',
             'pymongo',
             'scipy'
