@@ -52,7 +52,7 @@ if __name__ == '__main__':
         long_description_content_type='text/markdown',
         package_data={},
         include_package_data=True,
-        python_requires='>=3.8.*, <=3.10.*',
+        python_requires='>=3.8, <3.11',
         install_requires=[
             'matplotlib>=3.5.1',
             'networkx>=2.6.3',
