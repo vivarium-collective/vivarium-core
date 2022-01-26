@@ -1,8 +1,5 @@
 import re
-import setuptools
-from distutils.core import setup
-
-_ = setuptools  # don't warn about this unused import; it might have side effects
+from setuptools import setup
 
 
 VERSION = '0.4.20'
@@ -52,14 +49,14 @@ if __name__ == '__main__':
         long_description_content_type='text/markdown',
         package_data={},
         include_package_data=True,
-        python_requires='>=3.6, <4',
+        python_requires='>=3.8, <3.11',
         install_requires=[
-            'matplotlib',
+            'matplotlib>=3.5.1',
             'networkx>=2.6.3',
-            'numpy',
-            'Pint',
-            'pymongo',
-            'scipy'
+            'numpy>=1.22.1',
+            'Pint>=0.18',
+            'pymongo>=4.0.1',
+            'scipy>=1.7.3'
         ],
         classifiers=[
             'Development Status :: 4 - Beta',
@@ -72,6 +69,7 @@ if __name__ == '__main__':
             'Programming Language :: Python :: 3',
             'Programming Language :: Python :: 3.8',
             'Programming Language :: Python :: 3.9',
+            'Programming Language :: Python :: 3.10',
             'Topic :: Scientific/Engineering',
         ],
         keywords='vivarium multi-scale computational-biology biology simulation framework',
