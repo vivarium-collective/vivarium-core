@@ -2,32 +2,39 @@
 
 [![Read the Docs](https://img.shields.io/readthedocs/vivarium-core)](https://vivarium-core.readthedocs.io/en/latest/)
 [![PyPI](https://img.shields.io/pypi/v/vivarium-core)](https://pypi.org/project/vivarium-core/)
+![GitHub branch checks state](https://img.shields.io/github/checks-status/vivarium-collective/vivarium-core/master)
 
-Vivarium Core provides a process interface and simulation engine for
-composing and executing integrative multi-scale models.
+Vivarium Core provides a process interface and simulation engine for composing 
+and executing integrative multi-scale models.
 
 ## Concept
 
-Vivarium addresses computational biology's dual challenges of model
-reuse and multi-scale integration by explicitly separating the interface
-that connects models from the frameworks that implement them.  The
-modular "process" interface allows different models to be assembled
-within a hierarchy of embedded compartments, and then run by the engine
-as integrated, multi-scale simulations.
+Computational systems biology require software for multi-algorithmic model 
+composition, which allows many modeling efforts to be extended, combined, and 
+simulated together. We need an "interface protocol" -- analogous to TCP/IP for 
+the Internet -- which allows diverse pieces of simulation software to connect, 
+communicate, and synchronize seamlessly into large, complex, and open-ended 
+networks that anyone can contribute to.
+
+Vivarium addresses the challenges of model reuse and multi-scale integration by 
+explicitly separating the interface that connects models from the frameworks that 
+implement them. Vivarium's modular interface makes individual simulation tools into 
+modules that can be wired together in composite multi-scale models, parallelized 
+across multiple CPUs, and run with Vivarium's discrete-event simulation engine.
 
 <p align="center">
     <img src="https://github.com/vivarium-collective/vivarium-core/blob/master/doc/_static/interface.png?raw=true" width="500">
 </p>
 
 * (**a**) *Processes* define the functions that update the system's
-  state variables.They declare *parameters*, *ports*, and an *update
+  state variables. They declare *parameters*, *ports*, and an *update
   function*.
 * (**b**) *Stores* hold the state variables and map each process'
-  variable *names* to their *values*.  They have a schema that
+  variable *names* to their *values*. They have a schema that
   determines how the variables are handled with properties such as
   *units*, *updaters*, *dividers*, *emitters*, and more.
 * (**c**) *Topology* is a bipartite graph of processes connected to
-  stores through their ports.  Shared stores aggregate the processes'
+  stores through their ports. Shared stores aggregate the processes'
   required variables, and couple the processes as they unfold in time.
 * (**d**) Processes and Stores can be linked together with a topology in
   a single level called a compartment, and across compartments by way of
