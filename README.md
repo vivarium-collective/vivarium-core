@@ -1,5 +1,8 @@
 # Vivarium Core
 
+[![Read the Docs](https://img.shields.io/readthedocs/vivarium-core)](https://vivarium-core.readthedocs.io/en/latest/)
+[![PyPI](https://img.shields.io/pypi/v/vivarium-core)](https://pypi.org/project/vivarium-core/)
+
 Vivarium Core provides a process interface and simulation engine for
 composing and executing integrative multi-scale models.
 
