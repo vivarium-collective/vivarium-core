@@ -33,7 +33,7 @@ an update function, and ports.
 determines how to handle updates. 
 * (**c**) *Composites* are bundles of Processes and Stores wired together by a bipartite network called a *Topology*, 
 with Processes connecting to Stores through their ports. 
-* (**d**) *Compartments* are Stores with inner Processes and sub-Stores -- like a folder within a folder.
+* (**d**) *Compartments* are Stores with inner Processes and sub-Stores -- like a folder with internal files.
 * (**e**) Compartments are embedded in a *Hierarchy* -- depicted as a place network with discrete layers, 
 with outer compartments are shown above and inner compartments below.
 
