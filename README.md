@@ -27,13 +27,15 @@ across multiple CPUs, and run with Vivarium's discrete-event simulation engine.
 </p>
 
 Vivarium's model interface, illustrating the formal structure of the framework.
-* (**a**) A *Process*, shown as a rectangular flowchart symbol, is a modular models that contain the parameters, an update function, and ports.
-* (**b**) A *Store*, shown as the flowchart symbol for a database, holds the state variables and *schemas* that determines how to handle updates. 
-* (**c**) *Composites* are bundles of processes and stores wired together by a bipartite network called a *topology*, with processes connecting to stores through their ports. 
-* (**d**) *Compartments* are processes and stores connected across a single level.
-Processes can be wired across compartments through *boundary* stores.
-* (**e**) Compartments are embedded in a *hierarchy* -- depicted as a hierarchical network with discrete layers. 
-Outer compartments are shown above and inner compartments below.
+* (**a**) A *Process*, shown as a rectangular flowchart symbol, is a modular models that contain the parameters, 
+an update function, and ports.
+* (**b**) A *Store*, shown as the flowchart symbol for a database, holds the state variables and schemas that 
+determines how to handle updates. 
+* (**c**) *Composites* are bundles of Processes and Stores wired together by a bipartite network called a *Topology*, 
+with Processes connecting to Stores through their ports. 
+* (**d**) *Compartments* are Stores with inner Processes and sub-Stores -- like a folder within a folder.
+* (**e**) Compartments are embedded in a *Hierarchy* -- depicted as a place network with discrete layers, 
+with outer compartments are shown above and inner compartments below.
 
 ## Getting Started
 
