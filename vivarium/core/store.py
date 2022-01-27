@@ -1057,7 +1057,7 @@ class Store:
             return daughters
         return None
 
-    def reduce(self, reducer, initial=None):
+    def _reduce(self, reducer, initial=None):
         """
         Call the reducer on each node accumulating over the result.
         """
@@ -1539,7 +1539,7 @@ class Store:
         if isinstance(update, dict) and '_reduce' in update:
             reduction = update['_reduce']
             top = self.get_path(reduction.get('from'))
-            update = top.reduce(
+            update = top._reduce(
                 reduction['reducer'],
                 initial=reduction['initial'])
 
