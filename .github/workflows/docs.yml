@@ -9,8 +9,7 @@ on:
     branches: [master]
 
 jobs:
-  build:
-
+  build-docs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
