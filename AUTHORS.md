@@ -1,5 +1,12 @@
 # Authors of Vivarium Core
 
+The maintainers of the Vivarium project (known as the Vivarium Authors)
+are:
+
+* Eran Agmon  (@eagmon)
+* Ryan Spangler (@prismofeverything)
+* Chris Skalnik (@U8NWXD)
+
 Vivarium Core was built by:
 
 * Members of the [Covert Lab](https://covert.stanford.edu) at
