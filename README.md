@@ -15,7 +15,9 @@ modular "process" interface allows different models to be assembled
 within a hierarchy of embedded compartments, and then run by the engine
 as integrated, multi-scale simulations.
 
-![vivarium](doc/_static/interface.png)
+<p align="center">
+    <img src="https://github.com/vivarium-collective/vivarium-core/blob/master/doc/_static/interface.png?raw=true" width="500">
+</p>
 
 * (**a**) *Processes* define the functions that update the system's
   state variables.They declare *parameters*, *ports*, and an *update
