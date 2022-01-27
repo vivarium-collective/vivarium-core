@@ -447,7 +447,7 @@ class Engine:
         self.progress_bar = progress_bar
         self.time_created = timestamp()
         if self.display_info:
-            self.print_display()
+            self._print_display()
 
         # parallel settings
         self.invoke = invoke or InvokeProcess
@@ -486,8 +486,8 @@ class Engine:
         self._run_steps()
 
         # run the emitter
-        self.emit_configuration()
-        self.emit_data()
+        self._emit_configuration()
+        self._emit_store_data()
 
         # logging information
         log.info('experiment %s', str(self.experiment_id))
@@ -602,7 +602,7 @@ class Engine:
         for path, step in tree.items():
             self._add_step_path(step, path, get_in(flow, path))
 
-    def emit_configuration(self) -> None:
+    def _emit_configuration(self) -> None:
         """Emit experiment configuration."""
         data: Dict[str, Any] = {
             'time_created': self.time_created,
@@ -622,7 +622,7 @@ class Engine:
             'data': data}
         self.emitter.emit(emit_config)
 
-    def emit_data(self) -> None:
+    def _emit_store_data(self) -> None:
         """Emit the current simulation state.
         Only variables with ``_emit=True`` are emitted.
         """
@@ -634,7 +634,7 @@ class Engine:
             'data': serialize_value(data)}
         self.emitter.emit(emit_config)
 
-    def invoke_process(
+    def _invoke_process(
             self,
             process: Process,
             path: HierarchyPath,
@@ -682,9 +682,9 @@ class Engine:
     ) -> Tuple[Defer, Store]:
         """Start generating a process's update.
 
-        This function is similar to :py:meth:`invoke_process` except in
+        This function is similar to :py:meth:`_invoke_process` except in
         addition to triggering the computation of the process's update
-        (by calling ``invoke_process``), it also generates a
+        (by calling ``_invoke_process``), it also generates a
         :py:class:`Defer` object to transform the update into absolute
         terms.
 
@@ -701,7 +701,7 @@ class Engine:
             ``store``.
         """
 
-        update = self.invoke_process(
+        update = self._invoke_process(
             process,
             path,
             interval,
@@ -714,7 +714,7 @@ class Engine:
 
         return absolute, store
 
-    def process_state(
+    def _process_state(
             self,
             path: HierarchyPath,
     ) -> Tuple[Store, State]:
@@ -742,7 +742,7 @@ class Engine:
 
         return store, states
 
-    def calculate_update(
+    def _calculate_update(
             self,
             path: HierarchyPath,
             process: Process,
@@ -759,7 +759,7 @@ class Engine:
             Tuple of the deferred update (relative to the root of
             ``path``) and the store at ``path``.
         """
-        store, states = self.process_state(path)
+        store, states = self._process_state(path)
         if process.update_condition(interval, states):
             return self._process_update(
                 path, process, store, states, interval)
@@ -809,11 +809,11 @@ class Engine:
 
         if deletions:
             for deletion in deletions:
-                self.delete_path(deletion)
+                self._delete_path(deletion)
 
         return view_expire
 
-    def delete_path(
+    def _delete_path(
             self,
             deletion: HierarchyPath
     ) -> None:
@@ -855,7 +855,7 @@ class Engine:
                 #  generate_paths() add a schema attribute to the Deriver.
                 #  PyCharm's type check reports:
                 #    Type Process doesn't have expected attribute 'schema'
-                update, store = self.calculate_update(
+                update, store = self._calculate_update(
                     path, step, 0)
                 deferred_updates.append((update, store))
 
@@ -867,7 +867,7 @@ class Engine:
             if view_expire:
                 self.state.build_topology_views()
 
-    def send_updates(
+    def _send_updates(
             self,
             update_tuples: list
     ) -> None:
@@ -899,17 +899,17 @@ class Engine:
         """
         clock_start = clock.time()
         self.run_for(interval=interval, force_complete=True)
-        self.check_complete()
+        self._check_complete()
         runtime = clock.time() - clock_start
         if self.display_info:
-            self.print_summary(runtime)
+            self._print_summary(runtime)
 
     def complete(self) -> None:
         """Force all processes to complete at the current global time"""
         self.run_for(interval=0, force_complete=True)
-        self.check_complete()
+        self._check_complete()
 
-    def check_complete(self) -> None:
+    def _check_complete(self) -> None:
         """Check that all processes completed"""
         for path, advance in self.front.items():
             assert advance['time'] == self.global_time, \
@@ -965,7 +965,7 @@ class Engine:
                 if process_time <= self.global_time:
 
                     # get the time step
-                    store, states = self.process_state(path)
+                    store, states = self._process_state(path)
                     process_timestep = process.calculate_timestep(states)
 
                     if force_complete:
@@ -1028,16 +1028,16 @@ class Engine:
                         advance['update'] = {}
                         paths.append(path)
 
-                self.send_updates(updates)
+                self._send_updates(updates)
 
                 # display and emit
                 if self.progress_bar:
                     print_progress_bar(self.global_time, end_time)
                 if self.emit_step == 1:
-                    self.emit_data()
+                    self._emit_store_data()
                 elif emit_time <= self.global_time:
                     while emit_time <= self.global_time:
-                        self.emit_data()
+                        self._emit_store_data()
                         emit_time += self.emit_step
 
             else:
@@ -1066,7 +1066,7 @@ class Engine:
                 total_stats.add(stats)
             self.stats = total_stats
 
-    def print_display(self) -> None:
+    def _print_display(self) -> None:
         """Print simulation metadata."""
         date, time = self.time_created.split('.')
         print('\nSimulation ID: {}'.format(self.experiment_id))
@@ -1078,7 +1078,7 @@ class Engine:
         if self.description:
             print('Description: {}'.format(self.description))
 
-    def print_summary(
+    def _print_summary(
             self,
             runtime: float
     ) -> None:

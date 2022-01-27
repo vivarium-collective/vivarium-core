@@ -224,7 +224,7 @@ class Store:
         # dependencies but should not be treated like a Deriver.
         self.flow = None
 
-        self.apply_config(config, source)
+        self._apply_config(config, source)
 
     def __getitem__(self, path):
         '''Retrieve a :term:`hierarchy` node by its :term:`path`.
@@ -269,11 +269,11 @@ class Store:
 
         if absolute:
             top = self.top()
-            store = top.establish_path(path, config=kwargs)
-            top.apply_subschema_path(path)
+            store = top._establish_path(path, config=kwargs)
+            top._apply_subschema_path(path)
         else:
-            store = self.establish_path(path, config=kwargs)
-            self.apply_subschema_path(path)
+            store = self._establish_path(path, config=kwargs)
+            self._apply_subschema_path(path)
 
         store.apply_defaults()
         return store
@@ -306,7 +306,7 @@ class Store:
 
         if isinstance(value, Store):
             target_store = value
-            if self.independent_store(target_store):
+            if self._independent_store(target_store):
                 raise Exception(
                     f"the store being inserted at {path} is from a different tree "
                     f"at {target_store.path_for()}: {target_store.get_value()}")
@@ -318,7 +318,7 @@ class Store:
                 target_store = self.outer.get_path(store_path)
 
         # update the topology
-        self.update_topology(path, target_store)
+        self._update_topology(path, target_store)
 
     def set_path(self, path, value):
         '''Set a value at a path in the hierarchy.
@@ -386,7 +386,22 @@ class Store:
         else:
             raise Exception("this should never happen")
 
-    def update_topology(self, port_path, target_store):
+    def path_to(self, to):
+        """return a path from self to the given Store"""
+
+        self_path = self.path_for()
+        to_path = to.path_for()
+        while len(self_path) > 0 and len(to_path) > 0 and self_path[0] == to_path[0]:
+            self_path = self_path[1:]
+            to_path = to_path[1:]
+
+        path = [
+            '..'
+            for _ in self_path]
+        path.extend(to_path)
+        return tuple(path)
+
+    def _update_topology(self, port_path, target_store):
         """Update the topology with a new port-path pair.
 
         To use this function ``self`` must hold a :term:`process`.
@@ -414,7 +429,7 @@ class Store:
             topology, port_path, self.outer.path_to(target_store))
 
         self.value.schema = self.value.get_schema()
-        self.outer.topology_ports(
+        self.outer._topology_ports(
             self.value.schema,
             self.topology,
             source=self.path_for())
@@ -424,25 +439,10 @@ class Store:
             self.value.schema,
             self.topology)
 
-    def independent_store(self, store):
+    def _independent_store(self, store):
         return self.top() != store.top()
 
-    def path_to(self, to):
-        """return a path from self to the given Store"""
-
-        self_path = self.path_for()
-        to_path = to.path_for()
-        while len(self_path) > 0 and len(to_path) > 0 and self_path[0] == to_path[0]:
-            self_path = self_path[1:]
-            to_path = to_path[1:]
-
-        path = [
-            '..'
-            for _ in self_path]
-        path.extend(to_path)
-        return tuple(path)
-
-    def check_default(self, new_default):
+    def _check_default(self, new_default):
         """Check a new default value.
 
         Compare a new default value to the existing default. If they
@@ -476,7 +476,7 @@ class Store:
                 str(self.default), str(new_default), str(new_default))
         return new_default
 
-    def check_value(self, new_value):
+    def _check_value(self, new_value):
         """Check a new schema value.
 
         Args:
@@ -495,17 +495,17 @@ class Store:
                     new_value, self.value))
         return new_value
 
-    def merge_subtopology(self, subtopology):
+    def _merge_subtopology(self, subtopology):
         """Merge a new subtopology with the store's existing one."""
         self.subtopology = deep_merge(self.subtopology, subtopology)
 
-    def apply_subschema_config(self, subschema):
+    def _apply_subschema_config(self, subschema):
         """Merge a new subschema config with the current subschema."""
         self.subschema = deep_merge(
             self.subschema,
             subschema)
 
-    def apply_config(self, config, source=None):
+    def _apply_config(self, config, source=None):
         """
         Expand the tree by applying additional config.
 
@@ -557,17 +557,17 @@ class Store:
         config = without(config, '_output')
 
         if '*' in config:
-            self.apply_subschema_config(config['*'])
+            self._apply_subschema_config(config['*'])
             config = without(config, '*')
 
         if '_subschema' in config:
             if source:
                 self.sources[source] = config['_subschema']
-            self.apply_subschema_config(config['_subschema'])
+            self._apply_subschema_config(config['_subschema'])
             config = without(config, '_subschema')
 
         if '_subtopology' in config:
-            self.merge_subtopology(config['_subtopology'])
+            self._merge_subtopology(config['_subtopology'])
             config = without(config, '_subtopology')
 
         if '_topology' in config:
@@ -616,7 +616,7 @@ class Store:
                         self.serializer)
 
             if '_default' in config:
-                self.default = self.check_default(config.get('_default'))
+                self.default = self._check_default(config.get('_default'))
                 if isinstance(self.default, Quantity):
                     self.units = self.units or self.default.units
                     self.serializer = (self.serializer or
@@ -632,7 +632,7 @@ class Store:
                                        serializer_registry.access('numpy'))
 
             if '_value' in config:
-                self.value = self.check_value(config.get('_value'))
+                self.value = self._check_value(config.get('_value'))
                 if isinstance(self.value, Quantity):
                     self.units = self.value.units
 
@@ -666,7 +666,7 @@ class Store:
                 if key not in self.inner:
                     self.inner[key] = Store(child, outer=self, source=source)
                 else:
-                    self.inner[key].apply_config(child, source=source)
+                    self.inner[key]._apply_config(child, source=source)
 
         if self.topology and not isinstance(self.value, Process):
             raise ValueError(
@@ -680,7 +680,7 @@ class Store:
                 f'with flow {self.flow}, which is not allowed because '
                 f'the Store value ({self.value}) is not a Step.')
 
-    def get_updater(self, update):
+    def _get_updater(self, update):
         """Get the updater to use for an update applied to this store.
 
         Args:
@@ -699,7 +699,7 @@ class Store:
             updater = updater_registry.access(updater)
         return updater
 
-    def get_divider(self):
+    def _get_divider(self):
         if self.divider == DEFAULT_DIVIDER:
             if self.topology:
                 # For processes, we use a null divider by default.
@@ -1007,7 +1007,7 @@ class Store:
             return self.value
         return None
 
-    def delete_path(self, path):
+    def _delete_path(self, path):
         """
         Delete the subtree at the given path.
         """
@@ -1029,7 +1029,7 @@ class Store:
         Apply the divider for each node to the value in that node to
         assemble two parallel divided states of this subtree.
         """
-        divider = self.get_divider()
+        divider = self._get_divider()
         if divider:
             # divider is either a function or a dict with topology and/or config
             if isinstance(divider, dict):
@@ -1057,7 +1057,7 @@ class Store:
             return daughters
         return None
 
-    def reduce(self, reducer, initial=None):
+    def _reduce(self, reducer, initial=None):
         """
         Call the reducer on each node accumulating over the result.
         """
@@ -1106,7 +1106,7 @@ class Store:
                     if self.subschema:
                         self.inner[child] = Store(self.subschema, self)
                     else:
-                        self.establish_path((child,), {})
+                        self._establish_path((child,), {})
 
                 if child in self.inner:
                     self.inner[child].generate_value(inner_value)
@@ -1139,8 +1139,8 @@ class Store:
         added_state = added['state']
 
         # get path
-        target = self.establish_path(path, {})
-        self.apply_subschema_path(path)
+        target = self._establish_path(path, {})
+        self._apply_subschema_path(path)
         target.apply_defaults()
         target.set_value(added_state)
 
@@ -1189,7 +1189,7 @@ class Store:
                 flow_updates.append((
                     process_path, process.flow))
 
-        self.delete_path(source_path)
+        self._delete_path(source_path)
 
         here = self.path_for()
         source_absolute = tuple(here + source_path)
@@ -1241,7 +1241,7 @@ class Store:
             for key, flow in insertion.get('flow', {}).items()]
         flow_updates.extend(flow_paths)
 
-        self.apply_subschema_path(path)
+        self._apply_subschema_path(path)
         self.get_path(path).apply_defaults()
 
         return process_updates, step_updates, flow_updates, topology_updates
@@ -1326,13 +1326,13 @@ class Store:
                 for key, ports in topology.items()]
             topology_updates.extend(topology_paths)
 
-            self.apply_subschema_path(daughter_path)
+            self._apply_subschema_path(daughter_path)
             target = self.get_path(daughter_path)
             target.apply_defaults()
             target.set_value(merged_initial_state)
 
 
-        self.delete_path(mother_path)
+        self._delete_path(mother_path)
         deletions.append(tuple(here + mother_path))
 
         for path, process in process_and_step_updates:
@@ -1357,7 +1357,7 @@ class Store:
             here = self.path_for()
         deletions = []
         path = (key,)
-        self.delete_path(path)
+        self._delete_path(path)
         deletions.append(tuple(here + path))
 
         return deletions
@@ -1534,12 +1534,12 @@ class Store:
 
         # Leaf update: this node has no inner
 
-        updater = self.get_updater(update)
+        updater = self._get_updater(update)
 
         if isinstance(update, dict) and '_reduce' in update:
             reduction = update['_reduce']
             top = self.get_path(reduction.get('from'))
-            update = top.reduce(
+            update = top._reduce(
                 reduction['reducer'],
                 initial=reduction['initial'])
 
@@ -1671,105 +1671,9 @@ class Store:
             base += child.depth(down, filter_function)
         return base
 
-    def apply_subschema_path(self, path):
-        """Apply ``self.subschema`` at ``path``."""
-        if path:
-            inner = self.inner[path[0]]
-            if self.subschema:
-                subtopology = self.subtopology or {}
-                inner.topology_ports(
-                    self.subschema,
-                    subtopology,
-                    source=self.path_for() + ('*',))
-            inner.apply_subschema_path(path[1:])
-
-    def apply_subschema(self, subschema=None, subtopology=None):
-        """
-        Apply a subschema to all inner nodes (either provided or from this
-        node's personal subschema) as governed by the given/personal
-        subtopology.
-        """
-
-        if subschema is None:
-            subschema = self.subschema
-        if subtopology is None:
-            subtopology = self.subtopology or {}
-
-        inner = list(self.inner.values())
-
-        for child in inner:
-            child.topology_ports(
-                subschema,
-                subtopology,
-                source=self.path_for() + ('*',))
-
-    def apply_subschemas(self):
-        """
-        Apply all subschemas from all nodes at this point or lower in the tree.
-        """
-
-        if self.subschema:
-            self.apply_subschema()
-        for child in self.inner.values():
-            child.apply_subschemas()
-
-    def update_subschema(self, path, subschema):
-        """
-        Merge a new subschema into an existing subschema at the given path.
-        """
-
-        target = self.get_path(path)
-        if target.subschema is None:
-            target.subschema = subschema
-        else:
-            target.subschema = deep_merge(
-                target.subschema,
-                subschema)
-        return target
-
-    def establish_path(self, path, config, source=None):
-        """
-        Create a node at the given path if it does not exist, then
-        apply a config to it.
-
-        Paths can include '..' to go up a level (which raises an exception
-        if that level does not exist).
-        """
-
-        if len(path) > 0:
-            path_step = path[0]
-            remaining = path[1:]
-
-            if path_step == '..':
-                if not self.outer:
-                    raise Exception(
-                        'outer does not exist for path: {}'.format(path))
-
-                return self.outer.establish_path(
-                    remaining,
-                    config,
-                    source=source)
-            elif isinstance(self.value, Process):
-                towards = topology_path(self.topology, path)
-                if towards:
-                    target = self.outer.establish_path(towards[0], config, source=source)
-                    return target.establish_path(towards[1], config, source=source)
-            else:
-                if path_step not in self.inner:
-                    self.inner[path_step] = Store(
-                        {}, outer=self, source=source)
-
-                return self.inner[path_step].establish_path(
-                    remaining,
-                    config,
-                    source=source)
-        else:
-            self.apply_config(config, source=source)
-            return self
-
     def add_node(self, path, node):
         """ Add a node instance at the provided path """
-        target = self.establish_path(path[:-1], {})
+        target = self._establish_path(path[:-1], {})
         if target.get_value() and path[-1] in target.get_value():
             # this path already exists, update it
             self.apply_update({path[-1]: node.get_value()})
@@ -1787,7 +1691,7 @@ class Store:
 
         node = self
         if '_path' in path:
-            node = self.establish_path(
+            node = self._establish_path(
                 path['_path'],
                 {},
                 source=source)
@@ -1795,7 +1699,103 @@ class Store:
 
         return node, path
 
-    def topology_ports(self, schema, topology, source=None):
+    def _apply_subschema_path(self, path):
+        """Apply ``self.subschema`` at ``path``."""
+        if path:
+            inner = self.inner[path[0]]
+            if self.subschema:
+                subtopology = self.subtopology or {}
+                inner._topology_ports(
+                    self.subschema,
+                    subtopology,
+                    source=self.path_for() + ('*',))
+            inner._apply_subschema_path(path[1:])
+
+    def _apply_subschema(self, subschema=None, subtopology=None):
+        """
+        Apply a subschema to all inner nodes (either provided or from this
+        node's personal subschema) as governed by the given/personal
+        subtopology.
+        """
+
+        if subschema is None:
+            subschema = self.subschema
+        if subtopology is None:
+            subtopology = self.subtopology or {}
+
+        inner = list(self.inner.values())
+
+        for child in inner:
+            child._topology_ports(
+                subschema,
+                subtopology,
+                source=self.path_for() + ('*',))
+
+    def _apply_subschemas(self):
+        """
+        Apply all subschemas from all nodes at this point or lower in the tree.
+        """
+
+        if self.subschema:
+            self._apply_subschema()
+        for child in self.inner.values():
+            child._apply_subschemas()
+
+    def _update_subschema(self, path, subschema):
+        """
+        Merge a new subschema into an existing subschema at the given path.
+        """
+
+        target = self.get_path(path)
+        if target.subschema is None:
+            target.subschema = subschema
+        else:
+            target.subschema = deep_merge(
+                target.subschema,
+                subschema)
+        return target
+
+    def _establish_path(self, path, config, source=None):
+        """
+        Create a node at the given path if it does not exist, then
+        apply a config to it.
+
+        Paths can include '..' to go up a level (which raises an exception
+        if that level does not exist).
+        """
+
+        if len(path) > 0:
+            path_step = path[0]
+            remaining = path[1:]
+
+            if path_step == '..':
+                if not self.outer:
+                    raise Exception(
+                        'outer does not exist for path: {}'.format(path))
+
+                return self.outer._establish_path(
+                    remaining,
+                    config,
+                    source=source)
+            elif isinstance(self.value, Process):
+                towards = topology_path(self.topology, path)
+                if towards:
+                    target = self.outer._establish_path(towards[0], config, source=source)
+                    return target._establish_path(towards[1], config, source=source)
+            else:
+                if path_step not in self.inner:
+                    self.inner[path_step] = Store(
+                        {}, outer=self, source=source)
+
+                return self.inner[path_step]._establish_path(
+                    remaining,
+                    config,
+                    source=source)
+        else:
+            self._apply_config(config, source=source)
+            return self
+
+    def _topology_ports(self, schema, topology, source=None):
         """
         Distribute a schema into the tree by mapping its ports
         according to the given topology.
@@ -1804,7 +1804,7 @@ class Store:
         source = source or self.path_for()
 
         if set(schema.keys()) & self.schema_keys:
-            self.get_path(topology).apply_config(schema)
+            self.get_path(topology)._apply_config(schema)
         else:
             mismatch_topology = (
                 set(topology.keys()) - set(schema.keys()))
@@ -1829,27 +1829,27 @@ class Store:
                     if isinstance(path, dict):
                         node, subpath = self.outer_path(
                             path, source=source)
-                        node.merge_subtopology(subpath)
-                        node.apply_config(subschema_config)
+                        node._merge_subtopology(subpath)
+                        node._apply_config(subschema_config)
                     else:
-                        node = self.establish_path(
+                        node = self._establish_path(
                             path,
                             subschema_config,
                             source=source)
-                    node.apply_subschema()
+                    node._apply_subschema()
                     node.apply_defaults()
 
                 elif isinstance(path, dict):
                     node, subpath = self.outer_path(
                         path, source=source)
 
-                    node.topology_ports(
+                    node._topology_ports(
                         subschema,
                         subpath,
                         source=source)
 
                 else:
-                    self.establish_path(
+                    self._establish_path(
                         path,
                         subschema,
                         source=source)
@@ -1895,7 +1895,7 @@ class Store:
 
                 subprocess.schema = subprocess.get_schema()
 
-                self.topology_ports(
+                self._topology_ports(
                     subprocess.schema,
                     subtopology,
                     source=self.path_for() + (key,))
@@ -1926,9 +1926,9 @@ class Store:
         will be applied.
         """
 
-        target = self.establish_path(path, {})
+        target = self._establish_path(path, {})
         target._generate_paths(processes, flow, topology)
         target._generate_paths(steps, flow, topology)
-        target.apply_subschemas()
+        target._apply_subschemas()
         target.set_value(initial_state)
         target.apply_defaults()
