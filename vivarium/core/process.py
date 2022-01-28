@@ -151,9 +151,9 @@ class Process(metaclass=abc.ABCMeta):
                 'not supported.')
         return self._original_parameters
 
-    def __setstate__(self, state: dict) -> None:
+    def __setstate__(self, parameters: dict) -> None:
         """Initialize process with parameters"""
-        self.__init__(parameters=state)  # type: ignore
+        self.__init__(parameters)  # type: ignore
 
     def initial_state(self, config: Optional[dict] = None) -> State:
         """Get initial state in embedded path dictionary.
