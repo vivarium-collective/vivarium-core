@@ -1,8 +1,11 @@
 # Vivarium Core
 
-[![Read the Docs](https://img.shields.io/readthedocs/vivarium-core)](https://vivarium-core.readthedocs.io/en/latest/)
 [![PyPI](https://img.shields.io/pypi/v/vivarium-core)](https://pypi.org/project/vivarium-core/)
-![GitHub branch checks state](https://img.shields.io/github/checks-status/vivarium-collective/vivarium-core/master)
+[![documentation](https://github.com/vivarium-collective/vivarium-core/actions/workflows/docs.yml/badge.svg)](https://vivarium-core.readthedocs.io/en/latest/)
+![lint](https://github.com/vivarium-collective/vivarium-core/actions/workflows/pylint.yml/badge.svg)
+![pytest](https://github.com/vivarium-collective/vivarium-core/actions/workflows/pytest.yml/badge.svg)
+![mypy](https://github.com/vivarium-collective/vivarium-core/actions/workflows/mypy.yml/badge.svg)
+
 
 Vivarium Core provides a process interface and simulation engine for composing 
 and executing integrative multi-scale models.
