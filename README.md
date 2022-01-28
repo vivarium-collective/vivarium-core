@@ -30,7 +30,7 @@ Vivarium's model interface, illustrating the formal structure of the framework.
 * (**a**) A *Process*, shown as a rectangular flowchart symbol, is a modular model that contains parameters, 
 an update function, and ports.
 * (**b**) A *Store*, shown as the flowchart symbol for a database, holds the state variables and schemas that 
-determines how to handle updates. 
+determine how to handle updates. 
 * (**c**) *Composites* are bundles of Processes and Stores wired together by a bipartite network called a *Topology*, 
 with Processes connecting to Stores through their ports. 
 * (**d**) *Compartments* are Stores with inner Processes and sub-Stores -- like a folder with internal files.
