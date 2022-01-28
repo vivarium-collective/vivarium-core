@@ -153,7 +153,7 @@ class Process(metaclass=abc.ABCMeta):
 
     def __setstate__(self, state: dict) -> None:
         """Initialize process with parameters"""
-        self.__init__(parameters=state)  # type: ignore
+        self.__init__(state)  # type: ignore
 
     def initial_state(self, config: Optional[dict] = None) -> State:
         """Get initial state in embedded path dictionary.
