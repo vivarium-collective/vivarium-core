@@ -2,9 +2,9 @@
 
 [![PyPI](https://img.shields.io/pypi/v/vivarium-core)](https://pypi.org/project/vivarium-core/)
 [![documentation](https://github.com/vivarium-collective/vivarium-core/actions/workflows/docs.yml/badge.svg)](https://vivarium-core.readthedocs.io/en/latest/)
-![lint](https://github.com/vivarium-collective/vivarium-core/actions/workflows/pylint.yml/badge.svg)
-![pytest](https://github.com/vivarium-collective/vivarium-core/actions/workflows/pytest.yml/badge.svg)
-![mypy](https://github.com/vivarium-collective/vivarium-core/actions/workflows/mypy.yml/badge.svg)
+[![lint](https://github.com/vivarium-collective/vivarium-core/actions/workflows/pylint.yml/badge.svg)](https://github.com/vivarium-collective/vivarium-core/actions/workflows/pylint.yml?query=branch%3Amaster)
+[![pytest](https://github.com/vivarium-collective/vivarium-core/actions/workflows/pytest.yml/badge.svg)](https://github.com/vivarium-collective/vivarium-core/actions/workflows/pytest.yml?query=branch%3Amaster)
+[![mypy](https://github.com/vivarium-collective/vivarium-core/actions/workflows/mypy.yml/badge.svg)](https://github.com/vivarium-collective/vivarium-core/actions/workflows/mypy.yml?query=branch%3Amaster)
 
 
 Vivarium Core provides a process interface and simulation engine for composing 

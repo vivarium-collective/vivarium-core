@@ -1,6 +1,6 @@
 # Modified from GitHub Actions template
 
-name: Pytest
+name: Tests
 
 on:
   push:
