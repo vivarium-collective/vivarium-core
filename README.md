@@ -9,7 +9,7 @@ and executing integrative multi-scale models.
 
 ## Concept
 
-Computational systems biology require software for multi-algorithmic model 
+Computational systems biology requires software for multi-algorithmic model 
 composition, which allows many modeling efforts to be extended, combined, and 
 simulated together. We need an "interface protocol" -- analogous to TCP/IP for 
 the Internet -- which allows diverse pieces of simulation software to connect, 
