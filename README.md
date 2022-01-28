@@ -1,35 +1,46 @@
 # Vivarium Core
 
-Vivarium Core provides a process interface and simulation engine for
-composing and executing integrative multi-scale models.
+[![PyPI](https://img.shields.io/pypi/v/vivarium-core)](https://pypi.org/project/vivarium-core/)
+[![documentation](https://github.com/vivarium-collective/vivarium-core/actions/workflows/docs.yml/badge.svg)](https://vivarium-core.readthedocs.io/en/latest/)
+[![lint](https://github.com/vivarium-collective/vivarium-core/actions/workflows/pylint.yml/badge.svg)](https://github.com/vivarium-collective/vivarium-core/actions/workflows/pylint.yml?query=branch%3Amaster)
+[![pytest](https://github.com/vivarium-collective/vivarium-core/actions/workflows/pytest.yml/badge.svg)](https://github.com/vivarium-collective/vivarium-core/actions/workflows/pytest.yml?query=branch%3Amaster)
+[![mypy](https://github.com/vivarium-collective/vivarium-core/actions/workflows/mypy.yml/badge.svg)](https://github.com/vivarium-collective/vivarium-core/actions/workflows/mypy.yml?query=branch%3Amaster)
+
+
+Vivarium Core provides a process interface and simulation engine for composing 
+and executing integrative multi-scale models.
 
 ## Concept
 
-Vivarium addresses computational biology's dual challenges of model
-reuse and multi-scale integration by explicitly separating the interface
-that connects models from the frameworks that implement them.  The
-modular "process" interface allows different models to be assembled
-within a hierarchy of embedded compartments, and then run by the engine
-as integrated, multi-scale simulations.
+Computational systems biology requires software for multi-algorithmic model 
+composition, which allows many modeling efforts to be extended, combined, and 
+simulated together. We need an "interface protocol" -- analogous to TCP/IP for 
+the Internet -- which allows diverse pieces of simulation software to connect, 
+communicate, and synchronize seamlessly into large, complex, and open-ended 
+networks that anyone can contribute to.
 
-![vivarium](doc/_static/interface.png)
+Vivarium addresses the challenges of model reuse and multi-scale integration by 
+explicitly separating the interface that connects models from the frameworks that 
+implement them. Vivarium's modular interface makes individual simulation tools into 
+modules that can be wired together in composite multi-scale models, parallelized 
+across multiple CPUs, and run with Vivarium's discrete-event simulation engine.
 
-* (**a**) *Processes* define the functions that update the system's
-  state variables.They declare *parameters*, *ports*, and an *update
-  function*.
-* (**b**) *Stores* hold the state variables and map each process'
-  variable *names* to their *values*.  They have a schema that
-  determines how the variables are handled with properties such as
-  *units*, *updaters*, *dividers*, *emitters*, and more.
-* (**c**) *Topology* is a bipartite graph of processes connected to
-  stores through their ports.  Shared stores aggregate the processes'
-  required variables, and couple the processes as they unfold in time.
-* (**d**) Processes and Stores can be linked together with a topology in
-  a single level called a compartment, and across compartments by way of
-  boundary stores.
-* (**e**) Compartments are embedded within each other in a hierarchy --
-  depicted here as a place graph with outer compartments at the top and
-  inner compartments below them.
+The figure below illustrates the key terminology of Vivarium's interface.
+* (**a**) A *Process*, shown as a rectangular flowchart symbol, is a modular model that contains parameters, 
+an update function, and ports.
+* (**b**) A *Store*, shown as the flowchart symbol for a database, holds the state variables and schemas that 
+determine how to handle updates. 
+* (**c**) *Composites* are bundles of Processes and Stores wired together by a bipartite network called a *Topology*, 
+with Processes connecting to Stores through their ports. 
+* (**d**) *Compartments* are Stores with inner sub-Stores and Processes. Processes can connect across compartments via 
+boundary stores.
+* (**e**) Compartments are embedded in a *Hierarchy* -- depicted as a place network with discrete layers, 
+with outer compartments shown above and inner compartments below.
+
+<p align="center">
+    <img src="https://github.com/vivarium-collective/vivarium-core/blob/master/doc/_static/interface.png?raw=true" width="500">
+</p>
+
 
 ## Getting Started
 
