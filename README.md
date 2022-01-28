@@ -22,20 +22,22 @@ implement them. Vivarium's modular interface makes individual simulation tools i
 modules that can be wired together in composite multi-scale models, parallelized 
 across multiple CPUs, and run with Vivarium's discrete-event simulation engine.
 
-<p align="center">
-    <img src="https://github.com/vivarium-collective/vivarium-core/blob/master/doc/_static/interface.png?raw=true" width="500">
-</p>
-
-Vivarium's model interface, illustrating the formal structure of the framework.
+The figure below illustrates the key terminology of Vivarium's interface.
 * (**a**) A *Process*, shown as a rectangular flowchart symbol, is a modular model that contains parameters, 
 an update function, and ports.
 * (**b**) A *Store*, shown as the flowchart symbol for a database, holds the state variables and schemas that 
 determine how to handle updates. 
 * (**c**) *Composites* are bundles of Processes and Stores wired together by a bipartite network called a *Topology*, 
 with Processes connecting to Stores through their ports. 
-* (**d**) *Compartments* are Stores with inner Processes and sub-Stores -- like a folder with internal files.
+* (**d**) *Compartments* are Stores with inner sub-Stores and Processes. Processes can connect across compartments via 
+boundary stores.
 * (**e**) Compartments are embedded in a *Hierarchy* -- depicted as a place network with discrete layers, 
 with outer compartments shown above and inner compartments below.
+
+<p align="center">
+    <img src="https://github.com/vivarium-collective/vivarium-core/blob/master/doc/_static/interface.png?raw=true" width="500">
+</p>
+
 
 ## Getting Started
 
