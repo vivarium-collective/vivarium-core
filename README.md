@@ -35,7 +35,7 @@ determine how to handle updates.
 with Processes connecting to Stores through their ports. 
 * (**d**) *Compartments* are Stores with inner Processes and sub-Stores -- like a folder with internal files.
 * (**e**) Compartments are embedded in a *Hierarchy* -- depicted as a place network with discrete layers, 
-with outer compartments are shown above and inner compartments below.
+with outer compartments shown above and inner compartments below.
 
 ## Getting Started
 
