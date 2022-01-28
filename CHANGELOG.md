@@ -1,5 +1,19 @@
 # Changelog
 
+## v1.0.0
+
+* (#131) Do not assume that a process's `initial_state` should be used
+  when using the Store API.
+* (#132) Improve error message when no path exists between nodes in the
+  hierarchy.
+* (#133) Remove `Process.local_timestep()`, which is no longer being
+  used.
+* (#134) Support using `**` in a ports schema to connect to an entire
+  subtree of the hierarchy.
+* (#143) Make more methods private.
+* (#147) Fix bug in process serialization to support changing the
+  parameter argument name in the constructor.
+
 ## v0.4.20
 
 * `deep_merge_combine_lists` recursive call.
