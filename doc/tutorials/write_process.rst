@@ -67,8 +67,9 @@ that the concentrations of our enzyme and substrates are constant
 throughout the cell.
 
 .. note:: If you actually wanted to model a reaction like this, the
-   ``ConvenienceKinetics`` process can be configured to model any
-   Michaelis-Menten enzyme kinetics.
+   `convenience kinetics process
+   <https://github.com/vivarium-collective/convenience-kinetics>`_ can
+   be configured to model any Michaelis-Menten enzyme kinetics.
 
 Translate Model into Updates
 ----------------------------
@@ -91,7 +92,7 @@ For the current example, each update will include the following:
 Determine the Ports
 -------------------
 
-We partition the overall model state into :term:`stores`, which can be
+We partition the overall simulation state into :term:`stores`, which can be
 shared among processes. Each process declares :term:`ports`, each of
 which will receive a store. When creating a process, you need to decide
 what ports to declare.
@@ -118,7 +119,7 @@ Implement the Model
 To implement the model, create a new Python file named
 ``glucose_phosphorylation.py`` in the ``vivarium/processes/`` directory.
 Then we create a new class that inherits from
-:py:class:`vivarium.core.process`:
+:py:class:`vivarium.core.process.Process`:
 
 .. code-block:: python
 
@@ -130,11 +131,7 @@ Then we create a new class that inherits from
 The Constructor
 ---------------
 
-We declare the ports in the constructor as a dictionary that maps from
-port name to a list of the names of the variables we need to be in that
-port.
-
-In the constructor we can also configure the process. We accept
+In the constructor we can configure the process. We accept
 configurations as a dictionary called ``initial_parameters``. For
 example, we can let the user configure the kinetic parameters
 :math:`k_{cat}`, :math:`K_{GLC}`, and :math:`K_{ATP}`. We can also
@@ -163,13 +160,12 @@ process.
                 initial_parameters = {}
             parameters = copy.deepcopy(GlucosePhosphorylation.defaults)
             parameters.update(initial_parameters)
-            super(GlucosePhosphorylation, self).__init__(
-                parameters)
+            super().__init__(parameters)
 
-The ``global`` port is special: it stores information that needs to be
-shared across many processes but that is more like "metadata" than
-molecule concentrations. For this example, we'll store the mass of the
-``cytoplasm`` port's contents.
+It turns out that the :py:class:`vivarium.core.process.Process`
+constructor handles merging ``initial_parameters`` with the defaults
+automatically, so we don't actually have to include a constructor at
+all!
 
 Even though we're just getting started on our process, let's try it out!
 At the bottom of the ``glucose_phosphorylation.py`` file, instantiate
@@ -206,7 +202,7 @@ Generating Updates
 ------------------
 
 Now we can write the ``next_update`` method, which generates updates for
-each port based on a provided model state and timestep.
+each port based on a provided simulation state and timestep.
 
 .. WARNING:: The ``states`` parameter passed into the update function is
     a view of the overall state, so it must not be changed.
@@ -318,11 +314,11 @@ Let's see if our process models this reaction as we expect:
 
 Hooray! This is what we expected.
 
-Ports Schema and Derivers
--------------------------
+Ports Schema
+------------
 
 Our process works, but we had to manually set the state. We also haven't
-shown yet how to apply the update we generate to the model state.
+shown yet how to apply the update we generate to the simulation state.
 Luckily for us, these steps will be handled automatically by Vivarium.
 We just need to create a ``ports_schema`` method that provides a
 :term:`schema`. A schema is a nested dictionary that describes each
@@ -375,27 +371,10 @@ of the :term:`updaters` for demonstration.
                     '_emit': True,
                 }
             },
-            'global': {
-            },
         }
 
-We also can add :term:`derivers` with the ``derivers`` method. Derivers
-perform calculations for us that would be tedious to re-compute in many
-processes. For example, calculating the mass of the cell's enzyme and
-sugar contents, as we see in this example:
-
-.. code-block:: python
-
-    def derivers(self):
-        return {
-            'my_deriver': {
-                'deriver': 'mass_deriver',
-                'port_mapping': {
-                    'global': 'global',
-                },
-                'config': {},
-            },
-        }
+By convention, we usually put the ``ports_schema`` method before the
+``next_update`` method.
 
 Now, we can run a simulation using Vivarium's
 :py:func:`vivarium.core.composition.simulate_process` function
@@ -436,17 +415,17 @@ around time 8! This happens when the timestep is too long and so our
 approximation doesn't adjust fast enough to dropping concentrations. To
 fix this, let's change the timestep to ``0.1``.
 
-.. note:: You may be wondering, "What units is the timestep in?" The
+.. note:: You may be wondering, "What unit is the timestep in?" The
     answer is that it doesn't matter! We just need the parameters and
     timestep to use the same unit of time.
 
-Here's the ``settings`` dictionary with the updated timestep:
+Here's the ``parameters`` dictionary with the updated timestep:
 
 .. code-block:: python
 
-    settings = {
-        'total_time': 10,
-        'timestep': 0.1,
+    parameters = {
+        'k_cat': 1.5,
+        'time_step': 0.1,
     }
 
 Now if we run the file again, we should get a ``simulation.png`` like
