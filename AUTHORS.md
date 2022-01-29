@@ -18,5 +18,6 @@ Vivarium Core was built by:
   * Jerry Morrison: `j.erry.morrison AT gmail DOT com`
   * Mattheus Wolff: `mbwolff AT stanford DOT edu`
   * Sean Cheah: `seancheah AT ucla DOT edu`
+  * Michael Yang (@Robotato): `michaelyang42 AT gmail DOT com`
 
 * William Poole
