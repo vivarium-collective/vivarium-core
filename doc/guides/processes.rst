@@ -15,13 +15,12 @@ the RFC:
   exclude as you wish.
 
 Models in Vivarium are built by combining :term:`processes`, each of
-which models a mechanism in the cell. These processes can be combined in
-a :term:`compartment` to build more complicated models. Process models are
-defined in a class that inherit from
-:py:class:`vivarium.core.process.Process`, and these
-:term:`process classes` can be instantiated to create individual
-processes.  During instantiation, the process class may accept
-configuration options.
+which models a mechanism in the system being studied. These processes
+can be combined in a :term:`compartment` to build more complicated
+models. Process models are defined in classes that inherit from
+:py:class:`vivarium.core.process.Process`, and these :term:`process
+classes` can be instantiated to create individual processes.  During
+instantiation, the process class may accept configuration options.
 
 .. note:: Processes are the foundational building blocks of models in
    Vivarium, and they should be as simple to define and compose as
@@ -31,7 +30,8 @@ configuration options.
 Process Classes
 ---------------
 
-Each process class MUST implement the API that we describe below.
+Each process class MUST implement the application programming interface
+(API)that we describe below.
 
 Class Variables
 ===============
@@ -81,7 +81,7 @@ Let's examine an example constructor from a growth process class.
             initial_parameters = {}
         parameters = {'growth_rate': self.defaults['growth_rate']}
         parameters.update(initial_parameters)
-        super(Growth, self).__init__(parameters)
+        super().__init__(parameters)
 
 Note that Vivarium Core actually handles combining the provided
 parameters with the default parameters, so a constructor as simple as
@@ -95,15 +95,23 @@ it redundant, but we show it here for clarity.
    This is why we use ``None`` as the default for ``initial_parameters``
    instead of ``{}``.
 
-In this constructor, only one port, ``global``, is defined, from which
-the process will only need the ``mass`` and ``volume`` variables. While
-the default growth rate is ``0.0006``, this can be overridden by
+While the default growth rate is ``0.0006``, this can be overridden by
 including a ``growth_rate`` key in the configuration dictionary passed
 to ``initial_parameters``.
 
-.. note:: ``global`` is a special port used by :term:`derivers`. It
-    stores information about the total model state that, like ``mass``
-    doesn't fit into any store.
+These special parameters get handled by the superclass constructor:
+
+* ``name``: The value of the ``name`` parameter gets assigned to the
+  process's ``name`` attribute (e.g. ``my_process.name``). If no name is
+  specified in the parameters or as a class variable, we use
+  ``self.__class__.__name__`` as the name.
+* ``time_step``: If not specified, the ``time_step`` parameter is set to
+  1. This parameter determines how frequently the simulation engine runs
+  this process's ``next_update`` function.
+* ``_condition``: The value of this parameter should be a path in the
+  ``states`` dictionary passed to ``next_update()`` to a variable. The
+  variable should hold a boolean specifying whether the process's
+  ``next_update`` function should run.
 
 .. _constructor-ports-schema:
 
@@ -115,6 +123,7 @@ Each process declares what stores it expects by specifying a
 to be combined in a :term:`compartment` and share variables through a
 shared :term:`store`, the processes MUST use the same variable names for
 the shared variables.
+
 
 .. note:: Variables always have the same name, no matter which process
     is interacting with them. This is unlike stores, which can take on
@@ -143,6 +152,19 @@ values. Note that every variable SHOULD specify ``_default``. If the
 cell will be dividing, every variable also MUST specify ``_divider``.
 Variables in the ports schema SHOULD NOT specify ``_value``.
 
+Also note that while ports usually accept stores, they can also accept
+single variables, in which case the port name in the schema is mapped
+directly to the dictionary of schema keys:
+
+.. code-block:: python
+
+    {
+        'port_name': {
+            'schema_key': 'schema_value',
+            ...
+        },
+        ..
+    }
 
 Example Ports Schema
 --------------------
@@ -173,14 +195,13 @@ and ``volume`` variables should be split in half on division. Further,
 we specify that all the three variables should have their updates set,
 not accumulated.
 
-Derivers
-========
+Steps
+=====
 
-:term:`Deriver` is subclass of :term:`Process`, which runs after the
-other Processes with a timestep of 0, and derives some states from
-others. For example, concentrations from counts. These are used to
-offload complexity from the dynamical Processes.
-
+:term:`Step` is subclass of :term:`Process`, which runs after the other
+processes with a timestep of 0, and computes some variables from others.
+For example, a step might calculate concentrations from counts.  These
+are used to offload complexity from the dynamical processes.
 
 Next Updates
 ============
@@ -193,35 +214,34 @@ time for which the update should be computed.
 State Format
 ------------
 
-The ``next_update`` method MUST accept the model state as a dictionary
-of the same form as the :ref:`ports schema dictionary
+The ``next_update`` method MUST accept the simulation state as a
+dictionary of the same form as the :ref:`ports schema dictionary
 <constructor-ports-schema>`, but with the dictionary of schema keys
 replaced with the current (i.e. pre-update) value of the variable.
 
-.. note:: In the code, you may see the model state referred to as
-    ``states``. This is left over from when stores were called states,
-    and so the model state was a collection of these states. As you may
-    already notice, this naming was confusing, which is why we now use
-    the name "stores."
+.. note:: In the code, you may see the simulation state referred to as
+   ``states``. This is left over from when stores were called states,
+   and so the simulation state was a collection of these states. As you
+   may already notice, this naming was confusing, which is why we now
+   use the name "stores."
 
-Because of :term:`masking`, each
-port will contain only the variables specified in the
-:ref:`ports schema <constructor-ports-schema>`, even
-if the linked store contains more variables.
+Because of :term:`masking`, each port will contain only the variables
+specified in the :ref:`ports schema <constructor-ports-schema>`, even if
+the linked store contains more variables.
 
 .. WARNING:: The ``next_update`` method MUST NOT modify the states it is
-    passed in any way. The state's variables are not copied before they
-    are passed to ``next_update``, so changes to any objects in the
-    state will affect the model state before the update is applied.
+   passed in any way. The state's variables are not copied before they
+   are passed to ``next_update``, so changes to any objects in the state
+   will affect the simulation state before the update is applied.
 
 Update Format
 -------------
 
 ``next_update`` MUST return a single dictionary, the update that
-describes how the modeled mechanism would change the model state over
-the specified time. The update dictionary MUST be of the same form as the
-:ref:`ports schema dictionary <constructor-ports-schema>`, though with
-the dictionaries of schema keys replaced with update values. Also,
+describes how the modeled mechanism would change the simulation state
+over the specified time. The update dictionary MUST be of the same form
+as the :ref:`ports schema dictionary <constructor-ports-schema>`, though
+with the dictionaries of schema keys replaced with update values. Also,
 variables that do not need to be updated can be excluded.
 
 Example Next Update Method
@@ -260,6 +280,37 @@ these examples and save the output as demonstrated in
 top-level functions you include that are prefixed with ``test_`` will be
 executed by ``pytest``. Please add these tests to help future developers
 make sure they haven't broken your process!
+
+Advanced Features
+=================
+
+Step Implementation Details
+---------------------------
+
+Steps are technically identified by whether their
+:py:meth:`vivarium.core.process.Process.is_step()` methods return
+``True``. This means that you can make a process that determines whether
+it should be a Step based on its configuration. Note however that we do
+not support changing whether a process is a step mid-simulation.
+
+Adaptive Timesteps
+------------------
+
+You can set process timesteps for the duration of a simulation using the
+``time_step`` parameter, but you can also override the
+:py:meth:`vivarium.core.process.Process.calculate_timestep` method to
+compute timesteps dynamically based on the same view into the simulation
+state that ``next_update()`` sees.
+
+Conditional Updates
+-------------------
+
+Sometimes you might want the simulation engine to skip a process when
+generating updates. You can implement this by overriding
+:py:meth:`vivarium.core.process.Process.update_condition` to return
+``False`` whenever you don't want the process to run. This method takes
+as a parameter the same view into the simulation state that
+``next_update()`` sees.
 
 ---------------------
 Using Process Objects
