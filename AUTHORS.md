@@ -16,3 +16,7 @@ Vivarium Core was built by:
   * Ryan Spangler: `ryan.spangler AT gmail DOT com`
   * [Chris Skalnik](https://u8nwxd.github.io)
   * Jerry Morrison: `j.erry.morrison AT gmail DOT com`
+  * Mattheus Wolff: `mbwolff AT stanford DOT edu`
+  * Sean Cheah: `seancheah AT ucla DOT edu`
+
+* William Poole
