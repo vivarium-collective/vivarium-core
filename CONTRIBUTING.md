@@ -20,6 +20,10 @@ you can get started:
    If you haven't done this before, check out [GitHub's guide to open
    source
    contributions](https://docs.github.com/en/get-started/quickstart/contributing-to-projects).
+   You should also refer to our
+   [documentation](https://vivarium-core.readthedocs.io) for
+   instructions on how to Vivarium Core works and how to get it setup on
+   your machine.
 5. Wait to get feedback from the project maintainers and then address
    any review comments they leave. Once your pull request is approved,
    the project maintainers will merge it.
