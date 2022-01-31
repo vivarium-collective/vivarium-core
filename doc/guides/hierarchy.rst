@@ -2,9 +2,10 @@
 Hierarchy
 =========
 
-In Vivarium, we combine processes and stores to form compartments as
-shown in panel B below. These compartments are in turn nested to form
-the model :term:`hierarchy`, depicted in panel C.
+In Vivarium, we represent the simulation as a tree of :term:`processes`
+and :term:`stores` (panel A). The processes and stores are wired
+together by topologies to form :term:`compartments` (panel B), which can
+then be nested to form a tree called the :term:`hierarchy` (panel C).
 
 .. figure:: ../_static/compartment.png
    :width: 100%
@@ -25,13 +26,46 @@ the model :term:`hierarchy`, depicted in panel C.
        lines to boundary stores.
 
    The relationships between stores, processes (panel A), and
-   compartments (panel B) in the tree (panel C).
+   compartments (panel B) in the hierarchy (panel C).
 
 Note that in panel C, only the compartments and boundary stores are
 shown. The full hierarchy also contains the stores and processes within each
 compartment.
 
-.. todo:: Link to environments topic guide
+.. note::
+
+    Here we have shown a simplified picture where processes are only
+    wired to stores in their own compartment or to boundary stores. In
+    reality, processes can be wired to any store in the hierarchy, but
+    keeping cross-compartment wiring to a minimum can help simplify your
+    models.
+
+We recommend using Vivarium compartments to represent spatial regions of
+your modeled system that are conceptually distinct. For example, you
+might model a cell as a compartment and its environment as another
+compartment. This is not a technical requirement though, so you can use
+compartments to represent whatever makes sense for your circumstances.
+
+------------------------
+Compartment Interactions
+------------------------
+
+We model cross-compartment interactions using :term:`boundary stores`
+between compartments. For example, the boundary store between a cell and
+its environment might track the flux of metabolites between the cell and
+environment compartments.
+
+When compartments are nested, these boundary stores also exist between
+the inner and the outer compartment. Thus nested compartments form a
+tree whose nodes are compartments and whose edges are boundary stores. A
+node's parent is its outer compartment, while its children are the
+compartments within it.
+
+Since boundary stores can also exist between compartments who share a
+parent, you may find it useful to think of compartments and their
+boundary stores as a bigraph (not a bipartite graph) where the tree
+denotes nesting and all the edges (including those in the tree)
+represent boundary stores.
 
 -------------------
 Hierarchy Structure
@@ -132,8 +166,6 @@ We can represent this hierarchy graphically like this:
        "my_deriver". The node "cell" has children "ATP", "ADP", "HK",
        "GLC", and "G6P". The node "global" has children "initial_mass"
        and "mass".
-
-.. todo:: This hierarchy figure is ugly. Fix it.
 
 Notice that in the dictionary above, each leaf node in the tree is a key
 with a value that is a dictionary of :term:`schema keys`.

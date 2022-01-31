@@ -163,25 +163,44 @@ The repository you downloaded should look like this:
 .. code-block::
 
     .
-    ├── README.md
-    ├── pytest.ini
-    ├── release.sh
-    ├── requirements.txt
+    ├── AUTHORS.md
+    ...
+    ├── notebooks
+    │   ├── Vivarium_interface_basics.ipynb
+    │   ...
+    ├── runscripts
+    │   ├── all_checks.sh
+    │   ├── doctests.sh
+    │   ├── mypy.sh
+    │   ├── pylint.sh
+    │   └── pytest.sh
     ├── setup.py
-    └── template
+    └── vivarium
         ├── __init__.py
-        ├── compartments
+        ├── composites
         │   ├── __init__.py
-        │   └── injected_glc_phosphorylation.py
+        │   ├── injected_glc_phosphorylation.py
+        │   └── toys.py
+        ├── core
+        │   ├── __init__.py
+        │   ├── composer.py
+        │   ...
         ├── experiments
         │   ├── __init__.py
-        │   └── glucose_phosphorylation.py
+        │   ├── bigraph_view.py
+        │   ...
         ├── library
-        │   └── __init__.py
+        │   ├── __init__.py
+        │   ├── datum.py
+        │   ...
+        ├── plots
+        │   ├── __init__.py
+        │   ├── agents_multigen.py
+        │   ...
         └── processes
             ├── __init__.py
-            ├── glucose_phosphorylation.py
-            └── template_process.py
+            ├── alternator.py
+            ...
 
 We suggest you use the structure laid out here, but you don't have to.
 The template repository has ``TODO`` notes where you'll need to make
@@ -192,11 +211,12 @@ The ``template`` directory is where your package will live. Under it, we
 have the following sub-folders:
 
 * ``library``: This is for utility functions like those shared across
-  processes, compartments, and/or experiments.
+  processes, composers, and/or experiments.
 * ``processes``: This is where you'll write your processes. We've
   provided a ``template_process.py`` file to get you started. Generally
   you'll want to have one process per file.
-* ``compartments``: This folder will hold your compartments.
+* ``composites``: This folder will hold your composers, which generate
+  composites of multiple processes.
 * ``experiments``: This folder will hold your experiments. These are the
   files you'll probably be executing to run your simulations.
 
@@ -239,15 +259,15 @@ Some Terminology: Processes and Compartments
 We break our cell models into :term:`processes`. Each process models
 part of the cell's function. For example, you might have processes for
 metabolism, transcription, and translation. We can combine these
-processes into :term:`compartments` that model a system with all the
+processes into :term:`composites` that model a system with all the
 functionality modeled by the included processes. For example, we could
 compose transcription and translation to create a fuller gene expression
 model.
 
 We store individual processes in ``vivarium-template/template/processes``
-and compartments of processes in
-``vivarium-template/template/compartments``. We recommend you use a similar
-structure when creating your own processes and compartments.
+and the composers that generate composites of processes in
+``vivarium-template/template/composites``. We recommend you use a similar
+structure when creating your own processes and composers.
 
 Running Experiments
 ===================

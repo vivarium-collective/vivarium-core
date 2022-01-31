@@ -9,7 +9,7 @@ Why Write Processes?
 --------------------
 
 Vivarium comes with a number of :term:`processes` ready for you to use,
-but combining processes to form :term:`compartments` will only take you so
+but combining processes to form :term:`composites` will only take you so
 far. For many models, the existing processes will be insufficient, so
 you will need to create your own.
 
@@ -98,7 +98,7 @@ which will receive a store. When creating a process, you need to decide
 what ports to declare.
 
 When someone else uses your process, they will create a
-:term:`compartment` of it and other processes. These processes will
+:term:`composite` of it and other processes. These processes will
 interact by sharing stores. While any number of your process's ports may
 be linked to the same store, a port cannot be split between stores. This
 means that you should put in separate ports any :term:`variables` that a

@@ -1,65 +1,45 @@
-============
-Compartments
-============
+==========
+Composites
+==========
 
-To model a whole cell, we need to simulate processes running
-concurrently and interacting with each other. For example, we might want
-to model the synthesis of ATP by a metabolism process concurrently with
-the consumption of ATP by a transport process such as a sodium pump. In
-Vivarium, we model this by creating a :term:`compartment`.
+Once you start building models with Vivarium, you will probably discover
+groups of processes that you want to reuse. For example, if you have a
+group of processes that model a cell, you might want to create many
+instances of those processes to a collection of cells. In Vivarium, we
+support grouping processes using :term:`composites`.
 
---------
-Overview
---------
+.. note::
 
-Below we see an overview of the topics we will discuss in this document.
-Processes and stores are combined to form compartments as shown in panel
-B, and these compartments form a tree known as the hierarchy and shown
-in panel C.
+    The terminology here can be tricky because "process" can refer both
+    to the process object and to the process class. However, for
+    composites, the analogous ideas have different names: "composer"
+    and "composite." You can use a composer object to generate different
+    composite objects depending on what configuration you provide.
+    Therefore, composers are like process classes while composites are
+    like process objects.
 
-.. _fig-compartment:
-
-.. figure:: ../_static/compartment.png
-   :width: 100%
-   :align: center
-   :alt: A figure with 3 panels lettered A through C. In panel A, we see
-       a red database symbol labeled "store" and with the text
-       "variable values, units, mass, children, emitters, dividers,
-       updaters" within it. Below, a yellow rectangle labeled "process"
-       contains the text "variable names, parameters, mechanisms." A
-       black line extending from the rectangle is labeled "port". In
-       panel B, we see a blue square labeled "compartment". Inside are
-       two stores and two processes, with the lower store connected to
-       the ports of both processes, and the upper store connected only
-       to the top process. A store outside the square labeled "boundary"
-       is connected to a port of the upper process. In panel C, 4
-       compartments form a tree with one compartment at the top level
-       and one at the bottom level. The tree's edges are formed by black
-       lines to boundary stores.
-
-   The relationships between stores, processes (panel A), and
-   compartments (panel B) in the tree (panel C).
+    You might be wondering why we implemented processes and composites
+    differently. The reason is that for the Vivarium Engine to model
+    reproduction (e.g. cell division), it needs to have a composer
+    object that can generate the new composites.
 
 --------------------
 Processes and Stores
 --------------------
 
-A compartment models cellular functions running concurrently. We model each
-of these functions as a :term:`process` in the compartment. To let these
-processes interact, for example by producing and consuming a shared
-resource like ATP, the processes share parts of the state, called
-:term:`stores`. Each store is a collection of :term:`variables` such as
-cytoplasmic ATP concentration, and in the compartment we define which
-process operates on which stores using a :term:`topology`.
+A model in Vivarium consists of state variables, which are grouped into
+collections called :term:`stores`, and :term:`processes` which mutate
+those variables at each timestep. A :term:`topology` defines which
+processes operate on which stores.
 
-In our ATP example, we might assign a "cytoplasm" store to both the
-metabolism and sodium pump processes. Now when we simulate the
-compartment, the metabolism and sodium pump processes will be changing
-the same variable, the ATP concentration in the cytoplasm store. This
-means that if the rate of metabolism decreases, the cytoplasmic ATP
-concentration variable will drop, so the sodium pump will export less
-sodium. Thus, shared stores in composites let us simulate interacting
-concurrent processes.
+For example, consider a variable tracking ATP concentrations. We might
+assign a "cytoplasm" store to two processes: one for metabolism and one
+for sodium pumps.  Now when we run a simulation the metabolism and
+sodium pump processes will be changing the same variable, the ATP
+concentration in the cytoplasm store. This means that if the rate of
+metabolism decreases, the cytoplasmic ATP concentration variable will
+drop, so the sodium pump will export less sodium. Thus, shared stores in
+composites let us simulate interacting concurrent processes.
 
 Process and Store Implementation
 ================================
@@ -68,21 +48,24 @@ Processes
 ---------
 
 We write processes as classes that inherit from
-:py:class:`vivarium.core.process.Process`.  To create a compartment, we
+:py:class:`vivarium.core.process.Process`.  To create a composite, we
 create instances of these classes to make the processes we want to
 compose. If a process is configurable, we might provide a dictionary of
 configuration options. For information on configuring a process, see the
 process's documentation, e.g.
 :py:class:`vivarium.processes.tree_mass.TreeMass`.
 
-We uniquely name each process in the compartment. This lets us include
+We uniquely name each process in the composite. This lets us include
 instances of the same process class.
 
 Stores
 ------
 
 We represent stores with the :py:class:`vivarium.core.store.Store`
-class; see its documentation for further details.
+class; see its documentation for further details. Note that when
+constructing a composite, you don't need to create the stores. Instead,
+the Vivarium engine automatically creates the stores based on the
+topology you specify.
 
 .. tip:: To see the data held by a store, you can use the
    :py:func:`vivarium.core.store.Store.get_config` function. This
@@ -94,16 +77,16 @@ class; see its documentation for further details.
 Ports Make Processes Modular
 ----------------------------
 
-We don't want process creators to worry about what kind of compartment
+We don't want process creators to worry about what kind of simulation
 someone will use their processes in. Conversely, if you are creating a
-compartment, you should be able to use any processes you like, even if
+composite, you should be able to use any processes you like, even if
 they weren't written with your use case in mind. Vivarium achieves this
 modularity with :term:`ports`.
 
 Each process has a list of named ports, one for each store it expects.
 The process can perform all its computations in terms of these ports,
-and the process also provides its update using port names.  This means
-that a compartment can apply each process to any collection of stores,
+and the process also provides its update using port names. This means
+that a composite can apply each process to any collection of stores,
 making processes modular.
 
 This modularity is analogous to the modularity of Python functions.
@@ -123,9 +106,10 @@ can provide any store we like.
 How Processes Define Ports
 ==========================
 
-A process specifies its port names in its ``ports_schema`` function.
-For example, the :py:class:`vivarium.processes.tree_mass.TreeMass`
-schema is created like this:
+A process specifies its port names in its
+:py:meth:`vivarium.core.process.Process.ports_schema` method.  For
+example, the :py:class:`vivarium.processes.tree_mass.TreeMass` schema is
+created like this:
 
 .. code-block:: python
 
@@ -207,18 +191,31 @@ might look like this:
         },
     }
 
--------------------
-Example Composite
--------------------
+---------
+Composers
+---------
+
+Most of the time, you won't need to create composites directly. Instead,
+you'll create composers that know how to generate composites. To create
+a composer, you need to define a composer class that inherits from
+:py:class:`vivarium.core.composer.Composer` and implements the
+:py:meth:`vivarium.core.composer.Composer.generate_processes` and
+:py:meth:`vivarium.core.composer.Composer.generate_topology` methods.
+``generate_processes`` should return a mapping from process names to
+instantiated process objects, while ``generate_topology`` should return
+a topology.
+
+Example Composer
+================
 
 To put all this information together, let's take a look at an example
-composite that combines the glucose phosphorylation process from the
+composer that combines the glucose phosphorylation process from the
 :py:doc:`process-writing tutorial <../tutorials/write_process>` with an
 injector, which lets us "inject" molecules into a store.
 
 .. code-block:: python
 
-	class InjectedGlcPhosphorylation(Composite):
+	class InjectedGlcPhosphorylation(Composer):
 
 		defaults = {
 			'glucose_phosphorylation': {
@@ -231,10 +228,6 @@ injector, which lets us "inject" molecules into a store.
 				},
 			},
 		}
-
-		def __init__(self, config):
-			self.config = self.defaults
-			self.config.update(config)
 
 		def generate_processes(self, config):
 			injector = Injector(self.config['injector'])
@@ -271,25 +264,3 @@ node. This tree is analogous to directory trees on a filesystem, and we
 use tuples of store names to specify a path through this tree. We call
 this tree the hierarchy, and we discuss it in more detail in the
 :doc:`hierarchy guide <hierarchy>`.
-
-------------------------
-Compartment Interactions
-------------------------
-
-Even though compartments represent segregated sub-models, they still
-need to interact. We model these interactions using :term:`boundary
-stores` between compartments. For example, the boundary store between a
-cell and its environment might track the flux of metabolites between the
-cell and environment compartments.
-
-When compartments are nested, these boundary stores also exist between
-the inner and the outer compartment. Thus nested compartments form a
-tree whose nodes are compartments and whose edges are boundary stores. A
-node's parent is its outer compartment, while its children are the
-compartments within it.
-
-Since boundary stores can also exist between compartments who share a
-parent, you may find it useful to think of compartments and their
-boundary stores as a bigraph (not a bipartite graph) where the tree
-denotes nesting and all the edges (including those in the tree)
-represent boundary stores.
