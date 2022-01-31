@@ -15,4 +15,5 @@ through the :doc:`getting started guide <../getting_started>` first.
    experiments
    simulation_data_formats
    hierarchy
+   versioning
    docs
