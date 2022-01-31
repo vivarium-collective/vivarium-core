@@ -16,8 +16,7 @@ for composing and simulating integrative, multiscale models.
    getting_started.rst
    getting_started_dev.rst
    guides/index.rst
-   tutorials.rst
-   tutorials/write_process.rst
+   tutorials/index.rst
    reference/index.rst
 
 .. todo:: Maybe use :ref:`genindex`
@@ -41,7 +40,6 @@ is a custom module of a specific biophysical system, a configurable model
 with its own standard format, or a wrapper for an off-the-shelf library. The
 multiscale engine supports complex agents operating at multiple timescales,
 and facilitates parallel computation across multiple CPUs.
-
 
 .. todo:: Use cases
 

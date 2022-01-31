@@ -129,7 +129,7 @@ def autodoc_skip_member_handler(app, what, name, obj, skip, options):
 
 
 cur_dir = os.path.abspath(os.path.dirname(__file__))
-notebooks_dst = os.path.join(cur_dir, 'notebooks')
+notebooks_dst = os.path.join(cur_dir, 'tutorials', 'notebooks')
 notebooks_src = os.path.join(cur_dir, '..', 'notebooks')
 if os.path.exists(notebooks_dst):
     shutil.rmtree(notebooks_dst)

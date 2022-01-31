@@ -13,3 +13,10 @@ can be found under `notebooks/ on GitHub
 
    notebooks/Vivarium_interface_basics
 
+We also have a tutorial for writing a new process that doesn't use
+Jupyter Notebooks.
+
+.. toctree::
+   :maxdepth: 2
+
+   write_process.rst
