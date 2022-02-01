@@ -153,7 +153,8 @@ the code
     $ git clone https://github.com/vivarium-collective/vivarium-template.git
 
 This will create a ``vivarium-template`` folder inside ``vivarium_work``.
-All the code for Vivarium Core is inside this ``vivarium-template`` folder.
+All the code for your model will be inside this ``vivarium-template``
+folder.
 
 Repository Structure
 --------------------
@@ -163,44 +164,26 @@ The repository you downloaded should look like this:
 .. code-block::
 
     .
-    ├── AUTHORS.md
-    ...
-    ├── notebooks
-    │   ├── Vivarium_interface_basics.ipynb
-    │   ...
-    ├── runscripts
-    │   ├── all_checks.sh
-    │   ├── doctests.sh
-    │   ├── mypy.sh
-    │   ├── pylint.sh
-    │   └── pytest.sh
+    ├── README.md
+    ├── pytest.ini
+    ├── release.sh
+    ├── requirements.txt
     ├── setup.py
-    └── vivarium
+    └── template
         ├── __init__.py
+        ├── compartments
         ├── composites
         │   ├── __init__.py
-        │   ├── injected_glc_phosphorylation.py
-        │   └── toys.py
-        ├── core
-        │   ├── __init__.py
-        │   ├── composer.py
-        │   ...
+        │   └── injected_glc_phosphorylation.py
         ├── experiments
         │   ├── __init__.py
-        │   ├── bigraph_view.py
-        │   ...
+        │   └── glucose_phosphorylation.py
         ├── library
-        │   ├── __init__.py
-        │   ├── datum.py
-        │   ...
-        ├── plots
-        │   ├── __init__.py
-        │   ├── agents_multigen.py
-        │   ...
+        │   └── __init__.py
         └── processes
             ├── __init__.py
-            ├── alternator.py
-            ...
+            ├── glucose_phosphorylation.py
+            └── template_process.py
 
 We suggest you use the structure laid out here, but you don't have to.
 The template repository has ``TODO`` notes where you'll need to make
@@ -285,7 +268,7 @@ In ``out/experiments/glucose_phosphorylation`` you should see a file
 ``simulation.png`` that looks like this:
 
 .. image:: ./_static/glucose_phosphorylation.png
-   :width: 100%
+   :width: 50%
    :alt: Two columns of plots. The first has one plot of mass increasing
        linearly. The second has 4 plots, the first 3 of which show ADP,
        ATP, and G6P increasing linearly. The last plot shows GLC
