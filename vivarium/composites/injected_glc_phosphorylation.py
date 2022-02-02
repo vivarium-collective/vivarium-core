@@ -47,6 +47,5 @@ class InjectedGlcPhosphorylation(Composer):
             'glucose_phosphorylation': {
                 'cytoplasm': ('cell', ),
                 'nucleoside_phosphates': ('cell', ),
-                'global': ('global', ),
             },
         }
