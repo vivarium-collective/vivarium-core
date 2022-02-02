@@ -191,6 +191,106 @@ might look like this:
         },
     }
 
+--------------------------------------------------------
+Steps and Flows for Ordered Operations Between Timesteps
+--------------------------------------------------------
+
+Processes have one major drawback: you cannot specify when or in what
+order they run. Processes can request timesteps, but the Vivarium engine
+may not honor that request. This behavior can be problematic when you
+have operations that need to run in a particular order. For example,
+imagine that you want to model transcription and chromosome replication
+in a bacterium. It seems natural to have a transcription process and
+another replication process, but then how do you handle collisions
+between the replisome and the RNA Polymerase (RNAP)? You might want to
+say something like "If a replisome and RNAP collide, remove the RNAP
+from the chromosome." To support this kind of statement, you can create
+a :term:`step`.
+
+Steps
+=====
+
+Steps are like processes except that they run between timesteps. In
+fact, they also run before the first timestep and after the last
+timestep. This means you could create a reconciler step that handles
+replisome-RNAP collisions.
+
+To create a step, you follow the same steps as you would to create a
+:term:`process` except that your class should inherit from
+:py:class:`vivarium.core.process.Step`. For example, we could create our
+replisome-RNAP collision reconciler like this:
+
+.. code-block:: python
+
+    class CollisionReconciler(Step):
+
+        def ports_schema(self):
+            return {
+                'replisomes': {
+                    '*': {
+                        'position': {'_default': 0},
+                    },
+                },
+                'RNAPs': {
+                    '*': {
+                        'position': {'_default': 0},
+                    },
+                },
+            }
+
+        def next_update(self, timestep, states):
+            # We can ignore the timestep since it will always be 0.
+            replisome_positions
+                replisome['position']
+                for replisome in states['replisomes'].values()
+            ])
+            rnap_positions = np.array([
+                rnap['position']
+                for rnap in states['RNAPs'].values()
+            ])
+            # Assume that our timestep is small enough that we can
+            # ignore RNAPs and replisomes that move past each other
+            # (instead of to the same position) in one timestep.
+            collision_mask = replisome_positions == rnap_positions
+            rnap_keys = np.array(list(states['RNAPs'].keys()))
+            to_remove = rnap_keys[collision_mask]
+            return {
+                'RNAPs': {
+                    '_delete': to_remove.tolist(),
+                },
+            }
+
+.. note::
+   Steps are always given a timestep of 0 by the simulation engine.
+
+Flows
+=====
+
+When constructing a composite of many steps, you may find that some
+steps depend on other steps. For example, you might have one step that
+calculates the cell's mass and another step that calculates the cell's
+volume based on that mass. Vivarium supports these dependencies, which
+you can specify in a flow. Flows have the same structure as topologies,
+but instead of their leaf values being paths, they are lists of paths
+where each path specifies a dependency step. For example, this flow
+would represent our mass-volume dependency:
+
+.. code-block:: python
+
+    {
+        'mass_calculator': [],
+        'volume_calculator': [('mass_calculator',)],
+    }
+
+The simulation engine will automatically figure out what order to run
+the steps in such that the dependencies in the flow are respected. Note
+that if two orderings both respect the flow, you should not assume that
+the engine will pick one of the two orderings.
+
+.. note::
+   Step updates are applied immediately after the step executes, which
+   is unlike process updates.
+
 ---------
 Composers
 ---------
@@ -254,7 +354,8 @@ injector, which lets us "inject" molecules into a store.
 Notice how we use the ``generate_processes`` function to create a
 dictionary that maps process names to instantiated and configured
 process objects. Similarly, we use ``generate_topology`` to create a
-dictionary that maps port names to stores.
+dictionary that maps port names to stores. To create steps and flows,
+use the ``generate_steps`` and ``generate_flow`` methods.
 
 You may wonder why we identify stores with tuples. In more complex
 compartments, these tuples could contain many elements that specify a
