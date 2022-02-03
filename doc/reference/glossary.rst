@@ -40,7 +40,8 @@ Glossary
         that connect internal processes to states outside of the compartment. Thus,
         a model might contain a compartment for an environment which contains
         two child compartments for the two cells in the environment. For
-        more details, see our :doc:`guide to compartments</guides/compartments>`.
+        more details, see our :doc:`guide to
+        compartments</guides/composites>`.
 
     composer
     Composer
@@ -79,8 +80,8 @@ Glossary
         An embedded timeseries has nearly the same shape as a simulation
         state dictionary, only each variable's value is a list of values
         over time, and there is an additional ``time`` key. For details,
-        see the guide on :doc:`simulation data formats
-        </guides/simulation_data_formats>`.
+        see the guide on :doc:`emitters
+        </guides/emitters>`.
 
     Emitter
     emitter
@@ -189,8 +190,8 @@ Glossary
         timeseries` where keys are paths in the simulation state
         dictionary and values are lists of the :term:`variable` value
         over time. We describe simulation data formats in more detail in
-        our guide to :doc:`simulation data formats
-        </guides/simulation_data_formats>`.
+        our guide to :doc:`emitters
+        </guides/emitters>`.
 
     Port
     port
@@ -237,8 +238,8 @@ Glossary
     raw data
         The primary format for simulation data is "raw data." See the
         guide on
-        :doc:`simulation data formats
-        </guides/simulation_data_formats>`.
+        :doc:`emitters
+        </guides/emitters>`.
 
     Schema
     schema
@@ -395,8 +396,8 @@ Glossary
     timeseries
         "Timeseries" can refer to the general way in whcih we store
         simulation data or to an :term:`embedded timeseries`. See the
-        guide on :doc:`simulation data formats
-        </guides/simulation_data_formats>` for details.
+        guide on :doc:`emitters
+        </guides/emitters>` for details.
 
     Timestep
     timestep
