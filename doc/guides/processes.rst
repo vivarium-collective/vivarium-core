@@ -470,7 +470,7 @@ replisome-RNAP collision reconciler like this:
    Steps are always given a timestep of 0 by the simulation engine.
 
 Step Implementation Details
----------------------------
+===========================
 
 Steps are technically identified by whether their
 :py:meth:`vivarium.core.process.Process.is_step()` methods return
@@ -483,7 +483,7 @@ Advanced Features
 -----------------
 
 Adaptive Timesteps
-------------------
+==================
 
 You can set process timesteps for the duration of a simulation using the
 ``time_step`` parameter, but you can also override the
@@ -492,7 +492,7 @@ compute timesteps dynamically based on the same view into the simulation
 state that ``next_update()`` sees.
 
 Conditional Updates
--------------------
+===================
 
 Sometimes you might want the simulation engine to skip a process when
 generating updates. You can implement this by overriding
