@@ -194,11 +194,3 @@ following symbols have special meanings in hierarchy paths:
   process that needs to access the parent (environment) compartment to
   create the daughter cells. In fact, this is what we do in the growth
   and division compartment.
-* ``*`` is a wild-card that refers to all the children of a node. For
-  example, ``(*, )`` in our topology example above would refer to the
-  ``cell`` and ``global`` stores, as well as the ``injector``,
-  ``glucose_phosphorylation``, and ``my_deriver`` processes. **Note
-  that wild-cards don't make sense in topologies!** We just used it here
-  to explain how they work. One example use for wild-cards is in the
-  mass deriver, which uses it to sum masses throughout the hierarchy:
-  :py:class:`vivarium.processes.tree_mass.TreeMass`.
