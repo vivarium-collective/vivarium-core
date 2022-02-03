@@ -414,7 +414,7 @@ Steps
 :term:`Step` is subclass of :term:`Process` that is not time-dependent.
 These instances run before the first timestep, and after the dynamic processes
 during simulation. The run according to a dependency graph called a :term:`flow`
-(like a workflow) -- see :py:doc:`flows topic guide <../guides/composites>`.
+(like a workflow) -- see :ref:`flows topic guide <constructor-flows>`.
 These can serve many different roles, including translating
 states between different modeling formats, implementing lift or restriction
 operators to translate states between scales, and as auxiliary processes that
