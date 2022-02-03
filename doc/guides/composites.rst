@@ -134,7 +134,7 @@ Advanced Topologies
 
 The syntax used for declaring paths is a Unix-style tuple, with every
 element in the tuple going further down the path from the root compartment,
-and '..' moving up a level to an outer compartment.
+and ``..`` moving up a level to an outer compartment.
 
 .. code-block:: python
 
@@ -176,22 +176,6 @@ different processes can use the same variable but see it with different names.
 ---------------------------------
 Flows for Ordered Step Operations
 ---------------------------------
-
-Processes have one major drawback: you cannot specify when or in what
-order they run. Processes can request timesteps, but the Vivarium engine
-may not honor that request. This behavior can be problematic when you
-have operations that need to run in a particular order. For example,
-imagine that you want to model transcription and chromosome replication
-in a bacterium. It seems natural to have a transcription process and
-another replication process, but then how do you handle collisions
-between the replisome and the RNA Polymerase (RNAP)? You might want to
-say something like "If a replisome and RNAP collide, remove the RNAP
-from the chromosome." To support this kind of statement, you can create
-a :term:`step`.
-
-
-Flows
-=====
 
 When constructing a composite of many :term:`steps`, you may find that some
 steps depend on other steps. For example, you might have one step that

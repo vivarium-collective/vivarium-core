@@ -31,7 +31,7 @@ Process Interface Protocol
 --------------------------
 
 Each process class MUST implement the application programming interface
-(API)that we describe below.
+(API) that we describe below.
 
 Class Variables
 ===============
@@ -170,13 +170,16 @@ Updaters are methods by which an update from a process is applied to a variable'
 
 Updaters provided by vivarium-core include:
 
-* ``accumulate`` & The default updater. Add the update value to the current value.
-* ``set`` & The update value becomes the new current value.
-* ``merge`` & Update an existing dictionary with new values, and add any newly declared keys.
-* ``null`` & Do not apply the update.
-* ``nonnegative_accumulate`` & Add the update value to the current value, and set
-  to `0` if the result is negative.
-* ``dict_value`` & translates \_add and \_delete -style updates to operate on a dictionary.
+* ``accumulate``: The default updater. Add the update value to the
+  current value.
+* ``set``: The update value becomes the new current value.
+* ``merge``: Update an existing dictionary with new values, and add any
+  newly declared keys.
+* ``null``: Do not apply the update.
+* ``nonnegative_accumulate``: Add the update value to the current value,
+  and set to `0` if the result is negative.
+* ``dict_value``: translates ``_add`` and ``_delete`` -style updates to
+  operations on a dictionary.
 
 New updaters can be easily defined and passed into a port schema:
 
@@ -210,10 +213,11 @@ Dividers available in vivarium-core include:
 * ``binomial``: Sample the first daughter's value from a binomial distribution of
   the mother's value, and the second daughter gets the remainder.
 * ``split``: Divide the mother's value in two. Odd integers will make one daughter
-  receive `1` more than the other daughter.
-* ``split_dict``: Splits a dictionary of {key: value} pairs, with each daughter
-  receiving a dictionary with the same keys, but with each value split.
-* ``zero``: Daughter values are both set to `0`.
+  receive 1 more than the other daughter.
+* ``split_dict``: Splits a dictionary of ``{key: value}`` pairs, with
+  each daughter receiving a dictionary with the same keys, but with each
+  value split.
+* ``zero``: Daughter values are both set to 0.
 * ``no_divide``: Asserts that this value should not be divided.
 
 New dividers can be easily defined and passed into a port schema:
@@ -411,15 +415,29 @@ make sure they haven't broken your process!
 Steps
 -----
 
-:term:`Step` is subclass of :term:`Process` that is not time-dependent.
-These instances run before the first timestep, and after the dynamic processes
-during simulation. The run according to a dependency graph called a :term:`flow`
-(like a workflow) -- see :ref:`flows topic guide <constructor-flows>`.
-These can serve many different roles, including translating
-states between different modeling formats, implementing lift or restriction
-operators to translate states between scales, and as auxiliary processes that
-offload complexity. As an example of offloading complexity, a step might
-recalculate concentrations after counts have been updated.
+Processes have one major drawback: you cannot specify when or in what
+order they run. Processes can request timesteps, but the Vivarium engine
+may not honor that request. This behavior can be problematic when you
+have operations that need to run in a particular order. For example,
+imagine that you want to model transcription and chromosome replication
+in a bacterium. It seems natural to have a transcription process and
+another replication process, but then how do you handle collisions
+between the replisome and the RNA Polymerase (RNAP)? You might want to
+say something like "If a replisome and RNAP collide, remove the RNAP
+from the chromosome." To support this kind of statement, you can create
+a :term:`step`.
+
+:py:class:`vivarium.core.process.Step` is a subclass of
+:py:class:`vivarium.core.process.Process` that is not time-dependent.
+Steps run before the first timestep and after the dynamic processes
+during simulation. They run according to a dependency graph called a
+:term:`flow` (like a workflow) -- see :ref:`our guide to flows
+<constructor-flows>`.  These can serve many different roles, including
+translating states between different modeling formats, implementing lift
+or restriction operators to translate states between scales, and as
+auxiliary processes that offload complexity. As an example of offloading
+complexity, a step might recalculate concentrations after counts have
+been updated.
 
 To create a step, you follow the same steps as you would to create a
 :term:`process` except that your class should inherit from
