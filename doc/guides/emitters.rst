@@ -10,9 +10,9 @@ RAM -- this is useful for small simulations that you might not need to return to
 :py:class:`vivarium.core.emitter.NullEmitter` is an easy way to ignore all emits.
 Other emitters can be developed by subclassing the :py:class:`vivarium.core.emitter.Emitter` class.
 
--------------------
+--------------------
 Data Representations
--------------------
+--------------------
 
 We represent simulation data in three ways:
 
