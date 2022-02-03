@@ -69,37 +69,6 @@ topology you specify.
    dictionary more readably, use
    :py:func:`vivarium.library.pretty.format_dict`.
 
-----------------------------
-Ports Make Processes Modular
-----------------------------
-
-We don't want process creators to worry about what kind of simulation
-someone will use their processes in. Conversely, if you are creating a
-composite, you should be able to use any processes you like, even if
-they weren't written with your use case in mind. Vivarium achieves this
-modularity with :term:`ports`.
-
-Each process has a list of named ports, one for each store it expects.
-The process can perform all its computations in terms of these ports,
-and the process also provides its update using port names. This means
-that a composite can apply each process to any collection of stores,
-making processes modular.
-
-This modularity is analogous to the modularity of Python functions.
-Think of each process as a function like this:
-
-.. code-block:: python
-
-    def sodium_pump(cytoplasm, extracellularSpace):
-        ...
-        return "Update: Decrease ATP concentration in cytoplasm by x mM"
-
-A function's modularity comes from the fact that we can pass in different
-objects for the ``cytoplasm`` parameter, even objects the function
-authors hadn't thought of. ``cytoplasm`` is like the port, to which we
-can provide any store we like.
-
-
 ----------
 Topologies
 ----------
