@@ -40,8 +40,9 @@ $ pip install vivarium-core
 ```
 
 To get started using Vivarium Core, see our
-[documentation](https://vivarium-core.readthedocs.io/) and
-[tutorial notebook](https://vivarium-core.readthedocs.io/en/latest/tutorials.html).
+[documentation](https://vivarium-core.readthedocs.io/en/latest/getting_started.html)
+and [tutorial
+notebook](https://vivarium-core.readthedocs.io/en/latest/tutorials.html).
 
 If you want to contribute to Vivarium Core, see our [contribution
 guidelines](CONTRIBUTING.md).
