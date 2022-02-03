@@ -9,11 +9,10 @@ through the :doc:`getting started guide <../getting_started>` first.
 .. toctree::
    :maxdepth: 2
 
-   modeling_paradigm
    processes
-   compartments
+   composites
    experiments
-   simulation_data_formats
+   emitters
    hierarchy
    versioning
    docs

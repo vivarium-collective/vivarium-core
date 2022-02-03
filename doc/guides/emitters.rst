@@ -1,6 +1,18 @@
-===============================
-Simulation Data Representations
-===============================
+========
+Emitters
+========
+
+There are different :term:`emitter` classes to save simulation output,
+which can be specified with arguments to :term:`engine`.
+:py:class:`vivarium.core.emitter.RAMEmitter` saves the simulation output to
+RAM -- this is useful for small simulations that you might not need to return to.
+:py:class:`vivarium.core.emitter.DatabaseEmitter` saves simulation output to MongoDB.
+:py:class:`vivarium.core.emitter.NullEmitter` is an easy way to ignore all emits.
+Other emitters can be developed by subclassing the :py:class:`vivarium.core.emitter.Emitter` class.
+
+-------------------
+Data Representations
+-------------------
 
 We represent simulation data in three ways:
 
@@ -10,7 +22,6 @@ We represent simulation data in three ways:
 
 We describe each in more detail below.
 
---------
 Raw Data
 --------
 
@@ -61,7 +72,6 @@ the functions:
 * :py:func:`vivarium.core.emitter.timeseries_from_data` to get an
   embedded timeseries
 
--------------------
 Embedded Timeseries
 -------------------
 
@@ -95,7 +105,6 @@ associated with the ``time`` key. For example:
 You can get data in this format from an :term:`emitter` using its
 :py:meth:`vivarium.core.emitter.Emitter.get_timeseries` function.
 
----------------
 Path Timeseries
 ---------------
 
@@ -105,7 +114,6 @@ make each its own entry in the dictionary. The keys are tuples
 specifying the paths to each variable, and the values are the lists of
 timepoints. Like in embedded timeseries, we also have a ``time`` key
 with the time values for each timepoint. For example:
-
 
 .. code-block:: python
 
