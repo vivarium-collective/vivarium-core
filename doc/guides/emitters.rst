@@ -2,7 +2,7 @@
 Emitters
 ========
 
-There are different :term:`emitter` classes to save simulation output,
+We provide a variety of :term:`emitter` classes to save simulation output,
 which can be specified with arguments to :term:`engine`.
 :py:class:`vivarium.core.emitter.RAMEmitter` saves the simulation output to
 RAM -- this is useful for small simulations that you might not need to return to.
