@@ -18,10 +18,6 @@ support grouping processes using :term:`composites`.
     Therefore, composers are like process classes while composites are
     like process objects.
 
-    You might be wondering why we implemented processes and composites
-    differently. The reason is that for the Vivarium Engine to model
-    reproduction (e.g. cell division), it needs to have a composer
-    object that can generate the new composites.
 
 --------------------
 Processes and Stores
@@ -103,54 +99,6 @@ objects for the ``cytoplasm`` parameter, even objects the function
 authors hadn't thought of. ``cytoplasm`` is like the port, to which we
 can provide any store we like.
 
-How Processes Define Ports
-==========================
-
-A process specifies its port names in its
-:py:meth:`vivarium.core.process.Process.ports_schema` method.  For
-example, the :py:class:`vivarium.processes.tree_mass.TreeMass` schema is
-created like this:
-
-.. code-block:: python
-
-    def ports_schema(self):
-        return {
-            'global': {
-                'initial_mass': {
-                    '_default': self.parameters['initial_mass'],
-                    '_updater': 'set',
-                    '_divider': 'split',
-                },
-                'mass': {
-                    '_default': self.parameters['initial_mass'],
-                    '_emit': True,
-                    '_updater': 'set',
-                    '_divider': 'split',
-                },
-            },
-        }
-
-The top level keys are the port names. In this case, the only port is
-``global``. The next level of keys define the variables expected to be
-in each port. Here, we expect ``global`` to have the variables
-``initial_mass`` and ``mass``.
-
-When the process is asked to provide an update to the model state, it is
-only provided the variables it specifies. For example, it might get a
-model state like this:
-
-.. code-block:: python
-
-    {
-        'global': {
-            'initial_mass': 0,
-            'mass': 1339,
-        },
-    }
-
-This would happen even if the store linked to the ``global`` port
-contained more variables. We call this stripping-out of variables the
-process doesn't need :term:`masking`.
 
 ----------
 Topologies
@@ -191,9 +139,52 @@ might look like this:
         },
     }
 
----------------------------------------------------
-Flows for Ordered Step Operations Between Timesteps
----------------------------------------------------
+
+Advanced Topologies
+===================
+
+The syntax used for declaring paths is a Unix-style tuple, with every
+element in the tuple going further down the path from the root compartment,
+and '..' moving up a level to an outer compartment.
+
+.. code-block:: python
+
+    topology = {
+        'process': {
+            'port1': ('path','to','store'),  # connect port1 to inner compartment
+            'port2': ('..','outer_store')  # connect port2 to outer compartment
+        }
+    }
+
+You can splitting a port into multiple stores. Variables read through the same
+port can come from different stores. To do this, the port is mapped to a
+dictionary with a ``_path`` key that specifies the path to the default store.
+Variables that need to be read from different stores each get their own path in
+that same dictionary. This same approach can be used to remap variable names, so
+different processes can use the same variable but see it with different names.
+
+.. code-block:: python
+
+    topology = {
+        # split a port into multiple stores
+        'process1': {
+            'port': {
+                '_path': ('path_to','default_store'),
+                'rewired_variable': ('path_to','alternate_store')
+            }
+        }
+        # mapping variable names in process to different name in store
+        'process2': {
+            'port': {
+                '_path': ('path to','default_store'),
+                'variable_name': 'new_variable_name'
+            }
+        }
+    }
+
+---------------------------------
+Flows for Ordered Step Operations
+---------------------------------
 
 Processes have one major drawback: you cannot specify when or in what
 order they run. Processes can request timesteps, but the Vivarium engine

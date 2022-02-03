@@ -26,9 +26,9 @@ instantiation, the process class may accept configuration options.
    Vivarium, and they should be as simple to define and compose as
    possible.
 
----------------
-Process Classes
----------------
+--------------------------
+Process Interface Protocol
+--------------------------
 
 Each process class MUST implement the application programming interface
 (API)that we describe below.
@@ -124,10 +124,6 @@ to be combined in a model and share variables through a shared
 :term:`store`, the processes MUST use the same variable names for the
 shared variables.
 
-.. note:: Variables always have the same name, no matter which process
-    is interacting with them. This is unlike stores, which can take on
-    different port names with each process.
-
 The process class MUST implement a ``ports_schema`` method with no
 required arguments. This method MUST return nested dictionaries of the
 following form:
@@ -145,25 +141,104 @@ following form:
         ...
     }
 
+Schema keys
+-----------
+
 ``schema_key`` MUST be a :term:`schema key` and have an appropriate
 value. Any applicable and omitted schema keys will take on their default
 values. Note that every variable SHOULD specify ``_default``. If the
 cell will be dividing, every variable also MUST specify ``_divider``.
 Variables in the ports schema SHOULD NOT specify ``_value``.
 
-Also note that while ports usually accept stores, they can also accept
-single variables, in which case the port name in the schema is mapped
-directly to the dictionary of schema keys:
+Available schema keys include:
+
+* ``_default``: The default value of the state variable if no initial value
+  is provided. This also sets the data type of the variable, including units.
+* ``_updater``: How to apply state variable updates. Available updaters are
+  listed in below
+* ``_divider``: How to divide the state variable's values between daughter
+  cells. Available dividers are listed below.
+* ``_emit``: A Boolean value that sets whether to log this variable to the
+  simulation database for later analysis.
+* ``_properties``: User-defined properties such as molecular weight. These
+  can be used for calculating variables such as total system mass.
+
+Updaters
+--------
+
+Updaters are methods by which an update from a process is applied to a variable's value.
+
+Updaters provided by vivarium-core include:
+
+* ``accumulate`` & The default updater. Add the update value to the current value.
+* ``set`` & The update value becomes the new current value.
+* ``merge`` & Update an existing dictionary with new values, and add any newly declared keys.
+* ``null`` & Do not apply the update.
+* ``nonnegative_accumulate`` & Add the update value to the current value, and set
+  to `0` if the result is negative.
+* ``dict_value`` & translates \_add and \_delete -style updates to operate on a dictionary.
+
+New updaters can be easily defined and passed into a port schema:
 
 .. code-block:: python
 
-    {
-        'port_name': {
-            'schema_key': 'schema_value',
-            ...
-        },
-        ..
-    }
+    # updater that returns a random value
+    def random_updater(current_value, update_value):
+        return random.random()
+
+    def port_schema(self):
+        ports = {
+            'port1': {
+                'variable1': {
+                    '_default': 1.0
+                    '_updater': {
+                        'updater': random_updater
+                        }
+                }
+            }
+        }
+        return ports
+
+Dividers
+--------
+
+Dividers are methods by which a variable's value is divided when division is triggered.
+
+Dividers available in vivarium-core include:
+
+* ``set``: The default divider. Daughters get the same value as the mother.
+* ``binomial``: Sample the first daughter's value from a binomial distribution of
+  the mother's value, and the second daughter gets the remainder.
+* ``split``: Divide the mother's value in two. Odd integers will make one daughter
+  receive `1` more than the other daughter.
+* ``split_dict``: Splits a dictionary of {key: value} pairs, with each daughter
+  receiving a dictionary with the same keys, but with each value split.
+* ``zero``: Daughter values are both set to `0`.
+* ``no_divide``: Asserts that this value should not be divided.
+
+New dividers can be easily defined and passed into a port schema:
+
+.. code-block:: python
+
+    # divider that returns a random value for each daughter
+    def random_divider(mother_value, state):
+        return [
+            random.random(),
+            random.random()]
+
+    def port_schema(self):
+        ports = {
+            'port1': {
+                'variable1': {
+                    '_default': 1.0
+                    '_divider': {
+                        'divider': random_divider
+                        }
+                }
+            }
+        }
+        return ports
+
 
 Example Ports Schema
 --------------------
@@ -193,6 +268,65 @@ default value of 1339 fg to ``mass``, and we declare that the ``mass``
 and ``volume`` variables should be split in half on division. Further,
 we specify that all the three variables should have their updates set,
 not accumulated.
+
+Views
+-----
+
+When the process is asked to provide an update to the model state, it is
+only provided the variables it specifies. For example, it might get a
+model state like this:
+
+.. code-block:: python
+
+    {
+        'global': {
+            'mass': 1339 <Unit('femtogram')>,
+            'volume': 1.2,
+            'divide': False,
+        },
+    }
+
+This would happen even if the store linked to the ``global`` port
+contained more variables. We call this stripping-out of variables the
+process doesn't need :term:`masking`.
+
+Advanced Ports Schema
+=====================
+
+Use the glob ``*`` schema to declare expected sub-store structure,
+and view all child values of the store:
+
+.. code-block:: python
+
+    schema = {
+        'port1': {
+            '*': {
+                '_default': 1.0
+            }
+        }
+    }
+
+Use the glob ``**`` schema to connect to an entire sub-branch, including
+child nodes, grandchild nodes, etc:
+
+.. code-block:: python
+
+    schema = {
+        'port1': '**'
+    }
+
+Ports flagged as output-only won't be viewed through the next_update's
+states, which can save some overhead time:
+
+.. code-block:: python
+
+    schema = {
+        'port1': {
+            '_output': True,
+            'A': {'_default': 1.0},
+        }
+    }
+
 
 Next Updates
 ============
