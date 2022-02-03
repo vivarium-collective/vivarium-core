@@ -124,7 +124,6 @@ to be combined in a model and share variables through a shared
 :term:`store`, the processes MUST use the same variable names for the
 shared variables.
 
-
 .. note:: Variables always have the same name, no matter which process
     is interacting with them. This is unlike stores, which can take on
     different port names with each process.
@@ -195,14 +194,6 @@ and ``volume`` variables should be split in half on division. Further,
 we specify that all the three variables should have their updates set,
 not accumulated.
 
-Steps
-=====
-
-:term:`Step` is subclass of :term:`Process`, which runs after the other
-processes with a timestep of 0, and computes some variables from others.
-For example, a step might calculate concentrations from counts.  These
-are used to offload complexity from the dynamical processes.
-
 Next Updates
 ============
 
@@ -266,8 +257,9 @@ growth rate specified in the constructor by using the
     use. This is important because different simulations may need
     different timesteps based on what they are modeling.
 
+----------------------
 Process Class Examples
-======================
+----------------------
 
 Many of our process classes have examples in the form of test functions
 at the bottom. These are great resources if you are trying to figure out
@@ -281,8 +273,67 @@ top-level functions you include that are prefixed with ``test_`` will be
 executed by ``pytest``. Please add these tests to help future developers
 make sure they haven't broken your process!
 
-Advanced Features
-=================
+-----
+Steps
+-----
+
+:term:`Step` is subclass of :term:`Process` that is not time-dependent.
+These instances run before the first timestep, and after the dynamic processes
+during simulation. The run according to a dependency graph called a :term:`flow`
+(like a workflow) -- see :py:doc:`flows topic guide <../guides/composites>`.
+These can serve many different roles, including translating
+states between different modeling formats, implementing lift or restriction
+operators to translate states between scales, and as auxiliary processes that
+offload complexity. As an example of offloading complexity, a step might
+recalculate concentrations after counts have been updated.
+
+To create a step, you follow the same steps as you would to create a
+:term:`process` except that your class should inherit from
+:py:class:`vivarium.core.process.Step`. For example, we could create a
+replisome-RNAP collision reconciler like this:
+
+.. code-block:: python
+
+    class CollisionReconciler(Step):
+
+        def ports_schema(self):
+            return {
+                'replisomes': {
+                    '*': {
+                        'position': {'_default': 0},
+                    },
+                },
+                'RNAPs': {
+                    '*': {
+                        'position': {'_default': 0},
+                    },
+                },
+            }
+
+        def next_update(self, timestep, states):
+            # We can ignore the timestep since it will always be 0.
+            replisome_positions
+                replisome['position']
+                for replisome in states['replisomes'].values()
+            ])
+            rnap_positions = np.array([
+                rnap['position']
+                for rnap in states['RNAPs'].values()
+            ])
+            # Assume that our timestep is small enough that we can
+            # ignore RNAPs and replisomes that move past each other
+            # (instead of to the same position) in one timestep.
+            collision_mask = replisome_positions == rnap_positions
+            rnap_keys = np.array(list(states['RNAPs'].keys()))
+            to_remove = rnap_keys[collision_mask]
+            return {
+                'RNAPs': {
+                    '_delete': to_remove.tolist(),
+                },
+            }
+
+.. note::
+   Steps are always given a timestep of 0 by the simulation engine.
 
 Step Implementation Details
 ---------------------------
@@ -292,6 +343,10 @@ Steps are technically identified by whether their
 ``True``. This means that you can make a process that determines whether
 it should be a Step based on its configuration. Note however that we do
 not support changing whether a process is a step mid-simulation.
+
+-----------------
+Advanced Features
+-----------------
 
 Adaptive Timesteps
 ------------------

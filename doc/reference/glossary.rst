@@ -114,6 +114,15 @@ Glossary
         documentation for the ``Engine`` class and our :doc:`guide
         to experiments </guides/experiments>` for more details.
 
+    Flow
+    flow
+    Flows
+    flows
+        Flows specify dependency graphs for running :term:`steps`. They
+        have the same structure as topologies, but instead of their
+        leaf values being paths, they are lists of paths where each path
+        specifies a dependency step.
+
     Inner
     inner
         A once-removed internal node position relative to a given node in

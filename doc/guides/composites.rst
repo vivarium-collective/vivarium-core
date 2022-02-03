@@ -191,9 +191,9 @@ might look like this:
         },
     }
 
---------------------------------------------------------
-Steps and Flows for Ordered Operations Between Timesteps
---------------------------------------------------------
+---------------------------------------------------
+Flows for Ordered Step Operations Between Timesteps
+---------------------------------------------------
 
 Processes have one major drawback: you cannot specify when or in what
 order they run. Processes can request timesteps, but the Vivarium engine
@@ -207,66 +207,11 @@ say something like "If a replisome and RNAP collide, remove the RNAP
 from the chromosome." To support this kind of statement, you can create
 a :term:`step`.
 
-Steps
-=====
-
-Steps are like processes except that they run between timesteps. In
-fact, they also run before the first timestep and after the last
-timestep. This means you could create a reconciler step that handles
-replisome-RNAP collisions.
-
-To create a step, you follow the same steps as you would to create a
-:term:`process` except that your class should inherit from
-:py:class:`vivarium.core.process.Step`. For example, we could create our
-replisome-RNAP collision reconciler like this:
-
-.. code-block:: python
-
-    class CollisionReconciler(Step):
-
-        def ports_schema(self):
-            return {
-                'replisomes': {
-                    '*': {
-                        'position': {'_default': 0},
-                    },
-                },
-                'RNAPs': {
-                    '*': {
-                        'position': {'_default': 0},
-                    },
-                },
-            }
-
-        def next_update(self, timestep, states):
-            # We can ignore the timestep since it will always be 0.
-            replisome_positions
-                replisome['position']
-                for replisome in states['replisomes'].values()
-            ])
-            rnap_positions = np.array([
-                rnap['position']
-                for rnap in states['RNAPs'].values()
-            ])
-            # Assume that our timestep is small enough that we can
-            # ignore RNAPs and replisomes that move past each other
-            # (instead of to the same position) in one timestep.
-            collision_mask = replisome_positions == rnap_positions
-            rnap_keys = np.array(list(states['RNAPs'].keys()))
-            to_remove = rnap_keys[collision_mask]
-            return {
-                'RNAPs': {
-                    '_delete': to_remove.tolist(),
-                },
-            }
-
-.. note::
-   Steps are always given a timestep of 0 by the simulation engine.
 
 Flows
 =====
 
-When constructing a composite of many steps, you may find that some
+When constructing a composite of many :term:`steps`, you may find that some
 steps depend on other steps. For example, you might have one step that
 calculates the cell's mass and another step that calculates the cell's
 volume based on that mass. Vivarium supports these dependencies, which
