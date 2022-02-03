@@ -236,8 +236,8 @@ Core!
 Run Simulations
 ---------------
 
-Some Terminology: Processes and Compartments
-============================================
+Some Terminology: Processes and Composites
+==========================================
 
 We break our cell models into :term:`processes`. Each process models
 part of the cell's function. For example, you might have processes for
