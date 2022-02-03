@@ -73,6 +73,26 @@ topology you specify.
 Topologies
 ----------
 
+Each process has a list of named ports, one for each store it expects.
+The process can perform all its computations in terms of these ports,
+and the process also provides its update using port names. This means
+that a composite can apply each process to any collection of stores,
+making processes modular.
+
+This modularity is analogous to the modularity of Python functions.
+Think of each process as a function like this:
+
+.. code-block:: python
+
+    def sodium_pump(cytoplasm, extracellularSpace):
+        ...
+        return "Update: Decrease ATP concentration in cytoplasm by x mM"
+
+A function's modularity comes from the fact that we can pass in different
+objects for the ``cytoplasm`` parameter, even objects the function
+authors hadn't thought of. ``cytoplasm`` is like the port, to which we
+can provide any store we like.
+
 How do we specify which store goes with which port? To continue the
 function analogy from above, we need something analogous to this:
 
