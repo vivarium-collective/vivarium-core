@@ -46,7 +46,7 @@ installed.
 Python 3
 --------
 
-Vivarium Core now requires Python 3.6 or later.
+Vivarium Core requires Python 3.8, 3.9, or 3.10.
 
 *Check Installation*
 
@@ -55,7 +55,7 @@ Vivarium Core now requires Python 3.6 or later.
     $ python --version
     Python <version>
 
-Make sure you see a version at least 3.6.
+Make sure you see a version starting with 3.8, 3.9, or 3.10.
 
 *Install*
 
@@ -153,7 +153,8 @@ the code
     $ git clone https://github.com/vivarium-collective/vivarium-template.git
 
 This will create a ``vivarium-template`` folder inside ``vivarium_work``.
-All the code for Vivarium Core is inside this ``vivarium-template`` folder.
+All the code for your model will be inside this ``vivarium-template``
+folder.
 
 Repository Structure
 --------------------
@@ -171,6 +172,7 @@ The repository you downloaded should look like this:
     └── template
         ├── __init__.py
         ├── compartments
+        ├── composites
         │   ├── __init__.py
         │   └── injected_glc_phosphorylation.py
         ├── experiments
@@ -192,11 +194,12 @@ The ``template`` directory is where your package will live. Under it, we
 have the following sub-folders:
 
 * ``library``: This is for utility functions like those shared across
-  processes, compartments, and/or experiments.
+  processes, composers, and/or experiments.
 * ``processes``: This is where you'll write your processes. We've
   provided a ``template_process.py`` file to get you started. Generally
   you'll want to have one process per file.
-* ``compartments``: This folder will hold your compartments.
+* ``composites``: This folder will hold your composers, which generate
+  composites of multiple processes.
 * ``experiments``: This folder will hold your experiments. These are the
   files you'll probably be executing to run your simulations.
 
@@ -233,21 +236,21 @@ Core!
 Run Simulations
 ---------------
 
-Some Terminology: Processes and Compartments
-============================================
+Some Terminology: Processes and Composites
+==========================================
 
 We break our cell models into :term:`processes`. Each process models
 part of the cell's function. For example, you might have processes for
 metabolism, transcription, and translation. We can combine these
-processes into :term:`compartments` that model a system with all the
+processes into :term:`composites` that model a system with all the
 functionality modeled by the included processes. For example, we could
 compose transcription and translation to create a fuller gene expression
 model.
 
 We store individual processes in ``vivarium-template/template/processes``
-and compartments of processes in
-``vivarium-template/template/compartments``. We recommend you use a similar
-structure when creating your own processes and compartments.
+and the composers that generate composites of processes in
+``vivarium-template/template/composites``. We recommend you use a similar
+structure when creating your own processes and composers.
 
 Running Experiments
 ===================
@@ -265,7 +268,7 @@ In ``out/experiments/glucose_phosphorylation`` you should see a file
 ``simulation.png`` that looks like this:
 
 .. image:: ./_static/glucose_phosphorylation.png
-   :width: 100%
+   :width: 50%
    :alt: Two columns of plots. The first has one plot of mass increasing
        linearly. The second has 4 plots, the first 3 of which show ADP,
        ATP, and G6P increasing linearly. The last plot shows GLC

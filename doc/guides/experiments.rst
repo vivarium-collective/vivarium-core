@@ -40,29 +40,23 @@ experiment that simulates the phosphorylation of injected glucose:
         compartment = InjectedGlcPhosphorylation(
             config['injected_glc_phosphorylation'])
         compartment_dict = compartment.generate()
-        experiment = Experiment({
-            'processes': compartment_dict['processes'],
-            'topology': compartment_dict['topology'],
-            'emitter': config['emitter'],
-            'initial_state': config['initial_state'],
-        })
+        experiment = Engine(
+            processes=compartment_dict['processes'],
+            topology=compartment_dict['topology'],
+            emitter=config['emitter'],
+            initial_state=config['initial_state'],
+        )
         return experiment
 
 Notice that most of the function just sets up configurations. The main
 steps are:
 
-#. Instantiate the compartment that your experiment will simulate.
+#. Instantiate the composite that your experiment will simulate.
 #. Generate the processes and topology dictionaries that describe the
-   compartment using
+   composite using
    :py:meth:`vivarium.core.composer.Composer.generate`.
 #. Instantiate the experiment, passing along the processes and topology
    dictionaries. We also specify the :term:`emitter` the experiment
    should send data to and the initial state of the model. If we don't
    specify an initial state, it will be constructed based on the
-   defaults we specified in the compartment's processes.
-
-.. note:: Experiments accept only a single compartment, but you can
-   still simulate many compartments! The single compartment you give to
-   the experiment is the root compartment, which will often be an
-   environment. This compartment will then contain the other
-   compartments you want to simulate.
+   defaults we specified in the composite's processes.

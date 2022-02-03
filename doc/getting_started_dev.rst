@@ -53,7 +53,7 @@ installed.
 Python 3
 --------
 
-Vivarium Core now requires Python 3.6 or later.
+Vivarium Core requires Python 3.8, 3.9, or 3.10.
 
 *Check Installation*
 
@@ -62,7 +62,7 @@ Vivarium Core now requires Python 3.6 or later.
     $ python --version
     Python <version>
 
-Make sure you see a version at least 3.6.
+Make sure you see a version beginning with 3.8, 3.9, or 3.10.
 
 *Install*
 
@@ -192,47 +192,7 @@ install the Python packages Vivarium Core uses.
 
         $ pip install -r requirements.txt
 
-Now you are all set to create models and run simulations with Vivarium
-Core!
-
----------------
-Run Simulations
----------------
-
-Some Terminology: Processes and Compartments
-============================================
-
-We break our cell models into :term:`processes`. Each process models
-part of the cell's function. For example, you might have processes for
-metabolism, transcription, and translation. We can combine these
-processes into :term:`composites` that model a system with all the
-functionality modeled by the included processes. For example, we could
-compose transcription and translation to create a fuller gene expression
-model.
-
-We store individual processes in ``vivarium-core/vivarium/processes``
-and composites of processes in
-``vivarium-core/vivarium/composites``. We recommend you use a similar
-structure when creating your own processes and composites.
-
-Running Experiments
-===================
-
-Running experiments is as easy as executing their files. For example,
-this repository comes with an example experiment in
-``vivarium-core/vivarium/experiments/glucose_phosphorylation.py``. Try
-running it like this:
-
-.. code-block:: console
-
-    $ python vivarium/experiments/glucose_phosphorylation.py
-
-In ``out/experiments/glucose_phosphorylation`` you should see a file
-``simulation.png`` that looks like this:
-
-.. image:: ./_static/glucose_phosphorylation.png
-   :width: 100%
-   :alt: Two columns of plots. The first has one plot of mass increasing
-       linearly. The second has 4 plots, the first 3 of which show ADP,
-       ATP, and G6P increasing linearly. The last plot shows GLC
-       decreasing linearly.
+Now you are all set to begin developing! Be sure to review our
+`contribution instructions
+<https://github.com/vivarium-collective/vivarium-core/blob/master/CONTRIBUTING.md>`_
+before you get started.
