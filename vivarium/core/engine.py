@@ -483,7 +483,7 @@ class Engine:
             for path in self.process_paths}
 
         # run the steps
-        self._run_steps()
+        self.run_steps()
 
         # run the emitter
         self._emit_configuration()
@@ -840,7 +840,7 @@ class Engine:
                         raise e
                 del self._step_paths[path]
 
-    def _run_steps(self) -> None:
+    def run_steps(self) -> None:
         """Run all the steps in the simulation."""
         layers = self._step_graph.get_execution_layers()
         for layer in layers:
@@ -887,7 +887,7 @@ class Engine:
         if view_expire:
             self.state.build_topology_views()
 
-        self._run_steps()
+        self.run_steps()
 
     def update(
             self,
