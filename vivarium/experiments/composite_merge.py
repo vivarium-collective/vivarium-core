@@ -1,6 +1,7 @@
-from vivarium.composites.toys import ExchangeA
+from vivarium.composites.toys import ExchangeA, ToyComposer
 from vivarium.core.composer import Composite
-
+from vivarium.core.control import run_library_cli
+from vivarium.experiments.engine_tests import get_toy_transport_in_env_composite
 
 
 def test_multi_composite() -> None:
@@ -34,8 +35,19 @@ def test_multi_composite() -> None:
     print(f"composite4 topology: {composite4['topology']}")
 
 
+def test_store_composite():
+    composite = get_toy_transport_in_env_composite()
+    store = composite.generate_store()
+    agent_composite = store.get_subcomposite(path=('agents', '0'))
+    # import ipdb; ipdb.set_trace()
 
 
+test_library = {
+    '1': test_multi_composite,
+    '2': test_store_composite,
+}
 
+
+# python vivarium/experiments/composite_merge.py -n [test number]
 if __name__ == '__main__':
-    test_multi_composite()
+    run_library_cli(test_library)
