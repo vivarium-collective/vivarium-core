@@ -903,7 +903,6 @@ class Store:
             return self.flow
         return {}
 
-
     def get_subcomposite(self, path):
         from vivarium.core.composer import Composite  # TODO -- circular import requires this
         sub_store = self[path]
