@@ -1036,7 +1036,11 @@ class Store:
                 divider_dict = divider
                 divider = divider['divider']
                 if isinstance(divider, str):
-                    divider = divider_registry.access(divider)
+                    divider_str = divider
+                    divider = divider_registry.access(divider_str)
+                    if not divider:
+                        raise Exception(
+                            f'No divider found with name {divider_str}')
                 args = {}
                 if 'topology' in divider_dict:
                     topology = divider_dict['topology']
