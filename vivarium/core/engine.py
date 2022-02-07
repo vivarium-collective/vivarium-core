@@ -11,6 +11,7 @@ import pstats
 import os
 import logging as log
 import pprint
+import re
 from typing import (
     Any, Dict, Optional, Union, Tuple, Callable, Iterable, List, Set,
     cast, Sequence)
@@ -20,6 +21,7 @@ import time as clock
 import uuid
 
 import networkx as nx
+import pytest
 
 from vivarium.core.store import (
     hierarchy_depth, Store, generate_state, view_values)
@@ -40,7 +42,7 @@ from vivarium.library.topology import (
 )
 from vivarium.core.types import (
     HierarchyPath, Topology, State, Update, Processes, Steps,
-    Flow)
+    Flow, Schema)
 
 pretty = pprint.PrettyPrinter(indent=2)
 
@@ -459,6 +461,7 @@ class Engine:
         self._step_paths: Dict[HierarchyPath, Process] = {}
         self._find_process_paths(self.processes, self.flow)
         self._find_step_paths(self.steps, self.flow)
+        self._validate_steps_and_flow(self._step_paths, self.flow)
 
         # emitter settings
         emitter_config = emitter
@@ -497,6 +500,24 @@ class Engine:
 
         log.info('\nTOPOLOGY:')
         log.info(pf(self.topology))
+
+    @staticmethod
+    def _validate_steps_and_flow(
+            step_paths: Dict[HierarchyPath, Process],
+            flow: Flow,
+            path: HierarchyPath = tuple()) -> None:
+        '''Check that every Step in flow is in steps.'''
+        for key, sub_flow in flow.items():
+            if isinstance(sub_flow, dict):
+                Engine._validate_steps_and_flow(
+                    step_paths, sub_flow, path + (key,))
+            else:
+                assert isinstance(sub_flow, list)
+                for dependency in sub_flow:
+                    if dependency not in step_paths:
+                        raise Exception(
+                            f'Unknown dependency step {dependency} is '
+                            'in the flow')
 
     def _make_store(
             self,
@@ -1112,3 +1133,77 @@ def print_progress_bar(
     # Print New Line on Complete
     if iteration == total:
         print()
+
+
+def test_flow_with_extra_step() -> None:
+    class StepA(Step):
+
+        def ports_schema(self) -> Schema:
+            return {
+                'a': {'_default': 1}
+            }
+
+        def next_update(self, timestep: float, states: State) -> Update:
+            return {}
+
+    class ProcessB(Process):
+
+        def ports_schema(self) -> Schema:
+            return {
+                'b': {'_default': 1}
+            }
+
+        def next_update(self, timestep: float, states: State) -> Update:
+            return {}
+
+
+    expected_error = re.escape(
+        'Unknown dependency step (\'stepA2\',) is in the flow')
+    with pytest.raises(Exception, match=expected_error):
+        _ = Engine(
+            processes={'procB': ProcessB()},
+            steps={'stepA1': StepA()},
+            topology={
+                'stepA1': {'a': ('a',)},
+                'procB': {'b': ('b',)},
+            },
+            flow={'stepA1': [('stepA2',)]},
+        )
+
+def test_flow_with_valid_steps() -> None:
+    class StepA(Step):
+
+        def ports_schema(self) -> Schema:
+            return {
+                'a': {'_default': 1}
+            }
+
+        def next_update(self, timestep: float, states: State) -> Update:
+            return {}
+
+    class ProcessB(Process):
+
+        def ports_schema(self) -> Schema:
+            return {
+                'b': {'_default': 1}
+            }
+
+        def next_update(self, timestep: float, states: State) -> Update:
+            return {}
+
+    _ = Engine(
+        processes={'procB': ProcessB()},
+        steps={
+            'stepA1': StepA(),
+            'stepA2': StepA(),
+        },
+        topology={
+            'stepA1': {'a': ('a',)},
+            'stepA2': {'a': ('a',)},
+            'procB': {'b': ('b',)},
+        },
+        flow={
+            'stepA1': [('stepA2',)],
+            'stepA2': [],
+        },
+    )
