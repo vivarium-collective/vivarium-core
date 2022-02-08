@@ -118,9 +118,11 @@ class Composite(Datum):
         config = config or {}
         initial_state = self.initial_state(config)
         return generate_state(
-            self.processes,
-            self.topology,
-            initial_state)
+            processes=self.processes,
+            steps=self.steps,
+            topology=self.topology,
+            flow=self.flow,
+            initial_state=initial_state)
 
     def initial_state(self, config: Optional[dict] = None) -> Optional[State]:
         """ Merge all processes' initial states
