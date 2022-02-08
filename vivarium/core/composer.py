@@ -105,14 +105,49 @@ class Composite(Datum):
 
     def __init__(
             self,
-            config: Optional[Dict[str, Any]] = None
+            config: Optional[Dict[str, Any]] = None,
+            composite=None,
+            store: Optional[Store] = None,
+            processes: Optional[Processes] = None,
+            steps: Optional[Steps] = None,
+            flow: Optional[Flow] = None,
+            topology: Optional[Topology] = None,
+            initial_state: Optional[State] = None,
     ) -> None:
-        config = config or {}
+        if not config:
+            if store:
+                composite = store.get_composite()
+            if composite:
+                processes = composite.processes
+                steps = composite.steps
+                flow = composite.flow
+                topology = composite.topology
+            config = {
+                'processes': processes or {},
+                'steps': steps or {},
+                'flow': flow or {},
+                'topology': topology or {},
+            }
         super().__init__(config)
         self._schema = config.get('_schema', {})
         processes_and_steps = deep_copy_internal(self.processes)
         deep_merge_check(processes_and_steps, self.steps)
         _override_schemas(self._schema, processes_and_steps)
+
+        # composite simulation
+        self.generate()
+
+    def __getitem__(self, path):
+        return Composite(store=self.store[path])
+
+    def __setitem__(self, path, value):
+        self.store[path] = value
+
+    def generate(self):
+        from vivarium.core.engine import Engine
+        # make simulation, with new store
+        self.store = self.generate_store()
+        self.sim = Engine(store=self.store)
 
     def generate_store(self, config: Optional[dict] = None) -> Store:
         config = config or {}

@@ -904,13 +904,16 @@ class Store:
         return {}
 
     def get_subcomposite(self, path):
-        from vivarium.core.composer import Composite  # TODO -- circular import requires this
         sub_store = self[path]
+        return sub_store.get_composite()
+
+    def get_composite(self):
+        from vivarium.core.composer import Composite  # TODO -- circular import requires this
         return Composite({
-            'processes': sub_store.get_processes(),
-            'steps': sub_store.get_steps(),
-            'topology': sub_store.get_topology(),
-            'flow': sub_store.get_flow()
+            'processes': self.get_processes(),
+            'steps': self.get_steps(),
+            'topology': self.get_topology(),
+            'flow': self.get_flow()
         })
 
     def get_path(self, path):

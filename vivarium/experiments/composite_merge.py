@@ -37,9 +37,10 @@ def test_multi_composite() -> None:
 
 def test_store_composite():
     composite = get_toy_transport_in_env_composite()
-    store = composite.generate_store()
-    agent_composite = store.get_subcomposite(path=('agents', '0'))
+    agent_composite = composite['agents', '0']
+
     # import ipdb; ipdb.set_trace()
+    # composite.run_for()
 
 
 test_library = {
