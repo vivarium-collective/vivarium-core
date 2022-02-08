@@ -40,6 +40,9 @@ def test_store_composite():
     composite = get_toy_transport_in_env_composite()
     agent_composite = composite['agents', '0']
 
+    initial_state = {
+        'agents': {'0': {'external': {'GLC': 10.0}}}}
+
     composite.run_for(10)
     data = composite.get_data()
     print(pf(data))
