@@ -129,7 +129,8 @@ class ToyEnvironment(Process):
             'agents': {
                 '*': {
                     port_id: {
-                        '_default': 0.0
+                        '_default': 0.0,
+                        '_emit': True,
                     } for port_id in self.port_ids
                 }
             }

@@ -1,5 +1,6 @@
 from vivarium.composites.toys import ExchangeA, ToyComposer
 from vivarium.core.composer import Composite
+from vivarium.core.engine import pf
 from vivarium.core.control import run_library_cli
 from vivarium.experiments.engine_tests import get_toy_transport_in_env_composite
 
@@ -39,8 +40,12 @@ def test_store_composite():
     composite = get_toy_transport_in_env_composite()
     agent_composite = composite['agents', '0']
 
-    # import ipdb; ipdb.set_trace()
-    # composite.run_for()
+    composite.run_for(10)
+    data = composite.get_data()
+    print(pf(data))
+
+    import ipdb; ipdb.set_trace()
+
 
 
 test_library = {

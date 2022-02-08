@@ -143,6 +143,12 @@ class Composite(Datum):
     def __setitem__(self, path, value):
         self.store[path] = value
 
+    def get_data(self):
+        self.sim.emitter.get_data()
+
+    def run_for(self, interval):
+        self.sim.run_for(interval)
+
     def generate(self):
         from vivarium.core.engine import Engine
         # make simulation, with new store
