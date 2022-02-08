@@ -832,7 +832,6 @@ class Store:
             return self.value
         return None
 
-
     def get_topology(self):
         """
         Get the topology for all processes in this store.
