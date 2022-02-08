@@ -98,9 +98,20 @@ class Process(metaclass=abc.ABCMeta):
         work properly.
 
         Args:
-            parameters: Override the class defaults. If this contains a
-                ``_register`` key, the process will register itself in
-                the process registry.
+            parameters: Override the class defaults. This dictionary may
+                also contain the following special keys:
+
+                * ``name``: Saved to ``self.name``.
+                * ``_original_parameters``: Returned by
+                  ``__getstate__()`` for serialization.
+                * ``_schema``: Overrides the schema.
+                * ``_parallel``: Indicates that the process should be
+                  parallelized. ``self.parallel`` will be set to True.
+                * ``_condition``: Path to a variable whose value will be
+                  returned by
+                  :py:meth:`vivarium.core.process.Process.`update_condition`.
+                * ``time_step``: Returned by
+                  :py:meth:`vivarium.core.process.Process.`calculate_timestep`.
         """
         parameters = parameters or {}
         if '_original_parameters' in parameters:
