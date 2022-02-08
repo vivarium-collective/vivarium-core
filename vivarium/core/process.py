@@ -103,9 +103,13 @@ class Process(metaclass=abc.ABCMeta):
                 the process registry.
         """
         parameters = parameters or {}
+        if '_original_parameters' in parameters:
+            original_parameters = parameters.pop('_original_parameters')
+        else:
+            original_parameters = parameters
         try:
             self._original_parameters: Optional[dict] = copy.deepcopy(
-                parameters)
+                original_parameters)
         except TypeError:
             # Copying the parameters failed because some parameters do
             # not support being copied.
@@ -522,6 +526,26 @@ class ToySerializedProcess(Process):
         return {}
 
 
+class ToySerializedProcessInheritance(Process):
+
+    defaults = {
+        '1': 1,
+    }
+
+    def __init__(self, parameters: Optional[dict] = None) -> None:
+        parameters = parameters or {}
+        super().__init__({
+            '2': parameters['1'],
+            '_original_parameters': parameters,
+        })
+
+    def ports_schema(self) -> Schema:
+        return {}
+
+    def next_update(self, timestep: float, states: State) -> Update:
+        return {}
+
+
 def test_serialize_process() -> None:
     proc = ToySerializedProcess()
     proc_pickle = pickle.loads(pickle.dumps(proc))
@@ -530,3 +554,9 @@ def test_serialize_process() -> None:
     # If we pickled using `self.parameters` instead of
     # `self._original_parameters`, this list would be [1, 1].
     assert proc_pickle.parameters['list'] == [1]
+
+
+def test_serialize_process_inheritance() -> None:
+    a = ToySerializedProcessInheritance({'1': 0})
+    a2 = pickle.loads(pickle.dumps(a))
+    assert a2.parameters['2'] == 0
