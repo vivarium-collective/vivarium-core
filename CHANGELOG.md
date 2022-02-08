@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.0.1
+
+* (#151) Make `Engine._run_steps()` public.
+* (#155) Add error messages for flows that include steps not found in
+  `Engine.steps` and for dividers specified as strings not found in the
+  divider registry.
+* (#157) Add flows and steps to the value returned by
+  `Composite.generate_store()`.
+
 ## v1.0.0
 
 * (#131) Do not assume that a process's `initial_state` should be used
