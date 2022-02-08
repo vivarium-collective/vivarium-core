@@ -811,7 +811,7 @@ class Store:
                 return inner_processes
         elif isinstance(self.value, Process):
             return self.value
-        return {}
+        return None
 
     def get_steps(self):
         """Get all steps under this store."""
@@ -830,7 +830,7 @@ class Store:
                 return inner_processes
         elif isinstance(self.value, Process):
             return self.value
-        return {}
+        return None
 
     def get_topology(self):
         """
@@ -847,7 +847,7 @@ class Store:
                 return inner_topology
         elif self.topology:
             return self.topology
-        return {}
+        return None
 
     def get_flow(self):
         """Get the flow for all :term:`steps` under this node.
@@ -900,7 +900,7 @@ class Store:
                 return inner_flow
         elif self.flow is not None:
             return self.flow
-        return {}
+        return None
 
     def get_path(self, path):
         """
