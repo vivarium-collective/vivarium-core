@@ -109,9 +109,9 @@ class Process(metaclass=abc.ABCMeta):
                   parallelized. ``self.parallel`` will be set to True.
                 * ``_condition``: Path to a variable whose value will be
                   returned by
-                  :py:meth:`vivarium.core.process.Process.`update_condition`.
+                  :py:meth:`vivarium.core.process.Process.update_condition`.
                 * ``time_step``: Returned by
-                  :py:meth:`vivarium.core.process.Process.`calculate_timestep`.
+                  :py:meth:`vivarium.core.process.Process.calculate_timestep`.
         """
         parameters = parameters or {}
         if '_original_parameters' in parameters:
