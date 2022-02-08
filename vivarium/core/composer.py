@@ -114,6 +114,7 @@ class Composite(Datum):
             topology: Optional[Topology] = None,
             initial_state: Optional[State] = None,
     ) -> None:
+        initial_state = initial_state or {}
         if not config:
             if store:
                 composite = store.get_composite()
@@ -135,24 +136,35 @@ class Composite(Datum):
         _override_schemas(self._schema, processes_and_steps)
 
         # composite simulation
-        self.generate()
+        self.store = self.generate_store({'initial_state': initial_state})
+        self.sim = None
+        # self.generate_sim()
 
     def __getitem__(self, path):
-        return Composite(store=self.store[path])
+        return self.store[path]
 
     def __setitem__(self, path, value):
         self.store[path] = value
 
+    def get_value(self):
+        return self.store.get_value()
+
+    def set_value(self, value):
+        self.store.set_value(value)
+
+    def make_subcomposite(self, path):
+        return Composite(store=self.store[path])
+
     def get_data(self):
-        self.sim.emitter.get_data()
+        return self.sim.emitter.get_data()
 
     def run_for(self, interval):
         self.sim.run_for(interval)
 
-    def generate(self):
+    def generate_sim(self, config=None):
         from vivarium.core.engine import Engine
         # make simulation, with new store
-        self.store = self.generate_store()
+        self.store = self.generate_store(config)
         self.sim = Engine(store=self.store)
 
     def generate_store(self, config: Optional[dict] = None) -> Store:

@@ -38,16 +38,28 @@ def test_multi_composite() -> None:
 
 def test_store_composite():
     composite = get_toy_transport_in_env_composite()
-    agent_composite = composite['agents', '0']
+    print('DEFAULT STATE')
+    print(pf(composite.get_value()))
 
     initial_state = {
         'agents': {'0': {'external': {'GLC': 10.0}}}}
+    composite.set_value(initial_state)
+    print('INITIAL STATE')
+    print(pf(composite.get_value()))
 
+    # make a composite from a path
+    agent_composite = composite.make_subcomposite(['agents', '0'])
+    print('AGENT STATE')
+    print(pf(agent_composite.get_value()))
+
+    # run sim
+    composite.generate_sim()
     composite.run_for(10)
     data = composite.get_data()
+    print('SIMULATION OUTPUT')
     print(pf(data))
 
-    import ipdb; ipdb.set_trace()
+    # import ipdb; ipdb.set_trace()
 
 
 
