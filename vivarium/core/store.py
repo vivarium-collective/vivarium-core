@@ -811,7 +811,7 @@ class Store:
                 return inner_processes
         elif isinstance(self.value, Process):
             return self.value
-        return {}
+        return None
 
     def get_steps(self):
         """Get all steps under this store."""
@@ -830,8 +830,7 @@ class Store:
                 return inner_processes
         elif isinstance(self.value, Process):
             return self.value
-        return {}
-
+        return None
 
     def get_topology(self):
         """
@@ -848,7 +847,7 @@ class Store:
                 return inner_topology
         elif self.topology:
             return self.topology
-        return {}
+        return None
 
     def get_flow(self):
         """Get the flow for all :term:`steps` under this node.
@@ -901,7 +900,7 @@ class Store:
                 return inner_flow
         elif self.flow is not None:
             return self.flow
-        return {}
+        return None
 
     def get_subcomposite(self, path):
         sub_store = self[path]
@@ -910,10 +909,10 @@ class Store:
     def get_composite(self):
         from vivarium.core.composer import Composite  # TODO -- circular import requires this
         return Composite({
-            'processes': self.get_processes(),
-            'steps': self.get_steps(),
-            'topology': self.get_topology(),
-            'flow': self.get_flow()
+            'processes': self.get_processes() or {},
+            'steps': self.get_steps() or {},
+            'topology': self.get_topology() or {},
+            'flow': self.get_flow() or {},
         })
 
     def get_path(self, path):
