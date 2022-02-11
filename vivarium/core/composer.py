@@ -108,7 +108,6 @@ class Composite(Datum):
     def __init__(
             self,
             config: Optional[Dict[str, Any]] = None,
-            composite=None,
             store: Optional[Store] = None,
             processes: Optional[Processes] = None,
             steps: Optional[Steps] = None,
@@ -123,12 +122,6 @@ class Composite(Datum):
                 steps = store.get_steps() or {},
                 flow = store.get_flow() or {},
                 state = store.get_value(),
-            elif composite:
-                processes = composite.processes
-                steps = composite.steps
-                flow = composite.flow
-                topology = composite.topology
-                state = composite.state
             config = {
                 'processes': processes or {},
                 'steps': steps or {},
