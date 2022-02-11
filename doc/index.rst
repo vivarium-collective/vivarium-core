@@ -65,5 +65,5 @@ Citing Vivarium
 Please use the following reference when citing Vivarium:
  - Agmon, E., Spangler, R.K., Skalnik, C.J., Poole, W., Morrison, J.H.,
    Peirce, S.M., and Covert, M.W. (2022). Vivarium: an interface and engine
-   for integrative multi-scale modeling in computational biology.
+   for integrative multiscale modeling in computational biology.
    Bioinformatics, btac049. `link to article <https://academic.oup.com/bioinformatics/advance-article-abstract/doi/10.1093/bioinformatics/btac049/6522109>`_
