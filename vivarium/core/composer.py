@@ -117,16 +117,17 @@ class Composite(Datum):
     ) -> None:
         if not config:
             if store:
-                processes = store.get_processes(),
-                topology = store.get_topology(),
-                steps = store.get_steps() or {},
-                flow = store.get_flow() or {},
-                state = store.get_value(),
+                composite = get_composite_from_store(store)
+                processes = composite.processes
+                topology = composite.topology
+                steps = composite.steps
+                flow = composite.flow
+                state = composite.state
             config = {
                 'processes': processes or {},
+                'topology': topology or {},
                 'steps': steps or {},
                 'flow': flow or {},
-                'topology': topology or {},
                 'state': state or {}
             }
         super().__init__(config)
@@ -238,6 +239,17 @@ class Composite(Datum):
             A map from process names to parameters.
         """
         return _get_parameters(self.processes)
+
+
+def get_composite_from_store(store: Store) -> Composite:
+    """Make a :term:`Composite` from a :term:`Store`"""
+    return Composite(
+        processes=store.get_processes(),
+        topology=store.get_topology(),
+        steps=store.get_steps(),
+        flow=store.get_flow(),
+        state=store.get_value(),
+    )
 
 
 class Composer(metaclass=abc.ABCMeta):
