@@ -96,18 +96,46 @@ class Composite(Datum):
     steps: Steps = {}
     flow: Flow = {}
     topology: Topology = {}
+    state: State = {}
     defaults: Dict[str, Any] = {
         'processes': {},
         'steps': {},
         'flow': {},
         'topology': {},
+        'state': {},
     }
 
     def __init__(
             self,
-            config: Optional[Dict[str, Any]] = None
+            config: Optional[Dict[str, Any]] = None,
+            composite=None,
+            store: Optional[Store] = None,
+            processes: Optional[Processes] = None,
+            steps: Optional[Steps] = None,
+            flow: Optional[Flow] = None,
+            topology: Optional[Topology] = None,
+            state: Optional[State] = None,
     ) -> None:
-        config = config or {}
+        if not config:
+            if store:
+                processes = store.get_processes(),
+                topology = store.get_topology(),
+                steps = store.get_steps() or {},
+                flow = store.get_flow() or {},
+                state = store.get_value(),
+            elif composite:
+                processes = composite.processes
+                steps = composite.steps
+                flow = composite.flow
+                topology = composite.topology
+                state = composite.state
+            config = {
+                'processes': processes or {},
+                'steps': steps or {},
+                'flow': flow or {},
+                'topology': topology or {},
+                'state': state or {}
+            }
         super().__init__(config)
         self._schema = config.get('_schema', {})
         processes_and_steps = deep_copy_internal(self.processes)
@@ -136,6 +164,7 @@ class Composite(Datum):
         """
         config = config or {}
         initial_state = config.get('initial_state', {})
+        initial_state = deep_merge(self.state, initial_state)
         return _get_composite_state(
             processes=self.processes,
             steps=self.steps,
