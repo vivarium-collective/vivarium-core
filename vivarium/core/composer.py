@@ -158,7 +158,7 @@ class Composite(Datum):
         """
         config = config or {}
         initial_state = config.get('initial_state', {})
-        initial_state = deep_merge(self.state, initial_state)
+        initial_state = deep_merge(copy.deepcopy(self.state), initial_state)
         return _get_composite_state(
             processes=self.processes,
             steps=self.steps,
