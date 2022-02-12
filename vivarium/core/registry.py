@@ -63,11 +63,12 @@ function MUST return either:
 """
 import copy
 import random
+import re
 
 import numpy as np
 
 from vivarium.library.dict_utils import deep_merge
-from vivarium.library.units import Quantity, units
+from vivarium.library.units import Quantity
 
 
 class Registry(object):
@@ -319,13 +320,40 @@ def divide_null(state):
 
 
 # Serializers
-class Serializer(object):
-    """Base serializer class."""
-    def serialize(self, data):
+class Serializer:
+    """Base serializer class.
+
+    Serializers work together to convert Python objects, which may be
+    collections of many different kinds of objects, into JSON-compatible
+    representations. Those representations can then be deserialized to
+    recover the original object.
+
+    Most serializers convert an object to a string. To implement a
+    serializer of this type, you only need to implement the
+    :py:meth:`vivarium.core.registry.Serializer.serialize_to_string` and
+    :py:meth:`vivarium.core.registry.Serializer.deserialize()` methods.
+    """
+    REGEX_FOR_NAME = re.compile('[A-Za-z0-9-_]+')
+    REGEX_FOR_SERIALIZED_ANY_TYPE = re.compile(
+        f'!{REGEX_FOR_NAME.pattern}\\[(.*)\\]')
+
+    def __init__(self, name=''):
+        self.name = name or self.__class__.__name__
+        assert self.check_string_sanitary(self.name)
+        self.regex_for_serialized = re.compile(f'!{self.name}\\[(.*)\\]')
+
+    @staticmethod
+    def check_string_sanitary(string):
+        prohibited_chars = ('[', ']', '!')
+        for char in prohibited_chars:
+            if char in string:
+                return False
+        return True
+
+    def serialize_to_string(self, data):
         """Serialize some data.
 
-        Subclasses should override this function, which currently
-        returns the data unaltered.
+        Subclasses should override this function,
 
         Args:
             data: Data to serialize.
@@ -333,13 +361,63 @@ class Serializer(object):
         Returns:
             The serialized data.
         """
-        return data
+        raise NotImplementedError(
+            f'{self} has not implemented serialize_to_string().')
+
+    def serialize(self, data):
+        """Serialize some data.
+
+        Subclasses that are serializing to strings can just implement
+        :py:meth:`vivarium.core.registry.Serialize.serialize_to_string`,
+        and this method will use that implementation to generate a
+        string that serializes the data.
+
+        Subclasses with more complex serialization needs must override
+        this function.
+
+        Args:
+            data: Data to serialize.
+
+        Returns:
+            The serialized data.
+        """
+        string_serialization = self.serialize_to_string(data)
+        if (
+                not isinstance(string_serialization, str)
+                or not self.check_string_sanitary(string_serialization)):
+            raise ValueError(
+                f'{self}.serialize_to_string() returned invalid '
+                f'serialization: {string_serialization}')
+
+        return f'!{self.name}[{string_serialization}]'
+
+    def can_serialize(self, data):
+        """Check whether the serializer can serialize some data.
+
+        Every subclass must implement this method.
+        """
+        raise NotImplementedError(
+            f'{self} has not implemented can_serialize().')
+
+    def deserialize_from_string(self, data):
+        """Deserialize data from a string.
+
+        This function is the inverse of
+        :py:meth:`vivarium.core.registry.Serializer.serialize_to_string`.
+        It need only be overridden in a subclass if that subclass does
+        not override
+        :py:meth:`vivarium.core.registry.Serializer.deserialize`.
+        """
+        raise NotImplementedError(
+            f'{self} has not implemented deserialize_from_string().')
 
     def deserialize(self, data):
         """Deserialize some data.
 
-        Subclasses should override this function, which currently
-        returns the data unaltered.
+        Subclasses relying on
+        :py:meth:`vivarium.core.registry.Serializer.serialize_to_string`
+        should not override this function and instead override
+        :py:meth:`vivarium.core.registry.Serializer.deserialize_from_string`.
 
         Args:
             data: Serialized data to deserialize.
@@ -347,132 +425,18 @@ class Serializer(object):
         Returns:
             The deserialized data.
         """
-        return data
+        string_serialization = self.regex_for_serialized.fullmatch(data).group(1)
+        return self.deserialize_from_string(string_serialization)
 
+    def can_deserialize(self, data):
+        """Check whether the serializer can deserialize an object.
 
-class NumpySerializer(Serializer):
-    """Serializer for Numpy arrays."""
-
-    def serialize(self, data):
-        """Returns ``data.tolist()``."""
-        return data.tolist()
-
-    def deserialize(self, data):
-        """Passes ``data`` to ``np.array``."""
-        return np.array(data)
-
-
-class NumpyScalarSerializer(Serializer):
-    """Serializer for Numpy scalars."""
-
-    def serialize(self, data):
-        """Convert scalar to :py:class:`int` or :py:class:`float`."""
-        if isinstance(data, (int, np.integer)):
-            return int(data)
-        if isinstance(data, (float, np.floating)):
-            return float(data)
-        if isinstance(data, (bool, np.bool_)):
-            return bool(data)
-        raise ValueError(
-            'Cannot serialize numpy scalar {} of type {}.'.format(
-                data, type(data)
-            )
-        )
-
-    def deserialize(self, data):
-        """Convert to ``np.int64`` or ``np.float64``."""
-        if isinstance(data, int):
-            return np.int64(data)
-        if isinstance(data, float):
-            return np.float64(data)
-        if isinstance(data, bool):
-            return np.bool_(data)
-        raise ValueError(
-            'Cannot deserialize scalar {} of type {}.'.format(
-                data, type(data)
-            )
-        )
-
-
-class UnitsSerializer(Serializer):
-    """Serializer for data with units."""
-
-    def serialize(self, data, unit=None):
-        """Serialize data with units into a human-readable string.
-
-        Args:
-            data: The data to serialize. Should be a Pint object or a
-                list of such objects.
-            unit: The units to convert ``data`` to before serializing.
-                Optional. If omitted, no conversion occurs.
-
-        Returns:
-            The string representation of ``data`` if ``data`` is a
-            single Pint object. Otherwise, a list of string
-            representations.
+        By default, this function checks that ``data`` is a string of the
+        form produced by the default implementation of
+        :py:meth:`vivarium.core.registry.Serializer.serialize`. If a
+        subclass overrides this ``serialize()`` method, it should also
+        override ``can_deserialize()``.
         """
-        if isinstance(data, list):
-            if unit is not None:
-                data = [d.to(unit) for d in data]
-            return [str(d) for d in data]
-        else:
-            if unit is not None:
-                data.to(unit)
-            return str(data)
-
-    def deserialize(self, data, unit=None):
-        """Deserialize data with units from a human-readable string.
-
-        Args:
-            data: The data to deserialize.
-            unit: The units to convert ``data`` to after deserializing.
-                If omitted, no conversion occurs.
-
-        Returns:
-            A single deserialized object or, if ``data`` is a list, a
-            list of deserialized objects.
-        """
-        if isinstance(data, list):
-            unit_data = [units(d) for d in data]
-            if unit is not None:
-                unit_data = [d.to(unit) for d in data]
-        else:
-            unit_data = units(data)
-            if unit is not None:
-                unit_data.to(unit)
-        return unit_data
-
-
-class ProcessSerializer(Serializer):
-    """Serializer for processes.
-
-    Currently only supports serialization (for emitting simulation
-    configs).
-    """
-    def serialize(self, data):
-        """Create a dictionary of process name and parameters."""
-        return dict(data.parameters, _name=data.name)
-
-
-class ComposerSerializer(Serializer):
-    """Serializer for composers.
-
-    Currently only supports serialization (for emtting simulation
-    configs).
-    """
-
-    def serialize(self, data):
-        """Create a dictionary of composer name and parameters."""
-        return dict(data.config, _name=str(type(data)))
-
-
-class FunctionSerializer(Serializer):
-    """Serializer for functions.
-
-    Currently only supports serialization (for emtting simulation
-    configs).
-    """
-
-    def serialize(self, data):
-        """Call ``data.__str__()``."""
-        return str(data)
+        if not isinstance(data, str):
+            return False
+        return bool(self.regex_for_serialized.fullmatch(data))
