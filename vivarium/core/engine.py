@@ -545,6 +545,7 @@ class Engine:
                 self.steps = composite.steps
                 self.flow = composite.flow
                 self.topology = composite.topology
+                self.initial_state = composite.state or self.initial_state
             else:
                 raise Exception(
                     'load either composite, store, or '
