@@ -56,10 +56,10 @@ class IdentitySerializer(Serializer):
     '''Serializer for base types that get serialized as themselves.'''
 
     def can_serialize(self, data):
-        if isinstance(data, (int, float, bool)):
+        if (
+                isinstance(data, (int, float, bool, str))
+                and not NumpyScalarSerializer.can_serialize(data)):
             return True
-        if isinstance(data, str):
-            return not self.REGEX_FOR_SERIALIZED_ANY_TYPE.fullmatch(data)
         if data is None:
             return True
         return False
@@ -68,7 +68,13 @@ class IdentitySerializer(Serializer):
         return data
 
     def can_deserialize(self, data):
-        return self.can_serialize(data)
+        if isinstance(data, (int, float, bool)):
+            return True
+        if isinstance(data, str):
+            return not self.REGEX_FOR_SERIALIZED_ANY_TYPE.fullmatch(data)
+        if data is None:
+            return True
+        return False
 
     def deserialize(self, data):
         return data
@@ -155,7 +161,8 @@ class NumpyScalarSerializer(Serializer):
     scalars.
     """
 
-    def can_serialize(self, data):
+    @staticmethod
+    def can_serialize(data):
         return isinstance(data, (np.integer, np.floating, np.bool_))
 
     def serialize(self, data):
