@@ -31,7 +31,7 @@ from vivarium.core.process import (
     ParallelProcess,
     Step,
 )
-from vivarium.core.composer import Composite
+
 from vivarium.core.serialize import serialize_value
 from vivarium.library.topology import (
     get_in,
@@ -355,30 +355,32 @@ class _StepGraph:
         return new
 
 
-class Engine:
-    def __init__(
-            self,
-            composite: Optional[Composite] = None,
-            processes: Optional[Processes] = None,
-            steps: Optional[Steps] = None,
-            flow: Optional[Flow] = None,
-            topology: Optional[Topology] = None,
-            store: Optional[Store] = None,
-            initial_state: Optional[State] = None,
-            experiment_id: Optional[str] = None,
-            experiment_name: Optional[str] = None,
-            metadata: Optional[dict] = None,
-            description: str = '',
-            emitter: Union[str, dict] = 'timeseries',
-            emit_topology: bool = True,
-            emit_processes: bool = False,
-            emit_config: bool = False,
-            invoke: Optional[Any] = None,
-            emit_step: float = 1,
-            display_info: bool = True,
-            progress_bar: bool = False,
-            profile: bool = False,
-    ) -> None:
+class Engine(Process):
+    defaults: Dict[str, Any] = {
+        'composite': None,
+        'processes': None,
+        'steps': None,
+        'flow': None,
+        'topology': None,
+        'store': None,
+        'initial_state': None,
+        'interface': None,
+        'experiment_id': None,
+        'experiment_name': None,
+        'metadata': None,
+        'description': '',
+        'emitter': 'timeseries',
+        'emit_topology': True,
+        'emit_processes': False,
+        'emit_config': False,
+        'invoke': None,
+        'emit_step': 1,
+        'display_info': True,
+        'progress_bar': False,
+        'profile': False,
+    }
+
+    def __init__(self, parameters=None) -> None:
         """Defines simulations
 
         Args:
@@ -427,32 +429,42 @@ class Engine:
                 processes, topology, and initial state.
             profile: Whether to profile the simulation with cProfile.
         """
+        super().__init__(parameters)
+
         self.profiler: Optional[cProfile.Profile] = None
-        if profile:
+        if self.parameters['profile']:
             self.profiler = cProfile.Profile()
             self.profiler.enable()
         self.stats_objs: List[pstats.Stats] = []
         self.stats: Optional[pstats.Stats] = None
 
-        self.experiment_id = experiment_id or str(uuid.uuid1())
-        self.initial_state = initial_state or {}
-        self.emit_step = emit_step
+        self.experiment_id = self.parameters['experiment_id'] or str(uuid.uuid1())
+        self.initial_state = self.parameters['initial_state'] or {}
+        self.emit_step = self.parameters['emit_step']
 
         # make the processes, topology, steps, flow, and store
-        self._make_store(store, composite, processes, steps, flow, topology)
+        self._make_store(
+            self.parameters['store'],
+            self.parameters['composite'],
+            self.parameters['processes'],
+            self.parameters['steps'],
+            self.parameters['flow'],
+            self.parameters['topology'])
+
+        self.interface = self.parameters['interface']
 
         # display settings
-        self.experiment_name = experiment_name or self.experiment_id
-        self.metadata = metadata
-        self.description = description
-        self.display_info = display_info
-        self.progress_bar = progress_bar
+        self.experiment_name = self.parameters['experiment_name'] or self.experiment_id
+        self.metadata = self.parameters['metadata']
+        self.description = self.parameters['description']
+        self.display_info = self.parameters['display_info']
+        self.progress_bar = self.parameters['progress_bar']
         self.time_created = timestamp()
         if self.display_info:
             self._print_display()
 
         # parallel settings
-        self.invoke = invoke or InvokeProcess
+        self.invoke = self.parameters['invoke'] or InvokeProcess
         self.parallel: Dict[HierarchyPath, ParallelProcess] = {}
 
         # get a mapping of all paths to processes
@@ -464,7 +476,7 @@ class Engine:
         self._validate_steps_and_flow(self._step_paths, self.flow)
 
         # emitter settings
-        emitter_config = emitter
+        emitter_config = self.parameters['emitter']
         if isinstance(emitter_config, str):
             emitter_config = {'type': emitter_config}
         else:
@@ -472,9 +484,9 @@ class Engine:
         emitter_config['experiment_id'] = self.experiment_id
         self.emitter: Emitter = get_emitter(emitter_config)
 
-        self.emit_topology = emit_topology
-        self.emit_processes = emit_processes
-        self.emit_config = emit_config
+        self.emit_topology = self.parameters['emit_topology']
+        self.emit_processes = self.parameters['emit_processes']
+        self.emit_config = self.parameters['emit_config']
 
         # initialize global time
         self.global_time = 0.0
@@ -501,6 +513,20 @@ class Engine:
         log.info('\nTOPOLOGY:')
         log.info(pf(self.topology))
 
+    def initial_state(self, config: Optional[dict] = None) -> State:
+        # this is from the perspective of the total engine ports,
+        # not the internal store
+        pass
+
+    def calculate_timestep(self, states: Optional[State]) -> Union[float, int]:
+        return min([front['time'] for front in self.front.values()]) - self.global_time
+
+    def ports_schema(self) -> Schema:
+        return self.state.build_interface(self.interface)
+
+    def next_update(self, timestep, state):
+        return {}
+
     @staticmethod
     def _validate_steps_and_flow(
             step_paths: Dict[HierarchyPath, Process],
@@ -522,7 +548,7 @@ class Engine:
     def _make_store(
             self,
             store: Store = None,
-            composite: Composite = None,
+            composite: Dict[str, Any] = None,
             processes: Processes = None,
             steps: Steps = None,
             flow: Flow = None,
@@ -999,7 +1025,11 @@ class Engine:
                         # calculate the update for this process
                         if process.update_condition(process_timestep, states):
                             update = self._process_update(
-                                path, process, store, states, process_timestep)
+                                path,
+                                process,
+                                store,
+                                states,
+                                process_timestep)
 
                             # update front, to be applied at its projected time
                             self.front[path]['time'] = future

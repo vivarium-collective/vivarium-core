@@ -166,6 +166,7 @@ def convert_path(path):
         path = (path,)
     return path
 
+
 class Store:
     """Holds a subset of the overall model state
 
@@ -1920,6 +1921,18 @@ class Store:
         else:
             for inner in self.inner.values():
                 inner.build_topology_views()
+
+    def build_interface(self, interface):
+        if interface is None:
+            return None
+        elif isinstance(interface, dict):
+            return {
+                key: self[key].build_interface(value)
+                for key, value in interface}
+        elif isinstance(interface, tuple):
+            return self.get_config()
+        else:
+            raise Exception(f'invalid interface {interface}')
 
     def generate(self, path, processes, steps, flow, topology, initial_state):
         """

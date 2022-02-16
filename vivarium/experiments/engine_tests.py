@@ -4,7 +4,7 @@ from typing import Optional, Union, Dict, Any, cast, List
 
 from vivarium.composites.toys import (
     PoQo, Sine, ToyDivider, ToyTransport, ToyEnvironment,
-    Proton, Electron)
+    Proton, Electron, Atom)
 from vivarium.core.composer import Composer, Composite
 from vivarium.core.engine import Engine, pf, pp, _StepGraph
 from vivarium.core.process import Process, Step, Deriver
@@ -1073,6 +1073,7 @@ def test_engine_run_for() -> None:
         'external': ('external',),
         'internal': ('internal',),
     }
+
     composite = Composite({
         'processes': {
             'process1': ToyTransport({'time_step': timestep1}),
@@ -1083,6 +1084,7 @@ def test_engine_run_for() -> None:
             'process2': topo,
         }
     })
+
     initial_state = {
         'external': {'GLC': 100},
     }
@@ -1120,6 +1122,41 @@ def test_engine_run_for() -> None:
         assert advance['time'] == sim.global_time, \
             f"process at path {path} did not complete"
 
+def test_engine_process():
+    poqo_composer = PoQo({
+        'interface': {
+            'input': ('ccc', 'a3'),
+            'output': ('aaa', 'x')}})
+    atom_composer = Atom({
+        'interface': {
+            'proton': {
+                'radius': ('structure', 'radius')},
+            'electrons': {
+                '*': {
+                    'spin': ('electrons', '*', 'spin')}}}})
+    poqo = Engine(poqo_composer.generate())
+    atom = Engine(atom_composer.generate())
+
+    import ipdb; ipdb.set_trace()
+
+    multiverse = {
+        'processes': {
+            'poqo': poqo,
+            'atom': atom},
+        'topology': {
+            'poqo': {
+                'input': ('A',),
+                'output': ('X',)},
+            'atom': {
+                'proton': {
+                    'radius': ('r',)},
+                'electrons': ('e',)}}}
+
+    multi = Engine(multiverse)
+    multi.update(10)
+
+    return multi
+
 
 engine_tests = {
     '0': test_recursive_store,
@@ -1141,6 +1178,7 @@ engine_tests = {
     '16': test_hyperdivision,
     '17': test_output_port,
     '18': test_engine_run_for,
+    '19': test_engine_process,
 }
 
 

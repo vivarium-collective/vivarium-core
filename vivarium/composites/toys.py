@@ -335,6 +335,44 @@ class Electron(Process):
         return update
 
 
+class Atom(Composer):
+    def generate_processes(self, config=None):
+        return {
+            'proton': Proton(),
+            'electrons': {
+                'a': {
+                    'electron': Electron()},
+                'b': {
+                    'electron': Electron()}}}
+
+    def generate_topology(self, config=None):
+        spin_path = ('internal', 'spin')
+        radius_path = ('structure', 'radius')
+
+        return {
+            'proton': {
+                'radius': radius_path,
+                'quarks': ('internal', 'quarks'),
+                'electrons': {
+                    '_path': ('electrons',),
+                    '*': {
+                        'orbital': ('shell', 'orbital'),
+                        'spin': spin_path}}},
+            'electrons': {
+                'a': {
+                    'electron': {
+                        'spin': spin_path,
+                        'proton': {
+                            '_path': ('..', '..'),
+                            'radius': radius_path}}},
+                'b': {
+                    'electron': {
+                        'spin': spin_path,
+                        'proton': {
+                            '_path': ('..', '..'),
+                            'radius': radius_path}}}}}
+
+
 class Sine(Process):
     name = 'sine'
     defaults = {
