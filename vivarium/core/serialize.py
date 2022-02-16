@@ -15,6 +15,7 @@ def composite_specification(
         composite: Composite,
         initial_state: bool = False,
 ) -> dict:
+    """Return the serialized specification for a :term:`composite` instance"""
     composite_dict = serialize_value(composite)
     composite_dict.pop('_schema')
     if initial_state:

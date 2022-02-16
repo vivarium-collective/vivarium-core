@@ -96,18 +96,40 @@ class Composite(Datum):
     steps: Steps = {}
     flow: Flow = {}
     topology: Topology = {}
+    state: State = {}
     defaults: Dict[str, Any] = {
         'processes': {},
         'steps': {},
         'flow': {},
         'topology': {},
+        'state': {},
     }
 
     def __init__(
             self,
-            config: Optional[Dict[str, Any]] = None
+            config: Optional[Dict[str, Any]] = None,
+            store: Optional[Store] = None,
+            processes: Optional[Processes] = None,
+            steps: Optional[Steps] = None,
+            flow: Optional[Flow] = None,
+            topology: Optional[Topology] = None,
+            state: Optional[State] = None,
     ) -> None:
-        config = config or {}
+        if not config:
+            if store:
+                composite = get_composite_from_store(store)
+                processes = composite.processes
+                topology = composite.topology
+                steps = composite.steps
+                flow = composite.flow
+                state = composite.state
+            config = {
+                'processes': processes or {},
+                'topology': topology or {},
+                'steps': steps or {},
+                'flow': flow or {},
+                'state': state or {}
+            }
         super().__init__(config)
         self._schema = config.get('_schema', {})
         processes_and_steps = deep_copy_internal(self.processes)
@@ -136,6 +158,7 @@ class Composite(Datum):
         """
         config = config or {}
         initial_state = config.get('initial_state', {})
+        initial_state = deep_merge(copy.deepcopy(self.state), initial_state)
         return _get_composite_state(
             processes=self.processes,
             steps=self.steps,
@@ -216,6 +239,17 @@ class Composite(Datum):
             A map from process names to parameters.
         """
         return _get_parameters(self.processes)
+
+
+def get_composite_from_store(store: Store) -> Composite:
+    """Make a :term:`Composite` from a :term:`Store`"""
+    return Composite(
+        processes=store.get_processes(),
+        topology=store.get_topology(),
+        steps=store.get_steps(),
+        flow=store.get_flow(),
+        state=store.get_value(),
+    )
 
 
 class Composer(metaclass=abc.ABCMeta):

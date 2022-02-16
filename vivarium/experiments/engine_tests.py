@@ -386,7 +386,7 @@ def test_complex_topology() -> None:
     pq = PoQo({})
     pq_composite = pq.generate(path=outer_path)
     pq_composite.pop('_schema')
-    experiment = Engine(**pq_composite)
+    experiment = Engine(composite=pq_composite)
 
     # get the initial state
     initial_state = experiment.state.get_value()
