@@ -35,10 +35,6 @@ def daughter_phylogeny_id(mother_id):
         str(mother_id) + '1']
 
 
-def divider_set_false(state):
-    return [False, False]
-
-
 class MetaDivision(Deriver):
     name = NAME
     defaults = {
@@ -64,7 +60,12 @@ class MetaDivision(Deriver):
                 'divide': {
                     '_default': False,
                     '_updater': 'set',
-                    '_divider': divider_set_false,
+                    '_divider': {
+                        'divider': 'set_value',
+                        'config': {
+                            'value': False,
+                        }
+                    },
                 }},
             'agents': {}}
 

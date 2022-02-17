@@ -21,7 +21,14 @@ class DivideCondition(Deriver):
             'divide': {
                 '_default': False,
                 '_updater': 'set',
-                '_divider': 'zero'}}
+                '_divider': {
+                    'divider': 'set_value',
+                    'config': {
+                        'value': False,
+                    },
+                },
+            },
+        }
 
     def next_update(self, timestep, states):
         if states['variable'] >= self.threshold:

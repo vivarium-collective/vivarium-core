@@ -514,6 +514,7 @@ class Engine:
             else:
                 assert isinstance(sub_flow, list)
                 for dependency in sub_flow:
+                    dependency = path + dependency
                     if dependency not in step_paths:
                         raise Exception(
                             f'Unknown dependency step {dependency} is '
