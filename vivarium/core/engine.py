@@ -562,6 +562,7 @@ class Engine:
 
         else:
             self.state = store
+            self.state.set_value(self.initial_state)
             # build the processes' views
             self.state.build_topology_views()
             # get processes and topology from the store
