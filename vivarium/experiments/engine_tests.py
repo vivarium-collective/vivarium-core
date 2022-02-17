@@ -1130,10 +1130,11 @@ def test_engine_process():
     atom_composer = Atom({
         'interface': {
             'proton': {
-                'radius': ('structure', 'radius')},
-            'electrons': {
-                '*': {
-                    'spin': ('electrons', '*', 'spin')}}}})
+                'radius': ('structure', 'radius')}}})
+            # 'electrons': ('electrons',)}})
+            # 'electrons': {
+            #     '*': {
+            #         'spin': ('electrons', '*', 'internal', 'spin')}}}})
     poqo = Engine(poqo_composer.generate())
     atom = Engine(atom_composer.generate())
 
@@ -1149,10 +1150,13 @@ def test_engine_process():
                 'output': ('X',)},
             'atom': {
                 'proton': {
-                    'radius': ('r',)},
-                'electrons': ('e',)}}}
+                    'radius': ('r',)}}}}
+                # 'electrons': ('e',)}}}
 
     multi = Engine(multiverse)
+
+    import ipdb; ipdb.set_trace()
+
     multi.update(10)
 
     return multi

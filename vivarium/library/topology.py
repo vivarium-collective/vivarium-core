@@ -220,6 +220,29 @@ def inverse_topology(outer, update, topology, inverse=None):
     return inverse
 
 
+def project_topology(topology, update):
+    # TODO: convert state from the given perspective
+    #   into one conforming to the provided topology,
+    #   WITHOUT using Store (dict instead)
+    state = {}
+
+    for key, path in topology.items():
+        if key == '*':
+            if isinstance(path, dict):
+                node, path = self.outer_path(path)
+                for child, child_node in node.inner.items():
+                    state[child] = child_node.topology_state(path)
+            else:
+                node = self.get_path(path)
+                for child, child_node in node.inner.items():
+                    state[child] = child_node.get_value()
+        elif isinstance(path, dict):
+            node, path = self.outer_path(path)
+            state[key] = node.topology_state(path)
+        else:
+            state[key] = self.get_path(path).get_value()
+    return state
+
 def normalize_path(path):
     """Make a path absolute by resolving ``..`` elements."""
     progress = []

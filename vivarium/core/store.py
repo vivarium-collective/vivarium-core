@@ -903,7 +903,7 @@ class Store:
             return self.flow
         return None
 
-    def get_path(self, path):
+    def get_path(self, path, select=None):
         """
         Get the node at the given path relative to this node.
         """
@@ -912,16 +912,24 @@ class Store:
             step = path[0]
             if step == '..':
                 child = self.outer
+            elif step == '*':
+                if select:
+                    first = next(iter(self.inner.keys()))
+                    child = self.inner.get(first)
+                else:
+                    return {
+                        key: child.get_path(path[1:], select)
+                        for key, child in self.inner.items()}
             else:
                 child = self.inner.get(step)
 
             if child:
-                return child.get_path(path[1:])
+                return child.get_path(path[1:], select)
             elif isinstance(self.value, Process):
                 towards = topology_path(self.topology, path)
                 if towards:
-                    target = self.outer.get_path(towards[0])
-                    return target.get_path(towards[1])
+                    target = self.outer.get_path(towards[0], select)
+                    return target.get_path(towards[1], select)
             else:
                 raise Exception(
                     f'{path} is not a valid path from '
@@ -1926,11 +1934,12 @@ class Store:
         if interface is None:
             return None
         elif isinstance(interface, dict):
+            # TODO: deal with '_path' key
             return {
-                key: self[key].build_interface(value)
-                for key, value in interface}
+                key: self.build_interface(value)
+                for key, value in interface.items()}
         elif isinstance(interface, tuple):
-            return self.get_config()
+            return self.get_path(interface, select=True).get_config()
         else:
             raise Exception(f'invalid interface {interface}')
 

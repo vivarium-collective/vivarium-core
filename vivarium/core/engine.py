@@ -519,13 +519,37 @@ class Engine(Process):
         pass
 
     def calculate_timestep(self, states: Optional[State]) -> Union[float, int]:
-        return min([front['time'] for front in self.front.values()]) - self.global_time
+        timesteps = []
+        for path, process in self.process_paths.items():
+            if path in self.front and self.front[path]['time'] > self.global_time:
+                timesteps.append(self.front[path]['time'] - self.global_time)
+            else:
+                store, state = self._process_state(path)
+                timestep = process.calculate_timestep(state)
+                timesteps.append(timestep)
+                self.front[path]['future'] = {
+                    'time': timestep + self.global_time,
+                    'store': store,
+                    'state': state}
+        return min(timesteps)
 
     def ports_schema(self) -> Schema:
         return self.state.build_interface(self.interface)
 
     def next_update(self, timestep, state):
-        return {}
+        import ipdb; ipdb.set_trace()
+
+        inverse = inverse_topology((), state, self.interface)
+        self.state.set_value(inverse)
+        self.run_for(timestep)
+
+        updates = [
+            project_topology(self.interface, interface_update)
+            for interface_update in self.interface_updates]
+
+        self.interface_updates = []
+
+        return updates
 
     @staticmethod
     def _validate_steps_and_flow(
@@ -813,6 +837,12 @@ class Engine(Process):
                 path, process, store, states, interval)
         return (EmptyDefer(), store)
 
+    def find_interface_updates(self, update):
+        # TODO: find which parts of the update are relevant
+        #   to self.interface, convert them using the existing
+        #   topology, and return just those components as an update
+        return {}
+
     def apply_update(
             self,
             update: Update,
@@ -832,6 +862,9 @@ class Engine(Process):
 
         if not update:
             return False
+
+        interface_updates = self.find_interface_updates(update)
+        self.interface_updates.concat(interface_updates)
 
         (
             topology_updates, process_updates, step_updates,
@@ -1012,9 +1045,16 @@ class Engine(Process):
 
                 if process_time <= self.global_time:
 
-                    # get the time step
-                    store, states = self._process_state(path)
-                    process_timestep = process.calculate_timestep(states)
+                    if self.front[path].get('future'):
+                        future_front = self.front[path]['future']
+                        process_timestep = future_front['time']
+                        store = future_front['store']
+                        state = future_front['state']
+                        del self.front[path]['future']
+                    else:
+                        # get the time step
+                        store, state = self._process_state(path)
+                        process_timestep = process.calculate_timestep(state)
 
                     if force_complete:
                         # force the process to complete at end_time
@@ -1024,12 +1064,12 @@ class Engine(Process):
 
                     if future <= end_time:
                         # calculate the update for this process
-                        if process.update_condition(process_timestep, states):
+                        if process.update_condition(process_timestep, state):
                             update = self._process_update(
                                 path,
                                 process,
                                 store,
-                                states,
+                                state,
                                 process_timestep)
 
                             # update front, to be applied at its projected time
@@ -1071,14 +1111,12 @@ class Engine(Process):
 
                 # apply updates that are behind global time
                 updates = []
-                paths = []
                 for path, advance in self.front.items():
                     if advance['time'] <= self.global_time \
                             and advance['update']:
                         new_update = advance['update']
                         updates.append(new_update)
                         advance['update'] = {}
-                        paths.append(path)
 
                 self._send_updates(updates)
 

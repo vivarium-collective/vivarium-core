@@ -167,6 +167,10 @@ class Composite(Datum):
             initial_state=initial_state,
             config=config)
 
+    def initialize(self, config):
+        self['initial_state'] = self.initial_state(config)
+        return self
+
     def default_state(self, config: Optional[dict] = None) -> Optional[State]:
         """ Merge all processes' default states
         Arguments:
@@ -396,6 +400,7 @@ class Composer(metaclass=abc.ABCMeta):
         steps = self.generate_steps(config)
         flow = self.generate_flow(config)
         topology = self.generate_topology(config)
+        interface = config.get('interface')
         processes_and_steps = deep_copy_internal(processes)
         deep_merge_check(processes_and_steps, steps)
         _override_schemas(self.schema_override, processes_and_steps)
@@ -405,7 +410,8 @@ class Composer(metaclass=abc.ABCMeta):
             'steps': assoc_in({}, path, steps),
             'flow': assoc_in({}, path, flow),
             'topology': assoc_in({}, path, topology),
-        })
+            'interface': interface,
+        }).initialize(config.get('initial_state'))
 
     def initial_state(self, config: Optional[dict] = None) -> Optional[State]:
         """ Merge all processes' initial states
