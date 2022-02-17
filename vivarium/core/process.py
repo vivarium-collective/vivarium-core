@@ -125,10 +125,10 @@ class Process(metaclass=abc.ABCMeta):
         else:
             original_parameters = parameters
         if parameters.get('_no_original_parameters', False):
-            self._original_parameters = None
+            self._original_parameters: Optional[dict] = None
         else:
             try:
-                self._original_parameters: Optional[dict] = copy.deepcopy(
+                self._original_parameters = copy.deepcopy(
                     original_parameters)
             except TypeError:
                 # Copying the parameters failed because some parameters do
