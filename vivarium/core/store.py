@@ -18,7 +18,7 @@ from typing import Optional
 from vivarium import divider_registry, serializer_registry, updater_registry
 from vivarium.core.process import Process, Step
 from vivarium.library.dict_utils import deep_merge, deep_merge_check, MULTI_UPDATE_KEY
-from vivarium.library.topology import without, dict_to_paths
+from vivarium.library.topology import without, dict_to_paths, inverse_topology
 from vivarium.core.types import Processes, Topology, State, Steps, Flow
 
 _EMPTY_UPDATES = None, None, None, None, None, None
@@ -663,11 +663,11 @@ class Store:
                         f'{self.path_for()} with value {self.value}')
                 self.leaf = False
 
-            for key, child in config.items():
+            for key, inner in config.items():
                 if key not in self.inner:
-                    self.inner[key] = Store(child, outer=self, source=source)
+                    self.inner[key] = Store(inner, outer=self, source=source)
                 else:
-                    self.inner[key]._apply_config(child, source=source)
+                    self.inner[key]._apply_config(inner, source=source)
 
         if self.topology and not isinstance(self.value, Process):
             raise ValueError(
@@ -709,6 +709,38 @@ class Store:
             return divider_registry.access('set')
         return self.divider
 
+    def get_schema(self):
+        schema = {}
+
+        if self.properties:
+            schema['_properties'] = self.properties
+        if self.divider and self.divider != DEFAULT_DIVIDER:
+            schema['_divider'] = self.divider
+
+        if self.subschema:
+            if self.subtopology:
+                schema['*'] = inverse_topology((), self.subschema, self.subtopology)
+            else:
+                schema['*'] = self.subschema
+        elif self.inner:
+            inner_schema = {
+                key: inner.get_schema()
+                for key, inner in self.inner.items()}
+            schema.update(inner_schema)
+        else:
+            schema.update({
+                '_default': self.default,
+                '_value': self.value})
+            if self.updater:
+                schema['_updater'] = self.updater
+            if self.units:
+                schema['_units'] = self.units
+            if self.emit:
+                schema['_emit'] = self.emit
+
+        return schema
+
+
     def get_config(self, sources=False):
         """
         Assemble a dictionary representation of the config for this node.
@@ -720,21 +752,21 @@ class Store:
 
         if self.properties:
             config['_properties'] = self.properties
+        if self.divider and self.divider != DEFAULT_DIVIDER:
+            config['_divider'] = self.divider
         if self.subschema:
             config['_subschema'] = self.subschema
         if self.subtopology:
             config['_subtopology'] = self.subtopology
-        if self.divider and self.divider != DEFAULT_DIVIDER:
-            config['_divider'] = self.divider
 
         if sources and self.sources:
             config['_sources'] = self.sources
 
         if self.inner:
-            child_config = {
-                key: child.get_config(sources)
-                for key, child in self.inner.items()}
-            config.update(child_config)
+            inner_config = {
+                key: inner.get_config(sources)
+                for key, inner in self.inner.items()}
+            config.update(inner_config)
 
         else:
             config.update({
@@ -782,9 +814,9 @@ class Store:
                 f = _identity
 
             return {
-                key: f(child.get_value(condition, f))
-                for key, child in self.inner.items()
-                if condition(child)}
+                key: f(inner.get_value(condition, f))
+                for key, inner in self.inner.items()
+                if condition(inner)}
         if self.subschema:
             return {}
         elif self.topology:

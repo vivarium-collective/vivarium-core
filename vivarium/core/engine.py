@@ -540,7 +540,10 @@ class Engine(Process):
         return min(timesteps)
 
     def ports_schema(self) -> Schema:
-        return self.state.build_interface(self.interface)
+        schema = project_topology(
+            self.interface,
+            self.state.get_schema())
+        return schema
 
     def next_update(self, timestep, state):
         inverse = inverse_topology((), state, self.interface)
