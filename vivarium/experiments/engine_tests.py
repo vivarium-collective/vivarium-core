@@ -1149,13 +1149,15 @@ def test_engine_process():
             'atom': {
                 'proton': {
                     'radius': ('r',)},
-                'electrons': ('e',)}}}
+                'electrons': ('e',)}},
+        'initial_state': {
+            'r': 0.5}}
 
     multi = Engine(multiverse)
 
-    multi.update(10)
-
     import ipdb; ipdb.set_trace()
+
+    multi.update(10)
 
     return multi
 
