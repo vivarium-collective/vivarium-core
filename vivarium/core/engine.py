@@ -37,6 +37,7 @@ from vivarium.library.topology import (
     get_in,
     delete_in,
     assoc_path,
+    project_topology,
     inverse_topology,
     normalize_path,
 )
@@ -131,7 +132,8 @@ def invoke_process(
     ``interval`` and ``states``.
     """
 
-    return process.next_update(interval, states)
+    update = process.next_update(interval, states)
+    return update
 
 
 def empty_front(t: float) -> Dict[str, Union[float, dict]]:
@@ -532,7 +534,7 @@ class Engine(Process):
                 timestep = process.calculate_timestep(state)
                 timesteps.append(timestep)
                 self.front[path]['future'] = {
-                    'time': timestep + self.global_time,
+                    'timestep': timestep,
                     'store': store,
                     'state': state}
         return min(timesteps)
@@ -541,18 +543,9 @@ class Engine(Process):
         return self.state.build_interface(self.interface)
 
     def next_update(self, timestep, state):
-        import ipdb; ipdb.set_trace()
-
         inverse = inverse_topology((), state, self.interface)
         self.state.set_value(inverse)
-        self.run_for(timestep)
-
-        # updates = [
-        #     project_topology(self.interface, interface_update)
-        #     for interface_update in self.interface_updates]
-
-        updates = self.interface_updates
-        self.interface_updates = []
+        updates = self.run_for(timestep)
 
         return updates
 
@@ -842,12 +835,6 @@ class Engine(Process):
                 path, process, store, states, interval)
         return (EmptyDefer(), store)
 
-    def find_interface_updates(self, update):
-        # TODO: find which parts of the update are relevant
-        #   to self.interface, convert them using the existing
-        #   topology, and return just those components as an update
-        return {}
-
     def apply_update(
             self,
             update: Update,
@@ -868,7 +855,7 @@ class Engine(Process):
         if not update:
             return False
 
-        self.history[(self.global_time, state.path_for())] = update
+        self.history.append((self.global_time, state.path_for(), update))
 
         if self.interface:
             interface_update = project_topology(self.interface, update)
@@ -951,8 +938,12 @@ class Engine(Process):
 
             view_expire = False
             for update, store in deferred_updates:
-                view_expire_update = self.apply_update(update.get(), store)
-                view_expire = view_expire or view_expire_update
+                updates = update.get()
+                if not isinstance(updates, list):
+                    updates = [updates]
+                for up in updates:
+                    view_expire_update = self.apply_update(up, store)
+                    view_expire = view_expire or view_expire_update
 
             if view_expire:
                 self.state.build_topology_views()
@@ -970,9 +961,13 @@ class Engine(Process):
         """
         view_expire = False
         for update_tuple in update_tuples:
-            update, state = update_tuple
-            view_expire_update = self.apply_update(update.get(), state)
-            view_expire = view_expire or view_expire_update
+            update, store = update_tuple
+            updates = update.get()
+            if not isinstance(updates, list):
+                updates = [updates]
+            for up in updates:
+                view_expire_update = self.apply_update(up, store)
+                view_expire = view_expire or view_expire_update
 
         if view_expire:
             self.state.build_topology_views()
@@ -1056,7 +1051,7 @@ class Engine(Process):
 
                     if self.front[path].get('future'):
                         future_front = self.front[path]['future']
-                        process_timestep = future_front['time']
+                        process_timestep = future_front['timestep']
                         store = future_front['store']
                         state = future_front['state']
                         del self.front[path]['future']
@@ -1125,7 +1120,6 @@ class Engine(Process):
                             and advance['update']:
                         new_update = advance['update']
                         updates.append(new_update)
-                        self.history[(advance['time'], path)] = new_update
                         advance['update'] = {}
 
                 self._send_updates(updates)

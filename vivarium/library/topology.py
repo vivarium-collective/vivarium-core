@@ -160,6 +160,11 @@ def inverse_topology(outer, update, topology, inverse=None):
     to calculate.
     '''
 
+    if isinstance(update, list):
+        return [
+            inverse_topology(outer, up, topology, inverse)
+            for up in update]
+
     inverse = inverse or {}
 
     for key, path in topology.items():
@@ -264,7 +269,7 @@ def get_path(node, path, outer_stack=None):
         stack = [node] + outer_stack
         return get_path(node[head], tail, stack)
     else:
-        return None
+        return (None, outer_stack)
 
 
 def outer_path(node, path, outer_stack=None):
@@ -290,18 +295,22 @@ def project_topology(topology, update, outer_stack=None):
         if key == '*':
             if isinstance(path, dict):
                 node, path, stack = outer_path(update, path, outer_stack)
-                for child, child_node in node.items():
-                    state[child] = project_topology(path, child_node, stack)
+                if node is not None:
+                    for child, child_node in node.items():
+                        state[child] = project_topology(path, child_node, stack)
             else:
                 node, stack = get_path(update, path, outer_stack)
-                for child, child_node in node.items():
-                    state[child] = child_node
+                if node is not None:
+                    for child, child_node in node.items():
+                        state[child] = child_node
         elif isinstance(path, dict):
             node, path, stack = outer_path(update, path, outer_stack)
             if node is not None:
                 state[key] = project_topology(path, node, stack)
         else:
-            state[key], stack = get_path(update, path, outer_stack)
+            node, stack = get_path(update, path, outer_stack)
+            if node is not None:
+                state[key] = node
 
     return state
 
@@ -534,8 +543,6 @@ def test_project_topology():
             '___b': {2: 'a1 also!'}}}}
 
     state = project_topology(topology, update)
-
-    import ipdb; ipdb.set_trace()
 
     assert state == {
         'A': {'___a': {'a1': 'a1!'}, '___b': {'a1': 'a1 also!'}},

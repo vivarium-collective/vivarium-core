@@ -1138,8 +1138,6 @@ def test_engine_process():
     poqo = Engine(poqo_composer.generate())
     atom = Engine(atom_composer.generate())
 
-    import ipdb; ipdb.set_trace()
-
     multiverse = {
         'processes': {
             'poqo': poqo,
@@ -1155,9 +1153,9 @@ def test_engine_process():
 
     multi = Engine(multiverse)
 
-    import ipdb; ipdb.set_trace()
-
     multi.update(10)
+
+    import ipdb; ipdb.set_trace()
 
     return multi
 
