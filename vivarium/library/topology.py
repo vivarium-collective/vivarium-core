@@ -220,28 +220,91 @@ def inverse_topology(outer, update, topology, inverse=None):
     return inverse
 
 
-def project_topology(topology, update):
-    # TODO: convert state from the given perspective
-    #   into one conforming to the provided topology,
-    #   WITHOUT using Store (dict instead)
+def establish_path(d, path, outer_stack=None):
+    if outer_stack is None:
+        outer_stack = []
+
+    if len(path) > 0:
+        path_step = path[0]
+        remaining = path[1:]
+
+        if path_step == '..':
+            if len(outer_stack) == 0:
+                raise Exception(
+                    'outer does not exist for path: {}'.format(path))
+
+            return establish_path(
+                outer_stack[0],
+                remaining,
+                outer_stack[1:])
+        else:
+            if path_step not in d:
+                d[path_step] = {}
+            return establish_path(d[path_step], remaining, [d] + outer_stack)
+    else:
+        return d
+
+
+def get_path(node, path, outer_stack=None):
+    if outer_stack is None:
+        outer_stack = []
+
+    if len(path) == 0:
+        return node, outer_stack
+
+    head = path[0]
+    tail = path[1:]
+
+    if head == '..':
+        if len(outer_stack) == 0:
+            raise Exception(
+                f'outer does not exist for path: {path} - keys: {list(node.keys())}')
+        return get_path(outer_stack[0], tail, outer_stack[1:])
+    elif head in node:
+        stack = [node] + outer_stack
+        return get_path(node[head], tail, stack)
+    else:
+        return None
+
+
+def outer_path(node, path, outer_stack=None):
+    if outer_stack is None:
+        outer_stack = []
+
+    if '_path' in path:
+        node, outer_stack = get_path(node, path['_path'], outer_stack)
+        path = without(path, '_path')
+    return node, path, outer_stack
+
+
+def project_topology(topology, update, outer_stack=None):
+    # convert state from the given perspective
+    # into one conforming to the provided topology,
+    # WITHOUT using Store (dict instead)
+
     state = {}
+    if outer_stack is None:
+        outer_stack = []
 
     for key, path in topology.items():
         if key == '*':
             if isinstance(path, dict):
-                node, path = self.outer_path(path)
-                for child, child_node in node.inner.items():
-                    state[child] = child_node.topology_state(path)
+                node, path, stack = outer_path(update, path, outer_stack)
+                for child, child_node in node.items():
+                    state[child] = project_topology(path, child_node, stack)
             else:
-                node = self.get_path(path)
-                for child, child_node in node.inner.items():
-                    state[child] = child_node.get_value()
+                node, stack = get_path(update, path, outer_stack)
+                for child, child_node in node.items():
+                    state[child] = child_node
         elif isinstance(path, dict):
-            node, path = self.outer_path(path)
-            state[key] = node.topology_state(path)
+            node, path, stack = outer_path(update, path, outer_stack)
+            if node is not None:
+                state[key] = project_topology(path, node, stack)
         else:
-            state[key] = self.get_path(path).get_value()
+            state[key], stack = get_path(update, path, outer_stack)
+
     return state
+
 
 def normalize_path(path):
     """Make a path absolute by resolving ``..`` elements."""
@@ -434,6 +497,7 @@ def test_in():
     blank = update_in(blank, path, lambda x: x + 6)
     print(blank)
 
+
 def test_path_declare():
 
     path_down = 'path>to>store'
@@ -445,5 +509,39 @@ def test_path_declare():
     assert new_path_up == ('..', '..', 'store')
 
 
+def test_project_topology():
+    topology = {
+        'B': {
+            'b1': (1, 0, 3),
+            'b2': (0, 0)},
+        'A': {
+            '*': {
+                '_path': (2, 2),
+                'a1': (2,)}},
+        'C': {
+            '*': (0, 1)}}
+
+    update = {
+        0: {
+            0: 'b2!',
+            1: {
+                '___x': 5,
+                '___y': 7,
+                '___z': 3}},
+        1: {0: {3: 'b1!'}},
+        2: {2: {
+            '___a': {2: 'a1!'},
+            '___b': {2: 'a1 also!'}}}}
+
+    state = project_topology(topology, update)
+
+    import ipdb; ipdb.set_trace()
+
+    assert state == {
+        'A': {'___a': {'a1': 'a1!'}, '___b': {'a1': 'a1 also!'}},
+        'B': {'b1': 'b1!', 'b2': 'b2!'},
+        'C': {'___x': 5, '___y': 7, '___z': 3}}
+
+
 if __name__ == '__main__':
-    test_path_declare()
+    test_project_topology()
