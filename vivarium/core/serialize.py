@@ -356,6 +356,7 @@ def composite_specification(
         composite: Composite,
         initial_state: bool = False,
 ) -> dict:
+    """Return the serialized specification for a :term:`composite` instance"""
     warnings.warn(
         'composite_specification() is deprecated.',
         DeprecationWarning)

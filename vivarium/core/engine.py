@@ -514,6 +514,7 @@ class Engine:
             else:
                 assert isinstance(sub_flow, list)
                 for dependency in sub_flow:
+                    dependency = path + dependency
                     if dependency not in step_paths:
                         raise Exception(
                             f'Unknown dependency step {dependency} is '
@@ -545,6 +546,7 @@ class Engine:
                 self.steps = composite.steps
                 self.flow = composite.flow
                 self.topology = composite.topology
+                self.initial_state = composite.state or self.initial_state
             else:
                 raise Exception(
                     'load either composite, store, or '
@@ -561,6 +563,7 @@ class Engine:
 
         else:
             self.state = store
+            self.state.set_value(self.initial_state)
             # build the processes' views
             self.state.build_topology_views()
             # get processes and topology from the store
