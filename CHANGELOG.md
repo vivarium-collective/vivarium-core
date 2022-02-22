@@ -1,5 +1,24 @@
 # Changelog
 
+## v1.1.0
+
+* (#164) Add a `_no_original_parameters` configuration to `Process`
+  that, if `True`, disables the copying of parameters that
+  `Process.__init__()` does by default. Disabling this copying decreases
+  memory usage, but it puts the user in charge of ensuring that
+  parameters are not mutated.
+
+## v1.0.2
+
+* (#163) Fix two bugs:
+
+  * In `divide_condition.py`, use a divider that sets the division
+    variable to `False` instead of `0`.
+  * In `engine.py`, fix the function that checks that every dependency
+    in the flow is also in the dictionary of steps. This function did
+    not correctly handle cases where steps were nested in
+    sub-dictionaries.
+
 ## v1.0.1
 
 * (#151) Make `Engine._run_steps()` public.
