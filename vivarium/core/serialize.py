@@ -26,11 +26,11 @@ def serialize_value(value):
             compatible_serializers.append(serializer)
     if not compatible_serializers:
         raise ValueError(
-            f'No serializer found for {value}')
+            f'No serializer found for {value} of type {type(value)}')
     if len(compatible_serializers) > 1:
         raise ValueError(
             f'Multiple serializers ({compatible_serializers}) found '
-            f'for {value}')
+            f'for {value} of type {type(value)}')
     serializer = compatible_serializers[0]
     return serializer.serialize(value)
 
