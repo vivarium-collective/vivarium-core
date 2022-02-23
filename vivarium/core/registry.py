@@ -339,16 +339,7 @@ class Serializer:
 
     def __init__(self, name=''):
         self.name = name or self.__class__.__name__
-        assert self.check_string_sanitary(self.name)
         self.regex_for_serialized = re.compile(f'!{self.name}\\[(.*)\\]')
-
-    @staticmethod
-    def check_string_sanitary(string):
-        prohibited_chars = ('[', ']', '!')
-        for char in prohibited_chars:
-            if char in string:
-                return False
-        return True
 
     def serialize_to_string(self, data):
         """Serialize some data.
@@ -382,9 +373,7 @@ class Serializer:
             The serialized data.
         """
         string_serialization = self.serialize_to_string(data)
-        if (
-                not isinstance(string_serialization, str)
-                or not self.check_string_sanitary(string_serialization)):
+        if (not isinstance(string_serialization, str)):
             raise ValueError(
                 f'{self}.serialize_to_string() returned invalid '
                 f'serialization: {string_serialization}')
