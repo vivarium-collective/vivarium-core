@@ -1,4 +1,5 @@
 import re
+from typing import Any
 
 import numpy as np
 
@@ -10,88 +11,86 @@ from vivarium.library.units import units
 
 class SerializeProcess(Process):
 
-    def ports_schema(self):
+    def ports_schema(self) -> dict:
         return {}
 
-    def next_update(self, timestep, states):
+    def next_update(self, timestep: float, states: dict) -> dict:
         return {}
 
 
-def serialize_function():
+def serialize_function() -> None:
     pass
 
 
 class TestSerializer(Serializer):
 
-    def __init__(self, prefix='', suffix=''):
+    def __init__(self, prefix: str = '', suffix: str = '') -> None:
         super().__init__()
         self.prefix = prefix
         self.suffix = suffix
 
-    def can_serialize(self, data):
+    def can_serialize(self, data: Any) -> bool:
         return isinstance(data, str) and data.startswith('!!')
 
-    def serialize_to_string(self, data):
+    def serialize_to_string(self, data: str) -> str:
         return f'{self.prefix}{data}{self.suffix}'
 
-    def deserialize_from_string(self, data):
-        print(data, self.prefix, self.suffix)
+    def deserialize_from_string(self, data: str) -> str:
         if self.suffix:
             return data[len(self.prefix):-len(self.suffix)]
-        else:
-            return data[len(self.prefix):]
+        return data[len(self.prefix):]
 
 
-def test_serialized_in_serializer_string():
+def test_serialized_in_serializer_string() -> None:
     serializer = TestSerializer(prefix='![', suffix=']')
     serialized = serializer.serialize('hi there!')
     assert serializer.deserialize(serialized) == 'hi there!'
 
 
-def test_unmatched_closing_bracket_in_serializer_string():
+def test_unmatched_closing_bracket_in_serializer_string() -> None:
     serializer = TestSerializer(prefix='', suffix=']')
     serialized = serializer.serialize('hi there!')
     assert serializer.deserialize(serialized) == 'hi there!'
 
 
-def test_unmatched_opening_bracket_in_serializer_string():
+def test_unmatched_opening_bracket_in_serializer_string() -> None:
     serializer = TestSerializer(prefix='[', suffix='')
     serialized = serializer.serialize('hi there!')
     print(serialized)
     assert serializer.deserialize(serialized) == 'hi there!'
 
 
-def test_open_bracket_deep_in_serializer_string():
+def test_open_bracket_deep_in_serializer_string() -> None:
     serializer = TestSerializer(prefix='abc[', suffix='')
     serialized = serializer.serialize('hi there!')
     assert serializer.deserialize(serialized) == 'hi there!'
 
 
-def test_close_bracket_deep_in_serializer_string():
+def test_close_bracket_deep_in_serializer_string() -> None:
     serializer = TestSerializer(prefix='abc]', suffix='')
     serialized = serializer.serialize('hi there!')
     assert serializer.deserialize(serialized) == 'hi there!'
 
 
-def test_serialized_prefixing_serializer_string():
+def test_serialized_prefixing_serializer_string() -> None:
     serializer = TestSerializer(prefix='!TestSerializer[test]', suffix='')
     serialized = serializer.serialize('hi there!')
     assert serializer.deserialize(serialized) == 'hi there!'
 
 
-def test_exclamation_point_prefixing_serializer_string():
+def test_exclamation_point_prefixing_serializer_string() -> None:
     serializer = TestSerializer(prefix='!', suffix='')
     serialized = serializer.serialize('hi there!')
     assert serializer.deserialize(serialized) == 'hi there!'
 
 
-def test_exclamation_point_suffixing_serializer_string():
+def test_exclamation_point_suffixing_serializer_string() -> None:
     serializer = TestSerializer(prefix='', suffix='!')
     serialized = serializer.serialize('hi there!')
     assert serializer.deserialize(serialized) == 'hi there!'
 
 
-def test_serialization_full():
+def test_serialization_full() -> None:
     to_serialize = {
         'process': SerializeProcess(),
         1: True,

@@ -1,5 +1,5 @@
 from collections.abc import Sequence
-from typing import Any, cast, Callable, Dict
+from typing import Any, Callable, List, Union
 import warnings
 
 import numpy as np
@@ -18,7 +18,7 @@ from vivarium.library.units import units
 # types.
 
 
-def serialize_value(value):
+def serialize_value(value: Any) -> Any:
     compatible_serializers = []
     for serializer_name in serializer_registry.list():
         serializer = serializer_registry.access(serializer_name)
@@ -35,7 +35,7 @@ def serialize_value(value):
     return serializer.serialize(value)
 
 
-def deserialize_value(value):
+def deserialize_value(value: Any) -> Any:
     compatible_serializers = []
     for serializer_name in serializer_registry.list():
         serializer = serializer_registry.access(serializer_name)
@@ -52,10 +52,15 @@ def deserialize_value(value):
     return serializer.deserialize(value)
 
 
-class IdentitySerializer(Serializer):
+# We can ignore the abstract-method warning because Serializer only
+# requires that we override serialize() or serialize_to_string(), not
+# both. Similar reasoning applies to deserialize() and
+# deserialize_from_string().
+
+class IdentitySerializer(Serializer):  # pylint: disable=abstract-method
     '''Serializer for base types that get serialized as themselves.'''
 
-    def can_serialize(self, data):
+    def can_serialize(self, data: Any) -> bool:
         if (
                 isinstance(data, (int, float, bool, str))
                 and not NumpyScalarSerializer.can_serialize(data)):
@@ -64,10 +69,10 @@ class IdentitySerializer(Serializer):
             return True
         return False
 
-    def serialize(self, data):
+    def serialize(self, data: Any) -> Any:
         return data
 
-    def can_deserialize(self, data):
+    def can_deserialize(self, data: Any) -> bool:
         if isinstance(data, (int, float, bool)):
             return True
         if isinstance(data, str):
@@ -76,7 +81,7 @@ class IdentitySerializer(Serializer):
             return True
         return False
 
-    def deserialize(self, data):
+    def deserialize(self, data: Any) -> Any:
         return data
 
 
@@ -87,28 +92,28 @@ class NumpySerializer(Serializer):
     deserialization will produce a Python list instead of a Numpy array.
     """
 
-    def can_serialize(self, data):
+    def can_serialize(self, data: Any) -> bool:
         return isinstance(data, np.ndarray)
 
-    def serialize(self, data):
+    def serialize(self, data: Any) -> Any:
         """Returns ``data.tolist()``."""
         lst = data.tolist()
         return serialize_value(lst)
 
-    def can_deserialize(self, data):
+    def can_deserialize(self, data: Any) -> bool:
         return False
 
-    def deserialize(self, data):
+    def deserialize(self, data: Any) -> None:
         raise NotImplementedError(
             'There is no deserializer for numpy arrays.')
 
 
-class SequenceSerializer(Serializer):
+class SequenceSerializer(Serializer):  # pylint: disable=abstract-method
 
-    def can_serialize(self, data):
+    def can_serialize(self, data: Any) -> bool:
         return isinstance(data, Sequence) and not isinstance(data, str)
 
-    def serialize(self, data):
+    def serialize(self, data: Any) -> List[Any]:
         '''Serialize sequence to list of serialized elements.
 
         Note that sequence serialization is lossy. For example, a tuple
@@ -117,19 +122,19 @@ class SequenceSerializer(Serializer):
         '''
         return [serialize_value(value) for value in data]
 
-    def can_deserialize(self, data):
+    def can_deserialize(self, data: Any) -> bool:
         return isinstance(data, list)
 
-    def deserialize(self, data):
+    def deserialize(self, data: Any) -> List[Any]:
         return [deserialize_value(value) for value in data]
 
 
-class DictSerializer(Serializer):
+class DictSerializer(Serializer):  # pylint: disable=abstract-method
 
-    def can_serialize(self, data):
+    def can_serialize(self, data: Any) -> bool:
         return isinstance(data, dict)
 
-    def serialize(self, data):
+    def serialize(self, data: dict) -> dict:
         '''Serialize to dict of serialized elements.
 
         Note that dict serialization of keys is lossy. For example, a
@@ -143,10 +148,10 @@ class DictSerializer(Serializer):
             serialized[key] = serialize_value(value)
         return serialized
 
-    def can_deserialize(self, data):
+    def can_deserialize(self, data: Any) -> bool:
         return isinstance(data, dict)
 
-    def deserialize(self, data):
+    def deserialize(self, data: dict) -> dict:
         return {
             key: deserialize_value(value)
             for key, value in data.items()
@@ -162,20 +167,23 @@ class NumpyScalarSerializer(Serializer):
     """
 
     @staticmethod
-    def can_serialize(data):
+    def can_serialize(data: Any) -> bool:
         return isinstance(data, (np.integer, np.floating, np.bool_))
 
-    def serialize(self, data):
+    def serialize(
+            self,
+            data: Union[np.integer, np.floating, np.bool_],
+            ) -> Union[int, float, bool]:
         if isinstance(data, np.integer):
             return int(data)
         if isinstance(data, np.floating):
             return float(data)
         return bool(data)
 
-    def can_deserialize(self, data):
+    def can_deserialize(self, data: Any) -> bool:
         return False
 
-    def deserialize(self, data):
+    def deserialize(self, data: Any) -> None:
         raise NotImplementedError(
             'Deserializing serialized Numpy scalars is not supported.')
 
@@ -183,13 +191,18 @@ class NumpyScalarSerializer(Serializer):
 class UnitsSerializer(Serializer):
     """Serializer for data with units."""
 
-    def can_serialize(self, data):
+    def can_serialize(self, data: Any) -> bool:
         return isinstance(data, (Quantity, Unit))
 
-    def serialize_to_string(self, data):
+    def serialize_to_string(self, data: Union[Quantity, Unit]) -> str:
         return str(data)
 
-    def serialize(self, data, unit=None):
+    # Here the differing argument is `unit`, which is optional, so we
+    # can ignore the pylint warning.
+    def serialize(  # pylint: disable=arguments-differ
+            self,
+            data: Union[Quantity, Unit],
+            unit: Unit = None) -> Union[str, List[str]]:
         """Serialize data with units into a human-readable string.
 
         Args:
@@ -222,17 +235,19 @@ class UnitsSerializer(Serializer):
             if unit is not None:
                 data = [d.to(unit) for d in data]
             return [str(d) for d in data]
-        else:
-            if unit is not None:
-                data.to(unit)
-            # The superclass serialize() method uses
-            # `serialize_to_string()`.
-            return super().serialize(data)
+        if unit is not None:
+            data.to(unit)
+        # The superclass serialize() method uses
+        # `serialize_to_string()`.
+        return super().serialize(data)
 
-    def deserialize_from_string(self, data):
+    def deserialize_from_string(self, data: str) -> Quantity:
         return units(data)
 
-    def deserialize(self, data, unit=None):
+    # Here the differing argument is `unit`, which is optional, so we
+    # can ignore the pylint warning.
+    def deserialize(  # pylint: disable=arguments-differ
+            self, data: str, unit: Unit = None) -> Quantity:
         """Deserialize data with units from a human-readable string.
 
         Args:
@@ -277,17 +292,17 @@ class ProcessSerializer(Serializer):
     Currently only supports serialization (for emitting simulation
     configs).
     """
-    def can_serialize(self, data):
+    def can_serialize(self, data: Any) -> bool:
         return isinstance(data, Process)
 
-    def serialize_to_string(self, data):
+    def serialize_to_string(self, data: Process) -> str:
         """Create a dictionary of process name and parameters."""
         return str(dict(data.parameters, _name=data.name))
 
-    def can_deserialize(self, data):
+    def can_deserialize(self, data: Any) -> bool:
         return False
 
-    def deserialize(self, data):
+    def deserialize(self, data: Any) -> None:
         raise NotImplementedError(
             'Processes cannot be deserialized.')
 
@@ -298,17 +313,17 @@ class ComposerSerializer(Serializer):
     Currently only supports serialization (for emitting simulation
     configs).
     """
-    def can_serialize(self, data):
+    def can_serialize(self, data: Any) -> bool:
         return isinstance(data, Composer)
 
-    def serialize_to_string(self, data):
+    def serialize_to_string(self, data: Composer) -> str:
         """Create a dictionary of composer name and parameters."""
-        return dict(data.config, _name=str(type(data)))
+        return str(dict(data.config, _name=str(type(data))))
 
-    def can_deserialize(self, data):
+    def can_deserialize(self, data: Any) -> bool:
         return False
 
-    def deserialize(self, data):
+    def deserialize(self, data: Any) -> None:
         raise NotImplementedError(
             'Composers cannot be deserialized.')
 
@@ -319,16 +334,16 @@ class FunctionSerializer(Serializer):
     Currently only supports serialization (for emitting simulation
     configs).
     """
-    def can_serialize(self, data):
+    def can_serialize(self, data: Any) -> bool:
         return callable(data)
 
-    def serialize_to_string(self, data):
+    def serialize_to_string(self, data: Callable) -> str:
         return str(data)
 
-    def can_deserialize(self, data):
+    def can_deserialize(self, data: Any) -> bool:
         return False
 
-    def deserialize(self, data):
+    def deserialize(self, data: Any) -> None:
         raise NotImplementedError(
             'Functions cannot be deserialized.')
 
@@ -338,16 +353,16 @@ class ObjectIdSerializer(Serializer):
 
     Currently only supports serialization.
     """
-    def can_serialize(self, data):
+    def can_serialize(self, data: Any) -> bool:
         return isinstance(data, ObjectId)
 
-    def serialize_to_string(self, data):
+    def serialize_to_string(self, data: ObjectId) -> str:
         return str(data)
 
-    def can_deserialize(self, data):
+    def can_deserialize(self, data: Any) -> bool:
         return False
 
-    def deserialize(self, data):
+    def deserialize(self, data: Any) -> None:
         raise NotImplementedError(
             'ObjectIds cannot be deserialized.')
 

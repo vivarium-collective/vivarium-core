@@ -373,7 +373,7 @@ class Serializer:
             The serialized data.
         """
         string_serialization = self.serialize_to_string(data)
-        if (not isinstance(string_serialization, str)):
+        if not isinstance(string_serialization, str):
             raise ValueError(
                 f'{self}.serialize_to_string() returned invalid '
                 f'serialization: {string_serialization}')
@@ -414,7 +414,8 @@ class Serializer:
         Returns:
             The deserialized data.
         """
-        string_serialization = self.regex_for_serialized.fullmatch(data).group(1)
+        string_serialization = self.regex_for_serialized.fullmatch(
+            data).group(1)
         return self.deserialize_from_string(string_serialization)
 
     def can_deserialize(self, data):
