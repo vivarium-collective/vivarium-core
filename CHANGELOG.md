@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.2.0
+
+* (#167) Make serialization more structured and robust with serializer
+  classes that know what kinds of data they can serialize and
+  deserialize.
+
 ## v1.1.0
 
 * (#164) Add a `_no_original_parameters` configuration to `Process`
