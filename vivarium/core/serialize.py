@@ -233,9 +233,13 @@ class UnitsSerializer(Serializer):
                 DeprecationWarning,
             )
             if unit is not None:
+                # We can't convert `Unit` objects.
+                assert isinstance(data, Quantity)
                 data = [d.to(unit) for d in data]
             return [str(d) for d in data]
         if unit is not None:
+            # We can't convert `Unit` objects.
+            assert isinstance(data, Quantity)
             data.to(unit)
         # The superclass serialize() method uses
         # `serialize_to_string()`.
