@@ -359,7 +359,7 @@ class Serializer:
         """Serialize some data.
 
         Subclasses that are serializing to strings can just implement
-        :py:meth:`vivarium.core.registry.Serialize.serialize_to_string`,
+        :py:meth:`vivarium.core.registry.Serializer.serialize_to_string`,
         and this method will use that implementation to generate a
         string that serializes the data.
 
