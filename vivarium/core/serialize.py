@@ -19,19 +19,23 @@ from vivarium.library.units import units
 
 
 def serialize_value(value: Any) -> Any:
-    compatible_serializers = []
-    for serializer_name in serializer_registry.list():
-        serializer = serializer_registry.access(serializer_name)
-        if serializer.can_serialize(value):
-            compatible_serializers.append(serializer)
-    if not compatible_serializers:
-        raise ValueError(
-            f'No serializer found for {value} of type {type(value)}')
-    if len(compatible_serializers) > 1:
-        raise ValueError(
-            f'Multiple serializers ({compatible_serializers}) found '
-            f'for {value} of type {type(value)}')
-    serializer = compatible_serializers[0]
+    # Try to lookup by exclusive type
+    serializer = serializer_registry.access(str(type(value)))
+    # If lookup fails, search through registered serializers
+    if not serializer:
+        compatible_serializers = []
+        for serializer_name in serializer_registry.list():
+            serializer = serializer_registry.access(serializer_name)
+            if serializer.can_serialize(value):
+                compatible_serializers.append(serializer)
+        if not compatible_serializers:
+            raise ValueError(
+                f'No serializer found for {value} of type {type(value)}')
+        if len(compatible_serializers) > 1:
+            raise ValueError(
+                f'Multiple serializers ({compatible_serializers}) found '
+                f'for {value} of type {type(value)}')
+        serializer = compatible_serializers[0]
     return serializer.serialize(value)
 
 
@@ -59,6 +63,9 @@ def deserialize_value(value: Any) -> Any:
 
 class IdentitySerializer(Serializer):  # pylint: disable=abstract-method
     '''Serializer for base types that get serialized as themselves.'''
+
+    def __init__(self) -> None:
+        super().__init__(exclusive_types=(int, float, bool, str))
 
     def can_serialize(self, data: Any) -> bool:
         if (
@@ -92,6 +99,10 @@ class NumpySerializer(Serializer):
     deserialization will produce a Python list instead of a Numpy array.
     """
 
+    def __init__(self) -> None:
+        super().__init__(exclusive_types=(np.ndarray,))
+
+
     def can_serialize(self, data: Any) -> bool:
         return isinstance(data, np.ndarray)
 
@@ -109,6 +120,9 @@ class NumpySerializer(Serializer):
 
 
 class SequenceSerializer(Serializer):  # pylint: disable=abstract-method
+
+    def __init__(self) -> None:
+        super().__init__(exclusive_types=(list, tuple))
 
     def can_serialize(self, data: Any) -> bool:
         return isinstance(data, Sequence) and not isinstance(data, str)
@@ -130,6 +144,9 @@ class SequenceSerializer(Serializer):  # pylint: disable=abstract-method
 
 
 class DictSerializer(Serializer):  # pylint: disable=abstract-method
+
+    def __init__(self) -> None:
+        super().__init__(exclusive_types=(dict,))
 
     def can_serialize(self, data: Any) -> bool:
         return isinstance(data, dict)
@@ -166,6 +183,15 @@ class NumpyScalarSerializer(Serializer):
     scalars.
     """
 
+    def __init__(self) -> None:
+        super().__init__(exclusive_types=(
+            np.bool_,
+            np.int8, np.int16, np.int32, np.int64,
+            np.uint8, np.uint16, np.uint32, np.uint64,
+            np.float16, np.float32, np.float64, np.float128,
+            np.complex64, np.complex128, np.complex256,
+        ))
+
     @staticmethod
     def can_serialize(data: Any) -> bool:
         return isinstance(data, (np.integer, np.floating, np.bool_))
@@ -190,6 +216,10 @@ class NumpyScalarSerializer(Serializer):
 
 class UnitsSerializer(Serializer):
     """Serializer for data with units."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            exclusive_types=(type(units.fg), type(1 * units.fg)))
 
     def can_serialize(self, data: Any) -> bool:
         return isinstance(data, (Quantity, Unit))
@@ -296,6 +326,7 @@ class ProcessSerializer(Serializer):
     Currently only supports serialization (for emitting simulation
     configs).
     """
+
     def can_serialize(self, data: Any) -> bool:
         return isinstance(data, Process)
 
@@ -317,6 +348,7 @@ class ComposerSerializer(Serializer):
     Currently only supports serialization (for emitting simulation
     configs).
     """
+
     def can_serialize(self, data: Any) -> bool:
         return isinstance(data, Composer)
 

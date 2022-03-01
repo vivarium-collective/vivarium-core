@@ -94,16 +94,14 @@ divider_registry.register('set_value', divide_set_value)
 divider_registry.register('null', divide_null)
 
 # register serializers
-serializer_registry.register('identity', IdentitySerializer())
-serializer_registry.register('numpy', NumpySerializer())
-serializer_registry.register('sequence', SequenceSerializer())
-serializer_registry.register('numpy_scalar', NumpyScalarSerializer())
-serializer_registry.register('units', UnitsSerializer())
-serializer_registry.register('process', ProcessSerializer())
-serializer_registry.register('composer', ComposerSerializer())
-serializer_registry.register('function', FunctionSerializer())
-serializer_registry.register('object_id', ObjectIdSerializer())
-serializer_registry.register('dict', DictSerializer())
+for SerializerClass in (
+        IdentitySerializer, NumpySerializer, SequenceSerializer,
+        NumpyScalarSerializer, UnitsSerializer, ProcessSerializer,
+        ComposerSerializer, FunctionSerializer, ObjectIdSerializer,
+        DictSerializer):
+    serializer = SerializerClass()
+    serializer_registry.register(
+        serializer.name, serializer, serializer.alternate_keys)
 
 # register emitters
 emitter_registry.register('print', Emitter)

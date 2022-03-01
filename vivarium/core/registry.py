@@ -75,27 +75,35 @@ class Registry(object):
     def __init__(self):
         """A Registry holds a collection of functions or objects."""
         self.registry = {}
+        self.main_keys = []
 
-    def register(self, key, item):
+    def register(self, key, item, alternate_keys=tuple()):
         """Add an item to the registry.
 
         Args:
             key: Item key.
             item: The item to add.
+            alternate_keys: Additional keys under which to register the
+                item. These keys will not be included in the list
+                returned by Registry.list().
         """
-        if key in self.registry:
-            if item != self.registry[key]:
-                raise Exception('registry already contains an entry for {}: {} --> {}'.format(
-                    key, self.registry[key], item))
-        else:
-            self.registry[key] = item
+        keys = [key]
+        keys.extend(alternate_keys)
+        for registry_key in keys:
+            if registry_key in self.registry:
+                if item != self.registry[registry_key]:
+                    raise Exception('registry already contains an entry for {}: {} --> {}'.format(
+                        registry_key, self.registry[key], item))
+            else:
+                self.registry[registry_key] = item
+        self.main_keys.append(key)
 
     def access(self, key):
         """Get an item by key from the registry."""
         return self.registry.get(key)
 
     def list(self):
-        return list(self.registry.keys())
+        return list(self.main_keys)
 
 
 # Initialize registries
@@ -332,14 +340,31 @@ class Serializer:
     serializer of this type, you only need to implement the
     :py:meth:`vivarium.core.registry.Serializer.serialize_to_string` and
     :py:meth:`vivarium.core.registry.Serializer.deserialize()` methods.
+
+    Args:
+        name: Name of the serializer. Defaults to the class name.
+        exclusive_types: Types that are exclusively handled by this
+            serializer. These can be used to quickly lookup which
+            serializer handles a particular type. If an object does not
+            match any of these exclusive types, the `can_serialize`
+            method will be used as a fallback.
+
+            Note that exclusive type matching is exact--inheritance is
+            not accounted for. This means that if your serializer has an
+            exclusive type of A and B inherits from A, an instance of B
+            will not match to your serializer's exclusive types.
     """
     REGEX_FOR_NAME = re.compile('[A-Za-z0-9-_]+')
     REGEX_FOR_SERIALIZED_ANY_TYPE = re.compile(
         f'!{REGEX_FOR_NAME.pattern}\\[(.*)\\]')
 
-    def __init__(self, name=''):
+    def __init__(self, name='', exclusive_types=tuple()):
         self.name = name or self.__class__.__name__
         self.regex_for_serialized = re.compile(f'!{self.name}\\[(.*)\\]')
+        self.alternate_keys = (
+            str(exclusive_type)
+            for exclusive_type in exclusive_types
+        )
 
     def serialize_to_string(self, data):
         """Serialize some data.
