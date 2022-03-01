@@ -124,12 +124,12 @@ def test_serialization_full() -> None:
         'numpy_bool': [True, True, False],
         'numpy_matrix': [[1, 2], [3, 4]],
         'list_units': [
-            '!UnitsSerializer[1 femtogram]',
-            '!UnitsSerializer[2 femtogram]',
+            '!units[1 femtogram]',
+            '!units[2 femtogram]',
         ],
         'list': [True, False, 'test', 1, None],
-        'quantity': '!UnitsSerializer[5 femtogram]',
-        'unit': '!UnitsSerializer[femtogram]',
+        'quantity': '!units[5 femtogram]',
+        'unit': '!units[femtogram]',
         'dict': {
             'a': False,
         },

@@ -219,6 +219,7 @@ class UnitsSerializer(Serializer):
 
     def __init__(self) -> None:
         super().__init__(
+            name='units',
             exclusive_types=(type(units.fg), type(1 * units.fg)))
 
     def can_serialize(self, data: Any) -> bool:
