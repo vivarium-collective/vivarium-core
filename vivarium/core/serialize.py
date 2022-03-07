@@ -102,7 +102,6 @@ class NumpySerializer(Serializer):
     def __init__(self) -> None:
         super().__init__(exclusive_types=(np.ndarray,))
 
-
     def can_serialize(self, data: Any) -> bool:
         return isinstance(data, np.ndarray)
 

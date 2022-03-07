@@ -86,6 +86,14 @@ class Registry(object):
             alternate_keys: Additional keys under which to register the
                 item. These keys will not be included in the list
                 returned by Registry.list().
+
+                This may be useful if you want to be able to look up an
+                item in the registry under multiple keys. For example,
+                in a registry of serializers, you could register a
+                serializer with its name as ``key`` and the types it can
+                serialize under ``alternate_keys``. Then, when presented
+                with an object to serialize, you could use the object's
+                type to look up the appropriate serializer.
         """
         keys = [key]
         keys.extend(alternate_keys)
