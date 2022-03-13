@@ -232,7 +232,9 @@ class Process(metaclass=abc.ABCMeta):
 
         return {
             'processes': assoc_in({}, path, processes),
+            'steps': {},
             'topology': assoc_in({}, path, topology),
+            'flow': {},
         }
 
     def get_schema(self, override: Optional[Schema] = None) -> dict:
