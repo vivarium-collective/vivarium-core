@@ -422,7 +422,7 @@ def get_history_data_db(
     cursor = history_collection.find(experiment_query, projection)
     raw_data = []
     for document in cursor:
-        if document['data'].get('time'):
+        if document.get('assembly_id'):
             raw_data.append(document)
 
     # re-assemble data
