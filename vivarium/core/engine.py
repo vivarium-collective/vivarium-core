@@ -424,6 +424,9 @@ class Engine:
                 provide as the value for the key ``experiment_id``.
             display_info: prints experiment info
             progress_bar: shows a progress bar
+            store_emit: An optional dictionary to turn on/off emits. This
+                dictionary requires the keys `on`/`off` mapping to a list
+                of paths in the Store hierarchy to be toggled on or off.
             emit_topology: If True, this will emit the topology with the
                 configuration data.
             emit_processes: If True, this will emit the serialized

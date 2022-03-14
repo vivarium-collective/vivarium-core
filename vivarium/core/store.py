@@ -1007,6 +1007,9 @@ class Store:
         return None
 
     def toggle_emits(self, emit=False, paths=None):
+        """
+        Turn on/off emits for all inner nodes of the list of paths.
+        """
         if paths:
             assert isinstance(paths, list), 'paths must be a list'
             for path in paths:
