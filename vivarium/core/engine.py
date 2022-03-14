@@ -370,6 +370,7 @@ class Engine:
             metadata: Optional[dict] = None,
             description: str = '',
             emitter: Union[str, dict] = 'timeseries',
+            store_emit: Optional[dict] = None,
             emit_topology: bool = True,
             emit_processes: bool = False,
             emit_config: bool = False,
@@ -423,8 +424,12 @@ class Engine:
                 provide as the value for the key ``experiment_id``.
             display_info: prints experiment info
             progress_bar: shows a progress bar
-            emit_config: If True, this will emit the serialized
-                processes, topology, and initial state.
+            emit_topology: If True, this will emit the topology with the
+                configuration data.
+            emit_processes: If True, this will emit the serialized
+                processes with the configuration data.
+            emit_config: If True, this will emit the serialized initial
+                state with the configuration data.
             profile: Whether to profile the simulation with cProfile.
         """
         self.profiler: Optional[cProfile.Profile] = None
@@ -472,6 +477,16 @@ class Engine:
         emitter_config['experiment_id'] = self.experiment_id
         self.emitter: Emitter = get_emitter(emitter_config)
 
+        # override emit settings in store
+        if store_emit:
+            turn_off = store_emit.get('off')
+            turn_on = store_emit.get('on')
+            if turn_off:
+                self.state.toggle_emits(emit=False, paths=turn_off)
+            if turn_on:
+                self.state.toggle_emits(emit=True, paths=turn_on)
+
+        # settings for self._emit_configuration()
         self.emit_topology = emit_topology
         self.emit_processes = emit_processes
         self.emit_config = emit_config

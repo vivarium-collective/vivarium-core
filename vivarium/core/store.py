@@ -1006,6 +1006,26 @@ class Store:
             return self.value
         return None
 
+    def toggle_emits(self, emit=False, paths=None):
+        if paths:
+            assert isinstance(paths, list), 'paths must be a list'
+            for path in paths:
+                self.toggle_emit(emit=emit, path=path)
+
+    def toggle_emit(self, emit=False, path=None):
+        """
+        Turn on/off emits for all inner nodes of path.
+        """
+        if path:
+            assert isinstance(path, tuple), 'path must be a tuple'
+            target = self.get_path(path)
+            target.toggle_emit(emit=emit)
+        elif self.inner:
+            for child in self.inner.values():
+                child.toggle_emit(emit=emit)
+        else:
+            self.emit = emit
+
     def _delete_path(self, path):
         """
         Delete the subtree at the given path.
