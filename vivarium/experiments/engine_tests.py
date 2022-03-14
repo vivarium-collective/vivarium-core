@@ -1121,7 +1121,7 @@ def test_engine_run_for() -> None:
             f"process at path {path} did not complete"
 
 
-def emit_control():
+def emit_control() -> None:
     run_time = 5
     # get the composer
     composer = PoQo({})
