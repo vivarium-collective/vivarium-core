@@ -422,8 +422,9 @@ def get_history_data_db(
     cursor = history_collection.find(experiment_query, projection)
     raw_data = []
     for document in cursor:
-        if document['data'].get('time'):
-            raw_data.append(document)
+        assert document.get('assembly_id'), \
+            "all database documents require an assembly_id"
+        raw_data.append(document)
 
     # re-assemble data
     assembly = assemble_data(raw_data)
