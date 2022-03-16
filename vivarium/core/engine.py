@@ -636,14 +636,15 @@ class Engine:
             'metadata': self.metadata,
             'topology': self.topology
             if self.emit_topology else None,
-            'processes': serialize_value(self.processes)
+            'processes': self.processes
             if self.emit_processes else None,
-            'state': serialize_value(self.state.get_config())
+            'state': self.state.get_config()
             if self.emit_config else None,
         }
         emit_config: Dict[str, Any] = {
             'table': 'configuration',
-            'data': data}
+            'data': serialize_value(data)
+        }
         self.emitter.emit(emit_config)
 
     def _emit_store_data(self) -> None:

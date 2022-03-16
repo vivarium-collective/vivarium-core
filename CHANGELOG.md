@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.2.0
+
+* (#167) Make serialization more structured and robust with serializer
+  classes that know what kinds of data they can serialize and
+  deserialize.
+
 ## v1.1.1
 
 * (#169) `get_history_data_db` no longer requires a 'time' key. It
