@@ -408,9 +408,6 @@ def composite_specification(
         initial_state: bool = False,
 ) -> dict:
     """Return the serialized specification for a :term:`composite` instance"""
-    warnings.warn(
-        'composite_specification() is deprecated.',
-        DeprecationWarning)
     composite_dict = serialize_value(composite)
     composite_dict.pop('_schema')
     if initial_state:
