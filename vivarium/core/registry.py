@@ -85,7 +85,7 @@ class Registry(object):
             item: The item to add.
             alternate_keys: Additional keys under which to register the
                 item. These keys will not be included in the list
-                returned by Registry.list().
+                returned by ``Registry.list()``.
 
                 This may be useful if you want to be able to look up an
                 item in the registry under multiple keys. For example,
