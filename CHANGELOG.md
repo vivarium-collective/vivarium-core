@@ -6,6 +6,11 @@
   classes that know what kinds of data they can serialize and
   deserialize.
 
+## v1.1.1
+
+* (#169) `get_history_data_db` no longer requires a 'time' key. It
+  asserts an 'assembly_id' key instead.
+
 ## v1.1.0
 
 * (#164) Add a `_no_original_parameters` configuration to `Process`
