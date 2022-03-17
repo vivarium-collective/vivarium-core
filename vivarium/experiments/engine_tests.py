@@ -1123,6 +1123,9 @@ def test_engine_run_for() -> None:
             f"process at path {path} did not complete"
 
 def test_engine_process():
+    # TODO: test engine process division (!)
+    # TODO: figure out half the interface from the topology
+
     poqo_composer = PoQo({
         'interface': {
             'input': ('ccc', 'a3'),

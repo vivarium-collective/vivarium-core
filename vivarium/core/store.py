@@ -710,6 +710,8 @@ class Store:
         return self.divider
 
     def get_schema(self):
+        # TODO: make this feature part of get_config instead?
+
         schema = {}
 
         if self.properties:
@@ -741,7 +743,7 @@ class Store:
         return schema
 
 
-    def get_config(self, sources=False):
+    def get_config(self, sources=False, schema_only=False):
         """
         Assemble a dictionary representation of the config for this node.
         A desired property is that the node can be exactly recreated by
