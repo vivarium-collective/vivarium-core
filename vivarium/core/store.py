@@ -1006,26 +1006,25 @@ class Store:
             return self.value
         return None
 
-    def toggle_emits(self, emit=False, paths=None):
+    def set_emit_values(self, paths=None, emit=False):
         """
         Turn on/off emits for all inner nodes of the list of paths.
         """
         if paths:
-            assert isinstance(paths, list), 'paths must be a list'
             for path in paths:
-                self.toggle_emit(emit=emit, path=path)
+                self.set_emit_value(emit=emit, path=path)
 
-    def toggle_emit(self, emit=False, path=None):
+    def set_emit_value(self, path=None, emit=False):
         """
         Turn on/off emits for all inner nodes of path.
         """
         if path:
             assert isinstance(path, tuple), 'path must be a tuple'
             target = self.get_path(path)
-            target.toggle_emit(emit=emit)
+            target.set_emit_value(emit=emit)
         elif self.inner:
             for child in self.inner.values():
-                child.toggle_emit(emit=emit)
+                child.set_emit_value(emit=emit)
         else:
             self.emit = emit
 

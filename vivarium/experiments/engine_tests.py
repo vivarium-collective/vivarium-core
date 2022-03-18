@@ -1130,37 +1130,43 @@ def emit_control() -> None:
     composite = composer.generate()
     exp = Engine(
         composite=composite,
-        store_emit={'on': [()]}
-    )
+        store_emit={'on': [()]})
     exp.update(run_time)
     data = exp.emitter.get_data()
     assert data[run_time]['bbb'] != {}, 'this emit should be on'
     print(pf(data))
 
     # turn off emits
-    composite2 = composer.generate()
-    exp2 = Engine(
-        composite=composite2,
-        store_emit={'off': [()]}
-    )
-    exp2.update(run_time)
-    data2 = exp2.emitter.get_data()
-    assert data2[run_time]['bbb'] == {}, 'this emit should be off'
-    print(pf(data2))
+    composite = composer.generate()
+    exp = Engine(
+        composite=composite,
+        store_emit={'off': [()]})
+    exp.update(run_time)
+    data = exp.emitter.get_data()
+    assert data[run_time]['bbb'] == {}, 'this emit should be off'
+    print(pf(data))
 
     # selectively turn on emits
-    composite3 = composer.generate()
-    exp3 = Engine(
-        composite=composite3,
+    composite = composer.generate()
+    exp = Engine(
+        composite=composite,
         store_emit={
             'on': [('bbb', 'e2',)],
-        }
-    )
-    exp3.update(run_time)
-    data3 = exp3.emitter.get_data()
-    assert data3[run_time]['bbb']['e2'] != {}, 'this emit should be on'
-    assert data3[run_time]['ccc'] == {}, 'this emit should be off'
-    print(pf(data3))
+        })
+    exp.update(run_time)
+    data = exp.emitter.get_data()
+    assert data[run_time]['bbb']['e2'] != {}, 'this emit should be on'
+    assert data[run_time]['ccc'] == {}, 'this emit should be off'
+    print(pf(data))
+
+    # test store_emit with None
+    composite = composer.generate()
+    exp = Engine(
+        composite=composite,
+        store_emit={
+            'on': None,
+        })
+    exp.update(run_time)
 
 
 engine_tests = {

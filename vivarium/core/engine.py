@@ -424,9 +424,12 @@ class Engine:
                 provide as the value for the key ``experiment_id``.
             display_info: prints experiment info
             progress_bar: shows a progress bar
-            store_emit: An optional dictionary to turn on/off emits. This
-                dictionary requires the keys `on`/`off` mapping to a list
-                of paths in the Store hierarchy to be toggled on or off.
+            store_emit: An optional dictionary to turn emits on or off. This
+                dictionary requires the keys (`on`,`off`), mapping to a list
+                of paths in the Store hierarchy to be turned on or off. The
+                on configs take precedence over the off configs in that all
+                paths in `off` are turn off first, and can be turned on again
+                by the paths in `on`.
             emit_topology: If True, this will emit the topology with the
                 configuration data.
             emit_processes: If True, this will emit the serialized
@@ -482,8 +485,10 @@ class Engine:
 
         # override emit settings in store
         if store_emit:
-            self.state.toggle_emits(emit=False, paths=store_emit.get('off', []))
-            self.state.toggle_emits(emit=True, paths=store_emit.get('on', []))
+            self.state.set_emit_values(
+                paths=store_emit.get('off', []), emit=False)
+            self.state.set_emit_values(
+                paths=store_emit.get('on', []), emit=True)
 
         # settings for self._emit_configuration()
         self.emit_topology = emit_topology
