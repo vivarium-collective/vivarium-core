@@ -425,7 +425,7 @@ class Engine:
             display_info: prints experiment info
             progress_bar: shows a progress bar
             store_emit: An optional dictionary to turn emits on or off. This
-                dictionary requires the keys (`on`,`off`), mapping to a list
+                dictionary may contain the keys (`on`,`off`), mapping to a list
                 of paths in the Store hierarchy to be turned on or off. The
                 on configs take precedence over the off configs in that all
                 paths in `off` are turn off first, and can be turned on again
