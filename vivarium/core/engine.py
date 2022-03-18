@@ -482,12 +482,8 @@ class Engine:
 
         # override emit settings in store
         if store_emit:
-            turn_off = store_emit.get('off')
-            turn_on = store_emit.get('on')
-            if turn_off:
-                self.state.toggle_emits(emit=False, paths=turn_off)
-            if turn_on:
-                self.state.toggle_emits(emit=True, paths=turn_on)
+            self.state.toggle_emits(emit=False, paths=store_emit.get('off', []))
+            self.state.toggle_emits(emit=True, paths=store_emit.get('on', []))
 
         # settings for self._emit_configuration()
         self.emit_topology = emit_topology
