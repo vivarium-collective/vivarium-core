@@ -1121,6 +1121,54 @@ def test_engine_run_for() -> None:
             f"process at path {path} did not complete"
 
 
+def emit_control() -> None:
+    run_time = 5
+    # get the composer
+    composer = PoQo({})
+
+    # turn on emits
+    composite = composer.generate()
+    exp = Engine(
+        composite=composite,
+        store_emit={'on': [()]})
+    exp.update(run_time)
+    data = exp.emitter.get_data()
+    assert data[run_time]['bbb'] != {}, 'this emit should be on'
+    print(pf(data))
+
+    # turn off emits
+    composite = composer.generate()
+    exp = Engine(
+        composite=composite,
+        store_emit={'off': [()]})
+    exp.update(run_time)
+    data = exp.emitter.get_data()
+    assert data[run_time]['bbb'] == {}, 'this emit should be off'
+    print(pf(data))
+
+    # selectively turn on emits
+    composite = composer.generate()
+    exp = Engine(
+        composite=composite,
+        store_emit={
+            'on': [('bbb', 'e2',)],
+        })
+    exp.update(run_time)
+    data = exp.emitter.get_data()
+    assert data[run_time]['bbb']['e2'] != {}, 'this emit should be on'
+    assert data[run_time]['ccc'] == {}, 'this emit should be off'
+    print(pf(data))
+
+    # test store_emit with None
+    composite = composer.generate()
+    exp = Engine(
+        composite=composite,
+        store_emit={
+            'on': None,
+        })
+    exp.update(run_time)
+
+
 engine_tests = {
     '0': test_recursive_store,
     '1': test_topology_ports,
@@ -1141,6 +1189,7 @@ engine_tests = {
     '16': test_hyperdivision,
     '17': test_output_port,
     '18': test_engine_run_for,
+    '19': emit_control,
 }
 
 

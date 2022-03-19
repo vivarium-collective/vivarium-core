@@ -370,6 +370,7 @@ class Engine:
             metadata: Optional[dict] = None,
             description: str = '',
             emitter: Union[str, dict] = 'timeseries',
+            store_emit: Optional[dict] = None,
             emit_topology: bool = True,
             emit_processes: bool = False,
             emit_config: bool = False,
@@ -423,8 +424,18 @@ class Engine:
                 provide as the value for the key ``experiment_id``.
             display_info: prints experiment info
             progress_bar: shows a progress bar
-            emit_config: If True, this will emit the serialized
-                processes, topology, and initial state.
+            store_emit: An optional dictionary to turn emits on or off. This
+                dictionary may contain the keys (`on`,`off`), mapping to a list
+                of paths in the Store hierarchy to be turned on or off. The
+                on configs take precedence over the off configs in that all
+                paths in `off` are turn off first, and can be turned on again
+                by the paths in `on`.
+            emit_topology: If True, this will emit the topology with the
+                configuration data.
+            emit_processes: If True, this will emit the serialized
+                processes with the configuration data.
+            emit_config: If True, this will emit the serialized initial
+                state with the configuration data.
             profile: Whether to profile the simulation with cProfile.
         """
         self.profiler: Optional[cProfile.Profile] = None
@@ -472,6 +483,14 @@ class Engine:
         emitter_config['experiment_id'] = self.experiment_id
         self.emitter: Emitter = get_emitter(emitter_config)
 
+        # override emit settings in store
+        if store_emit:
+            self.state.set_emit_values(
+                paths=store_emit.get('off', []), emit=False)
+            self.state.set_emit_values(
+                paths=store_emit.get('on', []), emit=True)
+
+        # settings for self._emit_configuration()
         self.emit_topology = emit_topology
         self.emit_processes = emit_processes
         self.emit_config = emit_config
