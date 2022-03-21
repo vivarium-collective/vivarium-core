@@ -10,6 +10,22 @@
 Vivarium Core provides a process interface and simulation engine for composing 
 and executing integrative multi-scale models.
 
+## Getting Started
+
+Vivarium Core is available on PyPI [here](https://pypi.org/project/vivarium-core/), and can be installed as a python library like this:
+
+```console
+$ pip install vivarium-core
+```
+
+To get started using Vivarium Core, see our
+[documentation](https://vivarium-core.readthedocs.io/en/latest/getting_started.html)
+and [tutorial
+notebook](https://vivarium-core.readthedocs.io/en/latest/tutorials.html).
+
+If you want to contribute to Vivarium Core, see our [contribution
+guidelines](CONTRIBUTING.md).
+
 ## Concept
 
 Computational systems biology requires software for multi-algorithmic model 
@@ -41,22 +57,6 @@ with outer compartments shown above and inner compartments below.
     <img src="https://github.com/vivarium-collective/vivarium-core/blob/master/doc/_static/interface.png?raw=true" width="500">
 </p>
 
-
-## Getting Started
-
-Vivarium Core can be installed as a python library like this:
-
-```console
-$ pip install vivarium-core
-```
-
-To get started using Vivarium Core, see our
-[documentation](https://vivarium-core.readthedocs.io/en/latest/getting_started.html)
-and [tutorial
-notebook](https://vivarium-core.readthedocs.io/en/latest/tutorials.html).
-
-If you want to contribute to Vivarium Core, see our [contribution
-guidelines](CONTRIBUTING.md).
 
 ## License
 
