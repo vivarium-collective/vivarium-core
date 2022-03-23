@@ -1169,10 +1169,13 @@ def test_emit_control() -> None:
     exp.update(run_time)
 
 
-def test_add_new_state():
+def test_add_new_state() -> None:
     agent_id = '1'
     composite = get_toy_transport_in_env_composite(agent_id=agent_id)
-    new_schema = {'agents': {agent_id: {'extra': {'_emit': True, '_value': 1.0}}}}
+    new_schema = {
+        'agents': {
+            agent_id: {
+                'extra': {'_emit': True, '_value': 1.0}}}}
     experiment = Engine(
         processes=composite.processes,
         topology=composite.topology,
