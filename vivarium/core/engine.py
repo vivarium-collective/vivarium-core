@@ -371,6 +371,7 @@ class Engine:
             description: str = '',
             emitter: Union[str, dict] = 'timeseries',
             store_emit: Optional[dict] = None,
+            store_schema: Optional[dict] = None,
             emit_topology: bool = True,
             emit_processes: bool = False,
             emit_config: bool = False,
@@ -484,6 +485,8 @@ class Engine:
         self.emitter: Emitter = get_emitter(emitter_config)
 
         # override emit settings in store
+        if store_schema:
+            self.state._apply_config(store_schema)
         if store_emit:
             self.state.set_emit_values(
                 paths=store_emit.get('off', []), emit=False)

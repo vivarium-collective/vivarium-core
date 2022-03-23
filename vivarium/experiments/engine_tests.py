@@ -1121,7 +1121,7 @@ def test_engine_run_for() -> None:
             f"process at path {path} did not complete"
 
 
-def emit_control() -> None:
+def test_emit_control() -> None:
     run_time = 5
     # get the composer
     composer = PoQo({})
@@ -1169,6 +1169,24 @@ def emit_control() -> None:
     exp.update(run_time)
 
 
+def test_add_new_state():
+    agent_id = '1'
+    composite = get_toy_transport_in_env_composite(agent_id=agent_id)
+    new_schema = {'agents': {agent_id: {'extra': {'_emit': True, '_value': 1.0}}}}
+    experiment = Engine(
+        processes=composite.processes,
+        topology=composite.topology,
+        store_schema=new_schema,
+    )
+
+    assert experiment.state['agents', agent_id, 'extra'].get_value() == 1.0
+
+    total_time = 5
+    experiment.update(total_time)
+    timeseries = experiment.emitter.get_timeseries()
+    assert len(timeseries['agents'][agent_id]['extra']) == total_time + 1
+
+
 engine_tests = {
     '0': test_recursive_store,
     '1': test_topology_ports,
@@ -1189,7 +1207,8 @@ engine_tests = {
     '16': test_hyperdivision,
     '17': test_output_port,
     '18': test_engine_run_for,
-    '19': emit_control,
+    '19': test_emit_control,
+    '20': test_add_new_state,
 }
 
 
