@@ -418,6 +418,7 @@ def get_history_data_db(
     if query:
         projection = {f"data.{'.'.join(field)}": 1 for field in query}
         projection['data.time'] = 1
+        projection['assembly_id'] = 1
 
     cursor = history_collection.find(experiment_query, projection)
     raw_data = []

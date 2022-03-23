@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.2.1
+
+* (#172) bug fix to keep assembly_ids when passing queries to the DB.
+
 ## v1.2.0
 
 * (#167) Make serialization more structured and robust with serializer
