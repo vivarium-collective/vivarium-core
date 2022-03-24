@@ -371,7 +371,6 @@ class Engine:
             description: str = '',
             emitter: Union[str, dict] = 'timeseries',
             store_schema: Optional[dict] = None,
-            store_emit: Optional[dict] = None,
             emit_topology: bool = True,
             emit_processes: bool = False,
             emit_config: bool = False,
@@ -428,8 +427,8 @@ class Engine:
             store_schema: An optional dictionary to expand the store hierarchy
                 configuration, and also to turn emits on or off. The dictionary
                 needs to be structured as a hierarchy, which will expand the
-                existing store hierarchy. Setting an emit value for a branch node
-                will set the emits of all the branch's leaves to that value.
+                existing store hierarchy. Setting an emit value for a branch
+                node will set the emits of all the leaves to that value.
             emit_topology: If True, this will emit the topology with the
                 configuration data.
             emit_processes: If True, this will emit the serialized

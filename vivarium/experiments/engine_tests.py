@@ -1160,15 +1160,6 @@ def test_set_branch_emit() -> None:
     assert data[run_time]['ccc'] == {}, 'this emit should be off'
     print(pf(data))
 
-    # test store_emit with None
-    composite = composer.generate()
-    exp = Engine(
-        composite=composite,
-        store_emit={
-            'on': None,
-        })
-    exp.update(run_time)
-
 
 def test_add_new_state() -> None:
     agent_id = '1'
