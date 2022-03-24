@@ -110,7 +110,7 @@ class Process(metaclass=abc.ABCMeta):
                 * ``_condition``: Path to a variable whose value will be
                   returned by
                   :py:meth:`vivarium.core.process.Process.update_condition`.
-                * ``time_step``: Returned by
+                * ``timestep``: Returned by
                   :py:meth:`vivarium.core.process.Process.calculate_timestep`.
         """
         parameters = parameters or {}
@@ -146,8 +146,17 @@ class Process(metaclass=abc.ABCMeta):
                 '_emit': True,
                 '_updater': 'set'}))
 
-        self.parameters.setdefault('time_step', DEFAULT_TIME_STEP)
+        self._set_timestep()
+
         self.schema: Optional[dict] = None
+
+    def _set_timestep(self):
+        self.parameters.setdefault('timestep', DEFAULT_TIME_STEP)
+        if self.parameters.get('time_step'):
+            self.parameters['timestep'] = self.parameters['time_step']
+        else:
+            # setting 'time_step' for backwards compatibility (!)
+            self.parameters['time_step'] = self.parameters['timestep']
 
     def __getstate__(self) -> dict:
         """Return parameters
@@ -262,10 +271,10 @@ class Process(metaclass=abc.ABCMeta):
         """Return the next process time step
 
         A process subclass may override this method to implement
-        adaptive timesteps. By default it returns self.parameters['time_step'].
+        adaptive timesteps. By default it returns self.parameters['timestep'].
         """
         _ = states
-        return self.parameters['time_step']
+        return self.parameters['timestep']
 
     def default_state(self) -> State:
         """Get the default values of the variables in each port.

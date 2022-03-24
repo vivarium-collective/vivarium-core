@@ -524,20 +524,27 @@ class Engine(Process):
         # not the internal store
         pass
 
+    def _set_timestep(self):
+        self._timestep_provided = 'timestep' or 'time_step' in self.parameters
+        super()._set_timestep()
+
     def calculate_timestep(self, states: Optional[State]) -> Union[float, int]:
         timesteps = []
-        for path, process in self.process_paths.items():
-            if path in self.front and self.front[path]['time'] > self.global_time:
-                timesteps.append(self.front[path]['time'] - self.global_time)
-            else:
-                store, state = self._process_state(path)
-                timestep = process.calculate_timestep(state)
-                timesteps.append(timestep)
-                self.front[path]['future'] = {
-                    'timestep': timestep,
-                    'store': store,
-                    'state': state}
-        return min(timesteps)
+        if self._timestep_provided:
+            return self.parameters['timestep']
+        else:
+            for path, process in self.process_paths.items():
+                if path in self.front and self.front[path]['time'] > self.global_time:
+                    timesteps.append(self.front[path]['time'] - self.global_time)
+                else:
+                    store, state = self._process_state(path)
+                    timestep = process.calculate_timestep(state)
+                    timesteps.append(timestep)
+                    self.front[path]['future'] = {
+                        'timestep': timestep,
+                        'store': store,
+                        'state': state}
+            return min(timesteps)
 
     def ports_schema(self) -> Schema:
         schema = project_topology(
