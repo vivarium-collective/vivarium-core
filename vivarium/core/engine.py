@@ -370,8 +370,8 @@ class Engine:
             metadata: Optional[dict] = None,
             description: str = '',
             emitter: Union[str, dict] = 'timeseries',
-            store_emit: Optional[dict] = None,
             store_schema: Optional[dict] = None,
+            store_emit: Optional[dict] = None,
             emit_topology: bool = True,
             emit_processes: bool = False,
             emit_config: bool = False,
@@ -425,6 +425,10 @@ class Engine:
                 provide as the value for the key ``experiment_id``.
             display_info: prints experiment info
             progress_bar: shows a progress bar
+            store_schema: An optional dictionary to expand the store hierarchy
+                configuration. This includes adding new values and turning emits
+                on. The dictionary needs to be structured as a hierarchy, which will
+                expand the existing store hierarchy.
             store_emit: An optional dictionary to turn emits on or off. This
                 dictionary may contain the keys (`on`,`off`), mapping to a list
                 of paths in the Store hierarchy to be turned on or off. The
