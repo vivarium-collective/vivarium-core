@@ -159,7 +159,8 @@ class Process(metaclass=abc.ABCMeta):
                 '_emit': True,
                 '_updater': 'set'}))
 
-        self.parameters.setdefault('time_step', DEFAULT_TIME_STEP)
+        self._set_timestep()
+
         self.schema: Optional[dict] = None
 
     def initialize(self, parameters, base_parameters):
@@ -301,10 +302,10 @@ class Process(metaclass=abc.ABCMeta):
         """Return the next process time step
 
         A process subclass may override this method to implement
-        adaptive timesteps. By default it returns self.parameters['time_step'].
+        adaptive timesteps. By default it returns self.parameters['timestep'].
         """
         _ = states
-        return self.parameters['time_step']
+        return self.parameters['timestep']
 
     def default_state(self) -> State:
         """Get the default values of the variables in each port.
