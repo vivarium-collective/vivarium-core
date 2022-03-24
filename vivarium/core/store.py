@@ -598,7 +598,15 @@ class Store:
             self.divider = new_divider
             config = without(config, '_divider')
 
+        # if emit set in branch, set the entire branch to the emit value
+        if '_emit' in config:
+            if self.inner:
+                emit_value = config['_emit']
+                self.set_emit_value(emit=emit_value)
+                config = without(config, '_emit')
+
         if self.schema_keys & set(config.keys()):
+
             if self.inner:
                 raise Exception(
                     'trying to assign leaf values to a branch at: {}'.format(

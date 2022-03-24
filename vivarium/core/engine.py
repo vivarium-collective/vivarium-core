@@ -426,15 +426,10 @@ class Engine:
             display_info: prints experiment info
             progress_bar: shows a progress bar
             store_schema: An optional dictionary to expand the store hierarchy
-                configuration. This includes adding new values and turning emits
-                on. The dictionary needs to be structured as a hierarchy, which will
-                expand the existing store hierarchy.
-            store_emit: An optional dictionary to turn emits on or off. This
-                dictionary may contain the keys (`on`,`off`), mapping to a list
-                of paths in the Store hierarchy to be turned on or off. The
-                on configs take precedence over the off configs in that all
-                paths in `off` are turn off first, and can be turned on again
-                by the paths in `on`.
+                configuration, and also to turn emits on or off. The dictionary
+                needs to be structured as a hierarchy, which will expand the
+                existing store hierarchy. Setting an emit value for a branch node
+                will set the emits of all the branch's leaves to that value.
             emit_topology: If True, this will emit the topology with the
                 configuration data.
             emit_processes: If True, this will emit the serialized
@@ -491,11 +486,6 @@ class Engine:
         # override emit settings in store
         if store_schema:
             self.state._apply_config(store_schema)
-        if store_emit:
-            self.state.set_emit_values(
-                paths=store_emit.get('off', []), emit=False)
-            self.state.set_emit_values(
-                paths=store_emit.get('on', []), emit=True)
 
         # settings for self._emit_configuration()
         self.emit_topology = emit_topology

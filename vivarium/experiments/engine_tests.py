@@ -1121,7 +1121,7 @@ def test_engine_run_for() -> None:
             f"process at path {path} did not complete"
 
 
-def test_emit_control() -> None:
+def test_set_branch_emit() -> None:
     run_time = 5
     # get the composer
     composer = PoQo({})
@@ -1130,7 +1130,8 @@ def test_emit_control() -> None:
     composite = composer.generate()
     exp = Engine(
         composite=composite,
-        store_emit={'on': [()]})
+        store_schema={'_emit': True}
+    )
     exp.update(run_time)
     data = exp.emitter.get_data()
     assert data[run_time]['bbb'] != {}, 'this emit should be on'
@@ -1140,7 +1141,8 @@ def test_emit_control() -> None:
     composite = composer.generate()
     exp = Engine(
         composite=composite,
-        store_emit={'off': [()]})
+        store_schema={'_emit': False}
+    )
     exp.update(run_time)
     data = exp.emitter.get_data()
     assert data[run_time]['bbb'] == {}, 'this emit should be off'
@@ -1150,9 +1152,8 @@ def test_emit_control() -> None:
     composite = composer.generate()
     exp = Engine(
         composite=composite,
-        store_emit={
-            'on': [('bbb', 'e2',)],
-        })
+        store_schema={'bbb': {'e2': {'_emit': True}}},
+    )
     exp.update(run_time)
     data = exp.emitter.get_data()
     assert data[run_time]['bbb']['e2'] != {}, 'this emit should be on'
@@ -1210,7 +1211,7 @@ engine_tests = {
     '16': test_hyperdivision,
     '17': test_output_port,
     '18': test_engine_run_for,
-    '19': test_emit_control,
+    '19': test_set_branch_emit,
     '20': test_add_new_state,
 }
 
