@@ -499,7 +499,7 @@ class Store:
         return new_schema
 
     def _check_schema_set_default(self, schema_key, new_schema, schema_registry):
-        current_schema = self.__dict__[schema_key]
+        current_schema = getattr(self, schema_key)
         if isinstance(new_schema, str):
             new_schema = schema_registry.access(new_schema)
         if isinstance(new_schema, dict) and isinstance(
