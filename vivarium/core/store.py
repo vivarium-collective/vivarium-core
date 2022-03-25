@@ -476,24 +476,27 @@ class Store:
                 str(self.default), str(new_default), str(new_default))
         return new_default
 
-    def _check_value(self, new_value):
+    def _check_schema(self, schema_key, new_schema):
         """Check a new schema value.
 
         Args:
-            new_value: The new value.
+            schema_key: the schema key
+            new_schema: The new schema value.
 
         Returns:
-            The new value.
+            The new schema value.
 
         Raises:
-            Exception: If the store already has a value and the new
+            Exception: If the store schema already has a value and the new
                 value is different from the existing one.
         """
-        if self.value is not None and new_value != self.value:
+        current_schema = self.__dict__[schema_key]
+        if current_schema is not None and current_schema != new_schema:
             raise Exception(
-                '_value schema conflict: {} and {}'.format(
-                    new_value, self.value))
-        return new_value
+                f"incompatible {schema_key} schema assignment: {new_schema} "
+                f"at {self.path_for()}. "
+                f"schema {current_schema} is already assigned.")
+        return new_schema
 
     def _merge_subtopology(self, subtopology):
         """Merge a new subtopology with the store's existing one."""
@@ -613,14 +616,17 @@ class Store:
             self.leaf = True
 
             if '_units' in config:
-                self.units = config['_units']
+                self.units = self._check_schema(
+                    'units', config.get('_units'))
                 self.serializer = serializer_registry.access('units')
 
             if '_serializer' in config:
-                self.serializer = config['_serializer']
-                if isinstance(self.serializer, str):
-                    self.serializer = serializer_registry.access(
-                        self.serializer)
+                serializer = config['_serializer']
+                if isinstance(serializer, str):
+                    serializer = serializer_registry.access(
+                        serializer)
+                self.serializer = self._check_schema(
+                    'serializer', serializer)
 
             if '_default' in config:
                 self.default = self._check_default(config.get('_default'))
@@ -639,7 +645,8 @@ class Store:
                                        serializer_registry.access('numpy'))
 
             if '_value' in config:
-                self.value = self._check_value(config.get('_value'))
+                self.value = self._check_schema(
+                    'value', config.get('_value'))
                 if isinstance(self.value, Quantity):
                     self.units = self.value.units
 
