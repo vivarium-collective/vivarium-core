@@ -22,7 +22,7 @@ from vivarium.library.topology import without, dict_to_paths
 from vivarium.core.types import Processes, Topology, State, Steps, Flow
 
 _EMPTY_UPDATES = None, None, None, None, None, None
-DEFAULT_DIVIDER = '_default'
+DEFAULT_SCHEMA = '_default'
 
 
 def generate_state(
@@ -492,7 +492,25 @@ class Store:
         """
         current_schema = self.__dict__[schema_key]
         if current_schema is not None and current_schema != new_schema:
-            raise Exception(
+            raise ValueError(
+                f"incompatible {schema_key} schema assignment: {new_schema} "
+                f"at {self.path_for()}. "
+                f"schema {current_schema} is already assigned.")
+        return new_schema
+
+    def _check_schema_set_default(self, schema_key, new_schema, schema_registry):
+        current_schema = self.__dict__[schema_key]
+        if isinstance(new_schema, str):
+            new_schema = schema_registry.access(new_schema)
+        if isinstance(new_schema, dict) and isinstance(
+                new_schema[schema_key], str):
+            new_schema[schema_key] = schema_registry.access(
+                new_schema[schema_key])
+        if (
+                current_schema
+                and current_schema != DEFAULT_SCHEMA
+                and current_schema != new_schema):
+            raise ValueError(
                 f"incompatible {schema_key} schema assignment: {new_schema} "
                 f"at {self.path_for()}. "
                 f"schema {current_schema} is already assigned.")
@@ -584,21 +602,8 @@ class Store:
 
         if '_divider' in config:
             new_divider = config['_divider']
-            if isinstance(new_divider, str):
-                new_divider = divider_registry.access(new_divider)
-            if isinstance(new_divider, dict) and isinstance(
-                    new_divider['divider'], str):
-                new_divider['divider'] = divider_registry.access(
-                    new_divider['divider'])
-            if (
-                    self.divider
-                    and self.divider != DEFAULT_DIVIDER
-                    and self.divider != new_divider):
-                raise ValueError(
-                    f'Trying to assign divider {new_divider} to '
-                    f'{self.path_for()}, which already has divider '
-                    f'{self.divider}.')
-            self.divider = new_divider
+            self.divider = self._check_schema_set_default(
+                'divider', new_divider, divider_registry)
             config = without(config, '_divider')
 
         # if emit set in branch, set the entire branch to the emit value
@@ -654,10 +659,10 @@ class Store:
                 '_updater',
                 self.updater or 'accumulate',
             )
-
+            
             # All leaf nodes must have a divider, even though a divider
             # on a branch node higher in the tree will take precedence.
-            self.divider = self.divider or DEFAULT_DIVIDER
+            self.divider = self.divider or DEFAULT_SCHEMA
 
             self.properties = deep_merge(
                 self.properties,
@@ -714,7 +719,7 @@ class Store:
         return updater
 
     def _get_divider(self):
-        if self.divider == DEFAULT_DIVIDER:
+        if self.divider == DEFAULT_SCHEMA:
             if self.topology:
                 # For processes, we use a null divider by default.
                 return divider_registry.access('null')
@@ -737,7 +742,7 @@ class Store:
             config['_subschema'] = self.subschema
         if self.subtopology:
             config['_subtopology'] = self.subtopology
-        if self.divider and self.divider != DEFAULT_DIVIDER:
+        if self.divider and self.divider != DEFAULT_SCHEMA:
             config['_divider'] = self.divider
 
         if sources and self.sources:
