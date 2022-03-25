@@ -599,8 +599,7 @@ class Store:
             config = without(config, '_divider')
 
         # if emit set in branch, set the entire branch to the emit value
-        if '_emit' in config:
-            if self.inner:
+        if '_emit' in config and self.inner:
                 emit_value = config['_emit']
                 self.set_emit_value(emit=emit_value)
                 config = without(config, '_emit')
