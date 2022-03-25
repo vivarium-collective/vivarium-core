@@ -490,16 +490,16 @@ class Store:
             Exception: If the store schema already has a value and the new
                 value is different from the existing one.
         """
-        current_schema = self.__dict__[schema_key]
-        if current_schema is not None and current_schema != new_schema:
+        current_schema_value = getattr(self, schema_key)
+        if current_schema_value is not None and current_schema_value != new_schema:
             raise ValueError(
-                f"incompatible {schema_key} schema assignment: {new_schema} "
-                f"at {self.path_for()}. "
-                f"schema {current_schema} is already assigned.")
+                f"Incompatible schema assignment at {self.path_for()}. "
+                f"Trying to assign the value {new_schema} to key {schema_key}, "
+                f"which already has the value {current_schema_value}.")
         return new_schema
 
-    def _check_schema_set_default(self, schema_key, new_schema, schema_registry):
-        current_schema = getattr(self, schema_key)
+    def _check_schema_methods(self, schema_key, new_schema, schema_registry):
+        current_schema_value = getattr(self, schema_key)
         if isinstance(new_schema, str):
             new_schema = schema_registry.access(new_schema)
         if isinstance(new_schema, dict) and isinstance(
@@ -507,13 +507,13 @@ class Store:
             new_schema[schema_key] = schema_registry.access(
                 new_schema[schema_key])
         if (
-                current_schema
-                and current_schema != DEFAULT_SCHEMA
-                and current_schema != new_schema):
+                current_schema_value
+                and current_schema_value != DEFAULT_SCHEMA
+                and current_schema_value != new_schema):
             raise ValueError(
-                f"incompatible {schema_key} schema assignment: {new_schema} "
-                f"at {self.path_for()}. "
-                f"schema {current_schema} is already assigned.")
+                f"Incompatible schema assignment at {self.path_for()}. "
+                f"Trying to assign the value {new_schema} to key {schema_key}, "
+                f"which already has the value {current_schema_value}.")
         return new_schema
 
     def _merge_subtopology(self, subtopology):
@@ -602,7 +602,7 @@ class Store:
 
         if '_divider' in config:
             new_divider = config['_divider']
-            self.divider = self._check_schema_set_default(
+            self.divider = self._check_schema_methods(
                 'divider', new_divider, divider_registry)
             config = without(config, '_divider')
 
