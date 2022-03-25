@@ -613,7 +613,6 @@ class Store:
                 config = without(config, '_emit')
 
         if self.schema_keys & set(config.keys()):
-
             if self.inner:
                 raise Exception(
                     'trying to assign leaf values to a branch at: {}'.format(
@@ -659,7 +658,7 @@ class Store:
                 '_updater',
                 self.updater or 'accumulate',
             )
-            
+
             # All leaf nodes must have a divider, even though a divider
             # on a branch node higher in the tree will take precedence.
             self.divider = self.divider or DEFAULT_SCHEMA
