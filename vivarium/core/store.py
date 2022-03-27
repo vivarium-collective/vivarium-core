@@ -498,7 +498,7 @@ class Store:
                 f"which already has the value {current_schema_value}.")
         return new_schema
 
-    def _check_schema_methods(self, schema_key, new_schema, schema_registry):
+    def _check_schema_support_defaults(self, schema_key, new_schema, schema_registry):
         current_schema_value = getattr(self, schema_key)
         if isinstance(new_schema, str):
             new_schema = schema_registry.access(new_schema)
@@ -602,7 +602,7 @@ class Store:
 
         if '_divider' in config:
             new_divider = config['_divider']
-            self.divider = self._check_schema_methods(
+            self.divider = self._check_schema_support_defaults(
                 'divider', new_divider, divider_registry)
             config = without(config, '_divider')
 
