@@ -654,10 +654,13 @@ class Store:
                 if isinstance(self.value, Quantity):
                     self.units = self.value.units
 
-            self.updater = config.get(
-                '_updater',
-                self.updater or 'accumulate',
-            )
+            if '_updater' in config:
+                new_updater = config['_updater']
+                self.updater = self._check_schema_support_defaults(
+                    'updater', new_updater, updater_registry)
+
+            # All leaf nodes must have an updater
+            self.updater = self.updater or DEFAULT_SCHEMA
 
             # All leaf nodes must have a divider, even though a divider
             # on a branch node higher in the tree will take precedence.
@@ -713,7 +716,10 @@ class Store:
         if isinstance(update, dict) and '_updater' in update:
             updater = update['_updater']
 
-        if isinstance(updater, str):
+        if updater == DEFAULT_SCHEMA:
+            # For all nodes, by default we use an 'accumulate' updater.
+            return updater_registry.access('accumulate')
+        elif isinstance(updater, str):
             updater = updater_registry.access(updater)
         return updater
 
