@@ -370,7 +370,7 @@ class Engine:
             metadata: Optional[dict] = None,
             description: str = '',
             emitter: Union[str, dict] = 'timeseries',
-            store_emit: Optional[dict] = None,
+            store_schema: Optional[dict] = None,
             emit_topology: bool = True,
             emit_processes: bool = False,
             emit_config: bool = False,
@@ -424,12 +424,11 @@ class Engine:
                 provide as the value for the key ``experiment_id``.
             display_info: prints experiment info
             progress_bar: shows a progress bar
-            store_emit: An optional dictionary to turn emits on or off. This
-                dictionary may contain the keys (`on`,`off`), mapping to a list
-                of paths in the Store hierarchy to be turned on or off. The
-                on configs take precedence over the off configs in that all
-                paths in `off` are turn off first, and can be turned on again
-                by the paths in `on`.
+            store_schema: An optional dictionary to expand the store hierarchy
+                configuration, and also to turn emits on or off. The dictionary
+                needs to be structured as a hierarchy, which will expand the
+                existing store hierarchy. Setting an emit value for a branch
+                node will set the emits of all the leaves to that value.
             emit_topology: If True, this will emit the topology with the
                 configuration data.
             emit_processes: If True, this will emit the serialized
@@ -484,11 +483,8 @@ class Engine:
         self.emitter: Emitter = get_emitter(emitter_config)
 
         # override emit settings in store
-        if store_emit:
-            self.state.set_emit_values(
-                paths=store_emit.get('off', []), emit=False)
-            self.state.set_emit_values(
-                paths=store_emit.get('on', []), emit=True)
+        if store_schema:
+            self.state._apply_config(store_schema)
 
         # settings for self._emit_configuration()
         self.emit_topology = emit_topology

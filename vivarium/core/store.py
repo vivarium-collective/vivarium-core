@@ -22,7 +22,7 @@ from vivarium.library.topology import without, dict_to_paths
 from vivarium.core.types import Processes, Topology, State, Steps, Flow
 
 _EMPTY_UPDATES = None, None, None, None, None, None
-DEFAULT_DIVIDER = '_default'
+DEFAULT_SCHEMA = '_default'
 
 
 def generate_state(
@@ -476,24 +476,45 @@ class Store:
                 str(self.default), str(new_default), str(new_default))
         return new_default
 
-    def _check_value(self, new_value):
+    def _check_schema(self, schema_key, new_schema):
         """Check a new schema value.
 
         Args:
-            new_value: The new value.
+            schema_key: the schema key
+            new_schema: The new schema value.
 
         Returns:
-            The new value.
+            The new schema value.
 
         Raises:
-            Exception: If the store already has a value and the new
+            Exception: If the store schema already has a value and the new
                 value is different from the existing one.
         """
-        if self.value is not None and new_value != self.value:
-            raise Exception(
-                '_value schema conflict: {} and {}'.format(
-                    new_value, self.value))
-        return new_value
+        current_schema_value = getattr(self, schema_key)
+        if current_schema_value is not None and current_schema_value != new_schema:
+            raise ValueError(
+                f"Incompatible schema assignment at {self.path_for()}. "
+                f"Trying to assign the value {new_schema} to key {schema_key}, "
+                f"which already has the value {current_schema_value}.")
+        return new_schema
+
+    def _check_schema_support_defaults(self, schema_key, new_schema, schema_registry):
+        current_schema_value = getattr(self, schema_key)
+        if isinstance(new_schema, str):
+            new_schema = schema_registry.access(new_schema)
+        if isinstance(new_schema, dict) and isinstance(
+                new_schema[schema_key], str):
+            new_schema[schema_key] = schema_registry.access(
+                new_schema[schema_key])
+        if (
+                current_schema_value
+                and current_schema_value != DEFAULT_SCHEMA
+                and current_schema_value != new_schema):
+            raise ValueError(
+                f"Incompatible schema assignment at {self.path_for()}. "
+                f"Trying to assign the value {new_schema} to key {schema_key}, "
+                f"which already has the value {current_schema_value}.")
+        return new_schema
 
     def _merge_subtopology(self, subtopology):
         """Merge a new subtopology with the store's existing one."""
@@ -581,22 +602,15 @@ class Store:
 
         if '_divider' in config:
             new_divider = config['_divider']
-            if isinstance(new_divider, str):
-                new_divider = divider_registry.access(new_divider)
-            if isinstance(new_divider, dict) and isinstance(
-                    new_divider['divider'], str):
-                new_divider['divider'] = divider_registry.access(
-                    new_divider['divider'])
-            if (
-                    self.divider
-                    and self.divider != DEFAULT_DIVIDER
-                    and self.divider != new_divider):
-                raise ValueError(
-                    f'Trying to assign divider {new_divider} to '
-                    f'{self.path_for()}, which already has divider '
-                    f'{self.divider}.')
-            self.divider = new_divider
+            self.divider = self._check_schema_support_defaults(
+                'divider', new_divider, divider_registry)
             config = without(config, '_divider')
+
+        # if emit set in branch, set the entire branch to the emit value
+        if '_emit' in config and self.inner:
+                emit_value = config['_emit']
+                self.set_emit_value(emit=emit_value)
+                config = without(config, '_emit')
 
         if self.schema_keys & set(config.keys()):
             if self.inner:
@@ -606,14 +620,17 @@ class Store:
             self.leaf = True
 
             if '_units' in config:
-                self.units = config['_units']
+                self.units = self._check_schema(
+                    'units', config.get('_units'))
                 self.serializer = serializer_registry.access('units')
 
             if '_serializer' in config:
-                self.serializer = config['_serializer']
-                if isinstance(self.serializer, str):
-                    self.serializer = serializer_registry.access(
-                        self.serializer)
+                serializer = config['_serializer']
+                if isinstance(serializer, str):
+                    serializer = serializer_registry.access(
+                        serializer)
+                self.serializer = self._check_schema(
+                    'serializer', serializer)
 
             if '_default' in config:
                 self.default = self._check_default(config.get('_default'))
@@ -632,18 +649,22 @@ class Store:
                                        serializer_registry.access('numpy'))
 
             if '_value' in config:
-                self.value = self._check_value(config.get('_value'))
+                self.value = self._check_schema(
+                    'value', config.get('_value'))
                 if isinstance(self.value, Quantity):
                     self.units = self.value.units
 
-            self.updater = config.get(
-                '_updater',
-                self.updater or 'accumulate',
-            )
+            if '_updater' in config:
+                new_updater = config['_updater']
+                self.updater = self._check_schema_support_defaults(
+                    'updater', new_updater, updater_registry)
+
+            # All leaf nodes must have an updater
+            self.updater = self.updater or DEFAULT_SCHEMA
 
             # All leaf nodes must have a divider, even though a divider
             # on a branch node higher in the tree will take precedence.
-            self.divider = self.divider or DEFAULT_DIVIDER
+            self.divider = self.divider or DEFAULT_SCHEMA
 
             self.properties = deep_merge(
                 self.properties,
@@ -695,12 +716,15 @@ class Store:
         if isinstance(update, dict) and '_updater' in update:
             updater = update['_updater']
 
-        if isinstance(updater, str):
+        if updater == DEFAULT_SCHEMA:
+            # For all nodes, by default we use an 'accumulate' updater.
+            return updater_registry.access('accumulate')
+        elif isinstance(updater, str):
             updater = updater_registry.access(updater)
         return updater
 
     def _get_divider(self):
-        if self.divider == DEFAULT_DIVIDER:
+        if self.divider == DEFAULT_SCHEMA:
             if self.topology:
                 # For processes, we use a null divider by default.
                 return divider_registry.access('null')
@@ -723,7 +747,7 @@ class Store:
             config['_subschema'] = self.subschema
         if self.subtopology:
             config['_subtopology'] = self.subtopology
-        if self.divider and self.divider != DEFAULT_DIVIDER:
+        if self.divider and self.divider != DEFAULT_SCHEMA:
             config['_divider'] = self.divider
 
         if sources and self.sources:
