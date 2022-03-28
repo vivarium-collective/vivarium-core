@@ -1,5 +1,10 @@
 # Changelog
 
+
+## v1.2.2
+
+* (#175) `store_schema` arg to `Engine` allows us to override schema directly.
+
 ## v1.2.1
 
 * (#172) bug fix to keep assembly_ids when passing queries to the DB.
