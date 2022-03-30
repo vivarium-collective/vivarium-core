@@ -1,5 +1,8 @@
 # Changelog
 
+## v1.2.3
+
+* (#176) Fix UnitsSerializer to correctly handle lists and tuples.
 
 ## v1.2.2
 
