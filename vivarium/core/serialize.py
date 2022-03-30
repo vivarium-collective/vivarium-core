@@ -266,13 +266,20 @@ class UnitsSerializer(Serializer):
                 # We can't convert `Unit` objects.
                 assert isinstance(data, Quantity)
                 data = [d.to(unit) for d in data]
-            return [str(d) for d in data]
+            return serialize_value(data)
         if unit is not None:
             # We can't convert `Unit` objects.
             assert isinstance(data, Quantity)
             data.to(unit)
         # The superclass serialize() method uses
         # `serialize_to_string()`.
+        if isinstance(data, Quantity) and isinstance(
+                data.magnitude, (list, tuple, np.ndarray)):
+            # Pint doesn't correctly deserialize Quantities whose
+            # magnitudes are lists/tuples, so instead we make them lists
+            # of Quantities and serialize accordingly.
+            return serialize_value(
+                [quantity * data.units for quantity in data.magnitude])
         return super().serialize(data)
 
     def deserialize_from_string(self, data: str) -> Quantity:
