@@ -326,6 +326,9 @@ class Process(metaclass=abc.ABCMeta):
             return self.is_deriver()
         return False
 
+    def is_engine(self) -> bool:
+        return False
+
     def get_private_state(self) -> State:
         """Get the process's private state.
 

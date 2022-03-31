@@ -803,10 +803,17 @@ class Store:
             return above + (key,)
         return tuple()
 
-    def get_value(self, condition=None, f=None):
+    def get_value(
+            self,
+            condition=None,
+            f=None,
+            expand=False):
         """
         Pull the values out of the tree in a structure symmetrical to the tree.
         """
+
+        # TODO: if `expand`==True, support the ability to
+        #   pull the entire state from all engine processes
 
         if self.inner:
             if condition is None:
@@ -822,8 +829,12 @@ class Store:
         if self.subschema:
             return {}
         elif self.topology:
+            if expand and self.value.is_engine():
+                # TODO: implement this (!)
+                return self.expand_engines()
+            else:
             # this is a process, return it with the topology
-            return (self.value, self.topology)
+                return (self.value, self.topology)
         return self.value
 
     def get_processes(self):
@@ -1964,18 +1975,18 @@ class Store:
             for inner in self.inner.values():
                 inner.build_topology_views()
 
-    def build_interface(self, interface):
-        if interface is None:
+    def build_intertopology(self, intertopology):
+        if intertopology is None:
             return None
-        elif isinstance(interface, dict):
+        elif isinstance(intertopology, dict):
             # TODO: deal with '_path' key
             return {
-                key: self.build_interface(value)
-                for key, value in interface.items()}
-        elif isinstance(interface, tuple):
-            return self.get_path(interface, select=True).get_config()
+                key: self.build_intertopology(value)
+                for key, value in intertopology.items()}
+        elif isinstance(intertopology, tuple):
+            return self.get_path(intertopology, select=True).get_config()
         else:
-            raise Exception(f'invalid interface {interface}')
+            raise Exception(f'invalid intertopology {intertopology}')
 
     def generate(self, path, processes, steps, flow, topology, initial_state):
         """

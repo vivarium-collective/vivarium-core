@@ -366,7 +366,7 @@ class Engine(Process):
         'topology': None,
         'store': None,
         'initial_state': None,
-        'interface': None,
+        'intertopology': None,
         'experiment_id': None,
         'experiment_name': None,
         'metadata': None,
@@ -458,8 +458,9 @@ class Engine(Process):
 
         # TODO: find a better name for this?
         #   - engine_topology?
-        self.interface = self.parameters['interface']
-        self.interface_updates = []
+        #   - intertopology?
+        self.intertopology = self.parameters['intertopology']
+        self.intertopology_updates = []
 
         # display settings
         self.experiment_name = self.parameters['experiment_name'] or self.experiment_id
@@ -532,7 +533,7 @@ class Engine(Process):
 
     def calculate_timestep(self, states: Optional[State]) -> Union[float, int]:
         # TODO: pass in a timestep instead of calculating minimal timestep?
-        #   AND/OR: find which processes update values in the interface, not every process
+        #   AND/OR: find which processes update values in the intertopology, not every process
         #      maybe this is unreasonable? find a good way to do it
         #   Which processes update this value? 
         timesteps = []
@@ -554,12 +555,12 @@ class Engine(Process):
 
     def ports_schema(self) -> Schema:
         schema = project_topology(
-            self.interface,
+            self.intertopology,
             self.state.get_schema())
         return schema
 
     def next_update(self, timestep, state):
-        inverse = inverse_topology((), state, self.interface)
+        inverse = inverse_topology((), state, self.intertopology)
         self.state.set_value(inverse)
         updates = self.run_for(timestep)
 
@@ -874,10 +875,10 @@ class Engine(Process):
         # TODO: make this an option, off by default?
         self.history.append((self.global_time, state.path_for(), update))
 
-        if self.interface:
-            interface_update = project_topology(self.interface, update)
-            if interface_update is not None:
-                self.interface_updates.append(interface_update)
+        if self.intertopology:
+            intertopology_update = project_topology(self.intertopology, update)
+            if intertopology_update is not None:
+                self.intertopology_updates.append(intertopology_update)
 
         (
             topology_updates, process_updates, step_updates,
@@ -1158,11 +1159,14 @@ class Engine(Process):
             if force_complete and self.global_time == end_time:
                 force_complete = False
 
-        updates = self.interface_updates
-        self.interface_updates = []
+        updates = self.intertopology_updates
+        self.intertopology_updates = []
 
         # TODO deal with topology updates also? 
         return updates
+
+    def is_engine(self) -> bool:
+        return True
 
     def end(self) -> None:
         """Terminate all processes running in parallel.

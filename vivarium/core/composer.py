@@ -400,7 +400,7 @@ class Composer(metaclass=abc.ABCMeta):
         steps = self.generate_steps(config)
         flow = self.generate_flow(config)
         topology = self.generate_topology(config)
-        interface = config.get('interface')
+        intertopology = config.get('intertopology')
         processes_and_steps = deep_copy_internal(processes)
         deep_merge_check(processes_and_steps, steps)
         _override_schemas(self.schema_override, processes_and_steps)
@@ -410,7 +410,7 @@ class Composer(metaclass=abc.ABCMeta):
             'steps': assoc_in({}, path, steps),
             'flow': assoc_in({}, path, flow),
             'topology': assoc_in({}, path, topology),
-            'interface': interface,
+            'intertopology': intertopology,
         }).initialize(config.get('initial_state'))
 
     def initial_state(self, config: Optional[dict] = None) -> Optional[State]:

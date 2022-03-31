@@ -1124,14 +1124,14 @@ def test_engine_run_for() -> None:
 
 def test_engine_process():
     # TODO: test engine process division (!)
-    # TODO: figure out half the interface from the topology
+    # TODO: figure out half the intertopology from the topology
 
     poqo_composer = PoQo({
-        'interface': {
+        'intertopology': {
             'input': ('ccc', 'a3'),
             'output': ('aaa', 'x')}})
     atom_composer = Atom({
-        'interface': {
+        'intertopology': {
             'proton': {
                 'radius': ('structure', 'radius')},
             'electrons': {
