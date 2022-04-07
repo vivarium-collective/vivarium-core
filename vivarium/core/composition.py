@@ -7,11 +7,10 @@ Helper functions for initializing and running experiments.
 """
 
 import os
-import uuid
 
 # typing
 from typing import (
-    Any, Dict, Optional, Callable)
+    Any, Dict, Optional)
 from vivarium.core.types import (
     Topology, HierarchyPath)
 
@@ -20,7 +19,6 @@ from vivarium.core.composer import Composer, Composite
 from vivarium.core.engine import Engine
 from vivarium.library.dict_utils import (
     deep_merge,
-    deep_merge_check,
 )
 
 from vivarium.processes.timeline import TimelineProcess
