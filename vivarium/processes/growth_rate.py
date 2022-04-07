@@ -22,11 +22,11 @@ class GrowthRate(Process):
     """ A Vivarium process that models exponential growth of biomass """
 
     name = NAME
-    defaults = {
-        'default_growth_rate': 0.0005,
-        'default_growth_noise': 0.0,
-        'variables': ['mass']
-    }
+    # defaults = {
+    #     'default_growth_rate': 0.0005,
+    #     'default_growth_noise': 0.0,
+    #     'variables': ['mass']
+    # }
 
     def __init__(
             self,

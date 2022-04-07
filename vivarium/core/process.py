@@ -119,10 +119,14 @@ class Process(metaclass=abc.ABCMeta):
 
     defaults: Dict[str, Any] = {}
 
-    def __init__(self, parameters=None):
+    def __init__(self, parameters: Optional[dict] = None) -> None:
         self.initialize_parameters(parameters)
 
-    def initialize_parameters(self, parameters: Optional[dict] = None, **kwargs) -> None:
+    def initialize_parameters(
+            self,
+            parameters: Optional[dict] = None,
+            **kwargs
+    ) -> None:
         parameters = parameters or {}
         if '_original_parameters' in parameters:
             original_parameters = parameters.pop('_original_parameters')
@@ -163,27 +167,23 @@ class Process(metaclass=abc.ABCMeta):
 
         self.schema: Optional[dict] = None
 
-    def initialize(self, parameters, base_parameters):
-        # parameters = local_parameters.copy()
+    def initialize(
+            self,
+            parameters: Optional[dict] = None,
+            base_parameters: Optional[dict] = None
+    ) -> None:
         # base_parameters = parameters.pop('base_parameters')
-
-        # # use schema to check base parameters
-        # base_parameters_schema.validate(base_parameters)
 
         for local in ['self', '__class__', 'ipdb']:
             if local in parameters:
                 del parameters[local]
-        
         parameters.update(base_parameters)
         self.initialize_parameters(parameters)
 
-    def _set_timestep(self):
+    def _set_timestep(self) -> None:
         self.parameters.setdefault('timestep', DEFAULT_TIME_STEP)
         if self.parameters.get('time_step'):
             self.parameters['timestep'] = self.parameters['time_step']
-        # else:
-        #     # setting 'time_step' for backwards compatibility (!)
-        #     self.parameters['time_step'] = self.parameters['timestep']
 
     def __getstate__(self) -> dict:
         """Return parameters
