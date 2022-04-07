@@ -7,11 +7,10 @@ Helper functions for initializing and running experiments.
 """
 
 import os
-import uuid
 
 # typing
 from typing import (
-    Any, Dict, Optional, Callable)
+    Any, Dict, Optional)
 from vivarium.core.types import (
     Topology, HierarchyPath)
 
@@ -20,7 +19,6 @@ from vivarium.core.composer import Composer, Composite
 from vivarium.core.engine import Engine
 from vivarium.library.dict_utils import (
     deep_merge,
-    deep_merge_check,
 )
 
 from vivarium.processes.timeline import TimelineProcess
@@ -43,86 +41,6 @@ COMPARTMENT_OUT_DIR = os.path.join(BASE_OUT_DIR, 'compartments')
 COMPOSITE_OUT_DIR = os.path.join(BASE_OUT_DIR, 'composites')
 EXPERIMENT_OUT_DIR = os.path.join(BASE_OUT_DIR, 'experiments')
 
-COMPOSER_KEY = '_composer'
-
-
-# loading functions for compartment_hierarchy_experiment
-
-def add_processes_to_hierarchy(
-        processes: Dict[str, Process],
-        topology: Topology,
-        composer_type: Callable,
-        composer_config: Optional[Dict[str, Any]] = None,
-        composer_topology: Optional[Dict[str, Any]] = None
-) -> Composite:
-    """Use a composer to add processes and topology"""
-    composer_config = composer_config or {}
-    composer_topology = composer_topology or {}
-
-    # generate
-    composer = composer_type(composer_config)
-    composite = composer.generate()
-    new_processes = composite['processes']
-    new_topology = composite['topology']
-
-    # replace process names that already exist
-    replace_name = []
-    for name in new_processes.keys():
-        if name in processes:
-            replace_name.append(name)
-    for name in replace_name:
-        new_name = name + '_' + str(uuid.uuid1())
-        new_processes[new_name] = new_processes[name]
-        new_topology[new_name] = new_topology[name]
-        del new_processes[name]
-        del new_topology[name]
-
-    # extend processes and topology list
-    new_topology = deep_merge(new_topology, composer_topology)
-    deep_merge(topology, new_topology)
-    deep_merge_check(processes, new_processes)
-
-    return Composite({
-        'processes': processes,
-        'topology': topology})
-
-
-def initialize_hierarchy(
-        hierarchy: Dict[str, Any]
-) -> Composite:
-    """Make a hierarchy with initialized processes"""
-    processes: Dict[str, Process] = {}
-    topology: Topology = {}
-    for key, level in hierarchy.items():
-        if key == COMPOSER_KEY:
-            if isinstance(level, list):
-                for composer_def in level:
-                    add_processes_to_hierarchy(
-                        processes=processes,
-                        topology=topology,
-                        composer_type=composer_def['type'],
-                        composer_config=composer_def.get(
-                            'config', {}),
-                        composer_topology=composer_def.get(
-                            'topology', {}))
-
-            elif isinstance(level, dict):
-                add_processes_to_hierarchy(
-                    processes=processes,
-                    topology=topology,
-                    composer_type=level['type'],
-                    composer_config=level.get('config', {}),
-                    composer_topology=level.get('topology', {}))
-        else:
-            composite = initialize_hierarchy(level)
-            deep_merge_check(processes, {key: composite['processes']})
-            deep_merge(topology, {key: composite['topology']})
-
-    return Composite({
-        'processes': processes,
-        'topology': topology})
-
-
 # list of keys expected in experiment settings
 experiment_config_keys = [
         'experiment_id',
@@ -135,44 +53,6 @@ experiment_config_keys = [
         'progress_bar',
         'invoke',
     ]
-
-
-def compose_experiment(
-        hierarchy: Dict[str, Any],
-        settings: Optional[Dict[str, Any]] = None,
-        initial_state: Optional[Dict[str, Any]] = None,
-) -> Engine:
-    """Make an experiment with arbitrarily embedded compartments.
-
-    Args:
-        hierarchy: an embedded dictionary mapping the desired topology
-          of nodes, with composers declared under a global COMPOSER_KEY
-          that maps to a dictionary with 'type', 'config', and
-          'topology' for the processes in the Composer. Composers
-          include lone processes.
-        settings: experiment configuration settings.
-        initial_state: is the initial_state.
-
-    Returns:
-        The experiment.
-    """
-    settings = settings or {}
-    initial_state = initial_state or {}
-
-    # make the hierarchy
-    composite = initialize_hierarchy(hierarchy)
-    processes = composite['processes']
-    topology = composite['topology']
-
-    experiment_config = {
-        'processes': processes,
-        'topology': topology,
-        'initial_state': initial_state}
-
-    for key, setting in settings.items():
-        if key in experiment_config_keys:
-            experiment_config[key] = setting
-    return Engine(**experiment_config)
 
 
 # experiment loading functions
@@ -480,44 +360,6 @@ def test_composite_in_experiment() -> None:
 
     output = simulate_composite(composite, settings)
     assert output['aaa']['x'][-1] == -90
-
-
-def test_compose_experiment() -> None:
-    hierarchy = {
-        COMPOSER_KEY:
-            {
-                'type': ExchangeA,
-                'config': {},
-            }}
-    experiment = compose_experiment(
-        hierarchy=hierarchy,
-        settings={'experiment_name': 'test'})
-    experiment.update(10)
-
-
-def test_replace_names() -> None:
-    """if processes on the same level have the same name, add uuid string"""
-    # declare the hierarchy
-    hierarchy = {
-        COMPOSER_KEY: [
-            {
-                'type': ExchangeA,
-                'config': {},
-            },
-            {
-                'type': ExchangeA,
-                'config': {},
-            }
-        ]}
-
-    # configure experiment
-    experiment = compose_experiment(
-        hierarchy=hierarchy)
-    process_names = list(experiment.processes.keys())
-
-    assert len(process_names) == 2
-    # process_names[1] has added string
-    assert process_names[0] in process_names[1]
 
 
 def test_process_deletion() -> None:

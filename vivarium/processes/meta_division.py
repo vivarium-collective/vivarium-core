@@ -3,16 +3,14 @@ import uuid
 import logging as log
 
 from vivarium.core.process import (
-    Deriver
+    Step
 )
 from vivarium.core.composer import Composer
 from vivarium.core.composition import (
-    compose_experiment,
-    COMPOSER_KEY,
     PROCESS_OUT_DIR,
 )
 from vivarium.core.engine import (
-    pp
+    Engine, pp
 )
 
 # processes
@@ -35,7 +33,7 @@ def daughter_phylogeny_id(mother_id):
         str(mother_id) + '1']
 
 
-class MetaDivision(Deriver):
+class MetaDivision(Step):
     name = NAME
     defaults = {
         'initial_state': {},
@@ -154,33 +152,22 @@ def test_division():
         (time_total, {})]
 
     # declare the hierarchy
-    hierarchy = {
-        COMPOSER_KEY: [
-            {
-                'type': TimelineProcess,
-                'config': {'timeline': timeline},
-                'topology': {
-                    'global': ('global',),
-                    'agents': ('agents',)
-                }
-            }
-        ],
-        'agents': {
-            agent_id: {
-                COMPOSER_KEY: {
-                    'type': ToyAgent,
-                    'config': {'agent_id': agent_id}
-                },
-            }
-        }
-    }
+    timeline = TimelineProcess({'timeline': timeline})
+    agent = ToyAgent({'agent_id': agent_id})
+
+    composite = agent.generate(path=('agents', agent_id))
+    composite.merge(
+        processes={'timeline': timeline},
+        topology={'timeline': {
+            'global': ('global',),
+            'agents': ('agents',)}},
+        state=initial_state
+    )
 
     # configure experiment
-    settings = {}
-    experiment = compose_experiment(
-        hierarchy=hierarchy,
-        initial_state=initial_state,
-        settings=settings)
+    experiment = Engine(
+        composite=composite,
+    )
 
     # run simulation
     experiment.update(time_total)

@@ -8,15 +8,13 @@ import os
 
 from typing import Any, Dict
 
-from vivarium.core.engine import pp
+from vivarium.core.engine import pp, Engine
 from vivarium.core.process import (
     Process,
     Deriver
 )
 from vivarium.core.composer import Composer
 from vivarium.core.composition import (
-    compose_experiment,
-    COMPOSER_KEY,
     PROCESS_OUT_DIR,
 )
 from vivarium.composites.toys import ExchangeA
@@ -203,18 +201,10 @@ def test_alternator():
     }
 
     # declare the hierarchy
-    hierarchy = {
-        COMPOSER_KEY: {
-                'type': ExchangeAlternator,
-        }
-    }
-
-    # configure experiment
-    settings = {}
-    experiment = compose_experiment(
-        hierarchy=hierarchy,
-        initial_state=initial_state,
-        settings=settings)
+    experiment = Engine(
+        composite=ExchangeAlternator().generate(),
+        initial_state=initial_state
+    )
 
     pp(experiment.topology)
     pp(experiment.state.get_value())
