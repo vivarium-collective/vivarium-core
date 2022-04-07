@@ -43,8 +43,6 @@ COMPARTMENT_OUT_DIR = os.path.join(BASE_OUT_DIR, 'compartments')
 COMPOSITE_OUT_DIR = os.path.join(BASE_OUT_DIR, 'composites')
 EXPERIMENT_OUT_DIR = os.path.join(BASE_OUT_DIR, 'experiments')
 
-COMPOSER_KEY = '_composer'
-
 # list of keys expected in experiment settings
 experiment_config_keys = [
         'experiment_id',
