@@ -263,7 +263,7 @@ class ToyLinearGrowthDeathProcess(Process):
 class Proton(Process):
     name = 'proton'
     defaults = {
-        'time_step': 1.0,
+        'timestep': 1.0,
         'radius': 0.0}
 
     def ports_schema(self):
@@ -314,7 +314,7 @@ class Proton(Process):
 class Electron(Process):
     name = 'electron'
     defaults = {
-        'time_step': 1.0,
+        'timestep': 1.0,
         'spin': electron_spins[0]}
 
     def ports_schema(self):
@@ -667,10 +667,10 @@ def test_composite_parameters() -> None:
     composer_parameters = bb_composer.get_parameters()
     composite_parameters = bb_composite.get_parameters()
     expected_parameters = {
-        'a1': {'time_step': 1.0},
-        'a2': {'time_step': 1.0},
+        'a1': {'timestep': 1.0},
+        'a2': {'timestep': 1.0},
         'a3_store': {
-            'a3': {'time_step': 1.0}}}
+            'a3': {'timestep': 1.0}}}
     assert composite_parameters == composer_parameters
     assert composite_parameters == expected_parameters
 

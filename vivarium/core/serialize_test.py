@@ -115,7 +115,7 @@ def test_serialization_full() -> None:
         serialized.pop('function'))
     expected_serialized = {
         'process': (
-            "!ProcessSerializer[{'time_step': 1.0, '_name': "
+            "!ProcessSerializer[{'timestep': 1.0, '_name': "
             "'SerializeProcess'}]"
         ),
         '1': True,
