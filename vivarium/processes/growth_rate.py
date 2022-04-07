@@ -28,6 +28,17 @@ class GrowthRate(Process):
         'variables': ['mass']
     }
 
+    def __init__(
+            self,
+            default_growth_rate=0.0005,
+            default_growth_noise=0.0,
+            variables=('mass',),
+            **base_parameters):
+
+        parameters = locals().copy()
+        base_parameters = parameters.pop('base_parameters')
+        self.initialize(parameters, base_parameters)
+
     def ports_schema(self):
         return {
             'variables': {
@@ -73,13 +84,16 @@ class GrowthRate(Process):
 def test_growth_rate(total_time=1350):
     initial_mass = 100
     growth_rate = 0.0005
-    config = {
-        'variables': ['mass'],
-        'default_growth_rate': growth_rate,
-        'time_step': 2,
-    }
+    # config = {
+    #     'variables': ['mass'],
+    #     'default_growth_rate': growth_rate,
+    #     'timestep': 2,
+    # }
 
-    growth_rate_process = GrowthRate(config)
+    growth_rate_process = GrowthRate(
+        default_growth_rate=growth_rate,
+        timestep=5.0,
+        variables=('mass',))
     initial_state = {'variables': {'mass': initial_mass}}
     experiment = process_in_experiment(
         growth_rate_process,
