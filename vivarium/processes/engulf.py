@@ -8,14 +8,11 @@ import os
 
 from vivarium.core.engine import pp
 from vivarium.core.process import (
-    Deriver,
+    Step,
 )
-from vivarium.core.composer import Composer
-from vivarium.core.composition import (
-    compose_experiment,
-    COMPOSER_KEY,
-    PROCESS_OUT_DIR,
-)
+from vivarium.core.composer import Composer, Composite
+from vivarium.core.engine import Engine
+from vivarium.core.composition import PROCESS_OUT_DIR
 from vivarium.composites.toys import ExchangeA
 from vivarium.processes.timeline import TimelineProcess
 
@@ -23,7 +20,7 @@ from vivarium.processes.timeline import TimelineProcess
 NAME = 'engulf'
 
 
-class Engulf(Deriver):
+class Engulf(Step):
     """ Engulf Process
 
     remove a compartment when the state under the 'trigger' port is set to True.
@@ -33,7 +30,7 @@ class Engulf(Deriver):
         'agent_id': 'DEFAULT'}
 
     def __init__(self, parameters=None):
-        super(Engulf, self).__init__(parameters)
+        super().__init__(parameters)
         self.agent_id = self.parameters['agent_id']
 
     def ports_schema(self):
@@ -126,39 +123,30 @@ def test_engulf():
         (time_total, {})]
 
     # declare the hierarchy
-    hierarchy = {
-        COMPOSER_KEY: [
-            {
-                'type': TimelineProcess,
-                'config': {'timeline': timeline},
-                'topology': {
-                    'global': ('global',),
-                    'agents': ('agents',)
-                }
-            }
-        ],
-        'agents': {
-            agent_id: {
-                COMPOSER_KEY: {
-                    'type': ToyAgent,
-                    'config': {
-                        'exchange': {
-                            'internal_path': ('concentrations',),
-                            'external_path': ('..', '..', 'concentrations')},
-                        'engulf': {
-                            'inner_path': ('agents',),
-                            'outer_path': ('..', '..', 'agents')}}
-                }
-            } for agent_id in agent_ids
-        }
-    }
+    timeline = TimelineProcess({'timeline': timeline})
+    agent = ToyAgent({
+        'exchange': {
+            'internal_path': ('concentrations',),
+            'external_path': ('..', '..', 'concentrations')},
+        'engulf': {
+            'inner_path': ('agents',),
+            'outer_path': ('..', '..', 'agents')}})
+
+    composite = Composite()
+    for agent_id in agent_ids:
+        composite.merge(agent.generate(path=('agents', agent_id)))
+    composite.merge(
+        processes={'timeline': timeline},
+        topology={'timeline': {
+            'global': ('global',),
+            'agents': ('agents',)}},
+        state=initial_state
+    )
 
     # configure experiment
-    settings = {}
-    experiment = compose_experiment(
-        hierarchy=hierarchy,
-        initial_state=initial_state,
-        settings=settings)
+    experiment = Engine(
+        composite=composite,
+    )
 
     # run simulation
     experiment.update(time_total)
