@@ -84,7 +84,10 @@ def _get_parameters(
 class Process(metaclass=abc.ABCMeta):
     defaults: Dict[str, Any] = {}
 
-    def __init__(self, parameters: Optional[dict] = None) -> None:
+    def __init__(self, parameters=None):
+        self.initialize_parameters(parameters)
+
+    def initialize_parameters(self, parameters: Optional[dict] = None, **kwargs) -> None:
         """Process parent class.
 
         All :term:`process` classes must inherit from this class. Each
@@ -113,6 +116,7 @@ class Process(metaclass=abc.ABCMeta):
                 * ``timestep``: Returned by
                   :py:meth:`vivarium.core.process.Process.calculate_timestep`.
         """
+
         parameters = parameters or {}
         if '_original_parameters' in parameters:
             original_parameters = parameters.pop('_original_parameters')
@@ -150,13 +154,32 @@ class Process(metaclass=abc.ABCMeta):
 
         self.schema: Optional[dict] = None
 
+    def initialize(self, parameters, base_parameters):
+        import ipdb; ipdb.set_trace()
+
+        # parameters = local_parameters.copy()
+        # base_parameters = parameters.pop('base_parameters')
+
+        # # use schema to check base parameters
+        # base_parameters_schema.validate(base_parameters)
+
+        for local in ['self', '__class__', 'ipdb']:
+            if local in parameters:
+                del parameters[local]
+        
+        parameters.update(base_parameters)
+
+        self.initialize_parameters(parameters)
+
+        import ipdb; ipdb.set_trace()
+
     def _set_timestep(self):
         self.parameters.setdefault('timestep', DEFAULT_TIME_STEP)
         if self.parameters.get('time_step'):
             self.parameters['timestep'] = self.parameters['time_step']
-        else:
-            # setting 'time_step' for backwards compatibility (!)
-            self.parameters['time_step'] = self.parameters['timestep']
+        # else:
+        #     # setting 'time_step' for backwards compatibility (!)
+        #     self.parameters['time_step'] = self.parameters['timestep']
 
     def __getstate__(self) -> dict:
         """Return parameters
