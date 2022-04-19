@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.2.4
+
+* (#179) Register the injector process.
+* (#178) Remove `compose_experiment()`, which was replaced by
+  `Composite.merge()` long ago.
+
 ## v1.2.3
 
 * (#176) Fix UnitsSerializer to correctly handle lists and tuples.

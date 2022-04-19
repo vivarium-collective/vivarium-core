@@ -34,6 +34,7 @@ from vivarium.processes.mass_adaptor import (
     MassToMolar,
     MassToCount,
 )
+from vivarium.processes.injector import Injector
 
 # import updaters, dividers, serializers
 from vivarium.core.registry import (
@@ -73,6 +74,7 @@ process_registry.register(CountsToConcentration.name, CountsToConcentration)
 process_registry.register(MassToCount.name, MassToCount)
 process_registry.register(MassToMolar.name, MassToMolar)
 process_registry.register(StripUnits.name, StripUnits)
+process_registry.register(Injector.name, Injector)
 
 # register updaters
 updater_registry.register('accumulate', update_accumulate)
