@@ -1,4 +1,5 @@
 from collections.abc import Sequence
+import math
 from typing import Any, Callable, List, Union
 import warnings
 
@@ -283,6 +284,9 @@ class UnitsSerializer(Serializer):
         return super().serialize(data)
 
     def deserialize_from_string(self, data: str) -> Quantity:
+        if data.startswith('nan'):
+            unit = data[len('nan'):].strip()
+            return math.nan * units(unit)
         return units(data)
 
     # Here the differing argument is `unit`, which is optional, so we

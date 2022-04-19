@@ -1,3 +1,4 @@
+import math
 import re
 from typing import Any
 
@@ -104,6 +105,7 @@ def test_serialization_full() -> None:
         'list': [True, False, 'test', 1, None],
         'quantity': 5 * units.fg,
         'unit': units.fg,
+        'nan_unit': math.nan * units.fg,
         'dict': {
             'a': False,
         },
@@ -135,6 +137,7 @@ def test_serialization_full() -> None:
         'list': [True, False, 'test', 1, None],
         'quantity': '!units[5 femtogram]',
         'unit': '!units[femtogram]',
+        'nan_unit': '!units[nan femtogram]',
         'dict': {
             'a': False,
         },
@@ -145,6 +148,11 @@ def test_serialization_full() -> None:
     expected_serialized.pop('process')
 
     deserialized = deserialize_value(expected_serialized)
+
+    assert math.isnan(deserialized['nan_unit'].magnitude)
+    assert deserialized['nan_unit'].units == units.fg
+    deserialized.pop('nan_unit')
+
     expected_deserialized = {
         '1': True,
         'numpy_int': [1, 2, 3],
