@@ -120,12 +120,11 @@ class Process(metaclass=abc.ABCMeta):
     defaults: Dict[str, Any] = {}
 
     def __init__(self, parameters: Optional[dict] = None) -> None:
-        self.initialize_parameters(parameters)
+        self.initialize(parameters)
 
-    def initialize_parameters(
+    def initialize(
             self,
             parameters: Optional[dict] = None,
-            **kwargs
     ) -> None:
         parameters = parameters or {}
         if '_original_parameters' in parameters:
@@ -167,18 +166,22 @@ class Process(metaclass=abc.ABCMeta):
 
         self.schema: Optional[dict] = None
 
-    def initialize(
-            self,
-            parameters: Optional[dict] = None,
-            base_parameters: Optional[dict] = None
-    ) -> None:
-        # base_parameters = parameters.pop('base_parameters')
+    def config_init(
+            self, parameters: Optional[dict] = None) -> None:
+        self.initialize(parameters)
 
-        for local in ['self', '__class__', 'ipdb']:
-            if local in parameters:
-                del parameters[local]
-        parameters.update(base_parameters)
-        self.initialize_parameters(parameters)
+    def keyword_init(self) -> None:
+        raise Exception(
+            f'keyword_init not provided for this Process {self.name}')
+
+    def base_keyword_init(
+            self,
+            timestep: float = 1,
+            parallel: bool = False,
+            condition: Optional[HierarchyPath] = None,
+            original_parameters: Optional[dict] = None
+    ) -> None:
+        pass
 
     def _set_timestep(self) -> None:
         self.parameters.setdefault('timestep', DEFAULT_TIME_STEP)

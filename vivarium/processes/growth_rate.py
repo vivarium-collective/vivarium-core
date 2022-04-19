@@ -28,16 +28,17 @@ class GrowthRate(Process):
     #     'variables': ['mass']
     # }
 
-    def __init__(
+    def keyword_init(
             self,
             default_growth_rate=0.0005,
             default_growth_noise=0.0,
             variables=('mass',),
-            **base_parameters):
+            # **base_parameters
+    ):
 
         parameters = locals().copy()
-        base_parameters = parameters.pop('base_parameters')
-        self.initialize(parameters, base_parameters)
+        # base_parameters = parameters.pop('base_parameters')
+        self.initialize()
 
     def ports_schema(self):
         return {
@@ -90,7 +91,7 @@ def test_growth_rate(total_time=1350):
     #     'timestep': 2,
     # }
 
-    growth_rate_process = GrowthRate(
+    growth_rate_process = GrowthRate.keyword_init(
         default_growth_rate=growth_rate,
         timestep=5.0,
         variables=('mass',))
