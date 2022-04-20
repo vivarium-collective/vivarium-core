@@ -190,6 +190,8 @@ class Store:
       dictionary by default.
     * **_emit** (:py:class:`bool`): Whether to emit the variable to the
       :term:`emitter`. This is ``False`` by default.
+    * **_log_updates** (:py:class:`bool`): Whether to keep a log of all
+      updates to leaf nodes.
     """
     schema_keys = {
         '_default',
@@ -198,6 +200,7 @@ class Store:
         '_properties',
         '_emit',
         '_serializer',
+        '_log_updates'
     }
 
     def __init__(self, config, outer=None, source=None):
@@ -223,6 +226,8 @@ class Store:
         # dependencies. The list is empty if the Step has no
         # dependencies but should not be treated like a Deriver.
         self.flow = None
+        self.update_log = []
+        self.log_updates = False
 
         self._apply_config(config, source)
 
@@ -608,9 +613,14 @@ class Store:
 
         # if emit set in branch, set the entire branch to the emit value
         if '_emit' in config and self.inner:
-                emit_value = config['_emit']
-                self.set_emit_value(emit=emit_value)
-                config = without(config, '_emit')
+            emit_value = config['_emit']
+            self.set_emit_value(emit=emit_value)
+            config = without(config, '_emit')
+
+        if '_log_updates' in config and self.inner:
+            self.set_config_value_recursively(
+                '_log_updates', config['_log_updates'])
+            config = without(config, '_log_updates')
 
         if self.schema_keys & set(config.keys()):
             if self.inner:
@@ -618,6 +628,9 @@ class Store:
                     'trying to assign leaf values to a branch at: {}'.format(
                         self.path_for()))
             self.leaf = True
+
+            if '_log_updates' in config:
+                self.log_updates = config['_log_updates']
 
             if '_units' in config:
                 self.units = self._check_schema(
@@ -1039,18 +1052,31 @@ class Store:
                 self.set_emit_value(emit=emit, path=path)
 
     def set_emit_value(self, path=None, emit=False):
-        """
-        Turn on/off emits for all inner nodes of path.
+        """Turn on/off emits for all inner nodes of path."""
+        self.set_config_value_recursively(
+            '_emit', emit, path)
+
+    def set_config_value_recursively(self, key, value, path=tuple()):
+        """Set a config value recursively in a subtree.
+
+        Args:
+            key: Config key, e.g. ``_emit``.
+            value: The value to set in the config.
+            path: An optional path to a subtree to apply config value
+                to. If not specified, apply config to the subtree rooted
+                at ``self``.
         """
         if path:
             assert isinstance(path, tuple), 'path must be a tuple'
             target = self.get_path(path)
-            target.set_emit_value(emit=emit)
+            target.set_config_value_recursively(
+                key, value)
         elif self.inner:
             for child in self.inner.values():
-                child.set_emit_value(emit=emit)
+                child.set_config_value_recursively(
+                    key, value)
         else:
-            self.emit = emit
+            self._apply_config({key: value})
 
     def _delete_path(self, path):
         """
@@ -1411,7 +1437,7 @@ class Store:
 
         return deletions
 
-    def apply_update(self, update, state=None):
+    def apply_update(self, update, state=None, source=None):
         """
         Given an arbitrary update, map all the values in that update
         to their positions in the tree where they apply, and update
@@ -1420,6 +1446,7 @@ class Store:
         Arguments:
             update: The update being applied.
             state: The state at the start of the time step.
+            source: Path to the process that produced the update.
 
         There are five topology update methods, which use the following
         special update keys:
@@ -1478,13 +1505,15 @@ class Store:
               in the tree.
         """
         view_expire = False
+        if source is None and state is not None:
+            source = state.path_for()
 
         if isinstance(update, dict) and MULTI_UPDATE_KEY in update:
             # apply multiple updates to same node
             multi_update = update[MULTI_UPDATE_KEY]
             assert isinstance(multi_update, list)
             for update_value in multi_update:
-                self.apply_update(update_value, state)
+                self.apply_update(update_value, state, source)
             return _EMPTY_UPDATES
 
         if self.inner or self.subschema:
@@ -1554,7 +1583,7 @@ class Store:
                     (
                         inner_topology, inner_processes, inner_steps,
                         inner_flows, inner_deletions, inner_view_expire
-                    ) = inner.apply_update(value, state)
+                    ) = inner.apply_update(value, state, source)
 
                     if inner_topology:
                         topology_updates.extend(inner_topology)
@@ -1597,6 +1626,7 @@ class Store:
             if '_updater' in update:
                 update = update.get('_value', self.default)
 
+        old_value = self.value
         try:
             self.value = updater(self.value, update)
         except:
@@ -1609,8 +1639,14 @@ class Store:
                 raise Exception(
                     f"failed update at path {self.path_for()} "
                     f"with value {self.value} for update {pformat(update)}")
+        self._log_update(old_value, self.value, updater, update, source)
 
         return _EMPTY_UPDATES
+
+    def _log_update(self, old_value, new_value, updater, update, source):
+        if self.log_updates:
+            self.update_log.append(
+                (old_value, new_value, str(updater), update, source))
 
     def inner_value(self, key):
         """
