@@ -1188,7 +1188,7 @@ def test_add_new_state() -> None:
     assert len(timeseries['agents'][agent_id]['extra']) == total_time + 1
 
 
-def test_floating_point_timesteps():
+def test_floating_point_timesteps() -> None:
     agent_id = '1'
     transport_timestep = 0.1
     composite = get_toy_transport_in_env_composite(
