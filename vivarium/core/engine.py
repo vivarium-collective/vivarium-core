@@ -975,9 +975,9 @@ class Engine:
             interval: the amount of time to simulate the composite.
             force_complete: a bool indicating whether to force processes
                 to complete at the end of the interval.
-            global_time_precision: an optional int that sets the decimal precision
-                of global_time. This is useful for remove floating-point rounding
-                errors for the time keys of saved states.
+            global_time_precision: an optional int that sets the decimal
+                precision of global_time. This is useful for remove floating-
+                point rounding errors for the time keys of saved states.
         """
         end_time = self.global_time + interval
         emit_time = self.global_time + self.emit_step
