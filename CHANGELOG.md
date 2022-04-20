@@ -1,5 +1,53 @@
 # Changelog
 
+## v1.2.4
+
+* (#179) Register the injector process.
+* (#178) Remove `compose_experiment()`, which was replaced by
+  `Composite.merge()` long ago.
+
+## v1.2.3
+
+* (#176) Fix UnitsSerializer to correctly handle lists and tuples.
+
+## v1.2.2
+
+* (#175) `store_schema` arg to `Engine` allows us to override schema directly.
+
+## v1.2.1
+
+* (#172) bug fix to keep assembly_ids when passing queries to the DB.
+
+## v1.2.0
+
+* (#167) Make serialization more structured and robust with serializer
+  classes that know what kinds of data they can serialize and
+  deserialize.
+
+## v1.1.1
+
+* (#169) `get_history_data_db` no longer requires a 'time' key. It
+  asserts an 'assembly_id' key instead.
+
+## v1.1.0
+
+* (#164) Add a `_no_original_parameters` configuration to `Process`
+  that, if `True`, disables the copying of parameters that
+  `Process.__init__()` does by default. Disabling this copying decreases
+  memory usage, but it puts the user in charge of ensuring that
+  parameters are not mutated.
+
+## v1.0.2
+
+* (#163) Fix two bugs:
+
+  * In `divide_condition.py`, use a divider that sets the division
+    variable to `False` instead of `0`.
+  * In `engine.py`, fix the function that checks that every dependency
+    in the flow is also in the dictionary of steps. This function did
+    not correctly handle cases where steps were nested in
+    sub-dictionaries.
+
 ## v1.0.1
 
 * (#151) Make `Engine._run_steps()` public.

@@ -207,7 +207,7 @@ def test_update_schema() -> None:
     store = Store({})
     store.create(['top', 'process1'], ToyProcess({}))
     store.create(['top', 'store1'], _updater='set')
-    assert store['top', 'store1'].updater == 'set', \
+    assert store['top', 'store1'].updater.__name__ == 'update_set', \
         'updater is not set correctly'
 
 

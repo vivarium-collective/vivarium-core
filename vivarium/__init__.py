@@ -34,15 +34,20 @@ from vivarium.processes.mass_adaptor import (
     MassToMolar,
     MassToCount,
 )
+from vivarium.processes.injector import Injector
 
 # import updaters, dividers, serializers
 from vivarium.core.registry import (
     update_accumulate, update_set, update_merge, update_null,
-    update_nonnegative_accumulate, update_dictionary,
-    divide_set, divide_split, divide_split_dict, divide_zero,
-    assert_no_divide, divide_null, divide_binomial, divide_set_value,
-    NumpySerializer, NumpyScalarSerializer, UnitsSerializer,
-    ProcessSerializer, ComposerSerializer, FunctionSerializer,
+    update_nonnegative_accumulate, update_dictionary, divide_set,
+    divide_split, divide_split_dict, divide_zero, assert_no_divide,
+    divide_null, divide_binomial, divide_set_value,
+)
+from vivarium.core.serialize import (
+    IdentitySerializer, NumpySerializer, SequenceSerializer,
+    NumpyScalarSerializer, UnitsSerializer, ProcessSerializer,
+    ComposerSerializer, FunctionSerializer, ObjectIdSerializer,
+    DictSerializer,
 )
 
 # import emitters
@@ -69,6 +74,7 @@ process_registry.register(CountsToConcentration.name, CountsToConcentration)
 process_registry.register(MassToCount.name, MassToCount)
 process_registry.register(MassToMolar.name, MassToMolar)
 process_registry.register(StripUnits.name, StripUnits)
+process_registry.register(Injector.name, Injector)
 
 # register updaters
 updater_registry.register('accumulate', update_accumulate)
@@ -90,12 +96,14 @@ divider_registry.register('set_value', divide_set_value)
 divider_registry.register('null', divide_null)
 
 # register serializers
-serializer_registry.register('numpy', NumpySerializer())
-serializer_registry.register('numpy_scalar', NumpyScalarSerializer())
-serializer_registry.register('units', UnitsSerializer())
-serializer_registry.register('process', ProcessSerializer())
-serializer_registry.register('composer', ComposerSerializer())
-serializer_registry.register('function', FunctionSerializer())
+for SerializerClass in (
+        IdentitySerializer, NumpySerializer, SequenceSerializer,
+        NumpyScalarSerializer, UnitsSerializer, ProcessSerializer,
+        ComposerSerializer, FunctionSerializer, ObjectIdSerializer,
+        DictSerializer):
+    serializer = SerializerClass()
+    serializer_registry.register(
+        serializer.name, serializer, serializer.alternate_keys)
 
 # register emitters
 emitter_registry.register('print', Emitter)

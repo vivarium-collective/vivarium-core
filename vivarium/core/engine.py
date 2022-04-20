@@ -358,32 +358,7 @@ class _StepGraph:
 
 
 class Engine(Process):
-    defaults: Dict[str, Any] = {
-        'composite': None,
-        'processes': None,
-        'steps': None,
-        'flow': None,
-        'topology': None,
-        'store': None,
-        'initial_state': None,
-        'intertopology': None,
-        'experiment_id': None,
-        'experiment_name': None,
-        'metadata': None,
-        'description': '',
-        'emitter': 'timeseries',
-        'emit_topology': True,
-        'emit_processes': False,
-        'emit_config': False,
-        'invoke': None,
-        'emit_step': 1,
-        'display_info': True,
-        'progress_bar': False,
-        'profile': False,
-    }
-
-    def __init__(self, parameters=None) -> None:
-        """Defines simulations
+    """Defines simulations
 
         Args:
             composite: A :term:`Composite`, which specifies the processes,
@@ -427,10 +402,67 @@ class Engine(Process):
                 provide as the value for the key ``experiment_id``.
             display_info: prints experiment info
             progress_bar: shows a progress bar
-            emit_config: If True, this will emit the serialized
-                processes, topology, and initial state.
+            store_schema: An optional dictionary to expand the store hierarchy
+                configuration, and also to turn emits on or off. The dictionary
+                needs to be structured as a hierarchy, which will expand the
+                existing store hierarchy. Setting an emit value for a branch
+                node will set the emits of all the leaves to that value.
+            emit_topology: If True, this will emit the topology with the
+                configuration data.
+            emit_processes: If True, this will emit the serialized
+                processes with the configuration data.
+            emit_config: If True, this will emit the serialized initial
+                state with the configuration data.
             profile: Whether to profile the simulation with cProfile.
         """
+    #             composite: Optional[Composite] = None,
+    #             processes: Optional[Processes] = None,
+    #             steps: Optional[Steps] = None,
+    #             flow: Optional[Flow] = None,
+    #             topology: Optional[Topology] = None,
+    #             store: Optional[Store] = None,
+    #             initial_state: Optional[State] = None,
+    #             experiment_id: Optional[str] = None,
+    #             experiment_name: Optional[str] = None,
+    #             metadata: Optional[dict] = None,
+    #             description: str = '',
+    #             emitter: Union[str, dict] = 'timeseries',
+    #             store_schema: Optional[dict] = None,
+    #             emit_topology: bool = True,
+    #             emit_processes: bool = False,
+    #             emit_config: bool = False,
+    #             invoke: Optional[Any] = None,
+    #             emit_step: float = 1,
+    #             display_info: bool = True,
+    #             progress_bar: bool = False,
+    #             profile: bool = False,
+
+    defaults: Dict[str, Any] = {
+        'composite': None,
+        'processes': None,
+        'steps': None,
+        'flow': None,
+        'topology': None,
+        'store': None,
+        'initial_state': None,
+        'intertopology': None,
+        'store_schema': None,
+        'experiment_id': None,
+        'experiment_name': None,
+        'metadata': None,
+        'description': '',
+        'emitter': 'timeseries',
+        'emit_topology': True,
+        'emit_processes': False,
+        'emit_config': False,
+        'invoke': None,
+        'emit_step': 1,
+        'display_info': True,
+        'progress_bar': False,
+        'profile': False,
+    }
+
+    def __init__(self, parameters=None) -> None:
         super().__init__(parameters)
 
         self.profiler: Optional[cProfile.Profile] = None
@@ -493,6 +525,12 @@ class Engine(Process):
         emitter_config['experiment_id'] = self.experiment_id
         self.emitter: Emitter = get_emitter(emitter_config)
 
+        # override emit settings in store
+        store_schema = self.parameters.get('store_schema')
+        if store_schema:
+            self.state._apply_config(store_schema)
+
+        # settings for self._emit_configuration()
         self.emit_topology = self.parameters['emit_topology']
         self.emit_processes = self.parameters['emit_processes']
         self.emit_config = self.parameters['emit_config']
@@ -579,6 +617,7 @@ class Engine(Process):
             else:
                 assert isinstance(sub_flow, list)
                 for dependency in sub_flow:
+                    dependency = path + dependency
                     if dependency not in step_paths:
                         raise Exception(
                             f'Unknown dependency step {dependency} is '
@@ -627,6 +666,7 @@ class Engine(Process):
 
         else:
             self.state = store
+            self.state.set_value(self.initial_state)
             # build the processes' views
             self.state.build_topology_views()
             # get processes and topology from the store
@@ -699,14 +739,15 @@ class Engine(Process):
             'metadata': self.metadata,
             'topology': self.topology
             if self.emit_topology else None,
-            'processes': serialize_value(self.processes)
+            'processes': self.processes
             if self.emit_processes else None,
-            'state': serialize_value(self.state.get_config())
+            'state': self.state.get_config()
             if self.emit_config else None,
         }
         emit_config: Dict[str, Any] = {
             'table': 'configuration',
-            'data': data}
+            'data': serialize_value(data)
+        }
         self.emitter.emit(emit_config)
 
     def _emit_store_data(self) -> None:

@@ -2,7 +2,7 @@ import re
 from setuptools import setup
 
 
-VERSION = '1.0.1'
+VERSION = '1.2.4'
 
 
 if __name__ == '__main__':

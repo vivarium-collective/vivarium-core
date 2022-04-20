@@ -1122,6 +1122,68 @@ def test_engine_run_for() -> None:
         assert advance['time'] == sim.global_time, \
             f"process at path {path} did not complete"
 
+
+def test_set_branch_emit() -> None:
+    run_time = 5
+    # get the composer
+    composer = PoQo({})
+
+    # turn on emits
+    composite = composer.generate()
+    exp = Engine(
+        composite=composite,
+        store_schema={'_emit': True}
+    )
+    exp.update(run_time)
+    data = exp.emitter.get_data()
+    assert data[run_time]['bbb'] != {}, 'this emit should be on'
+    print(pf(data))
+
+    # turn off emits
+    composite = composer.generate()
+    exp = Engine(
+        composite=composite,
+        store_schema={'_emit': False}
+    )
+    exp.update(run_time)
+    data = exp.emitter.get_data()
+    assert data[run_time]['bbb'] == {}, 'this emit should be off'
+    print(pf(data))
+
+    # selectively turn on emits
+    composite = composer.generate()
+    exp = Engine(
+        composite=composite,
+        store_schema={'bbb': {'e2': {'_emit': True}}},
+    )
+    exp.update(run_time)
+    data = exp.emitter.get_data()
+    assert data[run_time]['bbb']['e2'] != {}, 'this emit should be on'
+    assert data[run_time]['ccc'] == {}, 'this emit should be off'
+    print(pf(data))
+
+
+def test_add_new_state() -> None:
+    agent_id = '1'
+    composite = get_toy_transport_in_env_composite(agent_id=agent_id)
+    new_schema = {
+        'agents': {
+            agent_id: {
+                'extra': {'_emit': True, '_value': 1.0}}}}
+    experiment = Engine(
+        processes=composite.processes,
+        topology=composite.topology,
+        store_schema=new_schema,
+    )
+
+    assert experiment.state['agents', agent_id, 'extra'].get_value() == 1.0
+
+    total_time = 5
+    experiment.update(total_time)
+    timeseries = experiment.emitter.get_timeseries()
+    assert len(timeseries['agents'][agent_id]['extra']) == total_time + 1
+
+
 def test_engine_process():
     # TODO: test engine process division (!)
     # TODO: figure out half the intertopology from the topology
@@ -1185,7 +1247,9 @@ engine_tests = {
     '16': test_hyperdivision,
     '17': test_output_port,
     '18': test_engine_run_for,
-    '19': test_engine_process,
+    '19': test_set_branch_emit,
+    '20': test_add_new_state,
+    '21': test_engine_process,
 }
 
 

@@ -8,14 +8,11 @@ import os
 
 from vivarium.core.engine import pp
 from vivarium.core.process import (
-    Deriver,
+    Step,
 )
-from vivarium.core.composer import Composer
-from vivarium.core.composition import (
-    compose_experiment,
-    COMPOSER_KEY,
-    PROCESS_OUT_DIR,
-)
+from vivarium.core.composer import Composer, Composite
+from vivarium.core.engine import Engine
+from vivarium.core.composition import PROCESS_OUT_DIR
 from vivarium.composites.toys import ExchangeA
 from vivarium.processes.timeline import TimelineProcess
 
@@ -23,7 +20,7 @@ from vivarium.processes.timeline import TimelineProcess
 NAME = 'burst'
 
 
-class Burst(Deriver):
+class Burst(Step):
     """ Burst Process
 
     Remove a compartment when the state under the 'trigger' port is set to True.
@@ -35,7 +32,7 @@ class Burst(Deriver):
     }
 
     def __init__(self, parameters=None):
-        super(Burst, self).__init__(parameters)
+        super().__init__(parameters)
         self.agent_id = self.parameters['agent_id']
 
     def ports_schema(self):
@@ -146,45 +143,25 @@ def test_burst():
         (time_total, {})]
 
     # declare the hierarchy
-    hierarchy = {
-        COMPOSER_KEY: [
-            {
-                'type': TimelineProcess,
-                'config': {'timeline': timeline},
-                'topology': {
-                    'global': ('global',),
-                    'agents': ('agents',)
-                }
-            }
-        ],
-        'agents': {
-            agent_1_id: {
-                COMPOSER_KEY: {
-                    'type': ToyAgent,
-                    'config': {
-                        'agent_id': agent_1_id,
-                    }
-                },
-                'agents': {
-                    agent_2_id: {
-                        COMPOSER_KEY: {
-                            'type': ToyAgent,
-                            'config': {
-                                'agent_id': agent_2_id
-                            },
-                        }
-                    }
-                }
-            }
-        }
-    }
+    timeline = TimelineProcess({'timeline': timeline})
+    agent1 = ToyAgent({'agent_id': agent_1_id})
+    agent2 = ToyAgent({'agent_id': agent_2_id})
+
+    composite = Composite()
+    composite.merge(agent1.generate(path=('agents', agent_1_id)))
+    composite.merge(agent2.generate(path=('agents', agent_1_id, 'agents', agent_2_id)))
+    composite.merge(
+        processes={'timeline': timeline},
+        topology={'timeline': {
+            'global': ('global',),
+            'agents': ('agents',)}},
+        state=initial_state
+    )
 
     # configure experiment
-    settings = {}
-    experiment = compose_experiment(
-        hierarchy=hierarchy,
-        initial_state=initial_state,
-        settings=settings)
+    experiment = Engine(
+        composite=composite,
+    )
 
     pp(experiment.topology)
     pp(experiment.state.get_value())

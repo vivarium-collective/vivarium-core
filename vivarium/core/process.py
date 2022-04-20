@@ -104,6 +104,12 @@ class Process(metaclass=abc.ABCMeta):
                 * ``name``: Saved to ``self.name``.
                 * ``_original_parameters``: Returned by
                   ``__getstate__()`` for serialization.
+                * ``_no_original_parameters``: If specified with a value
+                  of ``True``, original parameters will not be copied
+                  during initialization, and ``__getstate__()`` will
+                  instead return ``self.parameters``. This puts the
+                  responsibility on the user to not mutate process
+                  parameters.
                 * ``_schema``: Overrides the schema.
                 * ``_parallel``: Indicates that the process should be
                   parallelized. ``self.parallel`` will be set to True.
@@ -118,13 +124,16 @@ class Process(metaclass=abc.ABCMeta):
             original_parameters = parameters.pop('_original_parameters')
         else:
             original_parameters = parameters
-        try:
-            self._original_parameters: Optional[dict] = copy.deepcopy(
-                original_parameters)
-        except TypeError:
-            # Copying the parameters failed because some parameters do
-            # not support being copied.
-            self._original_parameters = None
+        if parameters.get('_no_original_parameters', False):
+            self._original_parameters: Optional[dict] = None
+        else:
+            try:
+                self._original_parameters = copy.deepcopy(
+                    original_parameters)
+            except TypeError:
+                # Copying the parameters failed because some parameters do
+                # not support being copied.
+                self._original_parameters = None
 
         if 'name' in parameters:
             self.name = parameters['name']
@@ -169,6 +178,8 @@ class Process(metaclass=abc.ABCMeta):
         so any later changes to the parameters will be lost during
         serialization.
         """
+        if self.parameters.get('_no_original_parameters', False):
+            return self.parameters
         if self._original_parameters is None:
             raise TypeError(
                 'Parameters could not be copied, so serialization is '
@@ -230,7 +241,9 @@ class Process(metaclass=abc.ABCMeta):
 
         return {
             'processes': assoc_in({}, path, processes),
+            'steps': {},
             'topology': assoc_in({}, path, topology),
+            'flow': {},
         }
 
     def get_schema(self, override: Optional[Schema] = None) -> dict:
