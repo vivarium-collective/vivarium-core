@@ -932,11 +932,11 @@ class Engine:
     def update(
             self,
             interval: float,
-            global_time_precision: int = 5
+            global_time_precision: Optional[int] = None
     ) -> None:
         """
         Run each process for the given interval and force them to complete
-        at the end of the interval.
+        at the end of the interval. See ``run_for`` for the keyword args.
         """
         clock_start = clock.time()
         self.run_for(
@@ -967,7 +967,7 @@ class Engine:
             self,
             interval: float,
             force_complete: bool = False,
-            global_time_precision: int = 5,
+            global_time_precision: Optional[int] = None
     ) -> None:
         """Run each process within the given interval and update their states.
 
@@ -975,6 +975,9 @@ class Engine:
             interval: the amount of time to simulate the composite.
             force_complete: a bool indicating whether to force processes
                 to complete at the end of the interval.
+            global_time_precision: an optional int that sets the decimal precision
+                of global_time. This is useful for remove floating-point rounding
+                errors for the time keys of saved states.
         """
         end_time = self.global_time + interval
         emit_time = self.global_time + self.emit_step
