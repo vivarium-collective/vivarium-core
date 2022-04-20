@@ -1014,6 +1014,13 @@ class Engine:
                     else:
                         future = process_time + process_timestep
 
+                    print(f'FUTURE {future}')
+                    if future % 0.1 != 0:
+                        print(f'process_time {process_time}')
+                        print(f'process_timestep {process_timestep}')
+                        print(f'process_time + process_timestep {process_time + process_timestep}')
+                        import ipdb; ipdb.set_trace()
+
                     if future <= end_time:
                         # calculate the update for this process
                         if process.update_condition(process_timestep, states):
@@ -1032,6 +1039,10 @@ class Engine:
                     # absolute timestep
                     timestep = future - self.global_time
                     if timestep < full_step:
+
+                        print(f'full_step {full_step}')
+                        print(f'timestep {timestep}')
+
                         full_step = timestep
                 else:
                     # don't shoot past processes that didn't run this time

@@ -784,10 +784,16 @@ def test_runtime_order() -> None:
             assert set(group) == expected_group
 
 
-def get_toy_transport_in_env_composite(agent_id: Any = '0') -> Composite:
+def get_toy_transport_in_env_composite(
+        agent_id: Any = '0',
+        transport_config: Optional[dict] = None,
+        environment_config: Optional[dict] = None,
+) -> Composite:
     processes = {
-        'agents': {agent_id: {'transport': ToyTransport()}},
-        'environment': ToyEnvironment()}
+        'agents': {
+            agent_id: {
+                'transport': ToyTransport(transport_config)}},
+        'environment': ToyEnvironment(environment_config)}
     topology = {
         'environment': {
             'agents': {
@@ -1182,6 +1188,24 @@ def test_add_new_state() -> None:
     assert len(timeseries['agents'][agent_id]['extra']) == total_time + 1
 
 
+def test_floating_point_timesteps():
+    agent_id = '1'
+    transport_timestep = 0.1
+    composite = get_toy_transport_in_env_composite(
+        agent_id=agent_id,
+        transport_config={'time_step': transport_timestep}
+    )
+    sim = Engine(
+        processes=composite.processes,
+        topology=composite.topology,
+    )
+    sim.update(1)
+    data = sim.emitter.get_data()
+    # print(pf(data))
+    for t in data.keys():
+        assert t % transport_timestep == 0, f'bad timestep {t}'
+
+
 engine_tests = {
     '0': test_recursive_store,
     '1': test_topology_ports,
@@ -1204,6 +1228,7 @@ engine_tests = {
     '18': test_engine_run_for,
     '19': test_set_branch_emit,
     '20': test_add_new_state,
+    '21': test_floating_point_timesteps,
 }
 
 
