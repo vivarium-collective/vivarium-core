@@ -931,14 +931,19 @@ class Engine:
 
     def update(
             self,
-            interval: float
+            interval: float,
+            global_time_precision: int = 5
     ) -> None:
         """
         Run each process for the given interval and force them to complete
         at the end of the interval.
         """
         clock_start = clock.time()
-        self.run_for(interval=interval, force_complete=True)
+        self.run_for(
+            interval=interval,
+            force_complete=True,
+            global_time_precision=global_time_precision
+        )
         self._check_complete()
         runtime = clock.time() - clock_start
         if self.display_info:
@@ -962,6 +967,7 @@ class Engine:
             self,
             interval: float,
             force_complete: bool = False,
+            global_time_precision: int = 5,
     ) -> None:
         """Run each process within the given interval and update their states.
 
@@ -1013,13 +1019,9 @@ class Engine:
                         future = min(process_time + process_timestep, end_time)
                     else:
                         future = process_time + process_timestep
-
-                    print(f'FUTURE {future}')
-                    if future % 0.1 != 0:
-                        print(f'process_time {process_time}')
-                        print(f'process_timestep {process_timestep}')
-                        print(f'process_time + process_timestep {process_time + process_timestep}')
-                        import ipdb; ipdb.set_trace()
+                    if global_time_precision:
+                        # set future time based on global_time_precision
+                        future = round(future, global_time_precision)
 
                     if future <= end_time:
                         # calculate the update for this process
@@ -1039,10 +1041,6 @@ class Engine:
                     # absolute timestep
                     timestep = future - self.global_time
                     if timestep < full_step:
-
-                        print(f'full_step {full_step}')
-                        print(f'timestep {timestep}')
-
                         full_step = timestep
                 else:
                     # don't shoot past processes that didn't run this time

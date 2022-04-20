@@ -1201,9 +1201,11 @@ def test_floating_point_timesteps():
     )
     sim.update(1)
     data = sim.emitter.get_data()
-    # print(pf(data))
+    print(pf(data))
     for t in data.keys():
-        assert t % transport_timestep == 0, f'bad timestep {t}'
+        ntimes = round(t / transport_timestep, 5)
+        expected_t = round(ntimes * transport_timestep, 5)
+        assert t == expected_t, f'bad timestep {t}'
 
 
 engine_tests = {
