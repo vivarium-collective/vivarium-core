@@ -159,9 +159,9 @@ def test_burst():
     )
 
     # configure experiment
-    experiment = Engine(
+    experiment = Engine(dict(
         composite=composite,
-    )
+    ))
 
     pp(experiment.topology)
     pp(experiment.state.get_value())

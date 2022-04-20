@@ -189,7 +189,7 @@ def composite_in_experiment(
     for key, setting in settings.items():
         if key in experiment_config_keys:
             experiment_config[key] = setting
-    return Engine(**experiment_config)
+    return Engine(experiment_config)
 
 
 def composer_in_experiment(

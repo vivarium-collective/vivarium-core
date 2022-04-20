@@ -740,7 +740,7 @@ class Store:
 
         if self.properties:
             schema['_properties'] = self.properties
-        if self.divider and self.divider != DEFAULT_DIVIDER:
+        if self.divider and self.divider != DEFAULT_SCHEMA:
             schema['_divider'] = self.divider
 
         if self.subschema:
@@ -778,8 +778,6 @@ class Store:
 
         if self.properties:
             config['_properties'] = self.properties
-        if self.divider and self.divider != DEFAULT_DIVIDER:
-            config['_divider'] = self.divider
         if self.subschema:
             config['_subschema'] = self.subschema
         if self.subtopology:

@@ -35,7 +35,7 @@ class ProcessB(Process):
 
 
 def test_profiler() -> None:
-    engine = Engine(
+    engine = Engine(dict(
         processes={
             'processA': ProcessA(),
             'processB': ProcessB(),
@@ -45,7 +45,7 @@ def test_profiler() -> None:
             'processB': {},
         },
         profile=True,
-    )
+    ))
     engine.update(3)
     engine.end()
     assert engine.stats is not None

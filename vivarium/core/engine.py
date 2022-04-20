@@ -1302,13 +1302,15 @@ def test_flow_with_extra_step() -> None:
         'Unknown dependency step (\'stepA2\',) is in the flow')
     with pytest.raises(Exception, match=expected_error):
         _ = Engine(
-            processes={'procB': ProcessB()},
-            steps={'stepA1': StepA()},
-            topology={
-                'stepA1': {'a': ('a',)},
-                'procB': {'b': ('b',)},
-            },
-            flow={'stepA1': [('stepA2',)]},
+            dict(
+                processes={'procB': ProcessB()},
+                steps={'stepA1': StepA()},
+                topology={
+                    'stepA1': {'a': ('a',)},
+                    'procB': {'b': ('b',)},
+                },
+                flow={'stepA1': [('stepA2',)]},
+            )
         )
 
 def test_flow_with_valid_steps() -> None:
@@ -1332,7 +1334,7 @@ def test_flow_with_valid_steps() -> None:
         def next_update(self, timestep: float, states: State) -> Update:
             return {}
 
-    _ = Engine(
+    _ = Engine(dict(
         processes={'procB': ProcessB()},
         steps={
             'stepA1': StepA(),
@@ -1347,4 +1349,4 @@ def test_flow_with_valid_steps() -> None:
             'stepA1': [('stepA2',)],
             'stepA2': [],
         },
-    )
+    ))

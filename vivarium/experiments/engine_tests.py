@@ -156,7 +156,7 @@ def test_recursive_store() -> None:
 def test_topology_ports() -> None:
     proton = _make_proton()
 
-    experiment = Engine(**proton)
+    experiment = Engine(proton)
 
     log.debug(pf(experiment.state.get_config(True)))
 
@@ -229,11 +229,11 @@ def test_timescales() -> None:
         'fast': {'state': ('state',)}}
 
     emitter = {'type': 'null'}
-    experiment = Engine(
+    experiment = Engine(dict(
         processes=processes,
         topology=topology,
         emitter=emitter,
-        initial_state=states)
+        initial_state=states))
 
     experiment.update(10.0)
 
@@ -288,7 +288,7 @@ def test_2_store_1_port() -> None:
     # run experiment
     split_port = SplitPort({})
     network = split_port.generate()
-    exp = Engine(**{
+    exp = Engine({
         'processes': network['processes'],
         'topology': network['topology']})
 
@@ -350,7 +350,7 @@ def test_multi_port_merge() -> None:
     # run experiment
     merge_port = MergePort({})
     network = merge_port.generate()
-    exp = Engine(**{
+    exp = Engine({
         'processes': network['processes'],
         'topology': network['topology']})
 
@@ -367,7 +367,7 @@ def test_emit_config() -> None:
     # test alternate emit options
     merge_port = MergePort({})
     network = merge_port.generate()
-    exp1 = Engine(
+    exp1 = Engine(dict(
         processes=network['processes'],
         topology=network['topology'],
         emit_topology=False,
@@ -375,7 +375,7 @@ def test_emit_config() -> None:
         emit_config=True,
         progress_bar=True,
         emit_step=2,
-    )
+    ))
 
     exp1.update(10)
 
@@ -386,7 +386,7 @@ def test_complex_topology() -> None:
     pq = PoQo({})
     pq_composite = pq.generate(path=outer_path)
     pq_composite.pop('_schema')
-    experiment = Engine(composite=pq_composite)
+    experiment = Engine(dict(composite=pq_composite))
 
     # get the initial state
     initial_state = experiment.state.get_value()
@@ -411,7 +411,7 @@ def test_complex_topology() -> None:
 
 def test_parallel() -> None:
     proton = _make_proton(parallel=True)
-    experiment = Engine(**proton)
+    experiment = Engine(proton)
 
     log.debug(pf(experiment.state.get_config(True)))
 
@@ -511,7 +511,7 @@ def test_units() -> None:
     # run experiment
     multi_unit = MultiUnits({})
     network = multi_unit.generate()
-    exp = Engine(**{
+    exp = Engine({
         'processes': network['processes'],
         'topology': network['topology']})
 
@@ -549,12 +549,12 @@ def test_custom_divider() -> None:
     })
     composite = composer.generate(path=('agents', agent_id))
 
-    experiment = Engine(
+    experiment = Engine(dict(
         processes=composite.processes,
         steps=composite.steps,
         flow=composite.flow,
         topology=composite.topology,
-    )
+    ))
 
     experiment.update(8)
     data = experiment.emitter.get_data()
@@ -751,12 +751,12 @@ def test_runtime_order() -> None:
     execution_log: List[str] = []
     composer = RuntimeOrderComposer()
     composite = composer.generate({'execution_log': execution_log})
-    experiment = Engine(
+    experiment = Engine(dict(
         processes=composite.processes,
         steps=composite.steps,
         flow=composite.flow,
         topology=composite.topology,
-    )
+    ))
     experiment.update(4)
     expected_log = [
         ('deriver', 'step1'),
@@ -807,9 +807,9 @@ def get_toy_transport_in_env_composite(agent_id: Any = '0') -> Composite:
 
 def test_glob_schema() -> None:
     composite = get_toy_transport_in_env_composite()
-    experiment = Engine(
+    experiment = Engine(dict(
         processes=composite.processes,
-        topology=composite.topology)
+        topology=composite.topology))
     experiment.update(10)
 
     # declare processes in reverse order
@@ -817,9 +817,9 @@ def test_glob_schema() -> None:
         'environment': ToyEnvironment(),
         'agents': {'0': {'transport': ToyTransport()}}}
 
-    experiment_reverse = Engine(
+    experiment_reverse = Engine(dict(
         processes=processes_reverse,
-        topology=composite.topology)
+        topology=composite.topology))
     experiment_reverse.update(10)
 
 
@@ -857,9 +857,9 @@ def get_env_view_composite(agent_id: Any = '1') -> Composite:
 
 def test_environment_view_with_division() -> None:
     composite = get_env_view_composite()
-    experiment = Engine(
+    experiment = Engine(dict(
         processes=composite.processes,
-        topology=composite.topology)
+        topology=composite.topology))
     experiment.update(10)
     data = experiment.emitter.get_data()
 
@@ -936,11 +936,11 @@ def test_add_delete() -> None:
         'expected': initial_substores,
     }
 
-    experiment = Engine(
+    experiment = Engine(dict(
         processes={'process': process},
         topology={'process': topology},
         initial_state=initial_state,
-    )
+    ))
     experiment.update(10)
 
     # assert that no overlapping sub store between time steps.
@@ -1001,13 +1001,13 @@ def test_hyperdivision(profile: bool = True) -> None:
     )
 
     # make the sim, run the sim, retrieve the data
-    experiment = Engine(
+    experiment = Engine(dict(
         processes=composite.processes,
         steps=composite.steps,
         flow=composite.flow,
         topology=composite.topology,
         profile=profile,
-    )
+    ))
     experiment.update(total_time)
     experiment.end()
     data = experiment.emitter.get_data()
@@ -1089,10 +1089,10 @@ def test_engine_run_for() -> None:
         'external': {'GLC': 100},
     }
 
-    sim = Engine(
+    sim = Engine(dict(
         processes=composite.processes,
         topology=composite.topology,
-        initial_state=initial_state)
+        initial_state=initial_state))
 
     time = 0.0
     while sim.global_time < total_time:
@@ -1130,10 +1130,10 @@ def test_set_branch_emit() -> None:
 
     # turn on emits
     composite = composer.generate()
-    exp = Engine(
+    exp = Engine(dict(
         composite=composite,
         store_schema={'_emit': True}
-    )
+    ))
     exp.update(run_time)
     data = exp.emitter.get_data()
     assert data[run_time]['bbb'] != {}, 'this emit should be on'
@@ -1141,10 +1141,10 @@ def test_set_branch_emit() -> None:
 
     # turn off emits
     composite = composer.generate()
-    exp = Engine(
+    exp = Engine(dict(
         composite=composite,
         store_schema={'_emit': False}
-    )
+    ))
     exp.update(run_time)
     data = exp.emitter.get_data()
     assert data[run_time]['bbb'] == {}, 'this emit should be off'
@@ -1152,10 +1152,10 @@ def test_set_branch_emit() -> None:
 
     # selectively turn on emits
     composite = composer.generate()
-    exp = Engine(
+    exp = Engine(dict(
         composite=composite,
         store_schema={'bbb': {'e2': {'_emit': True}}},
-    )
+    ))
     exp.update(run_time)
     data = exp.emitter.get_data()
     assert data[run_time]['bbb']['e2'] != {}, 'this emit should be on'
@@ -1170,11 +1170,11 @@ def test_add_new_state() -> None:
         'agents': {
             agent_id: {
                 'extra': {'_emit': True, '_value': 1.0}}}}
-    experiment = Engine(
+    experiment = Engine(dict(
         processes=composite.processes,
         topology=composite.topology,
         store_schema=new_schema,
-    )
+    ))
 
     assert experiment.state['agents', agent_id, 'extra'].get_value() == 1.0
 
@@ -1200,8 +1200,8 @@ def test_engine_process():
                 '*': {
                     '_path': ('electrons',),
                     'spin': ('internal', 'spin')}}}})
-    poqo = Engine(poqo_composer.generate())
-    atom = Engine(atom_composer.generate())
+    poqo = Engine(dict(poqo_composer.generate()))
+    atom = Engine(dict(atom_composer.generate()))
 
     multiverse = {
         'processes': {
@@ -1220,7 +1220,7 @@ def test_engine_process():
 
     multi = Engine(multiverse)
 
-    import ipdb; ipdb.set_trace()
+    # import ipdb; ipdb.set_trace()
 
     multi.update(10)
 

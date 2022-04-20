@@ -59,7 +59,7 @@ def test_rewire_ports() -> None:
     # store['process2', 'port2', 'var_a'] = store['store_A', 'var_b']
     assert store['process2', 'port2', 'var_a'] == store['store_A', 'var_b']
 
-    sim = Engine(store = store)
+    sim = Engine(dict(store=store))
     sim.update(1.0)
 
 
@@ -153,7 +153,7 @@ def test_run_store_in_experiment() -> None:
     _ = topology
 
     # run the experiment with a topology
-    experiment = Engine(store=store)
+    experiment = Engine(dict(store=store))
     experiment.update(10)
     data = experiment.emitter.get_data()
 
@@ -169,7 +169,7 @@ def test_run_inserted_store() -> None:
     store = Store({})
     store["p1"] = ToyProcess({'name': 'p1'})
     store["p2"] = ToyProcess({'name': 'p2'})
-    sim = Engine(store = store)
+    sim = Engine(dict(store=store))
     sim.update(1.0)
 
 
@@ -179,7 +179,7 @@ def test_run_rewired_store() -> None:
     store["p1"] = ToyProcess({'name': 'p1'})
     store["p2"] = ToyProcess({'name': 'p2'})
     store["p1"].connect(('port1',), store['p2', "port2"])
-    sim = Engine(store = store)
+    sim = Engine(dict(store=store))
     sim.update(1.0)
 
 

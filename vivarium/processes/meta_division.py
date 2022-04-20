@@ -165,9 +165,9 @@ def test_division():
     )
 
     # configure experiment
-    experiment = Engine(
+    experiment = Engine(dict(
         composite=composite,
-    )
+    ))
 
     # run simulation
     experiment.update(time_total)

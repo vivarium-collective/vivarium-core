@@ -201,10 +201,10 @@ def test_alternator():
     }
 
     # declare the hierarchy
-    experiment = Engine(
+    experiment = Engine(dict(
         composite=ExchangeAlternator().generate(),
         initial_state=initial_state
-    )
+    ))
 
     pp(experiment.topology)
     pp(experiment.state.get_value())

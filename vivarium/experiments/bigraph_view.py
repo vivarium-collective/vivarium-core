@@ -72,11 +72,11 @@ def test_bigraph_view() -> None:
         flow=top_view_flow)
 
     # run the simulation
-    sim = Engine(
+    sim = Engine(dict(
         composite=composite,
         initial_state={
             'agents': {agent_id: {'external': {'GLC': 10.0}}}}
-    )
+    ))
     sim.update(20)
     data = sim.emitter.get_data()
 
