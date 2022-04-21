@@ -56,7 +56,8 @@ if __name__ == '__main__':
             'numpy>=1.22.1',
             'Pint>=0.18',
             'pymongo>=4.0.1',
-            'scipy>=1.7.3'
+            'scipy>=1.7.3',
+            'pytest>=6.2.5'
         ],
         classifiers=[
             'Development Status :: 4 - Beta',
