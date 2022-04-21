@@ -1022,7 +1022,7 @@ class Engine:
                         future = min(process_time + process_timestep, end_time)
                     else:
                         future = process_time + process_timestep
-                    if global_time_precision:
+                    if global_time_precision is not None:
                         # set future time based on global_time_precision
                         future = round(future, global_time_precision)
 
