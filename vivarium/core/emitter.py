@@ -8,7 +8,7 @@ Emitters log configuration data and time-series data somewhere.
 
 import json
 import uuid
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Callable
 from urllib.parse import quote_plus
 
 from pymongo import MongoClient
@@ -395,10 +395,24 @@ def assemble_data(data: list) -> dict:
     return assembly
 
 
+def apply_func(
+    document: Any,
+    field: Tuple,
+    f: Callable[..., Any],
+) -> Any:
+    if field[0] not in document:
+        return document
+    if len(field) != 1:
+        document[field[0]] = apply_func(document[field[0]], field[1:], f)
+    else:
+        document[field[0]] = f(document[field[0]])
+    return document
+
 def get_history_data_db(
         history_collection: Any,
         experiment_id: Any,
         query: list = None,
+        f: Callable[..., Any] = None,
 ) -> Dict[float, dict]:
     """Query MongoDB for history data.
 
@@ -425,6 +439,9 @@ def get_history_data_db(
     for document in cursor:
         assert document.get('assembly_id'), \
             "all database documents require an assembly_id"
+        if f and query:
+            for field in query:
+                document["data"] = apply_func(document["data"], field, f)
         raw_data.append(document)
 
     # re-assemble data
@@ -462,6 +479,7 @@ def data_from_database(
         experiment_id: str,
         client: Any,
         query: list = None,
+        f: Callable[..., Any] = None,
 ) -> Tuple[dict, Any]:
     """Fetch something from a MongoDB."""
 
@@ -478,7 +496,7 @@ def data_from_database(
 
     # Retrieve timepoint data
     history = client.history
-    data = get_history_data_db(history, experiment_id, query)
+    data = get_history_data_db(history, experiment_id, query, f)
 
     return data, experiment_config
 
