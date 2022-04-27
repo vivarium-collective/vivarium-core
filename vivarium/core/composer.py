@@ -215,7 +215,7 @@ class Composite(Datum):
             merge_topology.update(composite['topology'])
             merge_steps.update(composite['steps'])
             merge_flow.update(composite['flow'])
-            merge_state.update(composite['state'])
+            merge_state.update(composite.get('state', {}))
 
         deep_merge(merge_processes, processes)
         deep_merge(merge_topology, topology)

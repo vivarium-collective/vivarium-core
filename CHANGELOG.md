@@ -1,5 +1,12 @@
 # Changelog
 
+
+## v1.2.5
+
+* (#183) floating-point timestep precision.
+* (#182) add pytest to setup.
+* (#180) Handle nan in units serializer.
+
 ## v1.2.4
 
 * (#179) Register the injector process.
