@@ -46,7 +46,6 @@ experiment_config_keys = [
         'experiment_id',
         'experiment_name',
         'description',
-        'initial_state',
         'emitter',
         'emit_step',
         'display_info',
@@ -182,13 +181,14 @@ def composite_in_experiment(
         add_environment(processes, topology, environment)
 
     # initialize the experiment
-    experiment_config = {
-        'composite': composite,
-        'initial_state': initial_state}
+    experiment_config = {}
     for key, setting in settings.items():
         if key in experiment_config_keys:
             experiment_config[key] = setting
-    return Engine(**experiment_config)
+    return Engine(
+        composite=composite,
+        initial_state=initial_state,
+        **experiment_config)
 
 
 def composer_in_experiment(

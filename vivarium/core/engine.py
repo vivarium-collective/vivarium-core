@@ -551,8 +551,8 @@ class Engine:
         store. These are interchangeable.
         """
         if not store:
-            if processes and topology:
-                self.processes = processes
+            if (processes and topology) or (steps and topology):
+                self.processes = processes or {}
                 self.steps = steps or {}
                 self.flow = flow or {}
                 self.topology = topology
