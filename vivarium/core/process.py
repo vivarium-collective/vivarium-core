@@ -16,11 +16,12 @@ from typing import (
     Any, Dict, Optional, Union, List)
 from warnings import warn
 
-from vivarium.library.dict_utils import deep_merge
+from vivarium.library.dict_utils import (
+    deep_merge, deep_merge_check, deep_copy_internal)
 from vivarium.library.topology import assoc_path, get_in
 from vivarium.core.types import (
     HierarchyPath, Schema, State, Update,
-    Topology)
+    Topology, Flow)
 
 DEFAULT_TIME_STEP = 1.0
 
@@ -59,7 +60,8 @@ def assoc_in(d: dict, path: HierarchyPath, value: Any) -> dict:
 
 def _override_schemas(
         overrides: Dict[str, Schema],
-        processes: Dict[str, 'Process']) -> None:
+        processes: Dict[str, 'Process']
+) -> None:
     for key, override in overrides.items():
         process = processes[key]
         if isinstance(process, Process):
@@ -201,9 +203,20 @@ class Process(metaclass=abc.ABCMeta):
     def generate_processes(
             self, config: Optional[dict] = None) -> Dict[str, Any]:
         """Do not override this method."""
-        config = config or {}
-        name = config.get('name', self.name)
-        return {name: self}
+        if not self.is_step():
+            config = config or {}
+            name = config.get('name', self.name)
+            return {name: self}
+        return {}
+
+    def generate_steps(
+            self, config: Optional[dict] = None) -> Dict[str, Any]:
+        """Do not override this method."""
+        if self.is_step():
+            config = config or {}
+            name = config.get('name', self.name)
+            return {name: self}
+        return {}
 
     def generate_topology(self, config: Optional[dict] = None) -> Topology:
         """Do not override this method."""
@@ -216,6 +229,10 @@ class Process(metaclass=abc.ABCMeta):
                 port: override_topology.get(port, (port,))
                 for port in ports.keys()}}
 
+    def generate_flow(self, config: Optional[dict] = None) -> Flow:
+        _ = config
+        return {}
+
     def generate(
             self,
             config: Optional[dict] = None,
@@ -225,16 +242,25 @@ class Process(metaclass=abc.ABCMeta):
         else:
             default = copy.deepcopy(self.parameters)
             config = deep_merge(default, config)
-
+        config = config or {}
+        name = config.get('name', self.name)
         processes = self.generate_processes(config)
+        steps = self.generate_steps(config)
         topology = self.generate_topology(config)
-        _override_schemas(self.schema_override, processes)
+        flow = self.generate_flow(config)
+        processes_and_steps = deep_copy_internal(processes)
+        deep_merge_check(processes_and_steps, steps)
+        _override_schemas(
+            {name: self.schema_override},
+            processes_and_steps)
 
+        # TODO -- this should return a Composite instance,
+        # but importing Composite introduces circular imports
         return {
             'processes': assoc_in({}, path, processes),
-            'steps': {},
+            'steps': assoc_in({}, path, steps),
             'topology': assoc_in({}, path, topology),
-            'flow': {},
+            'flow': assoc_in({}, path, flow),
         }
 
     def get_schema(self, override: Optional[Schema] = None) -> dict:
