@@ -557,11 +557,11 @@ class Engine:
                 self.flow = flow or {}
                 self.topology = topology
             elif composite:
-                self.processes = composite.processes
-                self.steps = composite.steps
-                self.flow = composite.flow
-                self.topology = composite.topology
-                self.initial_state = composite.state or self.initial_state
+                self.processes = composite['processes']
+                self.steps = composite['steps']
+                self.flow = composite['flow']
+                self.topology = composite['topology']
+                self.initial_state = composite['state'] or self.initial_state
             else:
                 raise Exception(
                     'load either composite, store, or '
@@ -863,6 +863,7 @@ class Engine:
             deletion: Path to store to delete.
         """
         delete_in(self.processes, deletion)
+        delete_in(self.steps, deletion)
         delete_in(self.topology, deletion)
 
         for path in list(self.process_paths.keys()):

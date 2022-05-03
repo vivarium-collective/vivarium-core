@@ -183,8 +183,7 @@ def composite_in_experiment(
 
     # initialize the experiment
     experiment_config = {
-        'processes': processes,
-        'topology': topology,
+        'composite': composite,
         'initial_state': initial_state}
     for key, setting in settings.items():
         if key in experiment_config_keys:
