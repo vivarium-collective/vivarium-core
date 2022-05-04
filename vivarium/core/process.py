@@ -84,43 +84,44 @@ def _get_parameters(
 
 
 class Process(metaclass=abc.ABCMeta):
+    """Process parent class.
+
+      All :term:`process` classes must inherit from this class. Each
+      class can provide a ``defaults`` class variable to specify the
+      process defaults as a dictionary.
+
+      Note that subclasses should call the superclass init function
+      first. This allows the superclass to correctly save the initial
+      parameters before they are mutated by subclass constructor code.
+      We need access to the original parameters for serialization to
+      work properly.
+
+      Args:
+          parameters: Override the class defaults. This dictionary may
+              also contain the following special keys:
+
+              * ``name``: Saved to ``self.name``.
+              * ``_original_parameters``: Returned by
+                ``__getstate__()`` for serialization.
+              * ``_no_original_parameters``: If specified with a value
+                of ``True``, original parameters will not be copied
+                during initialization, and ``__getstate__()`` will
+                instead return ``self.parameters``. This puts the
+                responsibility on the user to not mutate process
+                parameters.
+              * ``_schema``: Overrides the schema.
+              * ``_parallel``: Indicates that the process should be
+                parallelized. ``self.parallel`` will be set to True.
+              * ``_condition``: Path to a variable whose value will be
+                returned by
+                :py:meth:`vivarium.core.process.Process.update_condition`.
+              * ``time_step``: Returned by
+                :py:meth:`vivarium.core.process.Process.calculate_timestep`.
+      """
+
     defaults: Dict[str, Any] = {}
 
     def __init__(self, parameters: Optional[dict] = None) -> None:
-        """Process parent class.
-
-        All :term:`process` classes must inherit from this class. Each
-        class can provide a ``defaults`` class variable to specify the
-        process defaults as a dictionary.
-
-        Note that subclasses should call the superclass init function
-        first. This allows the superclass to correctly save the initial
-        parameters before they are mutated by subclass constructor code.
-        We need access to the original parameters for serialization to
-        work properly.
-
-        Args:
-            parameters: Override the class defaults. This dictionary may
-                also contain the following special keys:
-
-                * ``name``: Saved to ``self.name``.
-                * ``_original_parameters``: Returned by
-                  ``__getstate__()`` for serialization.
-                * ``_no_original_parameters``: If specified with a value
-                  of ``True``, original parameters will not be copied
-                  during initialization, and ``__getstate__()`` will
-                  instead return ``self.parameters``. This puts the
-                  responsibility on the user to not mutate process
-                  parameters.
-                * ``_schema``: Overrides the schema.
-                * ``_parallel``: Indicates that the process should be
-                  parallelized. ``self.parallel`` will be set to True.
-                * ``_condition``: Path to a variable whose value will be
-                  returned by
-                  :py:meth:`vivarium.core.process.Process.update_condition`.
-                * ``time_step``: Returned by
-                  :py:meth:`vivarium.core.process.Process.calculate_timestep`.
-        """
         parameters = parameters or {}
         if '_original_parameters' in parameters:
             original_parameters = parameters.pop('_original_parameters')
@@ -157,8 +158,14 @@ class Process(metaclass=abc.ABCMeta):
                 '_emit': True,
                 '_updater': 'set'}))
 
-        self.parameters.setdefault('time_step', DEFAULT_TIME_STEP)
+        self._set_timestep()
+
         self.schema: Optional[dict] = None
+
+    def _set_timestep(self) -> None:
+        self.parameters.setdefault('timestep', DEFAULT_TIME_STEP)
+        if self.parameters.get('time_step'):
+            self.parameters['timestep'] = self.parameters['time_step']
 
     def __getstate__(self) -> dict:
         """Return parameters
@@ -301,10 +308,10 @@ class Process(metaclass=abc.ABCMeta):
         """Return the next process time step
 
         A process subclass may override this method to implement
-        adaptive timesteps. By default it returns self.parameters['time_step'].
+        adaptive timesteps. By default it returns self.parameters['timestep'].
         """
         _ = states
-        return self.parameters['time_step']
+        return self.parameters['timestep']
 
     def default_state(self) -> State:
         """Get the default values of the variables in each port.
