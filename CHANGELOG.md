@@ -1,6 +1,11 @@
 # Changelog
 
 
+## v1.2.6
+
+* (#189) track composite updates in engine so that the composite topology can be plotted after being updated.
+* (#188) RAMEmitter returns query data only if it exists.
+
 ## v1.2.5
 
 * (#183) floating-point timestep precision.
