@@ -1028,6 +1028,7 @@ class Engine:
                         future = round(future, global_time_precision)
 
                     if future <= end_time:
+
                         # calculate the update for this process
                         if process.update_condition(process_timestep, states):
                             update = self._process_update(
@@ -1037,15 +1038,20 @@ class Engine:
                             self.front[path]['time'] = future
                             self.front[path]['update'] = update
 
+                            # absolute timestep
+                            timestep = future - self.global_time
+                            if timestep < full_step:
+                                full_step = timestep
                         else:
                             # mark this path "quiet" so its time can be advanced
                             self.front[path]['update'] = (EmptyDefer(), store)
                             quiet_paths.append(path)
+                    else:
+                        # absolute timestep
+                        timestep = future - self.global_time
+                        if timestep < full_step:
+                            full_step = timestep
 
-                    # absolute timestep
-                    timestep = future - self.global_time
-                    if timestep < full_step:
-                        full_step = timestep
                 else:
                     # don't shoot past processes that didn't run this time
                     process_delay = process_time - self.global_time
