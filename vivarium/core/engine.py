@@ -964,6 +964,22 @@ class Engine:
             assert len(advance['update']) == 0, \
                 f"the process at path {path} is an unapplied update"
 
+    def _remove_deleted_processes(self) -> None:
+        # find any parallel processes that were removed and terminate them
+        for terminated in self.parallel.keys() - (
+                self.process_paths.keys() | self._step_paths.keys()):
+            self.parallel[terminated].end()
+            stats = self.parallel[terminated].stats
+            if stats:
+                self.stats_objs.append(stats)
+            del self.parallel[terminated]
+
+        # remove deleted process paths from the front
+        self.front = {
+            path: progress
+            for path, progress in self.front.items()
+            if path in self.process_paths}
+
     def run_for(
             self,
             interval: float,
@@ -985,21 +1001,7 @@ class Engine:
 
         while self.global_time < end_time or force_complete:
             full_step = math.inf
-
-            # find any parallel processes that were removed and terminate them
-            for terminated in self.parallel.keys() - (
-                    self.process_paths.keys() | self._step_paths.keys()):
-                self.parallel[terminated].end()
-                stats = self.parallel[terminated].stats
-                if stats:
-                    self.stats_objs.append(stats)
-                del self.parallel[terminated]
-
-            # remove deleted process paths from the front
-            self.front = {
-                path: progress
-                for path, progress in self.front.items()
-                if path in self.process_paths}
+            self._remove_deleted_processes()
 
             # processes at quiet paths don't meet their execution condition,
             # but still advance in time
