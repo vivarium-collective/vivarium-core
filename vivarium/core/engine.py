@@ -967,6 +967,22 @@ class Engine:
             assert len(advance['update']) == 0, \
                 f"the process at path {path} is an unapplied update"
 
+    def _remove_deleted_processes(self) -> None:
+        # find any parallel processes that were removed and terminate them
+        for terminated in self.parallel.keys() - (
+                self.process_paths.keys() | self._step_paths.keys()):
+            self.parallel[terminated].end()
+            stats = self.parallel[terminated].stats
+            if stats:
+                self.stats_objs.append(stats)
+            del self.parallel[terminated]
+
+        # remove deleted process paths from the front
+        self.front = {
+            path: progress
+            for path, progress in self.front.items()
+            if path in self.process_paths}
+
     def run_for(
             self,
             interval: float,
@@ -984,21 +1000,7 @@ class Engine:
 
         while self.global_time < end_time or force_complete:
             full_step = math.inf
-
-            # find any parallel processes that were removed and terminate them
-            for terminated in self.parallel.keys() - (
-                    self.process_paths.keys() | self._step_paths.keys()):
-                self.parallel[terminated].end()
-                stats = self.parallel[terminated].stats
-                if stats:
-                    self.stats_objs.append(stats)
-                del self.parallel[terminated]
-
-            # remove deleted process paths from the front
-            self.front = {
-                path: progress
-                for path, progress in self.front.items()
-                if path in self.process_paths}
+            self._remove_deleted_processes()
 
             # processes at quiet paths don't meet their execution condition,
             # but still advance in time
@@ -1027,6 +1029,7 @@ class Engine:
                         future = round(future, self.global_time_precision)
 
                     if future <= end_time:
+
                         # calculate the update for this process
                         if process.update_condition(process_timestep, states):
                             update = self._process_update(
@@ -1036,15 +1039,20 @@ class Engine:
                             self.front[path]['time'] = future
                             self.front[path]['update'] = update
 
+                            # absolute timestep
+                            timestep = future - self.global_time
+                            if timestep < full_step:
+                                full_step = timestep
                         else:
                             # mark this path "quiet" so its time can be advanced
                             self.front[path]['update'] = (EmptyDefer(), store)
                             quiet_paths.append(path)
+                    else:
+                        # absolute timestep
+                        timestep = future - self.global_time
+                        if timestep < full_step:
+                            full_step = timestep
 
-                    # absolute timestep
-                    timestep = future - self.global_time
-                    if timestep < full_step:
-                        full_step = timestep
                 else:
                     # don't shoot past processes that didn't run this time
                     process_delay = process_time - self.global_time
