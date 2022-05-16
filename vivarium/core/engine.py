@@ -378,6 +378,7 @@ class Engine:
             emit_step: float = 1,
             display_info: bool = True,
             progress_bar: bool = False,
+            global_time_precision: Optional[int] = None,
             profile: bool = False,
     ) -> None:
         """Defines simulations
@@ -424,6 +425,9 @@ class Engine:
                 provide as the value for the key ``experiment_id``.
             display_info: prints experiment info
             progress_bar: shows a progress bar
+            global_time_precision: an optional int that sets the decimal
+                precision of global_time. This is useful for remove floating-
+                point rounding errors for the time keys of saved states.
             store_schema: An optional dictionary to expand the store hierarchy
                 configuration, and also to turn emits on or off. The dictionary
                 needs to be structured as a hierarchy, which will expand the
@@ -456,6 +460,7 @@ class Engine:
         self.metadata = metadata
         self.description = description
         self.display_info = display_info
+        self.global_time_precision = global_time_precision
         self.progress_bar = progress_bar
         self.time_created = timestamp()
         if self.display_info:
@@ -933,7 +938,6 @@ class Engine:
     def update(
             self,
             interval: float,
-            global_time_precision: Optional[int] = None
     ) -> None:
         """
         Run each process for the given interval and force them to complete
@@ -943,7 +947,6 @@ class Engine:
         self.run_for(
             interval=interval,
             force_complete=True,
-            global_time_precision=global_time_precision
         )
         self._check_complete()
         runtime = clock.time() - clock_start
@@ -968,7 +971,6 @@ class Engine:
             self,
             interval: float,
             force_complete: bool = False,
-            global_time_precision: Optional[int] = None
     ) -> None:
         """Run each process within the given interval and update their states.
 
@@ -976,9 +978,6 @@ class Engine:
             interval: the amount of time to simulate the composite.
             force_complete: a bool indicating whether to force processes
                 to complete at the end of the interval.
-            global_time_precision: an optional int that sets the decimal
-                precision of global_time. This is useful for remove floating-
-                point rounding errors for the time keys of saved states.
         """
         end_time = self.global_time + interval
         emit_time = self.global_time + self.emit_step
@@ -1023,9 +1022,9 @@ class Engine:
                         future = min(process_time + process_timestep, end_time)
                     else:
                         future = process_time + process_timestep
-                    if global_time_precision is not None:
+                    if self.global_time_precision is not None:
                         # set future time based on global_time_precision
-                        future = round(future, global_time_precision)
+                        future = round(future, self.global_time_precision)
 
                     if future <= end_time:
                         # calculate the update for this process
