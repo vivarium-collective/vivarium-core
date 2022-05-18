@@ -11,7 +11,7 @@ from scipy import constants
 from vivarium.core.engine import pp, Engine
 from vivarium.core.process import Deriver
 from vivarium.library.units import units
-from vivarium.core.composition import (
+from vivarium.core.directories import (
     PROCESS_OUT_DIR,
 )
 

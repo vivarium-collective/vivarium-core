@@ -11,7 +11,6 @@ from vivarium.core.process import Process, Step, Deriver
 from vivarium.core.store import Store, hierarchy_depth
 from vivarium.core.types import (
     Schema, State, Update, Topology, Steps, Processes)
-from vivarium.core.composition import simulate_process
 from vivarium.library.units import units
 from vivarium.library.wrappers import make_logging_process
 from vivarium.core.control import run_library_cli
@@ -1064,7 +1063,10 @@ def test_output_port() -> None:
             return {}
 
     total_time = 10
-    data = simulate_process(InputOutput(), {'total_time': total_time})
+    composite = InputOutput().generate()
+    sim = Engine(composite=composite)
+    sim.update(total_time)
+    data = sim.emitter.get_timeseries()
     assert data['input']['A'] == [a_default for _ in range(total_time + 1)]
     assert data['output']['B'] == [b_default for _ in range(total_time + 1)]
 

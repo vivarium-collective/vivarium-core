@@ -12,7 +12,7 @@ from vivarium.core.process import (
 )
 from vivarium.core.composer import Composer, Composite
 from vivarium.core.engine import Engine
-from vivarium.core.composition import PROCESS_OUT_DIR
+from vivarium.core.directories import PROCESS_OUT_DIR
 from vivarium.composites.toys import ExchangeA
 from vivarium.processes.timeline import TimelineProcess
 

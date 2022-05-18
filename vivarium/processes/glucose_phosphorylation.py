@@ -7,7 +7,7 @@ This is a toy example referenced in the documentation.
 """
 
 from vivarium.core.process import Process
-from vivarium.core.composition import simulate_process
+from vivarium.core.engine import Engine
 from vivarium.plots.simulation_output import plot_simulation_output
 from vivarium.library.units import units
 
@@ -101,14 +101,14 @@ class GlucosePhosphorylation(Process):
 
 
 if __name__ == '__main__':
+    total_time = 10
     parameters = {
         'k_cat': 1.5,
         'time_step': 0.1,
     }
     my_process = GlucosePhosphorylation(parameters)
-
-    settings = {
-        'total_time': 10,
-    }
-    timeseries = simulate_process(my_process, settings)
+    my_composite = my_process.generate()
+    sim = Engine(composite=my_composite)
+    sim.update(total_time)
+    timeseries = sim.emitter.get_timeseries()
     plot_simulation_output(timeseries, {}, './')

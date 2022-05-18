@@ -8,11 +8,8 @@ import os
 import numpy as np
 
 from vivarium.core.process import Process
-from vivarium.core.composition import (
-    PROCESS_OUT_DIR,
-    process_in_experiment,
-    simulate_experiment,
-)
+from vivarium.core.directories import PROCESS_OUT_DIR
+from vivarium.core.engine import Engine
 from vivarium.plots.simulation_output import plot_simulation_output
 
 NAME = 'growth_rate'
@@ -81,10 +78,12 @@ def test_growth_rate(total_time=1350):
 
     growth_rate_process = GrowthRate(config)
     initial_state = {'variables': {'mass': initial_mass}}
-    experiment = process_in_experiment(
-        growth_rate_process,
+    composite = growth_rate_process.generate()
+    experiment = Engine(
+        composite=composite,
         initial_state=initial_state)
-    output = simulate_experiment(experiment, {'total_time': total_time})
+    experiment.update(total_time)
+    output = experiment.emitter.get_timeseries()
 
     # asserts
     final_mass = output['variables']['mass'][-1]

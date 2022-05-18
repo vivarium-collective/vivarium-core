@@ -16,11 +16,8 @@ from typing import (
 from vivarium.core.types import OutputDict
 
 from vivarium.core.engine import timestamp
-from vivarium.core.composition import (
-    test_composer,
-    BASE_OUT_DIR,
-)
-from vivarium.composites.toys import ToyCompartment
+from vivarium.core.directories import BASE_OUT_DIR
+from vivarium.composites.toys import ToyCompartment, test_composer
 
 from vivarium.plots.simulation_output import plot_simulation_output
 

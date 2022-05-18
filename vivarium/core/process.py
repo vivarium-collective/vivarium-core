@@ -263,12 +263,13 @@ class Process(metaclass=abc.ABCMeta):
 
         # TODO -- this should return a Composite instance,
         # but importing Composite introduces circular imports
-        return {
+        from vivarium.core.composer import Composite
+        return Composite({
             'processes': assoc_in({}, path, processes),
             'steps': assoc_in({}, path, steps),
             'topology': assoc_in({}, path, topology),
             'flow': assoc_in({}, path, flow),
-        }
+        })
 
     def get_schema(self, override: Optional[Schema] = None) -> dict:
         """Get the process's schema, optionally with a schema override.
