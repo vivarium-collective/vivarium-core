@@ -60,8 +60,12 @@ def get_bigraph(composite):
     """ Get a graph with Processes, Stores, and edges from a Vivarium topology """
     topology = composite['topology']
     processes = composite['processes']
+    steps = composite['steps']
     hierarchy_object = generate_state(
-        processes=processes, topology=topology, initial_state={})
+        processes=processes,
+        topology=topology,
+        initial_state={},
+        steps=steps)
 
     # get path to processes and stores, name them by their paths
     # leaf_paths = hierarchy_object.depth(filter_function=lambda x: x.inner == {})

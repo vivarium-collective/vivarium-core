@@ -10,6 +10,7 @@ import copy
 import logging as log
 from pprint import pformat
 import uuid
+import warnings
 
 import numpy as np
 from pint import Quantity
@@ -511,7 +512,7 @@ class Store:
                 current_schema_value
                 and current_schema_value != DEFAULT_SCHEMA
                 and current_schema_value != new_schema):
-            raise ValueError(
+            warnings.warn(
                 f"Incompatible schema assignment at {self.path_for()}. "
                 f"Trying to assign the value {new_schema} to key {schema_key}, "
                 f"which already has the value {current_schema_value}.")

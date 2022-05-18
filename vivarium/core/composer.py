@@ -167,8 +167,8 @@ class Composite(Datum):
             initial_state=initial_state,
             config=config)
 
-    def initialize(self, config):
-        self['initial_state'] = self.initial_state(config)
+    def initialize(self, state):
+        self['state'] = self.initial_state(state)
         return self
 
     def default_state(self, config: Optional[dict] = None) -> Optional[State]:
@@ -219,7 +219,7 @@ class Composite(Datum):
             merge_topology.update(composite['topology'])
             merge_steps.update(composite['steps'])
             merge_flow.update(composite['flow'])
-            merge_state.update(composite['state'])
+            merge_state.update(composite.get('state', {}))
 
         deep_merge(merge_processes, processes)
         deep_merge(merge_topology, topology)

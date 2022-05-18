@@ -359,7 +359,6 @@ class _StepGraph:
 
 class Engine(Process):
     """Defines simulations
-
         Args:
             composite: A :term:`Composite`, which specifies the processes,
                 steps, flow, and topology. This is an alternative to passing
@@ -402,6 +401,9 @@ class Engine(Process):
                 provide as the value for the key ``experiment_id``.
             display_info: prints experiment info
             progress_bar: shows a progress bar
+            global_time_precision: an optional int that sets the decimal
+                precision of global_time. This is useful for remove floating-
+                point rounding errors for the time keys of saved states.
             store_schema: An optional dictionary to expand the store hierarchy
                 configuration, and also to turn emits on or off. The dictionary
                 needs to be structured as a hierarchy, which will expand the
@@ -414,52 +416,59 @@ class Engine(Process):
             emit_config: If True, this will emit the serialized initial
                 state with the configuration data.
             profile: Whether to profile the simulation with cProfile.
-        """
-    #             composite: Optional[Composite] = None,
-    #             processes: Optional[Processes] = None,
-    #             steps: Optional[Steps] = None,
-    #             flow: Optional[Flow] = None,
-    #             topology: Optional[Topology] = None,
-    #             store: Optional[Store] = None,
-    #             initial_state: Optional[State] = None,
-    #             experiment_id: Optional[str] = None,
-    #             experiment_name: Optional[str] = None,
-    #             metadata: Optional[dict] = None,
-    #             description: str = '',
-    #             emitter: Union[str, dict] = 'timeseries',
-    #             store_schema: Optional[dict] = None,
-    #             emit_topology: bool = True,
-    #             emit_processes: bool = False,
-    #             emit_config: bool = False,
-    #             invoke: Optional[Any] = None,
-    #             emit_step: float = 1,
-    #             display_info: bool = True,
-    #             progress_bar: bool = False,
-    #             profile: bool = False,
+    """
+
+    # def __init__(
+    #         self,
+    #         parameters=None,
+    #         composite: Optional[Composite] = None,
+    #         description: str = '',
+    #         display_info: bool = True,
+    #         emit_config: bool = False,
+    #         emit_processes: bool = False,
+    #         emit_step: float = 1,
+    #         emit_topology: bool = True,
+    #         emitter: Union[str, dict] = 'timeseries',
+    #         experiment_id: Optional[str] = None,
+    #         experiment_name: Optional[str] = None,
+    #         flow: Optional[Flow] = None,
+    #         global_time_precision: Optional[int] = None,
+    #         initial_state: Optional[State] = None,
+    #         invoke: Optional[Any] = None,
+    #         metadata: Optional[dict] = None,
+    #         processes: Optional[Processes] = None,
+    #         profile: bool = False,
+    #         progress_bar: bool = False,
+    #         steps: Optional[Steps] = None,
+    #         store: Optional[Store] = None,
+    #         store_schema: Optional[dict] = None,
+    #         topology: Optional[Topology] = None,
+    # ) -> None:
 
     defaults: Dict[str, Any] = {
         'composite': None,
-        'processes': None,
-        'steps': None,
-        'flow': None,
-        'topology': None,
-        'store': None,
-        'initial_state': None,
-        'intertopology': None,
-        'store_schema': None,
+        'description': '',
+        'display_info': True,
+        'emit_config': False,
+        'emit_processes': False,
+        'emit_step': 1,
+        'emit_topology': True,
+        'emitter': 'timeseries',
         'experiment_id': None,
         'experiment_name': None,
-        'metadata': None,
-        'description': '',
-        'emitter': 'timeseries',
-        'emit_topology': True,
-        'emit_processes': False,
-        'emit_config': False,
+        'flow': None,
+        'global_time_precision': None,
+        'initial_state': None,
+        'intertopology': None,
         'invoke': None,
-        'emit_step': 1,
-        'display_info': True,
-        'progress_bar': False,
+        'metadata': None,
+        'processes': None,
         'profile': False,
+        'progress_bar': False,
+        'steps': None,
+        'store': None,
+        'store_schema': None,
+        'topology': None,
     }
 
     def __init__(self, parameters=None) -> None:
@@ -499,6 +508,7 @@ class Engine(Process):
         self.metadata = self.parameters['metadata']
         self.description = self.parameters['description']
         self.display_info = self.parameters['display_info']
+        self.global_time_precision = self.parameters['global_time_precision']
         self.progress_bar = self.parameters['progress_bar']
         self.time_created = timestamp()
         if self.display_info:
@@ -526,9 +536,9 @@ class Engine(Process):
         self.emitter: Emitter = get_emitter(emitter_config)
 
         # override emit settings in store
-        store_schema = self.parameters.get('store_schema')
-        if store_schema:
-            self.state._apply_config(store_schema)
+        self.store_schema = self.parameters.get('store_schema')
+        if self.store_schema:
+            self.state._apply_config(self.store_schema)
 
         # settings for self._emit_configuration()
         self.emit_topology = self.parameters['emit_topology']
@@ -639,17 +649,17 @@ class Engine(Process):
         store. These are interchangeable.
         """
         if not store:
-            if processes and topology:
-                self.processes = processes
+            if (processes and topology) or (steps and topology):
+                self.processes = processes or {}
                 self.steps = steps or {}
                 self.flow = flow or {}
                 self.topology = topology
             elif composite:
-                self.processes = composite.processes
-                self.steps = composite.steps
-                self.flow = composite.flow
-                self.topology = composite.topology
-                self.initial_state = composite.state or self.initial_state
+                self.processes = composite['processes']
+                self.steps = composite['steps']
+                self.flow = composite['flow']
+                self.topology = composite['topology']
+                self.initial_state = composite['state'] or self.initial_state
             else:
                 raise Exception(
                     'load either composite, store, or '
@@ -959,6 +969,7 @@ class Engine(Process):
             deletion: Path to store to delete.
         """
         delete_in(self.processes, deletion)
+        delete_in(self.steps, deletion)
         delete_in(self.topology, deletion)
 
         for path in list(self.process_paths.keys()):
@@ -1035,14 +1046,17 @@ class Engine(Process):
 
     def update(
             self,
-            interval: float
+            interval: float,
     ) -> None:
         """
         Run each process for the given interval and force them to complete
-        at the end of the interval.
+        at the end of the interval. See ``run_for`` for the keyword args.
         """
         clock_start = clock.time()
-        self.run_for(interval=interval, force_complete=True)
+        self.run_for(
+            interval=interval,
+            force_complete=True,
+        )
         self._check_complete()
         runtime = clock.time() - clock_start
         if self.display_info:
@@ -1062,6 +1076,22 @@ class Engine(Process):
             assert len(advance['update']) == 0, \
                 f"the process at path {path} is an unapplied update"
 
+    def _remove_deleted_processes(self) -> None:
+        # find any parallel processes that were removed and terminate them
+        for terminated in self.parallel.keys() - (
+                self.process_paths.keys() | self._step_paths.keys()):
+            self.parallel[terminated].end()
+            stats = self.parallel[terminated].stats
+            if stats:
+                self.stats_objs.append(stats)
+            del self.parallel[terminated]
+
+        # remove deleted process paths from the front
+        self.front = {
+            path: progress
+            for path, progress in self.front.items()
+            if path in self.process_paths}
+
     def run_for(
             self,
             interval: float,
@@ -1079,21 +1109,7 @@ class Engine(Process):
 
         while self.global_time < end_time or force_complete:
             full_step = math.inf
-
-            # find any parallel processes that were removed and terminate them
-            for terminated in self.parallel.keys() - (
-                    self.process_paths.keys() | self._step_paths.keys()):
-                self.parallel[terminated].end()
-                stats = self.parallel[terminated].stats
-                if stats:
-                    self.stats_objs.append(stats)
-                del self.parallel[terminated]
-
-            # remove deleted process paths from the front
-            self.front = {
-                path: progress
-                for path, progress in self.front.items()
-                if path in self.process_paths}
+            self._remove_deleted_processes()
 
             # processes at quiet paths don't meet their execution condition,
             # but still advance in time
@@ -1124,8 +1140,12 @@ class Engine(Process):
                         future = min(process_time + process_timestep, end_time)
                     else:
                         future = process_time + process_timestep
+                    if self.global_time_precision is not None:
+                        # set future time based on global_time_precision
+                        future = round(future, self.global_time_precision)
 
                     if future <= end_time:
+
                         # calculate the update for this process
                         if process.update_condition(process_timestep, state):
                             update = self._process_update(
@@ -1139,15 +1159,20 @@ class Engine(Process):
                             self.front[path]['time'] = future
                             self.front[path]['update'] = update
 
+                            # absolute timestep
+                            timestep = future - self.global_time
+                            if timestep < full_step:
+                                full_step = timestep
                         else:
                             # mark this path "quiet" so its time can be advanced
                             self.front[path]['update'] = (EmptyDefer(), store)
                             quiet_paths.append(path)
+                    else:
+                        # absolute timestep
+                        timestep = future - self.global_time
+                        if timestep < full_step:
+                            full_step = timestep
 
-                    # absolute timestep
-                    timestep = future - self.global_time
-                    if timestep < full_step:
-                        full_step = timestep
                 else:
                     # don't shoot past processes that didn't run this time
                     process_delay = process_time - self.global_time

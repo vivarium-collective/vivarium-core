@@ -46,7 +46,6 @@ experiment_config_keys = [
         'experiment_id',
         'experiment_name',
         'description',
-        'initial_state',
         'emitter',
         'emit_step',
         'display_info',
@@ -182,15 +181,14 @@ def composite_in_experiment(
         add_environment(processes, topology, environment)
 
     # initialize the experiment
-    experiment_config = {
-        'processes': processes,
-        'topology': topology,
-        'initial_state': initial_state}
+    experiment_config = {}
     for key, setting in settings.items():
         if key in experiment_config_keys:
             experiment_config[key] = setting
+    experiment_config.update({
+        'composite': composite,
+        'initial_state': initial_state})
     return Engine(experiment_config)
-
 
 def composer_in_experiment(
         composer: Composer,
@@ -350,16 +348,35 @@ def test_composer_in_experiment() -> None:
 
 def test_composite_in_experiment() -> None:
     composer = PoQo({
-        '_schema': {'po': {'A': {'a2': {'_emit': True}}}}})
+        '_schema': {
+            'po': {
+                'A': {
+                    'a1': {'_emit': True},
+                    'a2': {'_emit': True},
+                    'a3': {'_emit': True}},
+                'B': {
+                    'b1': {'_emit': True},
+                    'b2': {'_emit': True}},
+                'D': {
+                    'd1': {'_emit': True},
+                    'd2': {'_emit': True},
+                    'd3': {'_emit': True}},
+                'E': {
+                    'e1': {'_emit': True},
+                    'e2': {'_emit': True}}}}})
+
     composite = composer.generate()
     settings: Dict = {}
+
+    # TODO: get rid of composition.py
+
     experiment = composite_in_experiment(
         composite=composite,
         settings=settings)
     assert experiment.processes['po'] is composite['processes']['po']
 
     output = simulate_composite(composite, settings)
-    assert output['aaa']['x'][-1] == -90
+    assert output['aaa']['x'][-1] == -92 or output['aaa']['x'][-1] == -86
 
 
 def test_process_deletion() -> None:

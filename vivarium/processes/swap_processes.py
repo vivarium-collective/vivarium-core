@@ -54,7 +54,7 @@ class SwapProcesses(Deriver):
         super(SwapProcesses, self).__init__(parameters)
         self.removed_processes = self.parameters['removed_processes']
         self.new_compartment = self.parameters['new_compartment']
-        self.initial_state = self.parameters['initial_state']
+        self.initial_state_parameter = self.parameters['initial_state']
 
     def ports_schema(self):
         return {
@@ -75,7 +75,7 @@ class SwapProcesses(Deriver):
                     '_generate': [{
                         'processes': network['processes'],
                         'topology': network['topology'],
-                        'initial_state': self.initial_state,
+                        'initial_state': self.initial_state_parameter,
                     }]})
             return update
         else:

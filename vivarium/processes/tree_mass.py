@@ -8,11 +8,10 @@ import os
 
 from scipy import constants
 
-from vivarium.core.engine import pp
+from vivarium.core.engine import pp, Engine
 from vivarium.core.process import Deriver
 from vivarium.library.units import units
 from vivarium.core.composition import (
-    process_in_experiment,
     PROCESS_OUT_DIR,
 )
 
@@ -152,8 +151,12 @@ def test_tree_mass():
     }
 
     # make the experiment with initial state
-    settings = {'initial_state': state}
-    experiment = process_in_experiment(mass_process, settings)
+    composite = mass_process.generate()
+    experiment = Engine(dict(
+        processes=composite['processes'],
+        steps=composite['steps'],
+        topology=composite['topology'],
+        initial_state=state))
 
     # run experiment and get output
     experiment.update(1)

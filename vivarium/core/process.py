@@ -16,11 +16,12 @@ from typing import (
     Any, Dict, Optional, Union, List)
 from warnings import warn
 
-from vivarium.library.dict_utils import deep_merge
+from vivarium.library.dict_utils import (
+    deep_merge, deep_merge_check, deep_copy_internal)
 from vivarium.library.topology import assoc_path, get_in
 from vivarium.core.types import (
     HierarchyPath, Schema, State, Update,
-    Topology)
+    Topology, Flow)
 
 DEFAULT_TIME_STEP = 1.0
 
@@ -59,7 +60,8 @@ def assoc_in(d: dict, path: HierarchyPath, value: Any) -> dict:
 
 def _override_schemas(
         overrides: Dict[str, Schema],
-        processes: Dict[str, 'Process']) -> None:
+        processes: Dict[str, 'Process']
+) -> None:
     for key, override in overrides.items():
         process = processes[key]
         if isinstance(process, Process):
@@ -82,6 +84,41 @@ def _get_parameters(
 
 
 class Process(metaclass=abc.ABCMeta):
+    """Process parent class.
+
+      All :term:`process` classes must inherit from this class. Each
+      class can provide a ``defaults`` class variable to specify the
+      process defaults as a dictionary.
+
+      Note that subclasses should call the superclass init function
+      first. This allows the superclass to correctly save the initial
+      parameters before they are mutated by subclass constructor code.
+      We need access to the original parameters for serialization to
+      work properly.
+
+      Args:
+          parameters: Override the class defaults. This dictionary may
+              also contain the following special keys:
+
+              * ``name``: Saved to ``self.name``.
+              * ``_original_parameters``: Returned by
+                ``__getstate__()`` for serialization.
+              * ``_no_original_parameters``: If specified with a value
+                of ``True``, original parameters will not be copied
+                during initialization, and ``__getstate__()`` will
+                instead return ``self.parameters``. This puts the
+                responsibility on the user to not mutate process
+                parameters.
+              * ``_schema``: Overrides the schema.
+              * ``_parallel``: Indicates that the process should be
+                parallelized. ``self.parallel`` will be set to True.
+              * ``_condition``: Path to a variable whose value will be
+                returned by
+                :py:meth:`vivarium.core.process.Process.update_condition`.
+              * ``time_step``: Returned by
+                :py:meth:`vivarium.core.process.Process.calculate_timestep`.
+      """
+
     defaults: Dict[str, Any] = {}
 
     def __init__(self, parameters: Optional[dict] = None) -> None:
@@ -119,6 +156,7 @@ class Process(metaclass=abc.ABCMeta):
                 * ``timestep``: Returned by
                   :py:meth:`vivarium.core.process.Process.calculate_timestep`.
         """
+
         parameters = parameters or {}
         if '_original_parameters' in parameters:
             original_parameters = parameters.pop('_original_parameters')
@@ -159,13 +197,10 @@ class Process(metaclass=abc.ABCMeta):
 
         self.schema: Optional[dict] = None
 
-    def _set_timestep(self):
+    def _set_timestep(self) -> None:
         self.parameters.setdefault('timestep', DEFAULT_TIME_STEP)
         if self.parameters.get('time_step'):
             self.parameters['timestep'] = self.parameters['time_step']
-        else:
-            # setting 'time_step' for backwards compatibility (!)
-            self.parameters['time_step'] = self.parameters['timestep']
 
     def __getstate__(self) -> dict:
         """Return parameters
@@ -210,9 +245,20 @@ class Process(metaclass=abc.ABCMeta):
     def generate_processes(
             self, config: Optional[dict] = None) -> Dict[str, Any]:
         """Do not override this method."""
-        config = config or {}
-        name = config.get('name', self.name)
-        return {name: self}
+        if not self.is_step():
+            config = config or {}
+            name = config.get('name', self.name)
+            return {name: self}
+        return {}
+
+    def generate_steps(
+            self, config: Optional[dict] = None) -> Dict[str, Any]:
+        """Do not override this method."""
+        if self.is_step():
+            config = config or {}
+            name = config.get('name', self.name)
+            return {name: self}
+        return {}
 
     def generate_topology(self, config: Optional[dict] = None) -> Topology:
         """Do not override this method."""
@@ -225,6 +271,10 @@ class Process(metaclass=abc.ABCMeta):
                 port: override_topology.get(port, (port,))
                 for port in ports.keys()}}
 
+    def generate_flow(self, config: Optional[dict] = None) -> Flow:
+        _ = config
+        return {}
+
     def generate(
             self,
             config: Optional[dict] = None,
@@ -234,16 +284,25 @@ class Process(metaclass=abc.ABCMeta):
         else:
             default = copy.deepcopy(self.parameters)
             config = deep_merge(default, config)
-
+        config = config or {}
+        name = config.get('name', self.name)
         processes = self.generate_processes(config)
+        steps = self.generate_steps(config)
         topology = self.generate_topology(config)
-        _override_schemas(self.schema_override, processes)
+        flow = self.generate_flow(config)
+        processes_and_steps = deep_copy_internal(processes)
+        deep_merge_check(processes_and_steps, steps)
+        _override_schemas(
+            {name: self.schema_override},
+            processes_and_steps)
 
+        # TODO -- this should return a Composite instance,
+        # but importing Composite introduces circular imports
         return {
             'processes': assoc_in({}, path, processes),
-            'steps': {},
+            'steps': assoc_in({}, path, steps),
             'topology': assoc_in({}, path, topology),
-            'flow': {},
+            'flow': assoc_in({}, path, flow),
         }
 
     def get_schema(self, override: Optional[Schema] = None) -> dict:
