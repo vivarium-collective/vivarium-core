@@ -1190,7 +1190,7 @@ def test_add_new_state() -> None:
     assert len(timeseries['agents'][agent_id]['extra']) == total_time + 1
 
 
-def test_engine_process():
+def test_engine_process() -> Engine:
     # TODO: test engine process division (!)
     # TODO: figure out half the intertopology from the topology
 
