@@ -1203,11 +1203,12 @@ def test_engine_process():
             'proton': {
                 'radius': ('structure', 'radius')},
             'electrons': {
+                '_path': ('electrons',),
                 '*': {
-                    '_path': ('electrons',),
                     'spin': ('internal', 'spin')}}}})
-    poqo = Engine(dict(poqo_composer.generate()))
-    atom = Engine(dict(atom_composer.generate()))
+
+    poqo = Engine(poqo_composer.generate())
+    atom = Engine(atom_composer.generate())
 
     multiverse = {
         'processes': {
@@ -1222,15 +1223,15 @@ def test_engine_process():
                     'radius': ('r',)},
                 'electrons': ('e',)}},
         'initial_state': {
-            'r': 0.5}}
+            'r': 0.5,
+            'e': atom.state.get_path(('electrons',)).get_value()}}
 
     multi = Engine(multiverse)
-
-    # import ipdb; ipdb.set_trace()
 
     multi.update(10)
 
     return multi
+
 
 def test_floating_point_timesteps() -> None:
     agent_id = '1'
@@ -1275,8 +1276,8 @@ engine_tests = {
     '18': test_engine_run_for,
     '19': test_set_branch_emit,
     '20': test_add_new_state,
-    '21': test_floating_point_timesteps,
-    '22': test_engine_process,
+    '21': test_engine_process,
+    '22': test_floating_point_timesteps,
 }
 
 

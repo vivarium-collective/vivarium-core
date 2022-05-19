@@ -368,7 +368,7 @@ def test_composite_in_experiment() -> None:
     composite = composer.generate()
     settings: Dict = {}
 
-    # TODO: get rid of composition.py
+    # TODO: get rid of composite.py
 
     experiment = composite_in_experiment(
         composite=composite,
