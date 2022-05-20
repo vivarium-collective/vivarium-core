@@ -38,9 +38,6 @@ State = Dict[str, Any]
 #: A dictionary defining an :term:`update`.
 Update = Dict[str, Any]
 
-#: A list of :term:`updates`.
-UpdateList = Tuple[Update, ...]
-
 #: A dictionary that specifies the :term:`processes` and
 #: :term:`topology` of a :term:`composite`.
 CompositeDict = Dict[str, Any]

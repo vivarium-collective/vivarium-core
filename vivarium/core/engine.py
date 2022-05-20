@@ -43,7 +43,7 @@ from vivarium.library.topology import (
 )
 from vivarium.core.types import (
     HierarchyPath, Topology, State, Update, Processes, Steps,
-    Flow, Schema, UpdateList)
+    Flow, Schema)
 
 pretty = pprint.PrettyPrinter(indent=2)
 
@@ -474,7 +474,7 @@ class Engine(Process):
         #   - engine_topology?
         #   - intertopology?
         self.intertopology = self.parameters['intertopology']
-        self.intertopology_updates: UpdateList = []
+        self.intertopology_updates: list = []
 
         # display settings
         self.experiment_name = self.parameters['experiment_name'] or self.experiment_id
@@ -984,8 +984,10 @@ class Engine(Process):
             for update, store in deferred_updates:
                 updates = update.get()
                 if not isinstance(updates, list):
-                    updates = [updates]
-                for up in updates:
+                    updates_list: list = [updates]
+                else:
+                    updates_list = updates
+                for up in updates_list:
                     view_expire_update = self.apply_update(up, store)
                     view_expire = view_expire or view_expire_update
 
