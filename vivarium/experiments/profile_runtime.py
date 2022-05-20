@@ -221,10 +221,10 @@ class ComplexModelSim:
         self.composite = composer.generate(**kwargs)
 
     def _initialize_experiment(self, **kwargs):
-        self.experiment = Engine(
+        self.experiment = Engine(dict(
             processes=self.composite['processes'],
             topology=self.composite['topology'],
-            **kwargs)
+            **kwargs))
 
     def _run_experiment(self, **kwargs):
         self.experiment.update(kwargs['experiment_time'])

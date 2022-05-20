@@ -4,7 +4,7 @@ from typing import Optional, Union, Dict, Any, cast, List
 
 from vivarium.composites.toys import (
     PoQo, Sine, ToyDivider, ToyTransport, ToyEnvironment,
-    Proton, Electron, Atom)
+    Proton, Electron, Atom, get_atom_topology)
 from vivarium.core.composer import Composer, Composite
 from vivarium.core.engine import Engine, pf, pp, _StepGraph
 from vivarium.core.process import Process, Step, Deriver
@@ -30,29 +30,7 @@ def _make_proton(
 
     spin_path = ('internal', 'spin')
     radius_path = ('structure', 'radius')
-
-    topology = {
-        'proton': {
-            'radius': radius_path,
-            'quarks': ('internal', 'quarks'),
-            'electrons': {
-                '_path': ('electrons',),
-                '*': {
-                    'orbital': ('shell', 'orbital'),
-                    'spin': spin_path}}},
-        'electrons': {
-            'a': {
-                'electron': {
-                    'spin': spin_path,
-                    'proton': {
-                        '_path': ('..', '..'),
-                        'radius': radius_path}}},
-            'b': {
-                'electron': {
-                    'spin': spin_path,
-                    'proton': {
-                        '_path': ('..', '..'),
-                        'radius': radius_path}}}}}
+    topology = get_atom_topology(radius_path, spin_path)
 
     initial_state = {
         'structure': {

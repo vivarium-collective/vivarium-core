@@ -454,7 +454,8 @@ class Engine(Process):
         self.stats_objs: List[pstats.Stats] = []
         self.stats: Optional[pstats.Stats] = None
 
-        self.experiment_id = self.parameters['experiment_id'] or str(uuid.uuid1())
+        self.experiment_id = self.parameters['experiment_id'] or \
+                             str(uuid.uuid1())
         self.initial_state_value = self.parameters['initial_state'] or {}
         self.emit_step = self.parameters['emit_step']
 
@@ -477,7 +478,8 @@ class Engine(Process):
         self.intertopology_updates: list = []
 
         # display settings
-        self.experiment_name = self.parameters['experiment_name'] or self.experiment_id
+        self.experiment_name = self.parameters['experiment_name'] or \
+                               self.experiment_id
         self.metadata = self.parameters['metadata']
         self.description = self.parameters['description']
         self.display_info = self.parameters['display_info']
@@ -554,25 +556,26 @@ class Engine(Process):
 
     def calculate_timestep(self, states: Optional[State]) -> Union[float, int]:
         # TODO: pass in a timestep instead of calculating minimal timestep?
-        #   AND/OR: find which processes update values in the intertopology, not every process
-        #      maybe this is unreasonable? find a good way to do it
-        #   Which processes update this value? 
+        #   AND/OR: find which processes update values in the intertopology,
+        #   not every process maybe this is unreasonable? find a good way to
+        #   do it. Which processes update this value?
         timesteps = []
         if self._timestep_provided:
             return self.parameters['timestep']
-        else:
-            for path, process in self.process_paths.items():
-                if path in self.front and self.front[path]['time'] > self.global_time:
-                    timesteps.append(self.front[path]['time'] - self.global_time)
-                else:
-                    store, state = self._process_state(path)
-                    timestep = process.calculate_timestep(state)
-                    timesteps.append(timestep)
-                    self.front[path]['future'] = {
-                        'timestep': timestep,
-                        'store': store,
-                        'state': state}
-            return min(timesteps)
+        for path, process in self.process_paths.items():
+            if path in self.front and \
+                    self.front[path]['time'] > self.global_time:
+                timesteps.append(
+                    self.front[path]['time'] - self.global_time)
+            else:
+                store, state = self._process_state(path)
+                timestep = process.calculate_timestep(state)
+                timesteps.append(timestep)
+                self.front[path]['future'] = {
+                    'timestep': timestep,
+                    'store': store,
+                    'state': state}
+        return min(timesteps)
 
     def ports_schema(self) -> Schema:
         schema = project_topology(
@@ -581,8 +584,9 @@ class Engine(Process):
         return schema
 
     def next_update(
-            self, timestep: Union[float, int], state: State) -> Update:
-        inverse = inverse_topology((), state, self.intertopology)
+            self, timestep: Union[float, int], states: State
+    ) -> Update:
+        inverse = inverse_topology((), states, self.intertopology)
         self.state.set_value(inverse)
         updates = self.run_for(timestep)
 
@@ -633,7 +637,8 @@ class Engine(Process):
                 self.steps = composite['steps']
                 self.flow = composite['flow']
                 self.topology = composite['topology']
-                self.initial_state_value = composite['state'] or self.initial_state_value
+                self.initial_state_value = composite['state'] or \
+                                           self.initial_state_value
             else:
                 raise Exception(
                     'load either composite, store, or '
@@ -1203,8 +1208,7 @@ class Engine(Process):
 
         updates = self.intertopology_updates
         self.intertopology_updates = []
-
-        # TODO deal with topology updates also? 
+        # TODO deal with topology updates also?
         return updates
 
     def is_engine(self) -> bool:

@@ -334,6 +334,29 @@ class Electron(Process):
 
         return update
 
+def get_atom_topology(radius_path, spin_path):
+    return {
+        'proton': {
+            'radius': radius_path,
+            'quarks': ('internal', 'quarks'),
+            'electrons': {
+                '_path': ('electrons',),
+                '*': {
+                    'orbital': ('shell', 'orbital'),
+                    'spin': spin_path}}},
+        'electrons': {
+            'a': {
+                'electron': {
+                    'spin': spin_path,
+                    'proton': {
+                        '_path': ('..', '..'),
+                        'radius': radius_path}}},
+            'b': {
+                'electron': {
+                    'spin': spin_path,
+                    'proton': {
+                        '_path': ('..', '..'),
+                        'radius': radius_path}}}}}
 
 class Atom(Composer):
     def generate_processes(self, config=None):
@@ -348,29 +371,7 @@ class Atom(Composer):
     def generate_topology(self, config=None):
         spin_path = ('internal', 'spin')
         radius_path = ('structure', 'radius')
-
-        return {
-            'proton': {
-                'radius': radius_path,
-                'quarks': ('internal', 'quarks'),
-                'electrons': {
-                    '_path': ('electrons',),
-                    '*': {
-                        'orbital': ('shell', 'orbital'),
-                        'spin': spin_path}}},
-            'electrons': {
-                'a': {
-                    'electron': {
-                        'spin': spin_path,
-                        'proton': {
-                            '_path': ('..', '..'),
-                            'radius': radius_path}}},
-                'b': {
-                    'electron': {
-                        'spin': spin_path,
-                        'proton': {
-                            '_path': ('..', '..'),
-                            'radius': radius_path}}}}}
+        return get_atom_topology(radius_path, spin_path)
 
 
 class Sine(Process):
