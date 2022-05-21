@@ -262,8 +262,10 @@ class RAMEmitter(Emitter):
             for t, data in self.saved_data.items():
                 paths_data = []
                 for path in query:
-                    path_data = (path, get_in(data, path))
-                    paths_data.append(path_data)
+                    datum = get_in(data, path)
+                    if datum:
+                        path_data = (path, datum)
+                        paths_data.append(path_data)
                 returned_data[t] = paths_to_dict(paths_data)
             return returned_data
         return self.saved_data

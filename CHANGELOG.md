@@ -1,5 +1,22 @@
 # Changelog
 
+
+## v1.2.7
+
+* (#190) makes `global_time_precision` an `Engine` parameter rather than `Engine.run_for()` keyword -- this changes the method introduced in 1.2.5. Technically a breaking API, but only from 2 versions ago.
+* (#191) don't use timestep for quiet paths. This allows Engine to skip over processes that don't meet their update condition.
+
+## v1.2.6
+
+* (#189) track composite updates in engine so that the composite topology can be plotted after being updated.
+* (#188) RAMEmitter returns query data only if it exists.
+
+## v1.2.5
+
+* (#183) floating-point timestep precision.
+* (#182) add pytest to setup.
+* (#180) Handle nan in units serializer.
+
 ## v1.2.4
 
 * (#179) Register the injector process.

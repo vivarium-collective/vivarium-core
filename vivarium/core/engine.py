@@ -378,6 +378,7 @@ class Engine:
             emit_step: float = 1,
             display_info: bool = True,
             progress_bar: bool = False,
+            global_time_precision: Optional[int] = None,
             profile: bool = False,
     ) -> None:
         """Defines simulations
@@ -424,6 +425,9 @@ class Engine:
                 provide as the value for the key ``experiment_id``.
             display_info: prints experiment info
             progress_bar: shows a progress bar
+            global_time_precision: an optional int that sets the decimal
+                precision of global_time. This is useful for remove floating-
+                point rounding errors for the time keys of saved states.
             store_schema: An optional dictionary to expand the store hierarchy
                 configuration, and also to turn emits on or off. The dictionary
                 needs to be structured as a hierarchy, which will expand the
@@ -456,6 +460,7 @@ class Engine:
         self.metadata = metadata
         self.description = description
         self.display_info = display_info
+        self.global_time_precision = global_time_precision
         self.progress_bar = progress_bar
         self.time_created = timestamp()
         if self.display_info:
@@ -551,17 +556,17 @@ class Engine:
         store. These are interchangeable.
         """
         if not store:
-            if processes and topology:
-                self.processes = processes
+            if (processes and topology) or (steps and topology):
+                self.processes = processes or {}
                 self.steps = steps or {}
                 self.flow = flow or {}
                 self.topology = topology
             elif composite:
-                self.processes = composite.processes
-                self.steps = composite.steps
-                self.flow = composite.flow
-                self.topology = composite.topology
-                self.initial_state = composite.state or self.initial_state
+                self.processes = composite['processes']
+                self.steps = composite['steps']
+                self.flow = composite['flow']
+                self.topology = composite['topology']
+                self.initial_state = composite['state'] or self.initial_state
             else:
                 raise Exception(
                     'load either composite, store, or '
@@ -863,6 +868,7 @@ class Engine:
             deletion: Path to store to delete.
         """
         delete_in(self.processes, deletion)
+        delete_in(self.steps, deletion)
         delete_in(self.topology, deletion)
 
         for path in list(self.process_paths.keys()):
@@ -932,7 +938,6 @@ class Engine:
     def update(
             self,
             interval: float,
-            global_time_precision: Optional[int] = None
     ) -> None:
         """
         Run each process for the given interval and force them to complete
@@ -942,7 +947,6 @@ class Engine:
         self.run_for(
             interval=interval,
             force_complete=True,
-            global_time_precision=global_time_precision
         )
         self._check_complete()
         runtime = clock.time() - clock_start
@@ -963,11 +967,26 @@ class Engine:
             assert len(advance['update']) == 0, \
                 f"the process at path {path} is an unapplied update"
 
+    def _remove_deleted_processes(self) -> None:
+        # find any parallel processes that were removed and terminate them
+        for terminated in self.parallel.keys() - (
+                self.process_paths.keys() | self._step_paths.keys()):
+            self.parallel[terminated].end()
+            stats = self.parallel[terminated].stats
+            if stats:
+                self.stats_objs.append(stats)
+            del self.parallel[terminated]
+
+        # remove deleted process paths from the front
+        self.front = {
+            path: progress
+            for path, progress in self.front.items()
+            if path in self.process_paths}
+
     def run_for(
             self,
             interval: float,
             force_complete: bool = False,
-            global_time_precision: Optional[int] = None
     ) -> None:
         """Run each process within the given interval and update their states.
 
@@ -975,30 +994,13 @@ class Engine:
             interval: the amount of time to simulate the composite.
             force_complete: a bool indicating whether to force processes
                 to complete at the end of the interval.
-            global_time_precision: an optional int that sets the decimal
-                precision of global_time. This is useful for remove floating-
-                point rounding errors for the time keys of saved states.
         """
         end_time = self.global_time + interval
         emit_time = self.global_time + self.emit_step
 
         while self.global_time < end_time or force_complete:
             full_step = math.inf
-
-            # find any parallel processes that were removed and terminate them
-            for terminated in self.parallel.keys() - (
-                    self.process_paths.keys() | self._step_paths.keys()):
-                self.parallel[terminated].end()
-                stats = self.parallel[terminated].stats
-                if stats:
-                    self.stats_objs.append(stats)
-                del self.parallel[terminated]
-
-            # remove deleted process paths from the front
-            self.front = {
-                path: progress
-                for path, progress in self.front.items()
-                if path in self.process_paths}
+            self._remove_deleted_processes()
 
             # processes at quiet paths don't meet their execution condition,
             # but still advance in time
@@ -1022,11 +1024,12 @@ class Engine:
                         future = min(process_time + process_timestep, end_time)
                     else:
                         future = process_time + process_timestep
-                    if global_time_precision is not None:
+                    if self.global_time_precision is not None:
                         # set future time based on global_time_precision
-                        future = round(future, global_time_precision)
+                        future = round(future, self.global_time_precision)
 
                     if future <= end_time:
+
                         # calculate the update for this process
                         if process.update_condition(process_timestep, states):
                             update = self._process_update(
@@ -1036,15 +1039,20 @@ class Engine:
                             self.front[path]['time'] = future
                             self.front[path]['update'] = update
 
+                            # absolute timestep
+                            timestep = future - self.global_time
+                            if timestep < full_step:
+                                full_step = timestep
                         else:
                             # mark this path "quiet" so its time can be advanced
                             self.front[path]['update'] = (EmptyDefer(), store)
                             quiet_paths.append(path)
+                    else:
+                        # absolute timestep
+                        timestep = future - self.global_time
+                        if timestep < full_step:
+                            full_step = timestep
 
-                    # absolute timestep
-                    timestep = future - self.global_time
-                    if timestep < full_step:
-                        full_step = timestep
                 else:
                     # don't shoot past processes that didn't run this time
                     process_delay = process_time - self.global_time

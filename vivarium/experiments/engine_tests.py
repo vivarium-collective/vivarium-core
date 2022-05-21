@@ -1198,8 +1198,9 @@ def test_floating_point_timesteps() -> None:
     sim = Engine(
         processes=composite.processes,
         topology=composite.topology,
+        global_time_precision=5
     )
-    sim.update(1, global_time_precision=5)
+    sim.update(1)
     data = sim.emitter.get_data()
     print(pf(data))
     for t in data.keys():

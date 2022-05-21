@@ -118,3 +118,4 @@ variable-rgx=^[a-z][a-z0-9]*((_[a-z0-9]+)*)?$
 argument-rgx=^[a-z][a-z0-9]*((_[a-z0-9]+)*)?$
 include-naming-hint=yes
 max-statements=65
+max-nested-blocks=6
