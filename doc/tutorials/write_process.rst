@@ -192,7 +192,7 @@ Then run your code by executing the whole file:
 Notice that the ``k_cat`` parameter updated to the value we supplied and
 that ``k_ATP`` took on the default value.
 
-But wait! Where did the ``parameters`` attribute come from? We never
+Wait! Where did the ``parameters`` attribute come from? We never
 created that attribute, but
 :py:class:`vivarium.core.process.Process` made it  from the
 ``parameters`` argument we passed to its constructor. We'll take
