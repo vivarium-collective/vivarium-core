@@ -9,9 +9,9 @@ Helper functions for initializing and running experiments.
 import warnings
 warnings.warn(
     "composition.py is no longer being maintained and will be "
-    "removed in a future version of vivarium-core. Please use"
-    "Engine directly to run simulations, and use Composite.merge "
-    "for composition")
+    "removed in a future version of vivarium-core. Please use "
+    "Engine directly to run simulations, and Composite.merge "
+    "for composition", DeprecationWarning)
 
 # typing
 from typing import (
