@@ -359,63 +359,57 @@ class _StepGraph:
 
 class Engine(Process):
     """Defines simulations
-    Parameters:
-        composite: A :term:`Composite`, which specifies the processes,
-            steps, flow, and topology. This is an alternative to passing
-            in processes and topology dict, which can not be loaded
-            at the same time.
-        processes: A dictionary that maps :term:`process` names to
-            process objects. You will usually get this from the
-            ``processes`` key of the dictionary from
-            :py:meth:`vivarium.core.composer.Composer.generate`.
-        steps: A dictionary that maps :term:`step` names to step
-            objects. You will usually get this from the ``steps``
-            key of the dictionary from
-            :py:meth:`vivarium.core.composer.Composer.generate`.
-        flow: A dictionary that maps :term:`step` names to sequences
-            of paths to the steps that the step depends on. You will
-            usually get this from the ``flow`` key of the dictionary
-            from
-            :py:meth:`vivarium.core.composer.Composer.generate`.
-        topology: A dictionary that maps process names to
-            sub-dictionaries. These sub-dictionaries map the
-            process's port names to tuples that specify a path
-            through the :term:`tree` from the :term:`compartment`
-            root to the :term:`store` that will be passed to the
-            process for that port.
-        store: A pre-loaded Store. This is an alternative to passing
-            in processes and topology dict, which can not be loaded
-            at the same time.
-        initial_state: By default an empty dictionary, this is the
-            initial state of the simulation.
-        experiment_id: A unique identifier for the experiment. A
-            UUID will be generated if none is provided.
-        metadata: A dictionary with additional data about the experiment,
-            which is saved by the emitter with the configuration.
-        description: A description of the experiment. A blank string
-            by default.
-        emitter: An emitter configuration which must conform to the
-            specification in the documentation for
-            :py:func:`vivarium.core.emitter.get_emitter`. The
-            experiment ID will be added to the dictionary you
-            provide as the value for the key ``experiment_id``.
-        display_info: prints experiment info
-        progress_bar: shows a progress bar
-        global_time_precision: an optional int that sets the decimal
-            precision of global_time. This is useful for remove floating-
-            point rounding errors for the time keys of saved states.
-        store_schema: An optional dictionary to expand the store hierarchy
-            configuration, and also to turn emits on or off. The dictionary
-            needs to be structured as a hierarchy, which will expand the
-            existing store hierarchy. Setting an emit value for a branch
-            node will set the emits of all the leaves to that value.
-        emit_topology: If True, this will emit the topology with the
-            configuration data.
-        emit_processes: If True, this will emit the serialized
-            processes with the configuration data.
-        emit_config: If True, this will emit the serialized initial
-            state with the configuration data.
-        profile: Whether to profile the simulation with cProfile.
+
+        Args:
+            parameters: a parameter dict that may contain the following keys:
+                * ``composite``: A :term:`Composite`, which specifies the processes,
+                steps, flow, and topology. This is an alternative to passing in
+                processes and topology dict, which can not be loaded at the same time.
+                * ``processes``: A dictionary that maps :term:`process` names to
+                process objects. You will usually get this from the ``processes`` key
+                of the dictionary from :py:meth:`vivarium.core.composer.Composer.generate`.
+                * ``steps``: A dictionary that maps :term:`step` names to step objects.
+                You will usually get this from the ``steps`` key of the dictionary from
+                :py:meth:`vivarium.core.composer.Composer.generate`.
+                * ``flow``: A dictionary that maps :term:`step` names to sequences of
+                paths to the steps that the step depends on. You will usually get this
+                from the ``flow`` key of the dictionary from
+                :py:meth:`vivarium.core.composer.Composer.generate`.
+                * ``topology``: A dictionary that maps process names to sub-dictionaries.
+                These sub-dictionaries map the process's port names to tuples that specify
+                a path through the :term:`tree` from the root to the :term:`store` that
+                will be passed to the process for that port.
+                * ``store``: A pre-loaded Store. This is an alternative to passing in
+                processes and topology dict, which can not be loaded at the same time.
+                * ``initial_state``: By default an empty dictionary, this is the initial
+                state of the simulation.
+                * ``experiment_id``: A unique identifier for the experiment. A UUID will
+                be generated if none is provided.
+                * ``metadata``: A dictionary with additional data about the experiment,
+                which is saved by the emitter with the configuration.
+                * ``description``: A description of the experiment. A blank string by
+                default.
+                * ``emitter``: An emitter configuration which must conform to the
+                specification in the documentation for
+                :py:func:`vivarium.core.emitter.get_emitter`. The experiment ID will be
+                added to the dictionary you provide as the value for the key ``experiment_id``.
+                * ``display_info``: prints experiment info
+                * ``progress_bar``: shows a progress bar
+                * ``global_time_precision``: an optional int that sets the decimal precision
+                of global_time. This is useful for remove floating-point rounding errors for
+                the time keys of saved states.
+                * ``store_schema``: An optional dictionary to expand the store hierarchy
+                configuration, and also to turn emits on or off. The dictionary needs to be
+                structured as a hierarchy, which will expand the existing store hierarchy.
+                Setting an emit value for a branch node will set the emits of all the leaves
+                to that value.
+                * ``emit_topology``: If True, this will emit the topology with the configuration
+                data.
+                * ``emit_processes``: If True, this will emit the serialized processes with the
+                configuration data.
+                * ``emit_config``: If True, this will emit the serialized initial state with the
+                configuration data.
+                * ``profile``: Whether to profile the simulation with cProfile.
     """
 
     defaults: Dict[str, Any] = {
