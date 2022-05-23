@@ -19,7 +19,7 @@ import json
 import os
 import multiprocessing
 
-from vivarium.core.composition import BASE_OUT_DIR
+from vivarium.core.directories import BASE_OUT_DIR
 from vivarium.experiments.profile_runtime import (
     ComplexModelSim, run_scan, plot_scan_results)
 
