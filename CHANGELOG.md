@@ -1,5 +1,8 @@
 # Changelog
 
+## v1.2.8
+
+* (#186) Apply function to data from database emitter in `get_history_data_db`.
 
 ## v1.2.7
 
