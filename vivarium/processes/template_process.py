@@ -7,10 +7,8 @@ TODO: Replace the template code to implement your own process.
 import os
 
 from vivarium.core.process import Process
-from vivarium.core.composition import (
-    simulate_process,
-    PROCESS_OUT_DIR,
-)
+from vivarium.core.directories import PROCESS_OUT_DIR
+from vivarium.core.engine import Engine
 from vivarium.plots.simulation_output import plot_simulation_output
 
 
@@ -109,10 +107,10 @@ def run_template_process():
     }
 
     # run the simulation
-    sim_settings = {
-        'total_time': 10,
-        'initial_state': initial_state}
-    output = simulate_process(template_process, sim_settings)
+    composite = template_process.generate()
+    sim = Engine(composite=composite, initial_state=initial_state)
+    sim.update(10)
+    output = sim.emitter.get_timeseries()
 
     return output
 

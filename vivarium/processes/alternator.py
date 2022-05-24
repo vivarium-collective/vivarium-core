@@ -14,9 +14,7 @@ from vivarium.core.process import (
     Deriver
 )
 from vivarium.core.composer import Composer
-from vivarium.core.composition import (
-    PROCESS_OUT_DIR,
-)
+from vivarium.core.directories import PROCESS_OUT_DIR
 from vivarium.composites.toys import ExchangeA
 
 

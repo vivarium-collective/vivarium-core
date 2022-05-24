@@ -11,10 +11,7 @@ import os
 from vivarium.composites.injected_glc_phosphorylation import (
     InjectedGlcPhosphorylation,
 )
-from vivarium.core.composition import (
-    simulate_experiment,
-    EXPERIMENT_OUT_DIR,
-)
+from vivarium.core.directories import EXPERIMENT_OUT_DIR
 from vivarium.plots.simulation_output import plot_simulation_output
 from vivarium.core.emitter import (
     path_timeseries_from_data,
@@ -53,11 +50,8 @@ def glucose_phosphorylation_experiment(config=None):
 
 def run_experiment():
     experiment = glucose_phosphorylation_experiment()
-    settings = {
-        'timestep': 1,
-        'return_raw_data': True,
-    }
-    data = simulate_experiment(experiment, settings)
+    experiment.update(10)
+    data = experiment.emitter.get_data()
     experiment.end()
     return data
 

@@ -4,7 +4,6 @@ Core Vivarium Package
 .. toctree::
    :maxdepth: 4
 
-   vivarium.core.composition
    vivarium.core.control
    vivarium.core.emitter
    vivarium.core.engine

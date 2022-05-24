@@ -6,7 +6,12 @@ Composition
 Helper functions for initializing and running experiments.
 """
 
-import os
+import warnings
+warnings.warn(
+    "composition.py is no longer being maintained and will be "
+    "removed in a future version of vivarium-core. Please use "
+    "Engine directly to run simulations, and Composite.merge "
+    "for composition", DeprecationWarning)
 
 # typing
 from typing import (
@@ -17,9 +22,12 @@ from vivarium.core.types import (
 from vivarium.core.process import Process
 from vivarium.core.composer import Composer, Composite
 from vivarium.core.engine import Engine
-from vivarium.library.dict_utils import (
-    deep_merge,
+from vivarium.core.directories import (
+    REFERENCE_DATA_DIR, BASE_OUT_DIR, TEST_OUT_DIR,
+    PROCESS_OUT_DIR, COMPARTMENT_OUT_DIR, COMPOSITE_OUT_DIR,
+    EXPERIMENT_OUT_DIR,
 )
+from vivarium.library.dict_utils import deep_merge
 
 from vivarium.processes.timeline import TimelineProcess
 from vivarium.processes.nonspatial_environment import \
@@ -33,13 +41,6 @@ from vivarium.composites.toys import (
     ToyCompartment
 )
 
-REFERENCE_DATA_DIR = os.path.join('vivarium', 'reference_data')
-BASE_OUT_DIR = 'out'
-TEST_OUT_DIR = os.path.join(BASE_OUT_DIR, 'tests')
-PROCESS_OUT_DIR = os.path.join(BASE_OUT_DIR, 'processes')
-COMPARTMENT_OUT_DIR = os.path.join(BASE_OUT_DIR, 'compartments')
-COMPOSITE_OUT_DIR = os.path.join(BASE_OUT_DIR, 'composites')
-EXPERIMENT_OUT_DIR = os.path.join(BASE_OUT_DIR, 'experiments')
 
 # list of keys expected in experiment settings
 experiment_config_keys = [

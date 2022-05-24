@@ -12,11 +12,10 @@ from vivarium.core.process import (
     Deriver,
 )
 from vivarium.core.composer import Composer
-from vivarium.core.composition import (
-    simulate_composer,
-    PROCESS_OUT_DIR,
-)
+from vivarium.core.directories import PROCESS_OUT_DIR
+from vivarium.core.engine import Engine
 from vivarium.composites.toys import ExchangeA
+from vivarium.processes.timeline import TimelineProcess
 
 NAME = 'remove'
 
@@ -78,9 +77,25 @@ class ToyLivingCompartment(Composer):
 def test_remove():
     agent_id = '1'
 
-    # make the compartment
+    # timeline turns death on
+    time_dead = 5
+    time_total = 10
+    timeline = [
+        (0, {('agents', agent_id, 'dead'): False}),
+        (time_dead, {('agents', agent_id, 'dead'): True}),
+        (time_total, {})]
+    timeline_process = TimelineProcess({'timeline': timeline})
+
+    # make the composite
     compartment = ToyLivingCompartment({
         'agent_id': agent_id})
+    composite = compartment.generate(path=('agents', agent_id))
+    composite.merge(
+        processes={'timeline': timeline_process},
+        topology={'timeline': {
+            'global': ('global',),
+            'agents': ('agents',)}},
+    )
 
     # initial state
     initial_state = {
@@ -89,23 +104,12 @@ def test_remove():
                 'external': {'A': 1},
                 'trigger': False}}}
 
-    # timeline turns death on
-    time_dead = 5
-    time_total = 10
-    timeline = [
-        (0, {('agents', agent_id, 'dead'): False}),
-        (time_dead, {('agents', agent_id, 'dead'): True}),
-        (time_total, {})]
-
-    # simulate
-    settings = {
-        'outer_path': ('agents', agent_id),
-        'timeline': {
-            'timeline': timeline},
-        'initial_state': initial_state}
-    output = simulate_composer(
-        compartment,
-        settings)
+    sim = Engine(
+        composite=composite,
+        initial_state=initial_state
+        )
+    sim.update(time_total)
+    output = sim.emitter.get_timeseries()
 
     assert len(output['agents']['1']['dead']) == time_dead + 1
     assert len(output['time']) == time_total + 1
