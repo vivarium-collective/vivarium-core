@@ -108,10 +108,10 @@ if __name__ == '__main__':
     }
     my_process = GlucosePhosphorylation(parameters)
     my_composite = my_process.generate()
-    sim = Engine(
+    sim = Engine(dict(
         processes=my_composite['processes'],
         topology=my_composite['topology']
-    )
+    ))
     sim.update(total_time)
     timeseries = sim.emitter.get_timeseries()
     plot_simulation_output(timeseries, {}, './')

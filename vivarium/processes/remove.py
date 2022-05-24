@@ -104,10 +104,10 @@ def test_remove():
                 'external': {'A': 1},
                 'trigger': False}}}
 
-    sim = Engine(
+    sim = Engine(dict(
         composite=composite,
         initial_state=initial_state
-        )
+        ))
     sim.update(time_total)
     output = sim.emitter.get_timeseries()
 

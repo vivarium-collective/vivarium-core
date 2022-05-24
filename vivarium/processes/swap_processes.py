@@ -158,9 +158,9 @@ def test_death():
                 'trigger': False}}}
 
     # simulate
-    sim = Engine(
+    sim = Engine(dict(
         composite=composite,
-        initial_state=initial_state)
+        initial_state=initial_state))
     sim.update(time_total)
     output = sim.emitter.get_timeseries()
 

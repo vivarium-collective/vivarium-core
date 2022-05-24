@@ -212,9 +212,9 @@ def test_gillespie_process(total_time=1000):
         'display_info': False,
         'experiment_id': 'TscTrl'}
     composite = gillespie_process.generate()
-    gillespie_experiment = Engine(
+    gillespie_experiment = Engine(dict(
         composite=composite,
-        **exp_settings)
+        **exp_settings))
 
     # run the experiment in large increments
     increment = 10
@@ -240,9 +240,9 @@ def test_gillespie_composite(total_time=10000):
     # make the experiment
     exp_settings = {
         'experiment_id': 'stochastic_tsc_trl'}
-    stoch_experiment = Engine(
+    stoch_experiment = Engine(dict(
         composite=stochastic_tsc_trl,
-        **exp_settings)
+        **exp_settings))
 
     # simulate and retrieve the data from emitter
     stoch_experiment.update(total_time)

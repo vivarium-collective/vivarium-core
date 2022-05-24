@@ -79,9 +79,9 @@ def test_growth_rate(total_time=1350):
     growth_rate_process = GrowthRate(config)
     initial_state = {'variables': {'mass': initial_mass}}
     composite = growth_rate_process.generate()
-    experiment = Engine(
+    experiment = Engine(dict(
         composite=composite,
-        initial_state=initial_state)
+        initial_state=initial_state))
     experiment.update(total_time)
     output = experiment.emitter.get_timeseries()
 

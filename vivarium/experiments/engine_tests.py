@@ -1042,10 +1042,10 @@ def test_output_port() -> None:
 
     total_time = 10
     composite = InputOutput().generate()
-    sim = Engine(
+    sim = Engine(dict(
         processes=composite['processes'],
         topology=composite['topology']
-    )
+    ))
     sim.update(total_time)
     data = sim.emitter.get_timeseries()
     assert data['input']['A'] == [a_default for _ in range(total_time + 1)]

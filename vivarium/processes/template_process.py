@@ -108,7 +108,9 @@ def run_template_process():
 
     # run the simulation
     composite = template_process.generate()
-    sim = Engine(composite=composite, initial_state=initial_state)
+    sim = Engine(dict(
+        composite=composite,
+        initial_state=initial_state))
     sim.update(10)
     output = sim.emitter.get_timeseries()
 

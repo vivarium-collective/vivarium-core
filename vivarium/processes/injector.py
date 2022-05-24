@@ -82,7 +82,7 @@ def run_injector():
         }
     injector = Injector(parameters)
     composite = injector.generate()
-    sim = Engine(composite=composite)
+    sim = Engine(dict(composite=composite))
     sim.update(10)
     return sim.emitter.get_timeseries()
 

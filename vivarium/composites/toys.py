@@ -687,7 +687,9 @@ def test_composer() -> Dict:
             'DENSITY': 10}}
 
     composite = toy_compartment.generate()
-    sim = Engine(composite=composite, initial_state=initial_state)
+    sim = Engine(dict(
+        composite=composite,
+        initial_state=initial_state))
     sim.update(total_time)
     return sim.emitter.get_timeseries()
 
