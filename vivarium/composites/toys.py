@@ -899,6 +899,7 @@ class ToyDividerStep(Step):
                 },
             },
         }
+
     def next_update(self, timestep, states):
         x = states['variable']['x']
         return {
