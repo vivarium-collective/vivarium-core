@@ -36,7 +36,7 @@ Schema = Dict[str, Any]
 State = Dict[str, Any]
 
 #: A dictionary defining an :term:`update`.
-Update = Dict[str, Any]
+Update = Union[Dict[str, Any], list]
 
 #: A dictionary that specifies the :term:`processes` and
 #: :term:`topology` of a :term:`composite`.

@@ -3,6 +3,7 @@
 Composite, Composer, and MetaComposer Classes
 ==============================================
 """
+from __future__ import annotations
 
 import abc
 import copy
@@ -167,7 +168,7 @@ class Composite(Datum):
             initial_state=initial_state,
             config=config)
 
-    def initialize(self, state):
+    def initialize(self, state: Optional[dict] = None) -> Composite:
         self['state'] = self.initial_state(state)
         return self
 
@@ -402,6 +403,7 @@ class Composer(metaclass=abc.ABCMeta):
         else:
             default = copy.deepcopy(self.config)
             config = deep_merge(default, config)
+        assert isinstance(config, dict)
 
         processes = self.generate_processes(config)
         steps = self.generate_steps(config)

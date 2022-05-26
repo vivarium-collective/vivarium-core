@@ -105,6 +105,7 @@ ignore=injected_glc_phosphorylation.py,
        nonspatial_environment.py,
        store.py,
        wrappers.py,
+       composition.py,
 # Good variable names which should be accepted
 good-names=pp,pf,_,
 

@@ -10,6 +10,9 @@ import re
 from vivarium.library.dict_utils import deep_merge, deep_merge_multi_update
 
 
+SPECIAL_UPDATES = ('_add', '_move', '_generate', '_divide', '_delete', '_reduce')
+
+
 def get_in(d, path, default=None):
     '''Get the value from a dictionary by its path.
 
@@ -167,6 +170,7 @@ def inverse_topology(outer, update, topology, inverse=None):
 
     inverse = inverse or {}
 
+    topology = topology or {}
     for key, path in topology.items():
         if key == '*':
             if isinstance(path, dict):
@@ -290,6 +294,11 @@ def project_topology(topology, update, outer_stack=None):
     state = {}
     if outer_stack is None:
         outer_stack = []
+
+    for update_key in SPECIAL_UPDATES:
+        if update_key in update:
+            state[update_key] = update[update_key]
+            update = without(update, update_key)
 
     for key, path in topology.items():
         if key == '*':

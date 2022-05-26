@@ -1,17 +1,17 @@
+import uuid
 import random
 import logging as log
 from typing import Optional, Union, Dict, Any, cast, List
 
 from vivarium.composites.toys import (
     PoQo, Sine, ToyDivider, ToyTransport, ToyEnvironment,
-    Proton, Electron, Atom)
+    Proton, Electron, Atom, get_atom_topology)
 from vivarium.core.composer import Composer, Composite
 from vivarium.core.engine import Engine, pf, pp, _StepGraph
 from vivarium.core.process import Process, Step, Deriver
 from vivarium.core.store import Store, hierarchy_depth
 from vivarium.core.types import (
     Schema, State, Update, Topology, Steps, Processes)
-from vivarium.core.composition import simulate_process
 from vivarium.library.units import units
 from vivarium.library.wrappers import make_logging_process
 from vivarium.core.control import run_library_cli
@@ -30,29 +30,7 @@ def _make_proton(
 
     spin_path = ('internal', 'spin')
     radius_path = ('structure', 'radius')
-
-    topology = {
-        'proton': {
-            'radius': radius_path,
-            'quarks': ('internal', 'quarks'),
-            'electrons': {
-                '_path': ('electrons',),
-                '*': {
-                    'orbital': ('shell', 'orbital'),
-                    'spin': spin_path}}},
-        'electrons': {
-            'a': {
-                'electron': {
-                    'spin': spin_path,
-                    'proton': {
-                        '_path': ('..', '..'),
-                        'radius': radius_path}}},
-            'b': {
-                'electron': {
-                    'spin': spin_path,
-                    'proton': {
-                        '_path': ('..', '..'),
-                        'radius': radius_path}}}}}
+    topology = get_atom_topology(radius_path, spin_path)
 
     initial_state = {
         'structure': {
@@ -1064,7 +1042,13 @@ def test_output_port() -> None:
             return {}
 
     total_time = 10
-    data = simulate_process(InputOutput(), {'total_time': total_time})
+    composite = InputOutput().generate()
+    sim = Engine(dict(
+        processes=composite['processes'],
+        topology=composite['topology']
+    ))
+    sim.update(total_time)
+    data = sim.emitter.get_timeseries()
     assert data['input']['A'] == [a_default for _ in range(total_time + 1)]
     assert data['output']['B'] == [b_default for _ in range(total_time + 1)]
 
@@ -1190,7 +1174,28 @@ def test_add_new_state() -> None:
     assert len(timeseries['agents'][agent_id]['extra']) == total_time + 1
 
 
-def test_engine_process():
+def test_floating_point_timesteps() -> None:
+    agent_id = '1'
+    transport_timestep = 0.1
+    composite = get_toy_transport_in_env_composite(
+        agent_id=agent_id,
+        transport_config={'time_step': transport_timestep}
+    )
+    sim = Engine(dict(
+        processes=composite.processes,
+        topology=composite.topology,
+        global_time_precision=5
+    ))
+    sim.update(1)
+    data = sim.emitter.get_data()
+    print(pf(data))
+    for t in data.keys():
+        ntimes = round(t / transport_timestep, 5)
+        expected_t = round(ntimes * transport_timestep, 5)
+        assert t == expected_t, f'bad timestep {t}'
+
+
+def test_engine_process() -> Engine:
     # TODO: test engine process division (!)
     # TODO: figure out half the intertopology from the topology
 
@@ -1237,29 +1242,63 @@ def test_engine_process():
     return multi
 
 
-def test_engine_division():
-    pass
+class EngineDivider(Composer):
+    defaults: Dict[str, Any] = {
+        'inner_agents': ('..', '..', 'agents'),
+        'outer_agents': ('agents',)}
+
+    def generate_processes(self, config):
+        divider_config = config['divider']
+        agent_id = divider_config['agent_id']
+        inner_agents = config['inner_agents']
+        outer_agents = config['outer_agents']
+        divider_composer = ToyDivider({
+            'agents_path': inner_agents,
+            'divider': {
+                'name': 'engine-divider'},
+            'intertopology': {
+                'agents': {
+                    '_path': outer_agents,
+                    '*': {
+                        'variable': ('variable',)}}}})
+
+        if not 'composer' in divider_config:
+            divider_config = divider_config.copy()
+            divider_config['composer'] = self
+
+        divider = divider_composer.generate(config['divider'])
+
+        engine = Engine(divider)
+
+        return {
+            'agents': {
+                agent_id: {
+                    'engine': engine}}}
+
+    def generate_topology(self, config):
+        agent_id = config['divider']['agent_id']
+        inner_agents = config['inner_agents']
+        return {
+            'agents': {
+                agent_id: {
+                    'engine': {
+                        'agents': inner_agents}}}}
 
 
-def test_floating_point_timesteps() -> None:
-    agent_id = '1'
-    transport_timestep = 0.1
-    composite = get_toy_transport_in_env_composite(
-        agent_id=agent_id,
-        transport_config={'time_step': transport_timestep}
-    )
-    sim = Engine(dict(
-        processes=composite.processes,
-        topology=composite.topology,
-        global_time_precision=5
-    ))
-    sim.update(1)
-    data = sim.emitter.get_data()
-    print(pf(data))
-    for t in data.keys():
-        ntimes = round(t / transport_timestep, 5)
-        expected_t = round(ntimes * transport_timestep, 5)
-        assert t == expected_t, f'bad timestep {t}'
+def test_engine_process_division() -> Engine:
+    engine_composer = EngineDivider()
+    engine_divider = engine_composer.generate({
+        'divider': {
+            'agent_id': 'A'}})
+
+    engine = Engine(engine_divider)
+
+    import ipdb; ipdb.set_trace()
+
+    engine.update(13)
+
+    import ipdb; ipdb.set_trace()
+
 
 
 engine_tests = {
@@ -1284,8 +1323,9 @@ engine_tests = {
     '18': test_engine_run_for,
     '19': test_set_branch_emit,
     '20': test_add_new_state,
-    '21': test_engine_process,
-    '22': test_floating_point_timesteps,
+    '21': test_floating_point_timesteps,
+    '22': test_engine_process,
+    '23': test_engine_process_division,
 }
 
 

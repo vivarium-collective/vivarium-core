@@ -359,63 +359,65 @@ class _StepGraph:
 
 class Engine(Process):
     """Defines simulations
-    Parameters:
-        composite: A :term:`Composite`, which specifies the processes,
-            steps, flow, and topology. This is an alternative to passing
-            in processes and topology dict, which can not be loaded
-            at the same time.
-        processes: A dictionary that maps :term:`process` names to
-            process objects. You will usually get this from the
-            ``processes`` key of the dictionary from
-            :py:meth:`vivarium.core.composer.Composer.generate`.
-        steps: A dictionary that maps :term:`step` names to step
-            objects. You will usually get this from the ``steps``
-            key of the dictionary from
-            :py:meth:`vivarium.core.composer.Composer.generate`.
-        flow: A dictionary that maps :term:`step` names to sequences
-            of paths to the steps that the step depends on. You will
-            usually get this from the ``flow`` key of the dictionary
-            from
-            :py:meth:`vivarium.core.composer.Composer.generate`.
-        topology: A dictionary that maps process names to
-            sub-dictionaries. These sub-dictionaries map the
-            process's port names to tuples that specify a path
-            through the :term:`tree` from the :term:`compartment`
-            root to the :term:`store` that will be passed to the
-            process for that port.
-        store: A pre-loaded Store. This is an alternative to passing
-            in processes and topology dict, which can not be loaded
-            at the same time.
-        initial_state: By default an empty dictionary, this is the
-            initial state of the simulation.
-        experiment_id: A unique identifier for the experiment. A
-            UUID will be generated if none is provided.
-        metadata: A dictionary with additional data about the experiment,
-            which is saved by the emitter with the configuration.
-        description: A description of the experiment. A blank string
-            by default.
-        emitter: An emitter configuration which must conform to the
-            specification in the documentation for
-            :py:func:`vivarium.core.emitter.get_emitter`. The
-            experiment ID will be added to the dictionary you
-            provide as the value for the key ``experiment_id``.
-        display_info: prints experiment info
-        progress_bar: shows a progress bar
-        global_time_precision: an optional int that sets the decimal
-            precision of global_time. This is useful for remove floating-
-            point rounding errors for the time keys of saved states.
-        store_schema: An optional dictionary to expand the store hierarchy
-            configuration, and also to turn emits on or off. The dictionary
-            needs to be structured as a hierarchy, which will expand the
-            existing store hierarchy. Setting an emit value for a branch
-            node will set the emits of all the leaves to that value.
-        emit_topology: If True, this will emit the topology with the
-            configuration data.
-        emit_processes: If True, this will emit the serialized
-            processes with the configuration data.
-        emit_config: If True, this will emit the serialized initial
-            state with the configuration data.
-        profile: Whether to profile the simulation with cProfile.
+
+        Args:
+            parameters: a parameter dict that may contain the following keys:
+                * ``composite``: A :term:`Composite`, which specifies the
+                processes, steps, flow, and topology. This is an alternative to
+                passing in processes and topology dict, which can not be loaded
+                at the same time.
+                * ``processes``: A dictionary that maps :term:`process` names to
+                process objects. You will usually get this from the
+                ``processes`` key of the dictionary from
+                :py:meth:`vivarium.core.composer.Composer.generate`.
+                * ``steps``: A dictionary that maps :term:`step` names to step
+                objects. You will usually get this from the ``steps`` key of the
+                dictionary from
+                :py:meth:`vivarium.core.composer.Composer.generate`.
+                * ``flow``: A dictionary that maps :term:`step` names to
+                sequences of paths to the steps that the step depends on. You
+                will usually get this from the ``flow`` key of the dictionary
+                from :py:meth:`vivarium.core.composer.Composer.generate`.
+                * ``topology``: A dictionary that maps process names to
+                sub-dictionaries. These sub-dictionaries map the process's port
+                names to tuples that specify a path through the :term:`tree`
+                from the root to the :term:`store` that will be passed to the
+                process for that port.
+                * ``store``: A pre-loaded Store. This is an alternative to
+                passing in processes and topology dict, which can not be loaded
+                at the same time.
+                * ``initial_state``: By default an empty dictionary, this is the
+                initial state of the simulation.
+                * ``experiment_id``: A unique identifier for the experiment. A
+                UUID will be generated if none is provided.
+                * ``metadata``: A dictionary with additional data about the
+                experiment, which is saved by the emitter with the
+                configuration.
+                * ``description``: A description of the experiment. A blank
+                string by default.
+                * ``emitter``: An emitter configuration which must conform to
+                the specification in the documentation for
+                :py:func:`vivarium.core.emitter.get_emitter`. The experiment ID
+                will be added to the dictionary you provide as the value for the
+                key ``experiment_id``.
+                * ``display_info``: prints experiment info
+                * ``progress_bar``: shows a progress bar
+                * ``global_time_precision``: an optional int that sets the
+                decimal recision of global_time. This is useful for remove
+                floating-point rounding errors for the time keys of saved
+                states.
+                * ``store_schema``: An optional dictionary to expand the store
+                hierarchy configuration, and also to turn emits on or off. The
+                dictionary needs to be structured as a hierarchy, which will
+                expand the existing store hierarchy. Setting an emit value for a
+                branch node will set the emits of all the leaves to that value.
+                * ``emit_topology``: If True, this will emit the topology with
+                the configuration data.
+                * ``emit_processes``: If True, this will emit the serialized
+                processes with the configuration data.
+                * ``emit_config``: If True, this will emit the serialized
+                initial state with the configuration data.
+                * ``profile``: Whether to profile the simulation with cProfile.
     """
 
     defaults: Dict[str, Any] = {
@@ -444,7 +446,7 @@ class Engine(Process):
         'topology': None,
     }
 
-    def __init__(self, parameters=None) -> None:
+    def __init__(self, parameters: Optional[dict] = None) -> None:
         super().__init__(parameters)
 
         self.profiler: Optional[cProfile.Profile] = None
@@ -454,8 +456,9 @@ class Engine(Process):
         self.stats_objs: List[pstats.Stats] = []
         self.stats: Optional[pstats.Stats] = None
 
-        self.experiment_id = self.parameters['experiment_id'] or str(uuid.uuid1())
-        self.initial_state = self.parameters['initial_state'] or {}
+        self.experiment_id = self.parameters['experiment_id'] or \
+                             str(uuid.uuid1())
+        self.initial_state_value = self.parameters['initial_state'] or {}
         self.emit_step = self.parameters['emit_step']
 
         # make the processes, topology, steps, flow, and store
@@ -468,16 +471,17 @@ class Engine(Process):
             self.parameters['topology'])
 
         # record every update generated by this simulation
-        self.history = []
+        self.history: list = []
 
         # TODO: find a better name for this?
         #   - engine_topology?
         #   - intertopology?
         self.intertopology = self.parameters['intertopology']
-        self.intertopology_updates = []
+        self.intertopology_updates: list = []
 
         # display settings
-        self.experiment_name = self.parameters['experiment_name'] or self.experiment_id
+        self.experiment_name = self.parameters['experiment_name'] or \
+                               self.experiment_id
         self.metadata = self.parameters['metadata']
         self.description = self.parameters['description']
         self.display_info = self.parameters['display_info']
@@ -546,33 +550,34 @@ class Engine(Process):
     def initial_state(self, config: Optional[dict] = None) -> State:
         # this is from the perspective of the total engine ports,
         # not the internal store
-        pass
+        return super().initial_state(config)
 
-    def _set_timestep(self):
+    def _set_timestep(self) -> None:
         self._timestep_provided = 'timestep' or 'time_step' in self.parameters
         super()._set_timestep()
 
     def calculate_timestep(self, states: Optional[State]) -> Union[float, int]:
         # TODO: pass in a timestep instead of calculating minimal timestep?
-        #   AND/OR: find which processes update values in the intertopology, not every process
-        #      maybe this is unreasonable? find a good way to do it
-        #   Which processes update this value? 
+        #   AND/OR: find which processes update values in the intertopology,
+        #   not every process maybe this is unreasonable? find a good way to
+        #   do it. Which processes update this value?
         timesteps = []
         if self._timestep_provided:
             return self.parameters['timestep']
-        else:
-            for path, process in self.process_paths.items():
-                if path in self.front and self.front[path]['time'] > self.global_time:
-                    timesteps.append(self.front[path]['time'] - self.global_time)
-                else:
-                    store, state = self._process_state(path)
-                    timestep = process.calculate_timestep(state)
-                    timesteps.append(timestep)
-                    self.front[path]['future'] = {
-                        'timestep': timestep,
-                        'store': store,
-                        'state': state}
-            return min(timesteps)
+        for path, process in self.process_paths.items():
+            if path in self.front and \
+                    self.front[path]['time'] > self.global_time:
+                timesteps.append(
+                    self.front[path]['time'] - self.global_time)
+            else:
+                store, state = self._process_state(path)
+                timestep = process.calculate_timestep(state)
+                timesteps.append(timestep)
+                self.front[path]['future'] = {
+                    'timestep': timestep,
+                    'store': store,
+                    'state': state}
+        return min(timesteps)
 
     def ports_schema(self) -> Schema:
         schema = project_topology(
@@ -580,8 +585,10 @@ class Engine(Process):
             self.state.get_schema())
         return schema
 
-    def next_update(self, timestep, state):
-        inverse = inverse_topology((), state, self.intertopology)
+    def next_update(
+            self, timestep: Union[float, int], states: State
+    ) -> Update:
+        inverse = inverse_topology((), states, self.intertopology)
         self.state.set_value(inverse)
         updates = self.run_for(timestep)
 
@@ -632,7 +639,8 @@ class Engine(Process):
                 self.steps = composite['steps']
                 self.flow = composite['flow']
                 self.topology = composite['topology']
-                self.initial_state = composite['state'] or self.initial_state
+                self.initial_state_value = composite['state'] or \
+                                           self.initial_state_value
             else:
                 raise Exception(
                     'load either composite, store, or '
@@ -642,14 +650,14 @@ class Engine(Process):
             self.state: Store = generate_state(
                 self.processes,
                 self.topology,
-                self.initial_state,
+                self.initial_state_value,
                 self.steps,
                 self.flow,
             )
 
         else:
             self.state = store
-            self.state.set_value(self.initial_state)
+            self.state.set_value(self.initial_state_value)
             # build the processes' views
             self.state.build_topology_views()
             # get processes and topology from the store
@@ -983,8 +991,10 @@ class Engine(Process):
             for update, store in deferred_updates:
                 updates = update.get()
                 if not isinstance(updates, list):
-                    updates = [updates]
-                for up in updates:
+                    updates_list: list = [updates]
+                else:
+                    updates_list = updates
+                for up in updates_list:
                     view_expire_update = self.apply_update(up, store)
                     view_expire = view_expire or view_expire_update
 
@@ -1065,11 +1075,90 @@ class Engine(Process):
             for path, progress in self.front.items()
             if path in self.process_paths}
 
+    def _run_process(
+            self,
+            path: HierarchyPath,
+            process: Process,
+            end_time: float,
+            full_step: float,
+            quiet_paths: list,
+            force_complete: bool,
+    ) -> Tuple[float, list]:
+        """
+        Try to run one process.
+
+        If it is able to update based on its most recent update time
+        being less than global time, then its update gets added to the
+        front.
+        """
+        if path not in self.front:
+            self.front[path] = empty_front(self.global_time)
+        process_time = self.front[path]['time']
+
+        if process_time <= self.global_time:
+
+            if self.front[path].get('future'):
+                future_front = self.front[path]['future']
+                process_timestep = future_front['timestep']
+                store = future_front['store']
+                state = future_front['state']
+                del self.front[path]['future']
+            else:
+                # get the time step
+                store, state = self._process_state(path)
+                process_timestep = process.calculate_timestep(state)
+
+            if force_complete:
+                # force the process to complete at end_time
+                future = min(process_time + process_timestep, end_time)
+            else:
+                future = process_time + process_timestep
+            if self.global_time_precision is not None:
+                # set future time based on global_time_precision
+                future = round(future, self.global_time_precision)
+
+            if future <= end_time:
+
+                # calculate the update for this process
+                if process.update_condition(process_timestep, state):
+                    update = self._process_update(
+                        path,
+                        process,
+                        store,
+                        state,
+                        process_timestep)
+
+                    # update front, to be applied at its projected time
+                    self.front[path]['time'] = future
+                    self.front[path]['update'] = update
+
+                    # absolute timestep
+                    timestep = future - self.global_time
+                    if timestep < full_step:
+                        full_step = timestep
+                else:
+                    # mark this path "quiet" so its time can be advanced
+                    self.front[path]['update'] = (EmptyDefer(), store)
+                    quiet_paths.append(path)
+            else:
+                # absolute timestep
+                timestep = future - self.global_time
+                if timestep < full_step:
+                    full_step = timestep
+
+        else:
+            # don't shoot past processes that didn't run this time
+            process_delay = process_time - self.global_time
+            if process_delay < full_step:
+                full_step = process_delay
+
+        return full_step, quiet_paths
+
     def run_for(
             self,
             interval: float,
             force_complete: bool = False,
-    ) -> None:
+    ) -> Update:
         """Run each process within the given interval and update their states.
 
         Args:
@@ -1086,71 +1175,14 @@ class Engine(Process):
 
             # processes at quiet paths don't meet their execution condition,
             # but still advance in time
-            quiet_paths = []
+            quiet_paths: list = []
 
             # go through each process and find those that are able to update
             # based on their most recent update time being less than global time
             for path, process in self.process_paths.items():
-                if path not in self.front:
-                    self.front[path] = empty_front(self.global_time)
-                process_time = self.front[path]['time']
-
-                if process_time <= self.global_time:
-
-                    if self.front[path].get('future'):
-                        future_front = self.front[path]['future']
-                        process_timestep = future_front['timestep']
-                        store = future_front['store']
-                        state = future_front['state']
-                        del self.front[path]['future']
-                    else:
-                        # get the time step
-                        store, state = self._process_state(path)
-                        process_timestep = process.calculate_timestep(state)
-
-                    if force_complete:
-                        # force the process to complete at end_time
-                        future = min(process_time + process_timestep, end_time)
-                    else:
-                        future = process_time + process_timestep
-                    if self.global_time_precision is not None:
-                        # set future time based on global_time_precision
-                        future = round(future, self.global_time_precision)
-
-                    if future <= end_time:
-
-                        # calculate the update for this process
-                        if process.update_condition(process_timestep, state):
-                            update = self._process_update(
-                                path,
-                                process,
-                                store,
-                                state,
-                                process_timestep)
-
-                            # update front, to be applied at its projected time
-                            self.front[path]['time'] = future
-                            self.front[path]['update'] = update
-
-                            # absolute timestep
-                            timestep = future - self.global_time
-                            if timestep < full_step:
-                                full_step = timestep
-                        else:
-                            # mark this path "quiet" so its time can be advanced
-                            self.front[path]['update'] = (EmptyDefer(), store)
-                            quiet_paths.append(path)
-                    else:
-                        # absolute timestep
-                        timestep = future - self.global_time
-                        if timestep < full_step:
-                            full_step = timestep
-
-                else:
-                    # don't shoot past processes that didn't run this time
-                    process_delay = process_time - self.global_time
-                    if process_delay < full_step:
-                        full_step = process_delay
+                full_step, quiet_paths = self._run_process(
+                    path, process, end_time, full_step,
+                    quiet_paths, force_complete)
 
             # apply updates based on process times in self.front
             if full_step == math.inf:
@@ -1200,8 +1232,7 @@ class Engine(Process):
 
         updates = self.intertopology_updates
         self.intertopology_updates = []
-
-        # TODO deal with topology updates also? 
+        # TODO deal with topology updates also?
         return updates
 
     def is_engine(self) -> bool:

@@ -28,7 +28,7 @@ class TopView(Step):
         agents = top['agents']
 
         # update the bigraph directly by dividing agents
-        update: Update = {'top': {'agents': {}}}
+        update: dict = {'top': {'agents': {}}}
         for agent_id, agent_state in agents.items():
             internal_glc = agent_state['internal']['GLC']
             if internal_glc >= self.parameters['division_threshold']:

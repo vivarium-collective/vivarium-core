@@ -192,7 +192,7 @@ Then run your code by executing the whole file:
 Notice that the ``k_cat`` parameter updated to the value we supplied and
 that ``k_ATP`` took on the default value.
 
-But wait! Where did the ``parameters`` attribute come from? We never
+Wait! Where did the ``parameters`` attribute come from? We never
 created that attribute, but
 :py:class:`vivarium.core.process.Process` made it  from the
 ``parameters`` argument we passed to its constructor. We'll take
@@ -376,13 +376,13 @@ of the :term:`updaters` for demonstration.
 By convention, we usually put the ``ports_schema`` method before the
 ``next_update`` method.
 
-Now, we can run a simulation using Vivarium's
-:py:func:`vivarium.core.composition.simulate_process` function
+Now, we can run a simulation using Vivarium's Engine
+:py:func:`vivarium.core.engine.Engine`
 like this:
 
 .. code-block:: python
 
-    from vivarium.core.composition import simulate_process
+    from vivarium.core.engine import Engine
     from vivarium.plots.simulation_output import plot_simulation_output
 
     ...
@@ -393,10 +393,16 @@ like this:
         }
         my_process = GlucosePhosphorylation(parameters)
 
-        settings = {
-            'total_time': 10,
-        }
-        timeseries = simulate_process(my_process, settings)
+        # make a composite
+        my_composite = my_process.generate()
+
+        # run a simulation
+        sim = Engine(composite=my_composite)
+        total_time = 10
+        sim.update(total_time)
+
+        # get the timeseries
+        timeseries = sim.emitter.get_timeseries()
         plot_simulation_output(timeseries, {}, './')
 
 We use

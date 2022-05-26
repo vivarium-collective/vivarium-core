@@ -13,10 +13,8 @@ simple.
 
 import os
 
-from vivarium.core.composition import (
-    simulate_process,
-    TEST_OUT_DIR,
-)
+from vivarium.core.directories import TEST_OUT_DIR
+from vivarium.core.engine import Engine
 from vivarium.library.timeseries import save_timeseries
 from vivarium.plots.simulation_output import plot_simulation_output
 from vivarium.core.process import Process
@@ -83,11 +81,10 @@ def run_injector():
         'substrate_rate_map': {'toy': 1.0},
         }
     injector = Injector(parameters)
-    settings = {
-        'total_time': 10,
-    }
-    timeseries = simulate_process(injector, settings)
-    return timeseries
+    composite = injector.generate()
+    sim = Engine(dict(composite=composite))
+    sim.update(10)
+    return sim.emitter.get_timeseries()
 
 
 def test_injector():

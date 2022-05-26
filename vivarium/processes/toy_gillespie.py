@@ -11,11 +11,8 @@ import numpy as np
 
 from vivarium.core.process import Process
 from vivarium.core.composer import Composer
-from vivarium.core.composition import (
-    process_in_experiment,
-    composite_in_experiment,
-    PROCESS_OUT_DIR,
-)
+from vivarium.core.directories import PROCESS_OUT_DIR
+from vivarium.core.engine import Engine
 from vivarium.core.registry import process_registry
 from vivarium.plots.simulation_output import plot_simulation_output
 
@@ -208,15 +205,16 @@ class StochasticTscTrl(Composer):
 
 
 def test_gillespie_process(total_time=1000):
-    gillespie_process = StochasticTSC()
+    gillespie_process = StochasticTSC({'name': 'process'})
 
     # make the experiment
     exp_settings = {
         'display_info': False,
         'experiment_id': 'TscTrl'}
-    gillespie_experiment = process_in_experiment(
-        gillespie_process,
-        exp_settings)
+    composite = gillespie_process.generate()
+    gillespie_experiment = Engine(dict(
+        composite=composite,
+        **exp_settings))
 
     # run the experiment in large increments
     increment = 10
@@ -242,9 +240,9 @@ def test_gillespie_composite(total_time=10000):
     # make the experiment
     exp_settings = {
         'experiment_id': 'stochastic_tsc_trl'}
-    stoch_experiment = composite_in_experiment(
-        stochastic_tsc_trl,
-        exp_settings)
+    stoch_experiment = Engine(dict(
+        composite=stochastic_tsc_trl,
+        **exp_settings))
 
     # simulate and retrieve the data from emitter
     stoch_experiment.update(total_time)

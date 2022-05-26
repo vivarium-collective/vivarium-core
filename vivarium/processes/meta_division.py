@@ -6,7 +6,7 @@ from vivarium.core.process import (
     Step
 )
 from vivarium.core.composer import Composer
-from vivarium.core.composition import (
+from vivarium.core.directories import (
     PROCESS_OUT_DIR,
 )
 from vivarium.core.engine import (
@@ -130,6 +130,27 @@ class ToyAgent(Composer):
 def test_division():
     agent_id = '1'
 
+    # timeline triggers division
+    time_divide = 5
+    time_total = 10
+    timeline = [
+        (0, {('agents', agent_id, 'global', 'divide'): False}),
+        (time_divide, {('agents', agent_id, 'global', 'divide'): True}),
+        (time_total, {})]
+
+    # create the processes
+    timeline_process = TimelineProcess({'timeline': timeline})
+    agent = ToyAgent({'agent_id': agent_id})
+
+    # compose
+    composite = agent.generate(path=('agents', agent_id))
+    composite.merge(
+        processes={'timeline': timeline_process},
+        topology={'timeline': {
+            'global': ('global',),
+            'agents': ('agents',)}},
+    )
+
     # initial state
     initial_state = {
         'agents': {
@@ -143,30 +164,10 @@ def test_division():
         }
     }
 
-    # timeline triggers division
-    time_divide = 5
-    time_total = 10
-    timeline = [
-        (0, {('agents', agent_id, 'global', 'divide'): False}),
-        (time_divide, {('agents', agent_id, 'global', 'divide'): True}),
-        (time_total, {})]
-
-    # declare the hierarchy
-    timeline = TimelineProcess({'timeline': timeline})
-    agent = ToyAgent({'agent_id': agent_id})
-
-    composite = agent.generate(path=('agents', agent_id))
-    composite.merge(
-        processes={'timeline': timeline},
-        topology={'timeline': {
-            'global': ('global',),
-            'agents': ('agents',)}},
-        state=initial_state
-    )
-
     # configure experiment
     experiment = Engine(dict(
         composite=composite,
+        initial_state=initial_state
     ))
 
     # run simulation

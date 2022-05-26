@@ -8,7 +8,7 @@ Emitters log configuration data and time-series data somewhere.
 
 import json
 import uuid
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Callable
 from urllib.parse import quote_plus
 
 from pymongo import MongoClient
@@ -397,10 +397,26 @@ def assemble_data(data: list) -> dict:
     return assembly
 
 
+def apply_func(
+    document: Any,
+    field: Tuple,
+    f: Callable[..., Any] = None,
+) -> Any:
+    if field[0] not in document:
+        return document
+    if len(field) != 1:
+        document[field[0]] = apply_func(document[field[0]], field[1:], f)
+    elif f is not None:
+        document[field[0]] = f(document[field[0]])
+    return document
+
+
 def get_history_data_db(
         history_collection: Any,
         experiment_id: Any,
         query: list = None,
+        func_dict: dict = None,
+        f: Callable[..., Any] = None,
 ) -> Dict[float, dict]:
     """Query MongoDB for history data.
 
@@ -409,7 +425,12 @@ def get_history_data_db(
         experiment_id: the experiment id which is being retrieved
         query: a list of tuples pointing to fields within the experiment data.
             In the format: [('path', 'to', 'field1'), ('path', 'to', 'field2')]
-
+        func_dict: a dict which maps the given query paths to a function that
+            operates on the retrieved values and returns the results. If None
+            then the raw values are returned.
+            In the format: {('path', 'to', 'field1'): function}
+        f: a function that applies equally to all fields in query. func_dict
+            is the recommended approach and takes priority over f.
     Returns:
         data (dict)
     """
@@ -427,6 +448,15 @@ def get_history_data_db(
     for document in cursor:
         assert document.get('assembly_id'), \
             "all database documents require an assembly_id"
+        if (f or func_dict) and query:
+            for field in query:
+                if func_dict:  # func_dict takes priority over f
+                    func = func_dict.get(field)
+                else:
+                    func = f
+
+                document["data"] = apply_func(
+                    document["data"], field, func)
         raw_data.append(document)
 
     # re-assemble data
@@ -464,6 +494,8 @@ def data_from_database(
         experiment_id: str,
         client: Any,
         query: list = None,
+        func_dict: dict = None,
+        f: Callable[..., Any] = None,
 ) -> Tuple[dict, Any]:
     """Fetch something from a MongoDB."""
 
@@ -480,7 +512,8 @@ def data_from_database(
 
     # Retrieve timepoint data
     history = client.history
-    data = get_history_data_db(history, experiment_id, query)
+    data = get_history_data_db(
+        history, experiment_id, query, func_dict, f)
 
     return data, experiment_config
 

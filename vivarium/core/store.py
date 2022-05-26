@@ -22,6 +22,7 @@ from vivarium.library.dict_utils import deep_merge, deep_merge_check, MULTI_UPDA
 from vivarium.library.topology import without, dict_to_paths, inverse_topology
 from vivarium.core.types import Processes, Topology, State, Steps, Flow
 
+
 _EMPTY_UPDATES = None, None, None, None, None, None
 DEFAULT_SCHEMA = '_default'
 
@@ -1714,7 +1715,7 @@ class Store:
 
         if self.leaf or schema == '**':
             state = self
-        elif not schema.get('_output'):
+        elif schema and not schema.get('_output'):
             for key, subschema in schema.items():
                 path = topology.get(key)
                 if key == '*':

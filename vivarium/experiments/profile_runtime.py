@@ -19,7 +19,7 @@ from vivarium.core.engine import Engine
 from vivarium.core.process import Process
 from vivarium.core.composer import Composer
 from vivarium.core.control import run_library_cli
-from vivarium.core.composition import EXPERIMENT_OUT_DIR
+from vivarium.core.directories import EXPERIMENT_OUT_DIR
 
 DEFAULT_PROCESS_SLEEP = 1e-3
 DEFAULT_N_PROCESSES = 10
@@ -221,10 +221,10 @@ class ComplexModelSim:
         self.composite = composer.generate(**kwargs)
 
     def _initialize_experiment(self, **kwargs):
-        self.experiment = Engine(
+        self.experiment = Engine(dict(
             processes=self.composite['processes'],
             topology=self.composite['topology'],
-            **kwargs)
+            **kwargs))
 
     def _run_experiment(self, **kwargs):
         self.experiment.update(kwargs['experiment_time'])

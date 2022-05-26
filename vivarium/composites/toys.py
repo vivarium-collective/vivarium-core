@@ -8,6 +8,8 @@ from vivarium.core.process import (
 from vivarium.core.composer import Composer, MetaComposer, Composite
 from vivarium.core.types import State, Schema, Update, Topology
 from vivarium.processes.division import get_divide_update
+from vivarium.core.engine import Engine
+from vivarium.library.topology import assoc_path
 
 quark_colors = ['green', 'red', 'blue']
 quark_spins = ['up', 'down']
@@ -334,6 +336,29 @@ class Electron(Process):
 
         return update
 
+def get_atom_topology(radius_path, spin_path):
+    return {
+        'proton': {
+            'radius': radius_path,
+            'quarks': ('internal', 'quarks'),
+            'electrons': {
+                '_path': ('electrons',),
+                '*': {
+                    'orbital': ('shell', 'orbital'),
+                    'spin': spin_path}}},
+        'electrons': {
+            'a': {
+                'electron': {
+                    'spin': spin_path,
+                    'proton': {
+                        '_path': ('..', '..'),
+                        'radius': radius_path}}},
+            'b': {
+                'electron': {
+                    'spin': spin_path,
+                    'proton': {
+                        '_path': ('..', '..'),
+                        'radius': radius_path}}}}}
 
 class Atom(Composer):
     def generate_processes(self, config=None):
@@ -348,29 +373,7 @@ class Atom(Composer):
     def generate_topology(self, config=None):
         spin_path = ('internal', 'spin')
         radius_path = ('structure', 'radius')
-
-        return {
-            'proton': {
-                'radius': radius_path,
-                'quarks': ('internal', 'quarks'),
-                'electrons': {
-                    '_path': ('electrons',),
-                    '*': {
-                        'orbital': ('shell', 'orbital'),
-                        'spin': spin_path}}},
-            'electrons': {
-                'a': {
-                    'electron': {
-                        'spin': spin_path,
-                        'proton': {
-                            '_path': ('..', '..'),
-                            'radius': radius_path}}},
-                'b': {
-                    'electron': {
-                        'spin': spin_path,
-                        'proton': {
-                            '_path': ('..', '..'),
-                            'radius': radius_path}}}}}
+        return get_atom_topology(radius_path, spin_path)
 
 
 class Sine(Process):
@@ -670,6 +673,27 @@ def test_override() -> None:
     assert default_state == expected_default_state
 
 
+def test_composer() -> Dict:
+    toy_compartment = ToyCompartment({})
+    total_time = 10
+    initial_state = {
+        'periplasm': {
+            'GLC': 20,
+            'MASS': 100,
+            'DENSITY': 10},
+        'cytoplasm': {
+            'GLC': 0,
+            'MASS': 3,
+            'DENSITY': 10}}
+
+    composite = toy_compartment.generate()
+    sim = Engine(dict(
+        composite=composite,
+        initial_state=initial_state))
+    sim.update(total_time)
+    return sim.emitter.get_timeseries()
+
+
 def test_composite_initial_state() -> None:
     """
     test that initial state in composite merges individual processes'
@@ -881,6 +905,7 @@ class ToyDividerProcess(Process):
                 composer_config={
                     self.parameters['name']: self.parameters},
             )
+
             return {'agents': divide_update}
         return {'variable': {'x': self.parameters['x_growth']}}
 
@@ -911,38 +936,57 @@ class ToyDividerStep(Step):
 
 class ToyDivider(Composer):
     defaults: Dict[str, Any] = {
+        'prefix': ('agents',),
+        'agents_path': ('..', '..', 'agents'),
         'divider': {'name': 'divider'}}
+
+    def embed_prefix(self, d, config):
+        return assoc_path(
+            {},
+            config['prefix'] + (config['agent_id'],),
+            d)
 
     def generate_processes(self, config):
         agent_id = config['agent_id']
+        composer = config.get('composer', self)
         division_config = dict(
             config['divider'],
             agent_id=agent_id,
-            composer=self)
-        return {
+            composer=composer)
+
+        processes = {
             'divider': ToyDividerProcess(division_config),
         }
 
+        return self.embed_prefix(processes, config)
+
     def generate_steps(self, config):
-        return {
+        steps = {
             'step': ToyDividerStep(),
         }
 
+        return self.embed_prefix(steps, config)
+
     def generate_flow(self, config):
-        return {
+        flow = {
             'step': [],
         }
 
+        return self.embed_prefix(flow, config)
+
     def generate_topology(self, config):
-        return {
+        agents_path = config['agents_path']
+        topology = {
             'divider': {
                 'variable': ('variable',),
-                'agents': ('..', '..', 'agents'),
+                'agents': agents_path,
             },
             'step': {
                 'variable': ('variable',),
             },
         }
+
+        return self.embed_prefix(topology, config)
 
 
 if __name__ == '__main__':
