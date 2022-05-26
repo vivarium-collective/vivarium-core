@@ -9,7 +9,7 @@ from vivarium.core.composer import Composer, MetaComposer, Composite
 from vivarium.core.types import State, Schema, Update, Topology
 from vivarium.processes.division import get_divide_update
 from vivarium.core.engine import Engine
-
+from vivarium.library.topology import assoc_path
 
 quark_colors = ['green', 'red', 'blue']
 quark_spins = ['up', 'down']
@@ -905,6 +905,7 @@ class ToyDividerProcess(Process):
                 composer_config={
                     self.parameters['name']: self.parameters},
             )
+            import ipdb; ipdb.set_trace()
             return {'agents': divide_update}
         return {'variable': {'x': self.parameters['x_growth']}}
 
@@ -934,38 +935,57 @@ class ToyDividerStep(Step):
 
 class ToyDivider(Composer):
     defaults: Dict[str, Any] = {
+        'prefix': ('agents',),
+        'agents_path': ('..', '..', 'agents'),
         'divider': {'name': 'divider'}}
+
+    def embed_prefix(self, d, config):
+        return assoc_path(
+            {},
+            config['prefix'] + (config['agent_id'],),
+            d)
 
     def generate_processes(self, config):
         agent_id = config['agent_id']
+        composer = config.get('composer', self)
         division_config = dict(
             config['divider'],
             agent_id=agent_id,
-            composer=self)
-        return {
+            composer=composer)
+
+        processes = {
             'divider': ToyDividerProcess(division_config),
         }
 
+        return self.embed_prefix(processes, config)
+
     def generate_steps(self, config):
-        return {
+        steps = {
             'step': ToyDividerStep(),
         }
 
+        return self.embed_prefix(steps, config)
+
     def generate_flow(self, config):
-        return {
+        flow = {
             'step': [],
         }
 
+        return self.embed_prefix(flow, config)
+
     def generate_topology(self, config):
-        return {
+        agents_path = config['agents_path']
+        topology = {
             'divider': {
                 'variable': ('variable',),
-                'agents': ('..', '..', 'agents'),
+                'agents': agents_path,
             },
             'step': {
                 'variable': ('variable',),
             },
         }
+
+        return self.embed_prefix(topology, config)
 
 
 if __name__ == '__main__':

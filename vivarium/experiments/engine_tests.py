@@ -1,3 +1,4 @@
+import uuid
 import random
 import logging as log
 from typing import Optional, Union, Dict, Any, cast, List
@@ -1173,6 +1174,27 @@ def test_add_new_state() -> None:
     assert len(timeseries['agents'][agent_id]['extra']) == total_time + 1
 
 
+def test_floating_point_timesteps() -> None:
+    agent_id = '1'
+    transport_timestep = 0.1
+    composite = get_toy_transport_in_env_composite(
+        agent_id=agent_id,
+        transport_config={'time_step': transport_timestep}
+    )
+    sim = Engine(dict(
+        processes=composite.processes,
+        topology=composite.topology,
+        global_time_precision=5
+    ))
+    sim.update(1)
+    data = sim.emitter.get_data()
+    print(pf(data))
+    for t in data.keys():
+        ntimes = round(t / transport_timestep, 5)
+        expected_t = round(ntimes * transport_timestep, 5)
+        assert t == expected_t, f'bad timestep {t}'
+
+
 def test_engine_process() -> Engine:
     # TODO: test engine process division (!)
     # TODO: figure out half the intertopology from the topology
@@ -1216,25 +1238,64 @@ def test_engine_process() -> Engine:
     return multi
 
 
-def test_floating_point_timesteps() -> None:
-    agent_id = '1'
-    transport_timestep = 0.1
-    composite = get_toy_transport_in_env_composite(
-        agent_id=agent_id,
-        transport_config={'time_step': transport_timestep}
-    )
-    sim = Engine(dict(
-        processes=composite.processes,
-        topology=composite.topology,
-        global_time_precision=5
-    ))
-    sim.update(1)
-    data = sim.emitter.get_data()
-    print(pf(data))
-    for t in data.keys():
-        ntimes = round(t / transport_timestep, 5)
-        expected_t = round(ntimes * transport_timestep, 5)
-        assert t == expected_t, f'bad timestep {t}'
+class EngineDivider(Composer):
+    defaults: Dict[str, Any] = {
+        'inner_agents': ('..', '..', 'agents'),
+        'outer_agents': ('agents',)}
+
+    def generate_processes(self, config):
+        divider_config = config['divider']
+        agent_id = divider_config['agent_id']
+        inner_agents = config['inner_agents']
+        outer_agents = config['outer_agents']
+        divider_composer = ToyDivider({
+            'agents_path': inner_agents,
+            'divider': {
+                'name': 'engine-divider'},
+            'intertopology': {
+                # 'variable': ('variable',),
+                'agents': {
+                    '_path': outer_agents,
+                    '*': {
+                        'variable': ('variable',)}}}})
+
+        if not 'composer' in divider_config:
+            divider_config = divider_config.copy()
+            divider_config['composer'] = self
+
+        divider = divider_composer.generate(config['divider'])
+
+        engine = Engine(divider)
+
+        return {
+            'agents': {
+                agent_id: {
+                    'engine': engine}}}
+
+    def generate_topology(self, config):
+        agent_id = config['divider']['agent_id']
+        inner_agents = config['inner_agents']
+        return {
+            # 'variable': ('variable',),
+            'agents': {
+                agent_id: {
+                    'engine': {
+                        'agents': inner_agents}}}}
+
+
+def test_engine_process_division() -> Engine:
+    engine_composer = EngineDivider()
+    engine_divider = engine_composer.generate({
+        'divider': {
+            'agent_id': 'A'}})
+
+    engine = Engine(engine_divider)
+
+    import ipdb; ipdb.set_trace()
+
+    engine.update(13)
+
+    import ipdb; ipdb.set_trace()
 
 
 engine_tests = {
@@ -1259,8 +1320,9 @@ engine_tests = {
     '18': test_engine_run_for,
     '19': test_set_branch_emit,
     '20': test_add_new_state,
-    '21': test_engine_process,
-    '22': test_floating_point_timesteps,
+    '21': test_floating_point_timesteps,
+    '22': test_engine_process,
+    '23': test_engine_process_division,
 }
 
 

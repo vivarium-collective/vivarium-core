@@ -167,6 +167,7 @@ def inverse_topology(outer, update, topology, inverse=None):
 
     inverse = inverse or {}
 
+    topology = topology or {}
     for key, path in topology.items():
         if key == '*':
             if isinstance(path, dict):

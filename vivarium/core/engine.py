@@ -550,7 +550,7 @@ class Engine(Process):
     def initial_state(self, config: Optional[dict] = None) -> State:
         # this is from the perspective of the total engine ports,
         # not the internal store
-        pass
+        return super().initial_state(config)
 
     def _set_timestep(self) -> None:
         self._timestep_provided = 'timestep' or 'time_step' in self.parameters
