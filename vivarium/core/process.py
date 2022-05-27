@@ -148,6 +148,7 @@ class Process(metaclass=abc.ABCMeta):
         self.schema_override = self.parameters.pop('_schema', {})
         self.parallel = self.parameters.pop('_parallel', False)
         self.condition_path = None
+        self.command_result = None
 
         # set up the conditional state if a condition key is provided
         if '_condition' in self.parameters:
@@ -161,6 +162,54 @@ class Process(metaclass=abc.ABCMeta):
         self._set_timestep()
 
         self.schema: Optional[dict] = None
+
+    def send_command(self, command: str, args: tuple) -> None:
+        '''Handle parallel processing commands.
+
+        When a :term:`process` is run in parallel, we can't interact
+        with it in the normal Python way. Instead, we can only exchange
+        messages with it through a pipe. Vivarium structures these
+        exchanges using commands. Vivarium reserves commands starting
+        with an underscore (``_``) for its own use (e.g. generating next
+        updates or halting processes), but you can also support your own
+        custom commands.
+
+        To add support for a custom command, override this function in
+        your subclass. Each command is defined by a name (a string)
+        and accepts a tuple of arguments. Your implementation of this
+        function needs to handle all the commands you want to support.
+        When presented with an unknown command, you should call this
+        superclass method, which will raise an error.
+
+        Args:
+            command: The name of the command to run.
+            args: A tuple of the arguments for the command.
+
+        Returns:
+            None. This method just starts the command running.
+
+        Raises:
+            ValueError: When the command is unknown (which for this
+                method is always)
+        '''
+        raise ValueError(
+            f'Process {self} does not understand the parallel '
+            f'command {command}')
+
+    def get_command_result(self) -> Any:
+        '''Retrieve the result from the last-run command.
+
+        Returns:
+            The result of the last command run. Note that this method
+            can be called multiple times and, if :py:meth:`send_command`
+            has not been called, the same result will be returned.
+        '''
+        return self.command_result
+
+    def run_command(self, command: str, args: tuple) -> Any:
+        '''Helper function that sends a command and returns result.'''
+        self.send_command(command, args)
+        return self.get_command_result()
 
     def _set_timestep(self) -> None:
         self.parameters.setdefault('timestep', DEFAULT_TIME_STEP)
@@ -494,15 +543,19 @@ def _run_update(
     running = True
 
     while running:
-        interval, states = connection.recv()
+        command, args = connection.recv()
 
-        # stop process by sending -1 as the interval
-        if interval == -1:
+        if command == '_halt':
             running = False
-
-        else:
-            update = process.next_update(interval, states)
+        elif command == '_next_update':
+            update = process.next_update(*args)
             connection.send(update)
+        else:
+            # Commands prefixed with `_` are reserved for Vivarium's
+            # use.
+            assert not command.startswith('_')
+            result = process.run_command(command, args)
+            connection.send(result)
 
     if profile:
         profiler.disable()
@@ -535,6 +588,13 @@ class ParallelProcess:
             args=(self.child, self.process, self.profile))
         self.multiprocess.start()
 
+    def send_command(self, command, args):
+        self.parent.send((command, args))
+
+    def run_command(self, command, args):
+        self.send_command(command, args)
+        return self.get_command_result()
+
     def update(
             self, interval: Union[float, int], states: State) -> None:
         """Request an update from the process.
@@ -544,9 +604,10 @@ class ParallelProcess:
                 should be computed.
             states: The pre-update state of the simulation.
         """
-        self.parent.send((interval, states))
+        args = (interval, states)
+        self.send_command('_next_update', args)
 
-    def get(self) -> Update:
+    def get_command_result(self) -> Update:
         """Get an update from the process.
 
         Returns:
@@ -561,7 +622,7 @@ class ParallelProcess:
         will compile its profiling stats and send those to the parent.
         The parent then saves those stats in ``self.stats``.
         """
-        self.parent.send((-1, None))
+        self.send_command('_halt', None)
         if self.profile:
             self.stats = pstats.Stats()
             self.stats.stats = self.parent.recv()  # type: ignore
