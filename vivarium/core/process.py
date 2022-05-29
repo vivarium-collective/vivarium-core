@@ -143,16 +143,16 @@ class Process(metaclass=abc.ABCMeta):
         elif not hasattr(self, 'name'):
             self.name = self.__class__.__name__
 
-        self.parameters = copy.deepcopy(self.defaults)
-        self.parameters = deep_merge(self.parameters, parameters)
-        self.schema_override = self.parameters.pop('_schema', {})
-        self.parallel = self.parameters.pop('_parallel', False)
-        self.condition_path = None
-        self.command_result = None
+        self._parameters = copy.deepcopy(self.defaults)
+        self._parameters = deep_merge(self._parameters, parameters)
+        self._schema_override: Schema = self._parameters.pop('_schema', {})
+        self._parallel = self._parameters.pop('_parallel', False)
+        self._condition_path: Optional[HierarchyPath] = None
+        self._command_result: Any = None
 
         # set up the conditional state if a condition key is provided
         if '_condition' in self.parameters:
-            self.condition_path = self.parameters.pop('_condition')
+            self._condition_path = self.parameters.pop('_condition')
         if self.condition_path:
             self.merge_overrides(assoc_path({}, self.condition_path, {
                 '_default': True,
@@ -161,7 +161,27 @@ class Process(metaclass=abc.ABCMeta):
 
         self._set_timestep()
 
-        self.schema: Optional[dict] = None
+        self._schema: Optional[Schema] = None
+
+    @property
+    def parameters(self) -> dict:
+        return self._parameters
+
+    @property
+    def schema_override(self) -> Schema:
+        return self._schema_override
+
+    @property
+    def parallel(self) -> bool:
+        return self._parallel
+
+    @property
+    def condition_path(self) -> Optional[HierarchyPath]:
+        return self._condition_path
+
+    @property
+    def schema(self) -> Optional[Schema]:
+        return self._schema
 
     def send_command(self, command: str, args: tuple) -> None:
         '''Handle parallel processing commands.
@@ -201,10 +221,14 @@ class Process(metaclass=abc.ABCMeta):
 
         Returns:
             The result of the last command run. Note that this method
-            can be called multiple times and, if :py:meth:`send_command`
-            has not been called, the same result will be returned.
+            should only be called once immediately after each call to
+            :py:meth:`send_command`, and there should be no intervening
+            calls to :py:meth:`send_command`. When this order is
+            violated, behavior is undefined.
         '''
-        return self.command_result
+        result = self._command_result
+        self._command_result = None
+        return result
 
     def run_command(self, command: str, args: tuple) -> Any:
         '''Helper function that sends a command and returns result.'''
@@ -212,9 +236,9 @@ class Process(metaclass=abc.ABCMeta):
         return self.get_command_result()
 
     def _set_timestep(self) -> None:
-        self.parameters.setdefault('timestep', DEFAULT_TIME_STEP)
-        if self.parameters.get('time_step'):
-            self.parameters['timestep'] = self.parameters['time_step']
+        self._parameters.setdefault('timestep', DEFAULT_TIME_STEP)
+        if self._parameters.get('time_step'):
+            self._parameters['timestep'] = self._parameters['time_step']
 
     def __getstate__(self) -> dict:
         """Return parameters
@@ -341,7 +365,7 @@ class Process(metaclass=abc.ABCMeta):
         Args:
             override: The schema override to add.
         """
-        deep_merge(self.schema_override, override)
+        deep_merge(self._schema_override, override)
 
     def ports(self) -> Dict[str, List[str]]:
         """Get ports and each port's variables.
