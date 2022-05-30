@@ -235,10 +235,10 @@ Glossary
 
     Process Command
     Process command
-    process Command
+    process command
     Process Commands
     Process commands
-    process Commands
+    process commands
         Instructions that let Vivarium communicate with parallel
         processes in a remote-procedure-call-like fashion. See :doc:`the
         processes guide </guides/processes>` for details.
