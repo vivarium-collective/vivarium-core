@@ -233,6 +233,16 @@ Glossary
         subclass either :py:class:`vivarium.core.process.Process`
         or another process class.
 
+    Process Command
+    Process command
+    process Command
+    Process Commands
+    Process commands
+    process Commands
+        Instructions that let Vivarium communicate with parallel
+        processes in a remote-procedure-call-like fashion. See :doc:`the
+        processes guide </guides/processes>` for details.
+
     Raw Data
     Raw data
     raw data

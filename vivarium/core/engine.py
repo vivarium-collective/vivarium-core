@@ -174,7 +174,7 @@ class Defer:
             The result of calling the function.
         """
         return self.f(
-            self.defer.get(),
+            self.defer.get_command_result(),
             self.args)
 
 
@@ -215,11 +215,11 @@ class InvokeProcess:
             self.interval,
             self.states)
 
-    def get(self) -> Update:
+    def get_command_result(self) -> Update:
         """Return the computed update.
 
-        This method is analogous to the ``.get()`` method in
-        :py:class:`vivarium.core.process.ParallelProcess` so that
+        This method is analogous to the ``.get_command_result()`` method
+        in :py:class:`vivarium.core.process.ParallelProcess` so that
         parallel and non-parallel updates can be intermixed in the
         simulation engine.
         """
@@ -711,7 +711,8 @@ class Engine:
                 self.parallel[path] = ParallelProcess(
                     process, bool(self.profiler))
             # trigger the computation of the parallel process
-            self.parallel[path].update(interval, states)
+            self.parallel[path].send_command(
+                'next_update', (interval, states))
 
             return self.parallel[path]
         # if not parallel, perform a normal invocation
