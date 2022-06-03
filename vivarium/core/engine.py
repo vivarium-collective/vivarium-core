@@ -119,21 +119,6 @@ def timestamp(dt: Optional[Any] = None) -> str:
         dt.hour, dt.minute, dt.second)
 
 
-def invoke_process(
-        process: Process,
-        interval: float,
-        states: State,
-) -> Update:
-    """Compute a process's next update.
-
-    Call the process's
-    :py:meth:`vivarium.core.process.Process.next_update` function with
-    ``interval`` and ``states``.
-    """
-
-    return process.next_update(interval, states)
-
-
 def empty_front(t: float) -> Dict[str, Union[float, dict]]:
     return {
         'time': t,
@@ -210,10 +195,8 @@ class InvokeProcess:
         self.process = process
         self.interval = interval
         self.states = states
-        self.update = invoke_process(
-            self.process,
-            self.interval,
-            self.states)
+        self.update = self.process.next_update(
+            self.interval, self.states)
 
     def get_command_result(self) -> Update:
         """Return the computed update.
