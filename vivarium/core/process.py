@@ -668,7 +668,9 @@ def _handle_parallel_process(
 
 
 class ParallelProcess(Process):
-    def __init__(self, process: Process, profile: bool = False) -> None:
+    def __init__(
+            self, process: Process, profile: bool = False,
+            stats_objs: Optional[List[pstats.Stats]] = None) -> None:
         """Wraps a :py:class:`Process` for multiprocessing.
 
         To run a simulation distributed across multiple processors, we
@@ -683,20 +685,24 @@ class ParallelProcess(Process):
         Args:
             process: The Process to manage.
             profile: Whether to use cProfile to profile the subprocess.
+            stats_objs: List to add cProfile stats objs to when process
+                is deleted. Only used if ``profile`` is true.
         """
         super().__init__({
             '_no_original_parameters': True,
             'name': process.name,
-            '_parallel': False,
+            '_parallel': True,
         })
         self.process = process
         self.profile = profile
-        self.stats: Optional[pstats.Stats] = None
+        self._stats_objs = stats_objs
+        assert not self.profile or self._stats_objs is not None
         self.parent, self.child = Pipe()
         self.multiprocess = Multiprocess(
             target=_handle_parallel_process,
             args=(self.child, self.process, self.profile))
         self.multiprocess.start()
+        self._ended = False
 
     def send_command(
             self, command: str, args: Optional[tuple] = None,
@@ -784,11 +790,21 @@ class ParallelProcess(Process):
         will compile its profiling stats and send those to the parent.
         The parent then saves those stats in ``self.stats``.
         """
+        # Only end once.
+        if self._ended:
+            return
         self.send_command('end')
         if self.profile:
-            self.stats = pstats.Stats()
-            self.stats.stats = self.parent.recv()  # type: ignore
+            stats = pstats.Stats()
+            stats.stats = self.get_command_result()  # type: ignore
+            assert self._stats_objs is not None
+            self._stats_objs.append(stats)
         self.multiprocess.join()
+        self.multiprocess.close()
+        self._ended = True
+
+    def __del__(self) -> None:
+        self.end()
 
 
 class ToySerializedProcess(Process):
