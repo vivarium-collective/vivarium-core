@@ -224,7 +224,7 @@ class Process(metaclass=abc.ABCMeta):
         * The command and method return the same values.
 
         If all of the above are satisfied, you can use
-        :py:meth:`_run_command_method` to handle the command.
+        :py:meth:`Process.run_command_method` to handle the command.
 
         Your implementation of this function needs to handle all the
         commands you want to support.  When presented with an unknown
@@ -248,7 +248,7 @@ class Process(metaclass=abc.ABCMeta):
         args = args or tuple()
         kwargs = kwargs or {}
         if command in self.METHOD_COMMANDS:
-            self._command_result = self._run_command_method(
+            self._command_result = self.run_command_method(
                 command, args, kwargs)
         elif command in self.ATTRIBUTE_READ_COMMANDS:
             self._command_result = getattr(self, command)
@@ -261,7 +261,7 @@ class Process(metaclass=abc.ABCMeta):
                 f'Process {self} does not understand the process '
                 f'command {command}')
 
-    def _run_command_method(
+    def run_command_method(
             self, command: str, args: tuple, kwargs: dict) -> Any:
         '''Run a command whose name and interface match a method.
 

@@ -142,9 +142,10 @@ class Defer:
         Args:
             defer: An object with a ``.get_command_result()`` method
                 whose output will be passed to the function. For
-                example, the object could be an :py:class:`Process`
-                object whose ``.get_command_result()`` method will
-                return the process update.
+                example, the object could be an
+                :py:class:`vivarium.core.process.Process` object whose
+                ``.get_command_result()`` method will return the process
+                update.
             function: The function. For example,
                 :py:func:`invert_topology` to transform the returned
                 update.
