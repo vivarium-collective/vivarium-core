@@ -247,7 +247,7 @@ class Process(metaclass=abc.ABCMeta):
 
         Raises:
             ValueError: For unknown commands.
-            RutimeError: Raised when a user tries to send a command
+            RuntimeError: Raised when a user tries to send a command
                 while a previous command is still pending (i.e. the user
                 hasn't called :py:meth:`get_command_result` yet for the
                 previous command).
