@@ -12,9 +12,10 @@ from multiprocessing import Process as Multiprocess
 from multiprocessing.connection import Connection
 import pstats
 import pickle
-from typing import (
-    Any, Dict, Optional, Union, List)
+from typing import Any, Dict, Optional, Union, List, Tuple
 from warnings import warn
+
+import pytest
 
 from vivarium.library.dict_utils import (
     deep_merge, deep_merge_check, deep_copy_internal)
@@ -157,6 +158,8 @@ class Process(metaclass=abc.ABCMeta):
         self._parallel = self._parameters.pop('_parallel', False)
         self._condition_path: Optional[HierarchyPath] = None
         self._command_result: Any = None
+        self._pending_command: Optional[
+            Tuple[str, Optional[tuple], Optional[dict]]] = None
 
         # set up the conditional state if a condition key is provided
         if '_condition' in self._parameters:
@@ -244,7 +247,16 @@ class Process(metaclass=abc.ABCMeta):
 
         Raises:
             ValueError: For unknown commands.
+            RutimeError: Raised when a user tries to send a command
+                while a previous command is still pending (i.e. the user
+                hasn't called :py:meth:`get_command_result` yet for the
+                previous command).
         '''
+        if self._pending_command:
+            raise RuntimeError(
+                f'Trying to send command {(command, args, kwargs)} but '
+                f'command {self._pending_command} is still pending.')
+        self._pending_command = command, args, kwargs
         args = args or tuple()
         kwargs = kwargs or {}
         if command in self.METHOD_COMMANDS:
@@ -289,6 +301,7 @@ class Process(metaclass=abc.ABCMeta):
         '''
         result = self._command_result
         self._command_result = None
+        self._pending_command = None
         return result
 
     def run_command(
@@ -703,6 +716,8 @@ class ParallelProcess(Process):
             args=(self.child, self.process, self.profile))
         self.multiprocess.start()
         self._ended = False
+        self._pending_command: Optional[
+            Tuple[str, Optional[tuple], Optional[dict]]] = None
 
     def send_command(
             self, command: str, args: Optional[tuple] = None,
@@ -712,16 +727,26 @@ class ParallelProcess(Process):
         See :py:func:``_handle_parallel_process`` for details on how the
         command will be handled.
         '''
+        if self._pending_command:
+            raise RuntimeError(
+                f'Trying to send command {(command, args, kwargs)} but '
+                f'command {self._pending_command} is still pending.')
+        self._pending_command = command, args, kwargs
         self.parent.send((command, args, kwargs))
 
     def get_command_result(self) -> Update:
         """Get the result of a command sent to the parallel process.
 
         Commands and their results work like a queue, so unlike
+        :py:class:`Process`, you can technically call this method
+        multiple times and get different return values each time.
+        This behavior is subject to change, so you should not rely on
+        it.
 
         Returns:
             The command result.
         """
+        self._pending_command = None
         return self.parent.recv()
 
     def initial_state(self, config: Optional[dict] = None) -> State:
@@ -858,3 +883,23 @@ def test_serialize_process_inheritance() -> None:
     a = ToySerializedProcessInheritance({'1': 0})
     a2 = pickle.loads(pickle.dumps(a))
     assert a2.parameters['2'] == 0
+
+
+def test_process_commands_pending_safeguard() -> None:
+    process = ToySerializedProcess()
+    process.send_command('calculate_timestep', (None,))
+    with pytest.raises(RuntimeError) as exception:
+        process.send_command('next_update', (1, {}))
+    msg = "command ('calculate_timestep', (None,), None) is still pending"
+    assert msg in str(exception.value)
+
+def test_parallel_process_commands_pending_safeguard() -> None:
+    process = ParallelProcess(ToySerializedProcess())
+    process.send_command('calculate_timestep', (None,))
+    with pytest.raises(RuntimeError) as exception:
+        process.send_command('next_update', (1, {}))
+    msg = "command ('calculate_timestep', (None,), None) is still pending"
+    assert msg in str(exception.value)
+    # Reset Process._pending_command so that no warning is thrown when
+    # __del__() sends the 'end' command.
+    process.get_command_result()
