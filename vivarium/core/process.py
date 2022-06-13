@@ -10,6 +10,7 @@ import cProfile
 from multiprocessing import Pipe
 from multiprocessing import Process as Multiprocess
 from multiprocessing.connection import Connection
+import os
 import pstats
 import pickle
 from typing import Any, Dict, Optional, Union, List, Tuple
@@ -200,7 +201,7 @@ class Process(metaclass=abc.ABCMeta):
 
     def send_command(
             self, command: str, args: Optional[tuple] = None,
-            kwargs: Optional[dict] = None) -> Any:
+            kwargs: Optional[dict] = None) -> None:
         '''Handle :term:`process commands`.
 
         This method handles the commands listed in
@@ -869,6 +870,28 @@ class ToySerializedProcessInheritance(Process):
         return {}
 
 
+class ToyParallelProcess(Process):
+
+    def compare_pid(self, pid: float) -> bool:
+        return os.getpid() == pid
+
+    def send_command(
+            self, command: str, args: Optional[tuple] = None,
+            kwargs: Optional[dict] = None) -> None:
+        args = args or tuple()
+        kwargs = kwargs or {}
+        if command == 'compare_pid':
+            self._command_result = self.compare_pid(*args, **kwargs)
+        else:
+            super().send_command(command, args, kwargs)
+
+    def ports_schema(self) -> Schema:
+        return {}
+
+    def next_update(self, timestep: float, states: State) -> Update:
+        return {}
+
+
 def test_serialize_process() -> None:
     proc = ToySerializedProcess()
     proc_pickle = pickle.loads(pickle.dumps(proc))
@@ -893,6 +916,7 @@ def test_process_commands_pending_safeguard() -> None:
     msg = "command ('calculate_timestep', (None,), None) is still pending"
     assert msg in str(exception.value)
 
+
 def test_parallel_process_commands_pending_safeguard() -> None:
     process = ParallelProcess(ToySerializedProcess())
     process.send_command('calculate_timestep', (None,))
@@ -903,3 +927,23 @@ def test_parallel_process_commands_pending_safeguard() -> None:
     # Reset Process._pending_command so that no warning is thrown when
     # __del__() sends the 'end' command.
     process.get_command_result()
+
+
+def test_parallel_commands() -> None:
+    proc = ToyParallelProcess()
+    parallel_proc = ParallelProcess(proc)
+
+    assert proc.compare_pid(os.getpid())
+    proc.send_command('compare_pid', (os.getpid(),))
+    assert proc.get_command_result()
+
+    parallel_proc.send_command('compare_pid', (os.getpid(),))
+    assert not parallel_proc.get_command_result()
+
+
+def test_invalid_command() -> None:
+    proc = ToyParallelProcess()
+    with pytest.raises(ValueError) as exception:
+        proc.send_command('missing_command')
+    msg = 'does not understand the process command missing_command'
+    assert msg in str(exception.value)
