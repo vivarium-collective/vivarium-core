@@ -37,9 +37,14 @@ def serialize_value(value: Any) -> Any:
                 f'Multiple serializers ({compatible_serializers}) found '
                 f'for {value} of type {type(value)}')
         serializer = compatible_serializers[0]
-        warnings.warn(
-            f'Searched through serializers to find {serializer} for '
-            f'a value of type {type(value)}. This is inefficient.')
+        if not isinstance(value, Process):
+            # We don't warn for processes because since their types
+            # based on their subclasses, it's not possible to avoid
+            # searching through the serializers.
+            warnings.warn(
+                f'Searched through serializers to find {serializer} '
+                f'for a value of type {type(value)}. This is '
+                f'inefficient.')
     return serializer.serialize(value)
 
 
@@ -385,6 +390,10 @@ class FunctionSerializer(Serializer):
     Currently only supports serialization (for emitting simulation
     configs).
     """
+    def __init__(self) -> None:
+        super().__init__(exclusive_types=(
+            type(serialize_value),  # Get the function type.
+        ))
     def can_serialize(self, data: Any) -> bool:
         return callable(data)
 
