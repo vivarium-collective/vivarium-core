@@ -40,6 +40,7 @@ from vivarium.library.topology import (
     inverse_topology,
     normalize_path,
 )
+from vivarium.library.dict_utils import apply_func_to_leaves
 from vivarium.core.types import (
     HierarchyPath, Topology, State, Update, Processes, Steps,
     Flow, Schema)
@@ -119,21 +120,6 @@ def timestamp(dt: Optional[Any] = None) -> str:
         dt.hour, dt.minute, dt.second)
 
 
-def invoke_process(
-        process: Process,
-        interval: float,
-        states: State,
-) -> Update:
-    """Compute a process's next update.
-
-    Call the process's
-    :py:meth:`vivarium.core.process.Process.next_update` function with
-    ``interval`` and ``states``.
-    """
-
-    return process.next_update(interval, states)
-
-
 def empty_front(t: float) -> Dict[str, Union[float, dict]]:
     return {
         'time': t,
@@ -154,10 +140,12 @@ class Defer:
         called.
 
         Args:
-            defer: An object with a ``.get()`` method whose output will
-                be passed to the function. For example, the object could
-                be an :py:class:`InvokeProcess` object whose ``.get()``
-                method will return the process update.
+            defer: An object with a ``.get_command_result()`` method
+                whose output will be passed to the function. For
+                example, the object could be an
+                :py:class:`vivarium.core.process.Process` object whose
+                ``.get_command_result()`` method will return the process
+                update.
             function: The function. For example,
                 :py:func:`invert_topology` to transform the returned
                 update.
@@ -174,7 +162,7 @@ class Defer:
             The result of calling the function.
         """
         return self.f(
-            self.defer.get(),
+            self.defer.get_command_result(),
             self.args)
 
 
@@ -186,44 +174,6 @@ class EmptyDefer(Defer):
 
     def get(self) -> Update:
         return {}
-
-
-class InvokeProcess:
-    def __init__(
-            self,
-            process: Process,
-            interval: float,
-            states: State,
-    ) -> None:
-        """A wrapper object that computes an update.
-
-        This class holds the update of a process that is not running in
-        parallel. When instantiated, it immediately computes the
-        process's next update.
-
-        Args:
-            process: The process that will calculate the update.
-            interval: The timestep for the update.
-            states: The simulation state to pass to the process's
-                ``next_update`` function.
-        """
-        self.process = process
-        self.interval = interval
-        self.states = states
-        self.update = invoke_process(
-            self.process,
-            self.interval,
-            self.states)
-
-    def get(self) -> Update:
-        """Return the computed update.
-
-        This method is analogous to the ``.get()`` method in
-        :py:class:`vivarium.core.process.ParallelProcess` so that
-        parallel and non-parallel updates can be intermixed in the
-        simulation engine.
-        """
-        return self.update
 
 
 class _StepGraph:
@@ -374,7 +324,6 @@ class Engine:
             emit_topology: bool = True,
             emit_processes: bool = False,
             emit_config: bool = False,
-            invoke: Optional[Any] = None,
             emit_step: float = 1,
             display_info: bool = True,
             progress_bar: bool = False,
@@ -409,7 +358,15 @@ class Engine:
                 process for that port.
             store: A pre-loaded Store. This is an alternative to passing
                 in processes and topology dict, which can not be loaded
-                at the same time.
+                at the same time. Note that if you provide this
+                argument, you must ensure that all parallel processes
+                (i.e. :py:class:`vivarium.core.process.Process` objects
+                with the ``parallel`` attribute set to ``True``) are
+                instances of
+                :py:class:`vivarium.core.process.ParallelProcess`. This
+                constructor converts parallel processes to
+                ``ParallelProcess`` objects automatically if you do not
+                provide this ``store`` argument.
             initial_state: By default an empty dictionary, this is the
                 initial state of the simulation.
             experiment_id: A unique identifier for the experiment. A
@@ -465,10 +422,6 @@ class Engine:
         self.time_created = timestamp()
         if self.display_info:
             self._print_display()
-
-        # parallel settings
-        self.invoke = invoke or InvokeProcess
-        self.parallel: Dict[HierarchyPath, ParallelProcess] = {}
 
         # get a mapping of all paths to processes
         self.process_paths: Dict[HierarchyPath, Process] = {}
@@ -572,6 +525,15 @@ class Engine:
                     'load either composite, store, or '
                     '(processes and topology) into Engine')
 
+            self.processes = cast(
+                Dict[str, Any],
+                self._parallelize_processes(self.processes)
+            )
+            self.steps = cast(
+                Dict[str, Any],
+                self._parallelize_processes(self.steps)
+            )
+
             # initialize the store
             self.state: Store = generate_state(
                 self.processes,
@@ -591,6 +553,23 @@ class Engine:
             self.steps = self.state.get_steps() or {}
             self.flow = self.state.get_flow() or {}
             self.topology = self.state.get_topology()
+
+    def _parallelize_processes(
+            self, processes: Any) -> Union[dict, Process]:
+        '''Replace parallel processes with ParallelProcess objects.'''
+        if isinstance(processes, Process):
+            if processes.parallel and not isinstance(
+                    processes, ParallelProcess):
+                processes = ParallelProcess(
+                    processes, bool(self.profiler), self.stats_objs)
+        elif isinstance(processes, dict):
+            processes = {
+                key: self._parallelize_processes(value)
+                for key, value in processes.items()
+            }
+        else:
+            raise AssertionError(f'Unrecognized collection: {processes}')
+        return processes
 
     def _add_step_path(
             self,
@@ -682,7 +661,6 @@ class Engine:
     def _invoke_process(
             self,
             process: Process,
-            path: HierarchyPath,
             interval: float,
             states: State,
     ) -> Any:
@@ -694,28 +672,16 @@ class Engine:
 
         Args:
             process: The process.
-            path: The path at which the process resides. This is used to
-                track parallel processes in ``self.parallel``.
             interval: The timestep for which to compute the update.
             states: The simulation state to pass to
                 :py:meth:`vivarium.core.process.Process.next_update`.
 
         Returns:
             The deferred simulation update, for example a
-            :py:class:`vivarium.core.process.ParallelProcess` or an
-            :py:class:`InvokeProcess` object.
+            :py:class:`vivarium.core.process.ParallelProcess`.
         """
-        if process.parallel:
-            # add parallel process if it doesn't exist
-            if path not in self.parallel:
-                self.parallel[path] = ParallelProcess(
-                    process, bool(self.profiler))
-            # trigger the computation of the parallel process
-            self.parallel[path].update(interval, states)
-
-            return self.parallel[path]
-        # if not parallel, perform a normal invocation
-        return self.invoke(process, interval, states)
+        process.send_command('next_update', (interval, states))
+        return process
 
     def _process_update(
             self,
@@ -748,7 +714,6 @@ class Engine:
 
         update = self._invoke_process(
             process,
-            path,
             interval,
             states)
 
@@ -834,6 +799,20 @@ class Engine:
             topology_updates, process_updates, step_updates,
             flow_updates, deletions, view_expire
         ) = self.state.apply_update(update, state)
+
+        process_updates = [
+            (path, self._parallelize_processes(process))
+            for path, process in process_updates
+        ]
+        step_updates = [
+            (path, self._parallelize_processes(step))
+            for path, step in step_updates
+        ]
+        # Make sure the Store contains the parallelized processes.
+        for path, process in process_updates:
+            self.state.get_path(path).value = process
+        for path, step in step_updates:
+            self.state.get_path(path).value = step
 
         flow_update_dict = dict(flow_updates)
 
@@ -968,16 +947,7 @@ class Engine:
                 f"the process at path {path} is an unapplied update"
 
     def _remove_deleted_processes(self) -> None:
-        # find any parallel processes that were removed and terminate them
-        for terminated in self.parallel.keys() - (
-                self.process_paths.keys() | self._step_paths.keys()):
-            self.parallel[terminated].end()
-            stats = self.parallel[terminated].stats
-            if stats:
-                self.stats_objs.append(stats)
-            del self.parallel[terminated]
-
-        # remove deleted process paths from the front
+        '''Remove deleted processes from the front.'''
         self.front = {
             path: progress
             for path, progress in self.front.items()
@@ -1107,6 +1077,12 @@ class Engine:
             if force_complete and self.global_time == end_time:
                 force_complete = False
 
+    @staticmethod
+    def _end_process_if_parallel(process: Process) -> None:
+        if process.parallel:
+            assert isinstance(process, ParallelProcess)
+            process.end()
+
     def end(self) -> None:
         """Terminate all processes running in parallel.
 
@@ -1115,10 +1091,8 @@ class Engine:
         profiling stats, including stats from parallel sub-processes.
         These stats are stored in ``self.stats``.
         """
-        for parallel in self.parallel.values():
-            parallel.end()
-            if parallel.stats:
-                self.stats_objs.append(parallel.stats)
+        apply_func_to_leaves(
+            self.processes, self._end_process_if_parallel)
         if self.profiler:
             self.profiler.disable()
             total_stats = pstats.Stats(self.profiler)

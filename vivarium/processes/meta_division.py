@@ -3,7 +3,8 @@ import uuid
 import logging as log
 
 from vivarium.core.process import (
-    Step
+    Step,
+    ParallelProcess,
 )
 from vivarium.core.composer import Composer
 from vivarium.core.directories import (
@@ -101,7 +102,9 @@ class MetaDivision(Step):
 class ToyAgent(Composer):
     defaults = {
         'exchange': {'uptake_rate': 0.1},
-        'agents_path': ('..', '..', 'agents')}
+        'agents_path': ('..', '..', 'agents'),
+        'parallel': False,
+    }
 
     def generate_processes(self, config):
         agent_id = config['agent_id']
@@ -109,6 +112,8 @@ class ToyAgent(Composer):
             {},
             agent_id=agent_id,
             composer=self)
+        config['exchange']['_parallel'] = config['parallel']
+        division_config['_parallel'] = config['parallel']
 
         return {
             'exchange': ExchangeA(config['exchange']),
@@ -127,12 +132,7 @@ class ToyAgent(Composer):
         }
 
 
-def test_division():
-    agent_id = '1'
-
-    # timeline triggers division
-    time_divide = 5
-    time_total = 10
+def _get_toy_experiment(agent_id, time_divide, time_total, parallel):
     timeline = [
         (0, {('agents', agent_id, 'global', 'divide'): False}),
         (time_divide, {('agents', agent_id, 'global', 'divide'): True}),
@@ -140,7 +140,7 @@ def test_division():
 
     # create the processes
     timeline_process = TimelineProcess({'timeline': timeline})
-    agent = ToyAgent({'agent_id': agent_id})
+    agent = ToyAgent({'agent_id': agent_id, 'parallel': parallel})
 
     # compose
     composite = agent.generate(path=('agents', agent_id))
@@ -169,9 +169,50 @@ def test_division():
         composite=composite,
         initial_state=initial_state
     )
+    return experiment
+
+
+
+def test_division():
+    agent_id = '1'
+    time_divide = 5
+    time_total = 10
+    experiment = _get_toy_experiment(
+        agent_id, time_divide, time_total, False)
 
     # run simulation
     experiment.update(time_total)
+    output = experiment.emitter.get_data()
+    experiment.end()
+
+    # external starts at 1, goes down until death, and then back up
+    # internal does the inverse
+    assert list(output[time_divide]['agents'].keys()) == [agent_id]
+    assert agent_id not in list(output[time_divide + 1]['agents'].keys())
+    assert len(output[time_divide]['agents']) == 1
+    assert len(output[time_divide + 1]['agents']) == 2
+
+    return output
+
+
+def test_division_parallel():
+    agent_id = '1'
+    time_divide = 5
+    time_total = 10
+    experiment = _get_toy_experiment(
+        agent_id, time_divide, time_total, True)
+
+    # run simulation
+    experiment.update(time_total)
+    for agent in experiment.state.get_path(('agents',)).inner:
+        assert isinstance(
+            experiment.processes['agents'][agent]['exchange'],
+            ParallelProcess,
+        )
+        assert isinstance(
+            experiment.state.get_path(('agents', agent, 'exchange')).value,
+            ParallelProcess,
+        )
     output = experiment.emitter.get_data()
     experiment.end()
 

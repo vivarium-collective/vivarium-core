@@ -10,11 +10,13 @@ import cProfile
 from multiprocessing import Pipe
 from multiprocessing import Process as Multiprocess
 from multiprocessing.connection import Connection
+import os
 import pstats
 import pickle
-from typing import (
-    Any, Dict, Optional, Union, List)
+from typing import Any, Dict, Optional, Union, List, Tuple
 from warnings import warn
+
+import pytest
 
 from vivarium.library.dict_utils import (
     deep_merge, deep_merge_check, deep_copy_internal)
@@ -120,6 +122,14 @@ class Process(metaclass=abc.ABCMeta):
       """
 
     defaults: Dict[str, Any] = {}
+    METHOD_COMMANDS = (
+        'initial_state', 'generate_processes', 'generate_steps',
+        'generate_topology', 'generate_flow', 'merge_overrides',
+        'calculate_timestep', 'is_step', 'get_private_state',
+        'ports_schema', 'next_update', 'update_condition')
+    ATTRIBUTE_READ_COMMANDS = (
+        'schema_override', 'parameters', 'condition_path', 'schema')
+    ATTRIBUTE_WRITE_COMMANDS = ('set_schema',)
 
     def __init__(self, parameters: Optional[dict] = None) -> None:
         parameters = parameters or {}
@@ -143,29 +153,209 @@ class Process(metaclass=abc.ABCMeta):
         elif not hasattr(self, 'name'):
             self.name = self.__class__.__name__
 
-        self.parameters = copy.deepcopy(self.defaults)
-        self.parameters = deep_merge(self.parameters, parameters)
-        self.schema_override = self.parameters.pop('_schema', {})
-        self.parallel = self.parameters.pop('_parallel', False)
-        self.condition_path = None
+        self._parameters = copy.deepcopy(self.defaults)
+        self._parameters = deep_merge(self._parameters, parameters)
+        self._schema_override: Schema = self._parameters.pop('_schema', {})
+        self._parallel = self._parameters.pop('_parallel', False)
+        self._condition_path: Optional[HierarchyPath] = None
+        self._command_result: Any = None
+        self._pending_command: Optional[
+            Tuple[str, Optional[tuple], Optional[dict]]] = None
 
         # set up the conditional state if a condition key is provided
-        if '_condition' in self.parameters:
-            self.condition_path = self.parameters.pop('_condition')
-        if self.condition_path:
-            self.merge_overrides(assoc_path({}, self.condition_path, {
+        if '_condition' in self._parameters:
+            self._condition_path = self._parameters.pop('_condition')
+        if self._condition_path:
+            self.merge_overrides(assoc_path({}, self._condition_path, {
                 '_default': True,
                 '_emit': True,
                 '_updater': 'set'}))
 
         self._set_timestep()
 
-        self.schema: Optional[dict] = None
+        self._schema: Optional[Schema] = None
+
+    @property
+    def parameters(self) -> dict:
+        return self._parameters
+
+    @property
+    def schema_override(self) -> Schema:
+        return self._schema_override
+
+    @property
+    def parallel(self) -> bool:
+        return self._parallel
+
+    @property
+    def condition_path(self) -> Optional[HierarchyPath]:
+        return self._condition_path
+
+    @property
+    def schema(self) -> Optional[Schema]:
+        return self._schema
+
+    @schema.setter
+    def schema(self, value: Optional[Schema]) -> None:
+        self._schema = value
+
+    def pre_send_command(
+            self, command: str, args: Optional[tuple], kwargs:
+            Optional[dict]) -> None:
+        '''Run pre-checks before starting a command.
+
+        This method should be called at the start of every
+        implementation of :py:meth:`send_command`.
+
+        Args:
+            command: The name of the command to run.
+            args: A tuple of positional arguments for the command.
+            kwargs: A dictionary of keyword arguments for the command.
+
+        Raises:
+            RuntimeError: Raised when a user tries to send a command
+                while a previous command is still pending (i.e. the user
+                hasn't called :py:meth:`get_command_result` yet for the
+                previous command).
+        '''
+        if self._pending_command:
+            raise RuntimeError(
+                f'Trying to send command {(command, args, kwargs)} but '
+                f'command {self._pending_command} is still pending.')
+        self._pending_command = command, args, kwargs
+
+
+    def send_command(
+            self, command: str, args: Optional[tuple] = None,
+            kwargs: Optional[dict] = None,
+            run_pre_check: bool = True) -> None:
+        '''Handle :term:`process commands`.
+
+        This method handles the commands listed in
+        :py:attr:`METHOD_COMMANDS` by passing ``args``
+        and ``kwargs`` to the method of ``self`` with the name
+        of the command and saving the return value as the result.
+
+        This method handles the commands listed in
+        :py:attr:`ATTRIBUTE_READ_COMMANDS` by returning the attribute of
+        ``self`` with the name matching the command, and it handles the
+        commands listed in :py:attr:`ATTRIBUTE_WRITE_COMMANDS` by
+        setting the attribute in the command to the first argument in
+        ``args``. The command must be named ``set_attr`` for attribute
+        ``attr``.
+
+        To add support for a custom command, override this function in
+        your subclass. Each command is defined by a name (a string)
+        and accepts both positional and keyword arguments. Any custom
+        commands you add should have associated methods such that:
+
+        * The command name matches the method name.
+        * The command and method accept the same positional and keyword
+          arguments.
+        * The command and method return the same values.
+
+        If all of the above are satisfied, you can use
+        :py:meth:`Process.run_command_method` to handle the command.
+
+        Your implementation of this function needs to handle all the
+        commands you want to support.  When presented with an unknown
+        command, you should call the superclass method, which will
+        either handle the command or call its superclass method. At the
+        top of this recursive chain, this ``Process.send_command()``
+        method handles some built-in commands and will raise an error
+        for unknown commands.
+
+        Any overrides of this method must also call
+        :py:meth:`pre_send_command` at the start of the method. This
+        call will check that no command is currently pending to avoid
+        confusing behavior when multiple commands are started without
+        intervening retrievals of command results. Since your overriding
+        method will have already performed the pre-check, it should pass
+        ``run_pre_check=False`` when calling the superclass method.
+
+        Args:
+            command: The name of the command to run.
+            args: A tuple of positional arguments for the command.
+            kwargs: A dictionary of keyword arguments for the command.
+            run_pre_check: Whether to run the pre-checks implemented in
+                :py:meth:`pre_send_command`. This should be left at its
+                default value unless the pre-checks have already been
+                performed (e.g. if this method is being called by a
+                subclass's overriding method.)
+
+        Returns:
+            None. This method just starts the command running.
+
+        Raises:
+            ValueError: For unknown commands.
+        '''
+        if run_pre_check:
+            self.pre_send_command(command, args, kwargs)
+        args = args or tuple()
+        kwargs = kwargs or {}
+        if command in self.METHOD_COMMANDS:
+            self._command_result = self.run_command_method(
+                command, args, kwargs)
+        elif command in self.ATTRIBUTE_READ_COMMANDS:
+            self._command_result = getattr(self, command)
+        elif command in self.ATTRIBUTE_WRITE_COMMANDS:
+            assert command.startswith('set_')
+            assert args
+            setattr(self, command[len('set_'):], args[0])
+        else:
+            raise ValueError(
+                f'Process {self} does not understand the process '
+                f'command {command}')
+
+    def run_command_method(
+            self, command: str, args: tuple, kwargs: dict) -> Any:
+        '''Run a command whose name and interface match a method.
+
+        Args:
+            command: The command name, which must equal to a method of
+                ``self``.
+            args: The positional arguments to pass to the method.
+            kwargs: The keywords arguments for the method.
+
+        Returns:
+            The result of calling ``self.command(*args, **kwargs)`` is
+            returned for command ``command``.
+        '''
+        return getattr(self, command)(*args, **kwargs)
+
+    def get_command_result(self) -> Any:
+        '''Retrieve the result from the last-run command.
+
+        Returns:
+            The result of the last command run. Note that this method
+            should only be called once immediately after each call to
+            :py:meth:`send_command`.
+
+        Raises:
+            RuntimeError: When there is no command pending. This can
+                happen when this method is called twice without an
+                intervening call to :py:meth:`send_command`.
+        '''
+        if not self._pending_command:
+            raise RuntimeError(
+                'Trying to retrieve command result, but no command is '
+                'pending.')
+        self._pending_command = None
+        result = self._command_result
+        self._command_result = None
+        return result
+
+    def run_command(
+            self, command: str, args: Optional[tuple] = None,
+            kwargs: Optional[dict] = None) -> Any:
+        '''Helper function that sends a command and returns result.'''
+        self.send_command(command, args, kwargs)
+        return self.get_command_result()
 
     def _set_timestep(self) -> None:
-        self.parameters.setdefault('timestep', DEFAULT_TIME_STEP)
-        if self.parameters.get('time_step'):
-            self.parameters['timestep'] = self.parameters['time_step']
+        self._parameters.setdefault('timestep', DEFAULT_TIME_STEP)
+        if self._parameters.get('time_step'):
+            self._parameters['timestep'] = self._parameters['time_step']
 
     def __getstate__(self) -> dict:
         """Return parameters
@@ -292,7 +482,7 @@ class Process(metaclass=abc.ABCMeta):
         Args:
             override: The schema override to add.
         """
-        deep_merge(self.schema_override, override)
+        deep_merge(self._schema_override, override)
 
     def ports(self) -> Dict[str, List[str]]:
         """Get ports and each port's variables.
@@ -485,24 +675,43 @@ class Step(Process, metaclass=abc.ABCMeta):
 Deriver = Step
 
 
-def _run_update(
+def _handle_parallel_process(
         connection: Connection, process: Process,
         profile: bool) -> None:
+    '''Handle a parallel Vivarium :term:`process`.
+
+    This function is designed to be passed as ``target`` to
+    ``Multiprocess()``. In a loop, it receives :term:`process commands`
+    from a pipe, passes those commands to the parallel process, and
+    passes the result back along the pipe.
+
+    The special command ``end`` is handled directly by this function.
+    This command causes the function to exit and therefore shut down the
+    OS process created by multiprocessing.
+
+    Args:
+        connection: The child end of a multiprocessing pipe. All
+            communications received from the pipe should be a 3-tuple of
+            the form ``(command, args, kwargs)``, and the tuple contents
+            will be passed to :py:meth:`Process.run_command`. The
+            result, which may be of any type, will be sent back through
+            the pipe.
+        process: The process running in parallel.
+        profile: Whether to profile the process.
+    '''
     if profile:
         profiler = cProfile.Profile()
         profiler.enable()
     running = True
 
     while running:
-        interval, states = connection.recv()
+        command, args, kwargs = connection.recv()
 
-        # stop process by sending -1 as the interval
-        if interval == -1:
+        if command == 'end':
             running = False
-
         else:
-            update = process.next_update(interval, states)
-            connection.send(update)
+            result = process.run_command(command, args, kwargs)
+            connection.send(result)
 
     if profile:
         profiler.disable()
@@ -512,8 +721,10 @@ def _run_update(
     connection.close()
 
 
-class ParallelProcess:
-    def __init__(self, process: Process, profile: bool = False) -> None:
+class ParallelProcess(Process):
+    def __init__(
+            self, process: Process, profile: bool = False,
+            stats_objs: Optional[List[pstats.Stats]] = None) -> None:
         """Wraps a :py:class:`Process` for multiprocessing.
 
         To run a simulation distributed across multiple processors, we
@@ -522,37 +733,123 @@ class ParallelProcess:
         process and the child process with the :py:class:`Process` that
         this object manages.
 
+        Most methods pass their name and arguments to
+        :py:class:`Process.run_command`.
+
         Args:
             process: The Process to manage.
             profile: Whether to use cProfile to profile the subprocess.
+            stats_objs: List to add cProfile stats objs to when process
+                is deleted. Only used if ``profile`` is true.
         """
+        super().__init__({
+            '_no_original_parameters': True,
+            'name': process.name,
+            '_parallel': True,
+        })
         self.process = process
         self.profile = profile
-        self.stats: Optional[pstats.Stats] = None
+        self._stats_objs = stats_objs
+        assert not self.profile or self._stats_objs is not None
         self.parent, self.child = Pipe()
         self.multiprocess = Multiprocess(
-            target=_run_update,
+            target=_handle_parallel_process,
             args=(self.child, self.process, self.profile))
         self.multiprocess.start()
+        self._ended = False
+        self._pending_command: Optional[
+            Tuple[str, Optional[tuple], Optional[dict]]] = None
 
-    def update(
-            self, interval: Union[float, int], states: State) -> None:
-        """Request an update from the process.
+    def send_command(
+            self, command: str, args: Optional[tuple] = None,
+            kwargs: Optional[dict] = None,
+            run_pre_check: bool = True) -> None:
+        '''Send a command to the parallel process.
 
-        Args:
-            interval: The length of the timestep for which the update
-                should be computed.
-            states: The pre-update state of the simulation.
-        """
-        self.parent.send((interval, states))
+        See :py:func:``_handle_parallel_process`` for details on how the
+        command will be handled.
+        '''
+        if run_pre_check:
+            self.pre_send_command(command, args, kwargs)
+        self.parent.send((command, args, kwargs))
 
-    def get(self) -> Update:
-        """Get an update from the process.
+    def get_command_result(self) -> Update:
+        """Get the result of a command sent to the parallel process.
+
+        Commands and their results work like a queue, so unlike
+        :py:class:`Process`, you can technically call this method
+        multiple times and get different return values each time.
+        This behavior is subject to change, so you should not rely on
+        it.
 
         Returns:
-            The update from the process.
+            The command result.
         """
+        if not self._pending_command:
+            raise RuntimeError(
+                'Trying to retrieve command result, but no command is '
+                'pending.')
+        self._pending_command = None
         return self.parent.recv()
+
+    def initial_state(self, config: Optional[dict] = None) -> State:
+        return self.run_command('initial_state', (config,))
+
+    def generate_processes(
+            self, config: Optional[dict] = None) -> Dict[str, Any]:
+        return self.run_command('generate_processes', (config,))
+
+    def generate_steps(
+            self, config: Optional[dict] = None) -> Dict[str, Any]:
+        return self.run_command('generate_steps', (config,))
+
+    def generate_topology(
+            self, config: Optional[dict] = None) -> Topology:
+        return self.run_command('generate_topology', (config,))
+
+    def generate_flow(self, config: Optional[dict] = None) -> Flow:
+        return self.run_command('generate_flow', (config,))
+
+    @property
+    def schema_override(self) -> Schema:
+        return self.run_command('schema_override')
+
+    @property
+    def parameters(self) -> Dict[str, Any]:
+        return self.run_command('parameters')
+
+    @property
+    def condition_path(self) -> Optional[HierarchyPath]:
+        return self.run_command('condition_path')
+
+    @property
+    def schema(self) -> Schema:
+        return self.run_command('schema')
+
+    @schema.setter
+    def schema(self, value: Schema) -> None:
+        self.run_command('set_schema', (value,))
+
+    def merge_overrides(self, override: Schema) -> None:
+        self.run_command('merge_overrides', (override,))
+
+    def calculate_timestep(self, states: Optional[State]) -> float:
+        return self.run_command('calculate_timestep', (states,))
+
+    def is_step(self) -> bool:
+        return self.run_command('is_step')
+
+    def get_private_state(self) -> State:
+        return self.run_command('get_private_state')
+
+    def ports_schema(self) -> Schema:
+        return self.run_command('ports_schema')
+
+    def next_update(self, timestep: float, states: State) -> Update:
+        return self.run_command('next_update', (timestep, states))
+
+    def update_condition(self, timestep: float, states: State) -> bool:
+        return self.run_command('update_condition', (timestep, states))
 
     def end(self) -> None:
         """End the child process.
@@ -561,11 +858,21 @@ class ParallelProcess:
         will compile its profiling stats and send those to the parent.
         The parent then saves those stats in ``self.stats``.
         """
-        self.parent.send((-1, None))
+        # Only end once.
+        if self._ended:
+            return
+        self.send_command('end')
         if self.profile:
-            self.stats = pstats.Stats()
-            self.stats.stats = self.parent.recv()  # type: ignore
+            stats = pstats.Stats()
+            stats.stats = self.get_command_result()  # type: ignore
+            assert self._stats_objs is not None
+            self._stats_objs.append(stats)
         self.multiprocess.join()
+        self.multiprocess.close()
+        self._ended = True
+
+    def __del__(self) -> None:
+        self.end()
 
 
 class ToySerializedProcess(Process):
@@ -605,6 +912,31 @@ class ToySerializedProcessInheritance(Process):
         return {}
 
 
+class ToyParallelProcess(Process):
+
+    def compare_pid(self, pid: float) -> bool:
+        return os.getpid() == pid
+
+    def send_command(
+            self, command: str, args: Optional[tuple] = None,
+            kwargs: Optional[dict] = None,
+            run_pre_check: bool = True) -> None:
+        if run_pre_check:
+            self.pre_send_command(command, args, kwargs)
+        args = args or tuple()
+        kwargs = kwargs or {}
+        if command == 'compare_pid':
+            self._command_result = self.compare_pid(*args, **kwargs)
+        else:
+            super().send_command(command, args, kwargs, False)
+
+    def ports_schema(self) -> Schema:
+        return {}
+
+    def next_update(self, timestep: float, states: State) -> Update:
+        return {}
+
+
 def test_serialize_process() -> None:
     proc = ToySerializedProcess()
     proc_pickle = pickle.loads(pickle.dumps(proc))
@@ -619,3 +951,44 @@ def test_serialize_process_inheritance() -> None:
     a = ToySerializedProcessInheritance({'1': 0})
     a2 = pickle.loads(pickle.dumps(a))
     assert a2.parameters['2'] == 0
+
+
+def test_process_commands_pending_safeguard() -> None:
+    process = ToySerializedProcess()
+    process.send_command('calculate_timestep', (None,))
+    with pytest.raises(RuntimeError) as exception:
+        process.send_command('next_update', (1, {}))
+    msg = "command ('calculate_timestep', (None,), None) is still pending"
+    assert msg in str(exception.value)
+
+
+def test_parallel_process_commands_pending_safeguard() -> None:
+    process = ParallelProcess(ToySerializedProcess())
+    process.send_command('calculate_timestep', (None,))
+    with pytest.raises(RuntimeError) as exception:
+        process.send_command('next_update', (1, {}))
+    msg = "command ('calculate_timestep', (None,), None) is still pending"
+    assert msg in str(exception.value)
+    # Reset Process._pending_command so that no warning is thrown when
+    # __del__() sends the 'end' command.
+    process.get_command_result()
+
+
+def test_parallel_commands() -> None:
+    proc = ToyParallelProcess()
+    parallel_proc = ParallelProcess(proc)
+
+    assert proc.compare_pid(os.getpid())
+    proc.send_command('compare_pid', (os.getpid(),))
+    assert proc.get_command_result()
+
+    parallel_proc.send_command('compare_pid', (os.getpid(),))
+    assert not parallel_proc.get_command_result()
+
+
+def test_invalid_command() -> None:
+    proc = ToyParallelProcess()
+    with pytest.raises(ValueError) as exception:
+        proc.send_command('missing_command')
+    msg = 'does not understand the process command missing_command'
+    assert msg in str(exception.value)

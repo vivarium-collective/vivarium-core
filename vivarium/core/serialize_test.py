@@ -23,7 +23,7 @@ def serialize_function() -> None:
     pass
 
 
-class TestSerializer(Serializer):
+class ToySerializer(Serializer):
 
     def __init__(self, prefix: str = '', suffix: str = '') -> None:
         super().__init__()
@@ -43,50 +43,50 @@ class TestSerializer(Serializer):
 
 
 def test_serialized_in_serializer_string() -> None:
-    serializer = TestSerializer(prefix='![', suffix=']')
+    serializer = ToySerializer(prefix='![', suffix=']')
     serialized = serializer.serialize('hi there!')
     assert serializer.deserialize(serialized) == 'hi there!'
 
 
 def test_unmatched_closing_bracket_in_serializer_string() -> None:
-    serializer = TestSerializer(prefix='', suffix=']')
+    serializer = ToySerializer(prefix='', suffix=']')
     serialized = serializer.serialize('hi there!')
     assert serializer.deserialize(serialized) == 'hi there!'
 
 
 def test_unmatched_opening_bracket_in_serializer_string() -> None:
-    serializer = TestSerializer(prefix='[', suffix='')
+    serializer = ToySerializer(prefix='[', suffix='')
     serialized = serializer.serialize('hi there!')
     print(serialized)
     assert serializer.deserialize(serialized) == 'hi there!'
 
 
 def test_open_bracket_deep_in_serializer_string() -> None:
-    serializer = TestSerializer(prefix='abc[', suffix='')
+    serializer = ToySerializer(prefix='abc[', suffix='')
     serialized = serializer.serialize('hi there!')
     assert serializer.deserialize(serialized) == 'hi there!'
 
 
 def test_close_bracket_deep_in_serializer_string() -> None:
-    serializer = TestSerializer(prefix='abc]', suffix='')
+    serializer = ToySerializer(prefix='abc]', suffix='')
     serialized = serializer.serialize('hi there!')
     assert serializer.deserialize(serialized) == 'hi there!'
 
 
 def test_serialized_prefixing_serializer_string() -> None:
-    serializer = TestSerializer(prefix='!TestSerializer[test]', suffix='')
+    serializer = ToySerializer(prefix='!ToySerializer[test]', suffix='')
     serialized = serializer.serialize('hi there!')
     assert serializer.deserialize(serialized) == 'hi there!'
 
 
 def test_exclamation_point_prefixing_serializer_string() -> None:
-    serializer = TestSerializer(prefix='!', suffix='')
+    serializer = ToySerializer(prefix='!', suffix='')
     serialized = serializer.serialize('hi there!')
     assert serializer.deserialize(serialized) == 'hi there!'
 
 
 def test_exclamation_point_suffixing_serializer_string() -> None:
-    serializer = TestSerializer(prefix='', suffix='!')
+    serializer = ToySerializer(prefix='', suffix='!')
     serialized = serializer.serialize('hi there!')
     assert serializer.deserialize(serialized) == 'hi there!'
 

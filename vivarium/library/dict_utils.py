@@ -4,7 +4,7 @@ import copy
 from functools import reduce
 import operator
 import traceback
-from typing import Optional
+from typing import Optional, Any, Callable
 
 from vivarium.library.units import Quantity
 
@@ -312,6 +312,22 @@ def make_path_dict(embedded_dict):
     for path in paths_list:
         path_dict[path] = get_value_from_path(embedded_dict, path)
     return path_dict
+
+
+def apply_func_to_leaves(root: Any, func: Callable[[Any], None]) -> None:
+    '''Apply a function to every leaf node in a nested dictionary.
+
+    >>> root = {1: [], 2: {3: [], 4: []}}
+    >>> func = lambda x: x.append(True)
+    >>> apply_func_to_leaves(root, func)
+    >>> root
+    {1: [True], 2: {3: [True], 4: [True]}}
+    '''
+    if not isinstance(root, dict):
+        func(root)
+        return
+    for child in root.values():
+        apply_func_to_leaves(child, func)
 
 
 def test_deep_copy_internal():
