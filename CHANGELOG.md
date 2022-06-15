@@ -10,6 +10,10 @@
   This change also simplifies the way `Engine` handles parallel
   processes warns users when serializers are not being found
   efficiently.
+* (#192) Marks `composition.py` as deprecated and ensures that the rest
+  of Vivarium Core doesn't depend on it.
+* (#199) Remove some Numpy dtypes that are not available on some
+  platforms from serialize.py.
 
 ## v1.2.8
 
