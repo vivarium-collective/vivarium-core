@@ -529,6 +529,10 @@ class Engine:
                 Dict[str, Any],
                 self._parallelize_processes(self.processes)
             )
+            self.steps = cast(
+                Dict[str, Any],
+                self._parallelize_processes(self.steps)
+            )
 
             # initialize the store
             self.state: Store = generate_state(
@@ -553,17 +557,18 @@ class Engine:
     def _parallelize_processes(
             self, processes: Any) -> Union[dict, Process]:
         '''Replace parallel processes with ParallelProcess objects.'''
-        if not isinstance(processes, dict):
-            assert isinstance(processes, Process)
+        if isinstance(processes, Process):
             if processes.parallel and not isinstance(
                     processes, ParallelProcess):
                 processes = ParallelProcess(
                     processes, bool(self.profiler), self.stats_objs)
-        else:
+        elif isinstance(processes, dict):
             processes = {
                 key: self._parallelize_processes(value)
                 for key, value in processes.items()
             }
+        else:
+            raise AssertionError(f'Unrecognized collection: {processes}')
         return processes
 
     def _add_step_path(
@@ -794,6 +799,20 @@ class Engine:
             topology_updates, process_updates, step_updates,
             flow_updates, deletions, view_expire
         ) = self.state.apply_update(update, state)
+
+        process_updates = [
+            (path, self._parallelize_processes(process))
+            for path, process in process_updates
+        ]
+        step_updates = [
+            (path, self._parallelize_processes(step))
+            for path, step in step_updates
+        ]
+        # Make sure the Store contains the parallelized processes.
+        for path, process in process_updates:
+            self.state.get_path(path).value = process
+        for path, step in step_updates:
+            self.state.get_path(path).value = step
 
         flow_update_dict = dict(flow_updates)
 
