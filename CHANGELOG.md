@@ -1,5 +1,16 @@
 # Changelog
 
+## v1.3.0
+
+* (#198) Introduce process commands to support more interactions with
+  parallel processes. Now all `Process` methods of a parallelized
+  process can be queried from the parent OS process. Users can also add
+  support for custom methods of their processes.
+
+  This change also simplifies the way `Engine` handles parallel
+  processes warns users when serializers are not being found
+  efficiently.
+
 ## v1.2.8
 
 * (#186) Apply function to data from database emitter in `get_history_data_db`.
