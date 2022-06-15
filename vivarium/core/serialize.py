@@ -37,6 +37,9 @@ def serialize_value(value: Any) -> Any:
                 f'Multiple serializers ({compatible_serializers}) found '
                 f'for {value} of type {type(value)}')
         serializer = compatible_serializers[0]
+        warnings.warn(
+            f'Searched through serializers to find {serializer} for '
+            f'a value of type {type(value)}. This is inefficient.')
     return serializer.serialize(value)
 
 
@@ -66,7 +69,8 @@ class IdentitySerializer(Serializer):  # pylint: disable=abstract-method
     '''Serializer for base types that get serialized as themselves.'''
 
     def __init__(self) -> None:
-        super().__init__(exclusive_types=(int, float, bool, str))
+        super().__init__(
+            exclusive_types=(int, float, bool, str, type(None)))
 
     def can_serialize(self, data: Any) -> bool:
         if (
