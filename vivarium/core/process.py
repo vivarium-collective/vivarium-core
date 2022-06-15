@@ -199,9 +199,36 @@ class Process(metaclass=abc.ABCMeta):
     def schema(self, value: Optional[Schema]) -> None:
         self._schema = value
 
+    def pre_send_command(
+            self, command: str, args: Optional[tuple], kwargs:
+            Optional[dict]) -> None:
+        '''Run pre-checks before starting a command.
+
+        This method should be called at the start of every
+        implementation of :py:meth:`send_command`.
+
+        Args:
+            command: The name of the command to run.
+            args: A tuple of positional arguments for the command.
+            kwargs: A dictionary of keyword arguments for the command.
+
+        Raises:
+            RuntimeError: Raised when a user tries to send a command
+                while a previous command is still pending (i.e. the user
+                hasn't called :py:meth:`get_command_result` yet for the
+                previous command).
+        '''
+        if self._pending_command:
+            raise RuntimeError(
+                f'Trying to send command {(command, args, kwargs)} but '
+                f'command {self._pending_command} is still pending.')
+        self._pending_command = command, args, kwargs
+
+
     def send_command(
             self, command: str, args: Optional[tuple] = None,
-            kwargs: Optional[dict] = None) -> None:
+            kwargs: Optional[dict] = None,
+            run_pre_check: bool = True) -> None:
         '''Handle :term:`process commands`.
 
         This method handles the commands listed in
@@ -238,26 +265,32 @@ class Process(metaclass=abc.ABCMeta):
         method handles some built-in commands and will raise an error
         for unknown commands.
 
+        Any overrides of this method must also call
+        :py:meth:`pre_send_command` at the start of the method. This
+        call will check that no command is currently pending to avoid
+        confusing behavior when multiple commands are started without
+        intervening retrievals of command results. Since your overriding
+        method will have already performed the pre-check, it should pass
+        ``run_pre_check=False`` when calling the superclass method.
+
         Args:
             command: The name of the command to run.
             args: A tuple of positional arguments for the command.
             kwargs: A dictionary of keyword arguments for the command.
+            run_pre_check: Whether to run the pre-checks implemented in
+                :py:meth:`pre_send_command`. This should be left at its
+                default value unless the pre-checks have already been
+                performed (e.g. if this method is being called by a
+                subclass's overriding method.)
 
         Returns:
             None. This method just starts the command running.
 
         Raises:
             ValueError: For unknown commands.
-            RuntimeError: Raised when a user tries to send a command
-                while a previous command is still pending (i.e. the user
-                hasn't called :py:meth:`get_command_result` yet for the
-                previous command).
         '''
-        if self._pending_command:
-            raise RuntimeError(
-                f'Trying to send command {(command, args, kwargs)} but '
-                f'command {self._pending_command} is still pending.')
-        self._pending_command = command, args, kwargs
+        if run_pre_check:
+            self.pre_send_command(command, args, kwargs)
         args = args or tuple()
         kwargs = kwargs or {}
         if command in self.METHOD_COMMANDS:
@@ -296,13 +329,20 @@ class Process(metaclass=abc.ABCMeta):
         Returns:
             The result of the last command run. Note that this method
             should only be called once immediately after each call to
-            :py:meth:`send_command`, and there should be no intervening
-            calls to :py:meth:`send_command`. When this order is
-            violated, behavior is undefined.
+            :py:meth:`send_command`.
+
+        Raises:
+            RuntimeError: When there is no command pending. This can
+                happen when this method is called twice without an
+                intervening call to :py:meth:`send_command`.
         '''
+        if not self._pending_command:
+            raise RuntimeError(
+                'Trying to retrieve command result, but no command is '
+                'pending.')
+        self._pending_command = None
         result = self._command_result
         self._command_result = None
-        self._pending_command = None
         return result
 
     def run_command(
@@ -722,17 +762,15 @@ class ParallelProcess(Process):
 
     def send_command(
             self, command: str, args: Optional[tuple] = None,
-            kwargs: Optional[dict] = None) -> None:
+            kwargs: Optional[dict] = None,
+            run_pre_check: bool = True) -> None:
         '''Send a command to the parallel process.
 
         See :py:func:``_handle_parallel_process`` for details on how the
         command will be handled.
         '''
-        if self._pending_command:
-            raise RuntimeError(
-                f'Trying to send command {(command, args, kwargs)} but '
-                f'command {self._pending_command} is still pending.')
-        self._pending_command = command, args, kwargs
+        if run_pre_check:
+            self.pre_send_command(command, args, kwargs)
         self.parent.send((command, args, kwargs))
 
     def get_command_result(self) -> Update:
@@ -747,6 +785,10 @@ class ParallelProcess(Process):
         Returns:
             The command result.
         """
+        if not self._pending_command:
+            raise RuntimeError(
+                'Trying to retrieve command result, but no command is '
+                'pending.')
         self._pending_command = None
         return self.parent.recv()
 
@@ -877,13 +919,16 @@ class ToyParallelProcess(Process):
 
     def send_command(
             self, command: str, args: Optional[tuple] = None,
-            kwargs: Optional[dict] = None) -> None:
+            kwargs: Optional[dict] = None,
+            run_pre_check: bool = True) -> None:
+        if run_pre_check:
+            self.pre_send_command(command, args, kwargs)
         args = args or tuple()
         kwargs = kwargs or {}
         if command == 'compare_pid':
             self._command_result = self.compare_pid(*args, **kwargs)
         else:
-            super().send_command(command, args, kwargs)
+            super().send_command(command, args, kwargs, False)
 
     def ports_schema(self) -> Schema:
         return {}
