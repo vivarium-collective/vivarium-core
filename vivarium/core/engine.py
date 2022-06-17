@@ -711,14 +711,13 @@ class Engine:
             Tuple of the deferred update (in absolute terms) and
             ``store``.
         """
-
-        update = self._invoke_process(
+        process = self._invoke_process(
             process,
             interval,
             states)
 
         absolute = Defer(
-            update,
+            process,
             invert_topology,
             (path, store.topology))
 
