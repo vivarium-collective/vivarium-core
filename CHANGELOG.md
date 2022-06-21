@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.3.1
+
+* (#200) Inside Engine, store the Step execution layers as lists instead
+  of sets to ensure deterministic execution order.
+* (#201) Restore ability to pass `initial_state` keys in `settings`
+  dictionaries to `composition.py` functions.
+
 ## v1.3.0
 
 * (#198) Introduce process commands to support more interactions with
