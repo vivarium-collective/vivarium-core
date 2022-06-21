@@ -13,7 +13,7 @@ import logging as log
 import pprint
 import re
 from typing import (
-    Any, Dict, Optional, Union, Tuple, Callable, Iterable, List, Set,
+    Any, Dict, Optional, Union, Tuple, Callable, Iterable, List,
     cast, Sequence)
 import math
 import datetime
@@ -256,10 +256,10 @@ class _StepGraph:
         self._sequential_steps.append(path)
         self._validate()
 
-    def get_execution_layers(self) -> List[Set[HierarchyPath]]:
+    def get_execution_layers(self) -> List[List[HierarchyPath]]:
         """Get step execution layers, with steps represnted by paths.
 
-        An execution layer is a set of steps that can be executed in
+        An execution layer is a list of steps that can be executed in
         parallel. The graph's execution layers are an ordered list of
         these layers such that:
 
@@ -276,8 +276,8 @@ class _StepGraph:
             represented by its path.
         """
         layers = nx.topological_generations(self._graph)
-        to_return = [set([step]) for step in self._sequential_steps]
-        to_return += [set(layer) for layer in layers]
+        to_return = [[step] for step in self._sequential_steps]
+        to_return += [sorted(layer) for layer in layers]
         return to_return
 
     def remove(self, path: HierarchyPath) -> None:
@@ -711,14 +711,13 @@ class Engine:
             Tuple of the deferred update (in absolute terms) and
             ``store``.
         """
-
-        update = self._invoke_process(
+        process = self._invoke_process(
             process,
             interval,
             states)
 
         absolute = Defer(
-            update,
+            process,
             invert_topology,
             (path, store.topology))
 

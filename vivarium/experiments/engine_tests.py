@@ -590,9 +590,9 @@ class TestStepGraph:
 
         layers = list(tg.get_execution_layers())
         expected_layers = [
-            {('a',), ('b',)},
-            {('c',)},
-            {('d',)},
+            [('a',), ('b',)],
+            [('c',)],
+            [('d',)],
         ]
         assert layers == expected_layers
 
@@ -605,8 +605,8 @@ class TestStepGraph:
 
         layers = list(tg.get_execution_layers())
         expected_layers = [
-            {('c',)},
-            {('a',), ('b',)},
+            [('c',)],
+            [('a',), ('b',)],
         ]
         assert layers == expected_layers
 
