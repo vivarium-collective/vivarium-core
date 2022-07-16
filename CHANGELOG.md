@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.4.1
+
+* (#202) Add the `filters` argument to `data_from_database()` to allow
+  further filtering of MongoDB query results.
+
 ## v1.3.1
 
 * (#200) Inside Engine, store the Step execution layers as lists instead
