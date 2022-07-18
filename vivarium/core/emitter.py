@@ -417,6 +417,7 @@ def get_history_data_db(
         query: list = None,
         func_dict: dict = None,
         f: Callable[..., Any] = None,
+        filters: Optional[dict] = None,
 ) -> Dict[float, dict]:
     """Query MongoDB for history data.
 
@@ -431,11 +432,15 @@ def get_history_data_db(
             In the format: {('path', 'to', 'field1'): function}
         f: a function that applies equally to all fields in query. func_dict
             is the recommended approach and takes priority over f.
+        filters: MongoDB query arguments to further filter results
+            beyond matching the experiment ID.
     Returns:
         data (dict)
     """
 
     experiment_query = {'experiment_id': experiment_id}
+    if filters:
+        experiment_query.update(filters)
 
     projection = None
     if query:
@@ -496,6 +501,7 @@ def data_from_database(
         query: list = None,
         func_dict: dict = None,
         f: Callable[..., Any] = None,
+        filters: Optional[dict] = None,
 ) -> Tuple[dict, Any]:
     """Fetch something from a MongoDB."""
 
@@ -513,7 +519,7 @@ def data_from_database(
     # Retrieve timepoint data
     history = client.history
     data = get_history_data_db(
-        history, experiment_id, query, func_dict, f)
+        history, experiment_id, query, func_dict, f, filters)
 
     return data, experiment_config
 
