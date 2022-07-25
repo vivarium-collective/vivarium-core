@@ -611,13 +611,15 @@ class Store:
                 'divider', new_divider, divider_registry)
             config = without(config, '_divider')
 
-        # if emit set in branch, set the entire branch to the emit value
+        # If emit is set on a branch node, set the entire branch to the
+        # emit value.
         if '_emit' in config and self.inner:
-                emit_value = config['_emit']
-                self.set_emit_value(emit=emit_value)
-                config = without(config, '_emit')
+            emit_value = config['_emit']
+            self.set_emit_value(emit=emit_value)
+            config = without(config, '_emit')
 
         if self.schema_keys & set(config.keys()):
+            # We are at a leaf node, so apply its config.
             if self.inner:
                 raise Exception(
                     'trying to assign leaf values to a branch at: {}'.format(
@@ -677,6 +679,7 @@ class Store:
 
             self.emit = config.get('_emit', self.emit)
         else:
+            # We are at a branch node. Create and configure child nodes.
             if self.leaf and config:
                 if self.value:
                     raise Exception(
