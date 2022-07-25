@@ -600,7 +600,8 @@ class Store:
             config = without(config, '_topology')
 
         if '_flow' in config:
-            flow = config.pop('_flow')
+            flow = config['_flow']
+            config = without(config, '_flow')
             if flow != {}:
                 self.flow = flow
 
