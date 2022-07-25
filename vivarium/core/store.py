@@ -592,6 +592,9 @@ class Store:
             self._merge_subtopology(config['_subtopology'])
             config = without(config, '_subtopology')
 
+        if source:
+            self.sources[source] = config
+
         if '_topology' in config:
             self.topology = config['_topology']
             config = without(config, '_topology')
@@ -672,10 +675,6 @@ class Store:
                 config.get('_properties', {}))
 
             self.emit = config.get('_emit', self.emit)
-
-            if source:
-                self.sources[source] = config
-
         else:
             if self.leaf and config:
                 if self.value:
@@ -1854,7 +1853,7 @@ class Store:
         source = source or self.path_for()
 
         if set(schema.keys()) & self.schema_keys:
-            self.get_path(topology)._apply_config(schema)
+            self.get_path(topology)._apply_config(schema, source=source)
         else:
             mismatch_topology = (
                 set(topology.keys()) - set(schema.keys()))
