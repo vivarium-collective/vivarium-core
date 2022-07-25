@@ -592,12 +592,16 @@ class Store:
             self._merge_subtopology(config['_subtopology'])
             config = without(config, '_subtopology')
 
+        if source:
+            self.sources[source] = config
+
         if '_topology' in config:
             self.topology = config['_topology']
             config = without(config, '_topology')
 
         if '_flow' in config:
-            flow = config.pop('_flow')
+            flow = config['_flow']
+            config = without(config, '_flow')
             if flow != {}:
                 self.flow = flow
 
@@ -607,13 +611,15 @@ class Store:
                 'divider', new_divider, divider_registry)
             config = without(config, '_divider')
 
-        # if emit set in branch, set the entire branch to the emit value
+        # If emit is set on a branch node, set the entire branch to the
+        # emit value.
         if '_emit' in config and self.inner:
-                emit_value = config['_emit']
-                self.set_emit_value(emit=emit_value)
-                config = without(config, '_emit')
+            emit_value = config['_emit']
+            self.set_emit_value(emit=emit_value)
+            config = without(config, '_emit')
 
         if self.schema_keys & set(config.keys()):
+            # We are at a leaf node, so apply its config.
             if self.inner:
                 raise Exception(
                     'trying to assign leaf values to a branch at: {}'.format(
@@ -672,11 +678,8 @@ class Store:
                 config.get('_properties', {}))
 
             self.emit = config.get('_emit', self.emit)
-
-            if source:
-                self.sources[source] = config
-
         else:
+            # We are at a branch node. Create and configure child nodes.
             if self.leaf and config:
                 if self.value:
                     raise Exception(
@@ -1854,7 +1857,7 @@ class Store:
         source = source or self.path_for()
 
         if set(schema.keys()) & self.schema_keys:
-            self.get_path(topology)._apply_config(schema)
+            self.get_path(topology)._apply_config(schema, source=source)
         else:
             mismatch_topology = (
                 set(topology.keys()) - set(schema.keys()))

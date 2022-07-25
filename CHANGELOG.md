@@ -1,5 +1,10 @@
 # Changelog
 
+# v1.4.2
+
+* (#203) Make `Store.soures` more comprehensive, in particular by
+  including dividers and flows.
+
 ## v1.4.1
 
 * (#202) Add the `filters` argument to `data_from_database()` to allow
