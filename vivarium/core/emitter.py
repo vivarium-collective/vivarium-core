@@ -11,6 +11,8 @@ import uuid
 from typing import Any, Dict, List, Optional, Tuple, Callable
 from urllib.parse import quote_plus
 
+from bson import _dict_to_bson, _bson_to_dict
+from bson.errors import BSONError
 from pymongo import MongoClient
 
 from vivarium.library.units import remove_units
@@ -20,7 +22,7 @@ from vivarium.library.dict_utils import (
     deep_merge,
 )
 from vivarium.library.topology import assoc_path, get_in, paths_to_dict
-from vivarium.core.serialize import deserialize_value
+from vivarium.core.serialize import get_codec_options, deserialize_value
 from vivarium.core.registry import emitter_registry
 
 MONGO_DOCUMENT_LIMIT = 1e7
@@ -241,6 +243,7 @@ class RAMEmitter(Emitter):
     def __init__(self, config: Dict[str, str]) -> None:
         super().__init__(config)
         self.saved_data: Dict[float, Dict[str, Any]] = {}
+        self.codec_options = get_codec_options()
 
     def emit(self, data: Dict[str, Any]) -> None:
         """
@@ -251,6 +254,8 @@ class RAMEmitter(Emitter):
         if data['table'] == 'history':
             emit_data = data['data']
             time = emit_data['time']
+            emit_data = _dict_to_bson(emit_data, False, self.codec_options)
+            emit_data = _bson_to_dict(emit_data, self.codec_options)
             self.saved_data[time] = {
                 key: value for key, value in emit_data.items()
                 if key not in ['time']}
@@ -312,9 +317,12 @@ class DatabaseEmitter(Emitter):
         self.create_indexes(self.configuration, CONFIGURATION_INDEXES)
         self.create_indexes(self.phylogeny, CONFIGURATION_INDEXES)
 
+        self.codec_options = get_codec_options()
+
     def emit(self, data: Dict[str, Any]) -> None:
         table_id = data['table']
-        table = getattr(self.db, table_id)
+        table = self.db.get_collection(
+            table_id, codec_options=self.codec_options)
         emit_data = {
             key: value for key, value in data.items()
             if key not in ['table']}
@@ -326,14 +334,24 @@ class DatabaseEmitter(Emitter):
 
         Break up large emits into smaller pieces and emit them individually
         """
-        data = emit_data.pop('data')
-        broken_down_data = breakdown_data(self.emit_limit, data)
         assembly_id = str(uuid.uuid4())
-        for (path, datum) in broken_down_data:
-            d = dict(emit_data)
-            assoc_path(d, ('data',) + path, datum)
-            d['assembly_id'] = assembly_id
-            table.insert_one(d)
+        try:
+            emit_data['assembly_id'] = assembly_id
+            table.insert_one(emit_data)
+        # If document is too large, serialize and deserialize using
+        # BSON C extension before splitting to avoid heavy cost of
+        # getting string representation of Numpy arrays
+        except BSONError:
+            emit_data.pop('assembly_id')
+            data = emit_data.pop('data')
+            data = _dict_to_bson(data, False, self.codec_options)
+            data = _bson_to_dict(data, self.codec_options)
+            broken_down_data = breakdown_data(self.emit_limit, data)
+            for (path, datum) in broken_down_data:
+                d = dict(emit_data)
+                assoc_path(d, ('data',) + path, datum)
+                d['assembly_id'] = assembly_id
+                table.insert_one(d)
 
     def get_data(self, query: list = None) -> dict:
         return get_history_data_db(self.history, self.experiment_id, query)

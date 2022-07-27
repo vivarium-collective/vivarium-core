@@ -1,13 +1,15 @@
 import random
 import logging as log
 from typing import Optional, Union, Dict, Any, cast, List
+from bson.codec_options import TypeEncoder
 
 from vivarium.composites.toys import (
-    PoQo, Sine, ToyDivider, ToyTransport, ToyEnvironment,
+    Po, Qo, PoQo, Sine, ToyDivider, ToyTransport, ToyEnvironment,
     Proton, Electron)
 from vivarium.core.composer import Composer, Composite
 from vivarium.core.engine import Engine, pf, pp, _StepGraph
 from vivarium.core.process import Process, Step, Deriver
+from vivarium.core.registry import serializer_registry, Serializer
 from vivarium.core.store import Store, hierarchy_depth
 from vivarium.core.types import (
     Schema, State, Update, Topology, Steps, Processes)
@@ -1131,6 +1133,31 @@ def test_engine_run_for() -> None:
         assert advance['time'] == sim.global_time, \
             f"process at path {path} did not complete"
 
+# Demonstrates how each process to be emitted
+# must have its own codec
+class PoQoSerializer(Serializer):
+    def __init__(self) -> None:
+        super().__init__()
+
+    class Codec(TypeEncoder):
+        python_type = type(Po())
+        def transform_python(self, value):
+            return ("!ProcessSerializer[" +
+                str(dict(value.parameters, _name=value.name)) + "]")
+    class Codec2(TypeEncoder):
+        python_type = type(Qo())
+        def transform_python(self, value):
+            return ("!ProcessSerializer[" +
+                str(dict(value.parameters, _name=value.name)) + "]")
+
+    def get_codecs(self):
+        return [self.Codec(), self.Codec2()]
+
+    def deserialize_from_string(self, data):
+        raise NotImplementedError(
+            f'{self} cannot be deserialized.')
+
+serializer_registry.register('PoQoSerializer', PoQoSerializer())
 
 def test_set_branch_emit() -> None:
     run_time = 5

@@ -66,6 +66,7 @@ import random
 import re
 
 import numpy as np
+from bson.codec_options import TypeEncoder
 
 from vivarium.library.dict_utils import deep_merge
 from vivarium.library.units import Quantity
@@ -334,6 +335,9 @@ def divide_null(state):
     """
     return None
 
+class Dummy():
+    dummy = ''
+
 
 # Serializers
 class Serializer:
@@ -366,60 +370,21 @@ class Serializer:
     REGEX_FOR_SERIALIZED_ANY_TYPE = re.compile(
         f'!{REGEX_FOR_NAME.pattern}\\[(.*)\\]')
 
-    def __init__(self, name='', exclusive_types=tuple()):
+    def __init__(self, name=''):
         self.name = name or self.__class__.__name__
         self.regex_for_serialized = re.compile(f'!{self.name}\\[(.*)\\]')
-        self.alternate_keys = (
-            str(exclusive_type)
-            for exclusive_type in exclusive_types
-        )
+        self.codec = self.Codec()
 
-    def serialize_to_string(self, data):
-        """Serialize some data.
-
-        Subclasses should override this function,
-
-        Args:
-            data: Data to serialize.
-
-        Returns:
-            The serialized data.
-        """
-        raise NotImplementedError(
-            f'{self} has not implemented serialize_to_string().')
-
+    class Codec(TypeEncoder):
+        python_type = type(Dummy())
+        def transform_python(self, value):
+            return None
+    
+    def get_codecs(self):
+        return [self.codec]
+    
     def serialize(self, data):
-        """Serialize some data.
-
-        Subclasses that are serializing to strings can just implement
-        :py:meth:`vivarium.core.registry.Serializer.serialize_to_string`,
-        and this method will use that implementation to generate a
-        string that serializes the data.
-
-        Subclasses with more complex serialization needs must override
-        this function.
-
-        Args:
-            data: Data to serialize.
-
-        Returns:
-            The serialized data.
-        """
-        string_serialization = self.serialize_to_string(data)
-        if not isinstance(string_serialization, str):
-            raise ValueError(
-                f'{self}.serialize_to_string() returned invalid '
-                f'serialization: {string_serialization}')
-
-        return f'!{self.name}[{string_serialization}]'
-
-    def can_serialize(self, data):
-        """Check whether the serializer can serialize some data.
-
-        Every subclass must implement this method.
-        """
-        raise NotImplementedError(
-            f'{self} has not implemented can_serialize().')
+        return self.codec.transform_python(data)
 
     def deserialize_from_string(self, data):
         """Deserialize data from a string.
