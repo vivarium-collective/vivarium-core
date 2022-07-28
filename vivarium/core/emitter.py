@@ -12,8 +12,7 @@ from typing import Any, Dict, List, Optional, Tuple, Callable
 from urllib.parse import quote_plus
 
 from bson import _dict_to_bson, _bson_to_dict
-from bson.errors import BSONError
-from bson.raw_bson import RawBSONDocument
+from pymongo.errors import DocumentTooLarge
 from pymongo import MongoClient
 
 from vivarium.library.units import remove_units
@@ -336,20 +335,22 @@ class DatabaseEmitter(Emitter):
         Break up large emits into smaller pieces and emit them individually
         """
         assembly_id = str(uuid.uuid4())
-        emit_data['assembly_id'] = assembly_id
-        data = _dict_to_bson(emit_data, False, self.codec_options)
-        if len(data) > self.emit_limit:
+        try:
+            emit_data['assembly_id'] = assembly_id
+            table.insert_one(emit_data)
+        # If document is too large, serialize and deserialize using
+        # BSON C extension before splitting to avoid heavy cost of
+        # getting string representation of Numpy arrays
+        except DocumentTooLarge:
+            emit_data.pop('assembly_id')
+            data = _dict_to_bson(emit_data, False, self.codec_options)
             data = _bson_to_dict(data, self.codec_options)
-            data.pop('assembly_id')
             broken_down_data = breakdown_data(self.emit_limit, data)
             for (path, datum) in broken_down_data:
                 d = {}
                 assoc_path(d, path, datum)
                 d['assembly_id'] = assembly_id
                 table.insert_one(d)
-        else:
-            d = RawBSONDocument(data)
-            table.insert_one(d)
 
     def get_data(self, query: list = None) -> dict:
         return get_history_data_db(self.history, self.experiment_id, query)
