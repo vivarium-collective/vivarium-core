@@ -59,7 +59,9 @@ def _get_composite_state_recur(
                 process_state = node.initial_state(config.get(node.name))
             elif state_type == 'default':
                 process_state = node.default_state()
-            sub_state = inverse_topology(path, process_state, sub_topology)
+            # Pass initial flag to prevent multiupdates from forming when a single process
+            # has multiple ports to the same, dictionary-based stores
+            sub_state = inverse_topology(path, process_state, sub_topology, initial=False)
         else:
             Exception(f'invalid processes {sub_processes} or steps {sub_steps}')
         state = deep_merge(state, sub_state)
