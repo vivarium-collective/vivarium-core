@@ -280,6 +280,21 @@ class RAMEmitter(Emitter):
         return self.saved_data
 
 
+class SharedRamEmitter(RAMEmitter):
+    """
+    Accumulate the timeseries history portion of the "emitted" data to a table
+    in RAM that is shared across all instances of the emitter.
+    """
+
+    saved_data: Dict[float, Dict[str, Any]] = {}
+
+    def __init__(self, config: Dict[str, Any]) -> None:  # pylint: disable=super-init-not-called
+        # We intentionally don't call the superclass constructor because
+        # we don't want to create a per-instance ``saved_data``
+        # attribute.
+        self.embed_path = config.get('embed_path', tuple())
+
+
 class DatabaseEmitter(Emitter):
     """
     Emit data to a mongoDB database
