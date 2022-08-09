@@ -74,10 +74,16 @@ def assoc_path(d, path, value):
 
 def without(d, removing):
     '''Get a copy of ``d`` without the key specified by ``removing``.'''
+    return without_multi(d, [removing])
+
+
+def without_multi(d, to_remove):
+    '''Get a copy of ``d`` without any of the keys in ``to_remove``.'''
     return {
         key: value
         for key, value in d.items()
-        if key != removing}
+        if key not in to_remove
+    }
 
 
 def update_in(d, path, f):
