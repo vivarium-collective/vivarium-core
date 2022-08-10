@@ -45,8 +45,9 @@ from vivarium.core.registry import (
 )
 from vivarium.core.serialize import (
     IdentitySerializer, NumpySerializer, SequenceSerializer,
-    NumpyBoolSerializer, UnitsSerializer, DictSerializer, 
-    FunctionSerializer
+    NumpyBoolSerializer, UnitsSerializer, DictSerializer,
+    FunctionSerializer, NumpyInt64Serializer, NumpyInt32Serializer,
+    NumpyFloat32Serializer
 )
 
 # import emitters
@@ -98,7 +99,8 @@ divider_registry.register('null', divide_null)
 for SerializerClass in (
         IdentitySerializer, NumpySerializer, SequenceSerializer,
         NumpyBoolSerializer, UnitsSerializer, DictSerializer,
-        FunctionSerializer):
+        FunctionSerializer, NumpyInt64Serializer, NumpyInt32Serializer,
+        NumpyFloat32Serializer):
     serializer = SerializerClass()
     serializer_registry.register(
         serializer.name, serializer)

@@ -60,13 +60,35 @@ function MUST return either:
 .. note:: Dividers MAY not be deterministic and MAY not be symmetric.
     For example, a divider splitting an odd, integer-valued value may
     randomly decide which daughter cell receives the remainder.
+    
+-----------
+Serializers
+-----------
+
+Each :term:`serializer` is defined as a class that follows the API we
+describe below. Vivarium uses these serializers to convert emitted data
+into a BSON-compatible format for database storage. Serializer names are
+registered in :py:data:`serializer_registry`, which maps these names to
+serializer subclasses.
+
+Serializer API
+==============
+
+Each serializer SHOULD implement the following methods and attributes:
+
+1. One or more codecs in of the type :py:class:`bson.codec_options.TypeCodec`
+   or one of its subclasses
+2. The :py:meth:`vivarium.core.registry.Serializer.get_codecs()` method
+3. The :py:meth:`vivarium.core.registry.Serializer.deserialize_from_string()`
+   method OR the :py:meth:`vivarium.core.registry.Serializer.deserialize()`
+   and :py:meth:`vivarium.core.registry.Serializer.can_deserialize()` methods
 """
 import copy
 import random
 import re
 
 import numpy as np
-from bson.codec_options import TypeEncoder
+from bson.codec_options import TypeCodec
 
 from vivarium.library.dict_utils import deep_merge
 from vivarium.library.units import Quantity
@@ -89,12 +111,7 @@ class Registry(object):
                 returned by ``Registry.list()``.
 
                 This may be useful if you want to be able to look up an
-                item in the registry under multiple keys. For example,
-                in a registry of serializers, you could register a
-                serializer with its name as ``key`` and the types it can
-                serialize under ``alternate_keys``. Then, when presented
-                with an object to serialize, you could use the object's
-                type to look up the appropriate serializer.
+                item in the registry under multiple keys.
         """
         keys = [key]
         keys.extend(alternate_keys)
@@ -335,36 +352,41 @@ def divide_null(state):
     """
     return None
 
-class Dummy():
-    dummy = ''
 
+class Dummy():
+    """Dummy class used to define example codec.
+    """
+    dummy = ''
 
 # Serializers
 class Serializer:
     """Base serializer class.
 
     Serializers work together to convert Python objects, which may be
-    collections of many different kinds of objects, into JSON-compatible
+    collections of many different kinds of objects, into BSON-compatible
     representations. Those representations can then be deserialized to
     recover the original object.
-
-    Most serializers convert an object to a string. To implement a
-    serializer of this type, you only need to implement the
-    :py:meth:`vivarium.core.registry.Serializer.serialize_to_string` and
-    :py:meth:`vivarium.core.registry.Serializer.deserialize()` methods.
+    
+    Serialization is mostly handled via the 
+    :py:class:`bson.codec_options.TypeCodec` interface of PyMongo.
+    If a store is assigned a custom serializer using the
+    ``_serializer`` key, serialization occurs instead via the
+    :py:meth:`vivarium.core.registry.Serializer.serialize()` method and
+    may be slower.
+    
+    Deserialization is typically handled by either the
+    :py:meth:`vivarium.core.registry.Serializer.deserialize()` or
+    :py:meth:`vivarium.core.registry.Serializer.deserialize_from_string()`
+    method depending on whether the subclass has a one-to-one mapping
+    between BSON and Python types (no codecs in the subclass or any other
+    subclass share the same input or output types as the codecs in the
+    subclass). Alternatively, if the defined codecs define ``bson_type``
+    and the ``transform_bson()`` method, deserialization is handled by
+    PyMongo, and :py:meth:`vivarium.core.registry.Serializer.deserialize()`
+    can be safely overriden to simply ``pass``.
 
     Args:
         name: Name of the serializer. Defaults to the class name.
-        exclusive_types: Types that are exclusively handled by this
-            serializer. These can be used to quickly lookup which
-            serializer handles a particular type. If an object does not
-            match any of these exclusive types, the `can_serialize`
-            method will be used as a fallback.
-
-            Note that exclusive type matching is exact--inheritance is
-            not accounted for. This means that if your serializer has an
-            exclusive type of A and B inherits from A, an instance of B
-            will not match to your serializer's exclusive types.
     """
     REGEX_FOR_NAME = re.compile('[A-Za-z0-9-_]+')
     REGEX_FOR_SERIALIZED_ANY_TYPE = re.compile(
@@ -373,27 +395,70 @@ class Serializer:
     def __init__(self, name=''):
         self.name = name or self.__class__.__name__
         self.regex_for_serialized = re.compile(f'!{self.name}\\[(.*)\\]')
-        self.codec = self.Codec()
+        self.codecs = self.get_codecs()
 
-    class Codec(TypeEncoder):
-        python_type = type(Dummy())
+    class Codec(TypeCodec):
+        """Example TypeCodec.
+        
+        All subclasses must have one or more codecs. Note that type checking
+        is exact, meaning subclasses of defined types require their own codecs.
+        """
+        python_type = type(Dummy()) #: Python type to serialize
         def transform_python(self, value):
+            """Converts ``value`` with type ``python_type`` into a
+            BSON-compatible type.
+            """
+            return None
+        bson_type = type(Dummy()) #: BSON type to deserialize
+        def transform_bson(self, value):
+            """Converts ``value`` with type ``bson_type`` into a
+            Python type."""
             return None
     
     def get_codecs(self):
-        return [self.codec]
+        """Get list of codecs in serializer.
+        
+        All subclasses should override this method.
+        """
+        return [self.Codec()]
     
     def serialize(self, data):
-        return self.codec.transform_python(data)
+        """Serialize data using correct codec.
+        
+        This is typically only called in the case that individual stores
+        are assigned custom serializers. For maximum efficiency, serialization
+        should be left to ``pymongo`` instead of calling this function.
+        
+        Do not override this function without good reason.
+        
+        Args:
+            data: Data to serialize
+            
+        Returns:
+            Serialized data
+        """
+        for codec in self.codecs:
+            if isinstance(data, codec.python_type):
+                return codec.transform_python(data)
 
     def deserialize_from_string(self, data):
         """Deserialize data from a string.
 
-        This function is the inverse of
-        :py:meth:`vivarium.core.registry.Serializer.serialize_to_string`.
-        It need only be overridden in a subclass if that subclass does
-        not override
-        :py:meth:`vivarium.core.registry.Serializer.deserialize`.
+        This function should only be overwritten if a codec does not form
+        a one-to-one mapping between BSON and Python types and instead
+        serializes data to strings of the form::
+
+            f'!{self.name or self.__class__.__name__}[serialized_data]'
+
+        It should turn ``serialized_data`` into the correct Python type.
+        
+        Args:
+            data: Serialized data without the 
+                ``!{self.name or self.__class__.__name__}``
+                prefix or the brackets
+                
+        Returns:
+            The deserialized data
         """
         raise NotImplementedError(
             f'{self} has not implemented deserialize_from_string().')
@@ -401,16 +466,16 @@ class Serializer:
     def deserialize(self, data):
         """Deserialize some data.
 
-        Subclasses relying on
-        :py:meth:`vivarium.core.registry.Serializer.serialize_to_string`
-        should not override this function and instead override
+        This function should typically only be overwritten if all codecs in
+        the subclass form one-to-one mappings between BSON and Python types.
+        Otherwise, leave this function alone and only override
         :py:meth:`vivarium.core.registry.Serializer.deserialize_from_string`.
 
         Args:
-            data: Serialized data to deserialize.
+            data: Serialized data to deserialize
 
         Returns:
-            The deserialized data.
+            The deserialized data
         """
         string_serialization = self.regex_for_serialized.fullmatch(
             data).group(1)
@@ -420,9 +485,11 @@ class Serializer:
         """Check whether the serializer can deserialize an object.
 
         By default, this function checks that ``data`` is a string of the
-        form produced by the default implementation of
-        :py:meth:`vivarium.core.registry.Serializer.serialize`. If a
-        subclass overrides this ``serialize()`` method, it should also
+        form::
+        
+            f'!{self.name or self.__class__.__name__}[serialized_data]'
+        
+        If a subclass does not serialize to this format, it should also
         override ``can_deserialize()``.
         """
         if not isinstance(data, str):

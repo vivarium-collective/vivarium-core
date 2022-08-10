@@ -1,6 +1,7 @@
 import math
 import warnings
-from typing import Any, List
+from typing import Any, List, Union
+from collections.abc import Callable
 
 import numpy as np
 from pint import Unit
@@ -89,7 +90,7 @@ class UnitsSerializer(Serializer):
 
     class Codec(TypeEncoder):
         python_type = type(units.fg)
-        def transform_python(self, value):
+        def transform_python(self, value: Any) -> Union[List[str], str]:
             try:
                 data = []
                 for subvalue in value:
@@ -101,7 +102,7 @@ class UnitsSerializer(Serializer):
     class Codec2(Codec):
         python_type = type(1*units.fg)
 
-    def get_codecs(self):
+    def get_codecs(self) -> List:
         return [self.Codec(), self.Codec2()]
 
     def deserialize_from_string(self, data: str) -> Quantity:
@@ -163,10 +164,10 @@ class NumpySerializer(Serializer):
 
     class Codec(TypeEncoder):
         python_type = np.ndarray
-        def transform_python(self, value):
+        def transform_python(self, value: np.ndarray) -> List:
             return value.tolist()
 
-    def deserialize_from_string(self, data):
+    def deserialize_from_string(self, data: str) -> None:
         raise NotImplementedError(
             f'{self} cannot be deserialized.')
 
@@ -177,24 +178,65 @@ class NumpyBoolSerializer(Serializer):
 
     class Codec(TypeEncoder):
         python_type = np.bool_
-        def transform_python(self, value):
+        def transform_python(self, value: np.bool_) -> bool:
             return bool(value)
 
-    def deserialize_from_string(self, data):
+    def deserialize_from_string(self, data: str) -> None:
         raise NotImplementedError(
             f'{self} cannot be deserialized.')
 
+class NumpyInt64Serializer(Serializer):
+
+    def __init__(self) -> None:
+        super().__init__()
+
+    class Codec(TypeEncoder):
+        python_type = np.int64
+        def transform_python(self, value: np.int64) -> int:
+            return int(value)
+
+    def deserialize_from_string(self, data: str) -> None:
+        raise NotImplementedError(
+            f'{self} cannot be deserialized.')
+
+class NumpyInt32Serializer(Serializer):
+
+    def __init__(self) -> None:
+        super().__init__()
+
+    class Codec(TypeEncoder):
+        python_type = np.int32
+        def transform_python(self, value: np.int32) -> int:
+            return int(value)
+
+    def deserialize_from_string(self, data: str) -> None:
+        raise NotImplementedError(
+            f'{self} cannot be deserialized.')
+
+class NumpyFloat32Serializer(Serializer):
+
+    def __init__(self) -> None:
+        super().__init__()
+
+    class Codec(TypeEncoder):
+        python_type = np.float32
+        def transform_python(self, value: np.float32) -> float:
+            return float(value)
+
+    def deserialize_from_string(self, data: str) -> None:
+        raise NotImplementedError(
+            f'{self} cannot be deserialized.')
 
 class FunctionSerializer(Serializer):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
     class Codec(TypeEncoder):
         python_type = type(deserialize_value)
-        def transform_python(self, value):
+        def transform_python(self, value: Callable) -> str:
             return f"!FunctionSerializer[{str(value)}]"
 
-    def deserialize_from_string(self, data):
+    def deserialize_from_string(self, data: str) -> None:
         raise NotImplementedError(
             f'{self} cannot be deserialized.')
 
@@ -202,7 +244,7 @@ class FunctionSerializer(Serializer):
 # Subclasses of data types handled by custom
 # TypeEncoders require their own TypeEncoders.
 # This includes Process, Composites, etc.
-def get_codec_options():
+def get_codec_options() -> CodecOptions:
     codecs = []
     for serializer in serializer_registry.registry.values():
         codecs += serializer.get_codecs()

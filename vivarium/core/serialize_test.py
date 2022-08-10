@@ -22,16 +22,16 @@ class SerializeProcess(Process):
 
 class SerializeProcessSerializer(Serializer):
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
     class Codec(TypeEncoder):
         python_type = type(SerializeProcess())
-        def transform_python(self, value):
+        def transform_python(self, value: SerializeProcess) -> str:
             return ("!ProcessSerializer[" +
                 str(dict(value.parameters, _name=value.name)) + "]")
 
-    def deserialize_from_string(self, data):
+    def deserialize_from_string(self, data: str) -> None:
         raise NotImplementedError(
             f'{self} cannot be deserialized.')
 

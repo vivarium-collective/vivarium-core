@@ -347,7 +347,7 @@ class DatabaseEmitter(Emitter):
             data = _bson_to_dict(data, self.codec_options)
             broken_down_data = breakdown_data(self.emit_limit, data)
             for (path, datum) in broken_down_data:
-                d = {}
+                d: Dict[str, Any] = {}
                 assoc_path(d, path, datum)
                 d['assembly_id'] = assembly_id
                 table.insert_one(d)
