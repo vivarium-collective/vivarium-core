@@ -262,7 +262,8 @@ class RAMEmitter(Emitter):
                 if key not in ['time']}
             timepoint = assoc_path({}, self.embed_path, timepoint)
             self.saved_data.setdefault(time, {})
-            deep_merge_check(self.saved_data[time], timepoint)
+            deep_merge_check(
+                self.saved_data[time], timepoint, check_equality=True)
 
     def get_data(self, query: list = None) -> dict:
         """ Return the accumulated timeseries history of "emitted" data. """
@@ -414,7 +415,11 @@ def assemble_data(data: list) -> dict:
             assembly_id = datum['assembly_id']
             if assembly_id not in assembly:
                 assembly[assembly_id] = {}
-            deep_merge_check(assembly[assembly_id], datum['data'])
+            deep_merge_check(
+                assembly[assembly_id],
+                datum['data'],
+                check_equality=True,
+            )
         else:
             assembly_id = str(uuid.uuid4())
             assembly[assembly_id] = datum['data']
@@ -497,7 +502,8 @@ def get_history_data_db(
         time = datum['time']
         deep_merge_check(
             data,
-            {time: without_multi(datum, ['_id', 'time'])}
+            {time: without_multi(datum, ['_id', 'time'])},
+            check_equality=True,
         )
 
     return data
