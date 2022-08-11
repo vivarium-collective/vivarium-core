@@ -19,11 +19,16 @@ from vivarium.library.units import remove_units
 from vivarium.library.dict_utils import (
     value_in_embedded_dict,
     make_path_dict,
-    deep_merge,
+    deep_merge_check,
 )
-from vivarium.library.topology import assoc_path, get_in, paths_to_dict
-from vivarium.core.serialize import get_codec_options, deserialize_value
+from vivarium.library.topology import (
+    assoc_path,
+    get_in,
+    paths_to_dict,
+    without_multi,
+)
 from vivarium.core.registry import emitter_registry
+from vivarium.core.serialize import get_codec_options, deserialize_value
 
 MONGO_DOCUMENT_LIMIT = 1e7
 
@@ -240,10 +245,11 @@ class RAMEmitter(Emitter):
     in RAM.
     """
 
-    def __init__(self, config: Dict[str, str]) -> None:
+    def __init__(self, config: Dict[str, Any]) -> None:
         super().__init__(config)
         self.saved_data: Dict[float, Dict[str, Any]] = {}
         self.codec_options = get_codec_options()
+        self.embed_path = config.get('embed_path', tuple())
 
     def emit(self, data: Dict[str, Any]) -> None:
         """
@@ -256,9 +262,13 @@ class RAMEmitter(Emitter):
             time = emit_data['time']
             emit_data = _dict_to_bson(emit_data, False, self.codec_options)
             emit_data = _bson_to_dict(emit_data, self.codec_options)
-            self.saved_data[time] = {
+            timepoint = {
                 key: value for key, value in emit_data.items()
                 if key not in ['time']}
+            timepoint = assoc_path({}, self.embed_path, timepoint)
+            self.saved_data.setdefault(time, {})
+            deep_merge_check(
+                self.saved_data[time], timepoint, check_equality=True)
 
     def get_data(self, query: list = None) -> dict:
         """ Return the accumulated timeseries history of "emitted" data. """
@@ -274,6 +284,21 @@ class RAMEmitter(Emitter):
                 returned_data[t] = paths_to_dict(paths_data)
             return returned_data
         return self.saved_data
+
+
+class SharedRamEmitter(RAMEmitter):
+    """
+    Accumulate the timeseries history portion of the "emitted" data to a table
+    in RAM that is shared across all instances of the emitter.
+    """
+
+    saved_data: Dict[float, Dict[str, Any]] = {}
+
+    def __init__(self, config: Dict[str, Any]) -> None:  # pylint: disable=super-init-not-called
+        # We intentionally don't call the superclass constructor because
+        # we don't want to create a per-instance ``saved_data``
+        # attribute.
+        self.embed_path = config.get('embed_path', tuple())
 
 
 class DatabaseEmitter(Emitter):
@@ -303,6 +328,7 @@ class DatabaseEmitter(Emitter):
         super().__init__(config)
         self.experiment_id = config.get('experiment_id')
         self.emit_limit = config.get('emit_limit', MONGO_DOCUMENT_LIMIT)
+        self.embed_path = config.get('embed_path', tuple())
 
         # create singleton instance of mongo client
         if DatabaseEmitter.client is None:
@@ -323,9 +349,14 @@ class DatabaseEmitter(Emitter):
         table_id = data['table']
         table = self.db.get_collection(
             table_id, codec_options=self.codec_options)
-        emit_data = {
-            key: value for key, value in data.items()
-            if key not in ['table']}
+        time = data['data'].pop('time', None)
+        data['data'] = assoc_path({}, self.embed_path, data['data'])
+        # Analysis scripts expect the time to be at the top level of the
+        # dictionary, but some emits, like configuration emits, lack a
+        # time key.
+        if time is not None:
+            data['data']['time'] = time
+        emit_data = without_multi(data, ['table'])
         emit_data['experiment_id'] = self.experiment_id
         self.write_emit(table, emit_data)
 
@@ -407,7 +438,11 @@ def assemble_data(data: list) -> dict:
             assembly_id = datum['assembly_id']
             if assembly_id not in assembly:
                 assembly[assembly_id] = {}
-            deep_merge(assembly[assembly_id], datum['data'])
+            deep_merge_check(
+                assembly[assembly_id],
+                datum['data'],
+                check_equality=True,
+            )
         else:
             assembly_id = str(uuid.uuid4())
             assembly[assembly_id] = datum['data']
@@ -485,12 +520,14 @@ def get_history_data_db(
     assembly = assemble_data(raw_data)
 
     # restructure by time
-    data = {}
+    data: Dict[float, Any] = {}
     for datum in assembly.values():
         time = datum['time']
-        data[time] = {
-            key: value for key, value in datum.items()
-            if key not in ['_id', 'time']}
+        deep_merge_check(
+            data,
+            {time: without_multi(datum, ['_id', 'time'])},
+            check_equality=True,
+        )
 
     return data
 

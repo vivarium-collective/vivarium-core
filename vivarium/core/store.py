@@ -1613,6 +1613,8 @@ class Store:
                 raise Exception(
                     f"failed update at path {self.path_for()} "
                     f"with value {self.value} for update {pformat(update)}")
+        if self.units:
+            self.value = self.value.to(self.units)
 
         return _EMPTY_UPDATES
 

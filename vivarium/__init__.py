@@ -52,7 +52,7 @@ from vivarium.core.serialize import (
 
 # import emitters
 from vivarium.core.emitter import (
-    Emitter, NullEmitter, RAMEmitter, DatabaseEmitter
+    Emitter, NullEmitter, RAMEmitter, SharedRamEmitter, DatabaseEmitter
 )
 
 _ = plt  # suppress PyCharm's unused-import warning
@@ -110,4 +110,5 @@ emitter_registry.register('print', Emitter)
 emitter_registry.register('null', NullEmitter)
 emitter_registry.register('timeseries', RAMEmitter)
 emitter_registry.register('ram', RAMEmitter)
+emitter_registry.register('shared_ram', SharedRamEmitter)
 emitter_registry.register('database', DatabaseEmitter)

@@ -328,6 +328,7 @@ class Engine:
             progress_bar: bool = False,
             global_time_precision: Optional[int] = None,
             profile: bool = False,
+            initial_global_time: float = 0,
     ) -> None:
         """Defines simulations
 
@@ -396,6 +397,9 @@ class Engine:
             emit_config: If True, this will emit the serialized initial
                 state with the configuration data.
             profile: Whether to profile the simulation with cProfile.
+            initial_global_time: The initial time for the simulation.
+                Useful when this Engine is part of a larger, older
+                simulation.
         """
         self.profiler: Optional[cProfile.Profile] = None
         if profile:
@@ -449,7 +453,7 @@ class Engine:
         self.emit_config = emit_config
 
         # initialize global time
-        self.global_time = 0.0
+        self.global_time = initial_global_time
 
         # front tracks how far each process has been simulated in time,
         # and also holds the processes' updates before they are applied.

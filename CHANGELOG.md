@@ -1,6 +1,10 @@
 # Changelog
 
-# v1.4.2
+## v1.5.1
+
+* (#206) Support multiple emits for the same timestep.
+
+## v1.4.2
 
 * (#203) Make `Store.soures` more comprehensive, in particular by
   including dividers and flows.
