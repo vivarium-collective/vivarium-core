@@ -341,7 +341,13 @@ class DatabaseEmitter(Emitter):
     def emit(self, data: Dict[str, Any]) -> None:
         table_id = data['table']
         table = getattr(self.db, table_id)
+        time = data['data'].pop('time', None)
         data['data'] = assoc_path({}, self.embed_path, data['data'])
+        # Analysis scripts expect the time to be at the top level of the
+        # dictionary, but some emits, like configuration emits, lack a
+        # time key.
+        if time is not None:
+            data['data']['time'] = time
         emit_data = without_multi(data, ['table'])
         emit_data['experiment_id'] = self.experiment_id
         self.write_emit(table, emit_data)
