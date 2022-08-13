@@ -1,8 +1,11 @@
 # Changelog
 
-## v1.5.1
+## v1.5.0
 
-* (#206) Support multiple emits for the same timestep.
+* (#206) Support multiple emits for the same timestep and remove
+  `Engine.complete()`. Instead, callers of `Engine.run_for()` must pass
+  `force_complete=True` at the end of their caller-managed simulation
+  loops.
 
 ## v1.4.2
 
