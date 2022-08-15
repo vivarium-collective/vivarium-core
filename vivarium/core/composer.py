@@ -62,7 +62,7 @@ def _get_composite_state_recur(
             # Prevent multiupdates from forming when a single process has
             # multiple ports to the same stores holding a dictionary
             sub_state = inverse_topology(
-                path, process_state, sub_topology, initial=True)
+                path, process_state, sub_topology, multi_updates=False)
         else:
             Exception(f'invalid processes {sub_processes} or steps {sub_steps}')
         state = deep_merge(state, sub_state)
