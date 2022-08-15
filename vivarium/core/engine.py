@@ -329,6 +329,7 @@ class Engine:
             progress_bar: bool = False,
             global_time_precision: Optional[int] = None,
             profile: bool = False,
+            initial_global_time: float = 0,
     ) -> None:
         """Defines simulations
 
@@ -397,6 +398,9 @@ class Engine:
             emit_config: If True, this will emit the serialized initial
                 state with the configuration data.
             profile: Whether to profile the simulation with cProfile.
+            initial_global_time: The initial time for the simulation.
+                Useful when this Engine is part of a larger, older
+                simulation.
         """
         self.profiler: Optional[cProfile.Profile] = None
         if profile:
@@ -450,7 +454,7 @@ class Engine:
         self.emit_config = emit_config
 
         # initialize global time
-        self.global_time = 0.0
+        self.global_time = initial_global_time
 
         # front tracks how far each process has been simulated in time,
         # and also holds the processes' updates before they are applied.
@@ -655,7 +659,8 @@ class Engine:
             'time': self.global_time})
         emit_config = {
             'table': 'history',
-            'data': serialize_value(data)}
+            'data': serialize_value(data),
+        }
         self.emitter.emit(emit_config)
 
     def _invoke_process(
@@ -931,11 +936,6 @@ class Engine:
         if self.display_info:
             self._print_summary(runtime)
 
-    def complete(self) -> None:
-        """Force all processes to complete at the current global time"""
-        self.run_for(interval=0, force_complete=True)
-        self._check_complete()
-
     def _check_complete(self) -> None:
         """Check that all processes completed"""
         for path, advance in self.front.items():
@@ -958,6 +958,16 @@ class Engine:
             force_complete: bool = False,
     ) -> None:
         """Run each process within the given interval and update their states.
+
+        :py:meth:`run_for` gives the caller more control over the
+        simulation loop than :py:meth:`update`. In particular, it may be
+        called repeatedly within a caller-managed simulation loop
+        without forcing processes to complete after each call (as would
+        be the case with :py:meth:`update`). It is the responsibility
+        of the caller to ensure that when :py:meth:`run_for` is called
+        for the last time in the caller-managed simulation loop,
+        `force_complete=True` so that all the processes finish at the
+        end of the simulation.
 
         Args:
             interval: the amount of time to simulate the composite.
