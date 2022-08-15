@@ -227,6 +227,20 @@ class NumpyFloat32Serializer(Serializer):
         raise NotImplementedError(
             f'{self} cannot be deserialized.')
 
+class SetSerializer(Serializer):
+
+    def __init__(self) -> None:
+        super().__init__()
+
+    class Codec(TypeEncoder):
+        python_type = set
+        def transform_python(self, value: set) -> List:
+            return list(value)
+
+    def deserialize_from_string(self, data: str) -> None:
+        raise NotImplementedError(
+            f'{self} cannot be deserialized.')
+
 class FunctionSerializer(Serializer):
     def __init__(self) -> None:
         super().__init__()

@@ -298,6 +298,7 @@ class SharedRamEmitter(RAMEmitter):
         # We intentionally don't call the superclass constructor because
         # we don't want to create a per-instance ``saved_data``
         # attribute.
+        self.codec_options = get_codec_options()
         self.embed_path = config.get('embed_path', tuple())
 
 
