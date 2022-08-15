@@ -1,6 +1,6 @@
 # Changelog
 
-## v1.5.0
+## v1.5.1
 
 * (#206) Support multiple emits for the same timestep and remove
   `Engine.complete()`. Instead, callers of `Engine.run_for()` must pass
