@@ -4,6 +4,7 @@
 
 * (#207) Fix a bug in `Store.apply_update()` that caused failures when
   `self.value` was a list and `self.units` was set.
+* (#205) Prevents formation of multi_updates when generating initial state.
 
 ## v1.5.1
 
@@ -14,7 +15,7 @@
 
 ## v1.4.2
 
-* (#203) Make `Store.soures` more comprehensive, in particular by
+* (#203) Make `Store.sources` more comprehensive, in particular by
   including dividers and flows.
 
 ## v1.4.1
