@@ -155,7 +155,7 @@ def dict_to_paths(root, d):
         return [(root, d)]
 
 
-def inverse_topology(outer, update, topology, inverse=None):
+def inverse_topology(outer, update, topology, inverse=None, multi_updates=True):
     '''
     Transform an update from the form its process produced into
     one aligned to the given topology.
@@ -183,7 +183,8 @@ def inverse_topology(outer, update, topology, inverse=None):
                         inner + (child,),
                         update[child],
                         path,
-                        inverse)
+                        inverse,
+                        multi_updates)
             else:
                 for child, child_update in update.items():
                     inner = normalize_path(outer + path + (child,))
@@ -213,14 +214,22 @@ def inverse_topology(outer, update, topology, inverse=None):
                     inner,
                     value,
                     path,
-                    inverse)
+                    inverse,
+                    multi_updates)
             else:
                 inner = normalize_path(outer + path)
                 if isinstance(value, dict):
-                    inverse = update_in(
-                        inverse,
-                        inner,
-                        lambda current: deep_merge_multi_update(current, value))
+                    if multi_updates:
+                        inverse = update_in(
+                            inverse,
+                            inner,
+                            lambda current: deep_merge_multi_update(current, value))
+                    # Do not allow multiupdates when forming initial state
+                    else:
+                        inverse = update_in(
+                            inverse,
+                            inner,
+                            lambda current: deep_merge(current, value))
                 else:
                     assoc_path(inverse, inner, value)
     return inverse
