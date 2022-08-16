@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.5.2
+
+* (#207) Fix a bug in `Store.apply_update()` that caused failures when
+  `self.value` was a list and `self.units` was set.
+
 ## v1.5.1
 
 * (#206) Support multiple emits for the same timestep and remove
