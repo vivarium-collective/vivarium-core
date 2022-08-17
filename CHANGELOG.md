@@ -1,6 +1,9 @@
 # Changelog
 
-## Future
+## v1.5.2
+
+* (#207) Fix a bug in `Store.apply_update()` that caused failures when
+  `self.value` was a list and `self.units` was set.
 * (#205) Prevents formation of multi_updates when generating initial state.
 
 ## v1.5.1

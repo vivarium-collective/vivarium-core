@@ -74,8 +74,9 @@ class IdentitySerializer(Serializer):  # pylint: disable=abstract-method
     '''Serializer for base types that get serialized as themselves.'''
 
     def __init__(self) -> None:
-        super().__init__(
-            exclusive_types=(int, float, bool, str, type(None)))
+        super().__init__(exclusive_types=(
+            int, float, bool, str, type(None), np.str_
+        ))
 
     def can_serialize(self, data: Any) -> bool:
         if (

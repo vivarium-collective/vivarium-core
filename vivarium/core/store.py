@@ -1614,7 +1614,10 @@ class Store:
                     f"failed update at path {self.path_for()} "
                     f"with value {self.value} for update {pformat(update)}")
         if self.units:
-            self.value = self.value.to(self.units)
+            if isinstance(self.value, list):
+                self.value = [v.to(self.units) for v in self.value]
+            else:
+                self.value = self.value.to(self.units)
 
         return _EMPTY_UPDATES
 
