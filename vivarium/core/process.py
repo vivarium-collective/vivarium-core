@@ -155,8 +155,8 @@ class Process(metaclass=abc.ABCMeta):
 
         self._parameters = copy.deepcopy(self.defaults)
         self._parameters = deep_merge(self._parameters, parameters)
-        self._schema_override: Schema = self._parameters.pop('_schema', {})
-        self._parallel = self._parameters.pop('_parallel', False)
+        self._schema_override: Schema = self._parameters.get('_schema', {})
+        self._parallel = self._parameters.get('_parallel', False)
         self._condition_path: Optional[HierarchyPath] = None
         self._command_result: Any = None
         self._pending_command: Optional[
@@ -164,7 +164,7 @@ class Process(metaclass=abc.ABCMeta):
 
         # set up the conditional state if a condition key is provided
         if '_condition' in self._parameters:
-            self._condition_path = self._parameters.pop('_condition')
+            self._condition_path = self._parameters.get('_condition')
         if self._condition_path:
             self.merge_overrides(assoc_path({}, self._condition_path, {
                 '_default': True,
