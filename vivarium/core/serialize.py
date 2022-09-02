@@ -7,9 +7,15 @@ import numpy as np
 from pint import Unit
 from pint.quantity import Quantity
 from bson.codec_options import TypeEncoder, TypeRegistry, CodecOptions
+from bson import _dict_to_bson, _bson_to_dict
 
 from vivarium.library.units import units
 from vivarium.core.registry import serializer_registry, Serializer
+
+def serialize_value(value: Any) -> Any:
+    codec_options = get_codec_options()
+    value = _dict_to_bson(value, False, codec_options)
+    return _bson_to_dict(value, codec_options)
 
 # Deserialization still requires custom python code because
 # BSON C extensions cannot distinguish between strings that
@@ -36,7 +42,7 @@ def deserialize_value(value: Any) -> Any:
 # both. Similar reasoning applies to deserialize() and
 # deserialize_from_string().
 
-class IdentitySerializer(Serializer):  # pylint: disable=abstract-method
+class IdentityDeserializer(Serializer):  # pylint: disable=abstract-method
     '''Serializer for base types that get serialized as themselves.'''
 
     def __init__(self) -> None:
@@ -55,7 +61,7 @@ class IdentitySerializer(Serializer):  # pylint: disable=abstract-method
         return data
 
 
-class SequenceSerializer(Serializer):  # pylint: disable=abstract-method
+class SequenceDeserializer(Serializer):  # pylint: disable=abstract-method
 
     def __init__(self) -> None:
         super().__init__()
@@ -67,10 +73,7 @@ class SequenceSerializer(Serializer):  # pylint: disable=abstract-method
         return [deserialize_value(value) for value in data]
 
 
-class DictSerializer(Serializer):  # pylint: disable=abstract-method
-
-    def __init__(self) -> None:
-        super().__init__()
+class DictDeserializer(Serializer):  # pylint: disable=abstract-method
 
     def can_deserialize(self, data: Any) -> bool:
         return isinstance(data, dict)
@@ -88,7 +91,7 @@ class UnitsSerializer(Serializer):
     def __init__(self) -> None:
         super().__init__(name='units')
 
-    class Codec(TypeEncoder):
+    class UnitCodec(TypeEncoder):
         python_type = type(units.fg)
         def transform_python(self, value: Any) -> Union[List[str], str]:
             try:
@@ -99,17 +102,11 @@ class UnitsSerializer(Serializer):
             except TypeError:
                 return f"!units[{str(value)}]"
 
-    class Codec2(Codec):
+    class QuantityCodec(UnitCodec):
         python_type = type(1*units.fg)
 
     def get_codecs(self) -> List:
-        return [self.Codec(), self.Codec2()]
-
-    def deserialize_from_string(self, data: str) -> Quantity:
-        if data.startswith('nan'):
-            unit = data[len('nan'):].strip()
-            return math.nan * units(unit)
-        return units(data)
+        return [self.UnitCodec(), self.QuantityCodec()]
 
     # Here the differing argument is `unit`, which is optional, so we
     # can ignore the pylint warning.
@@ -145,9 +142,13 @@ class UnitsSerializer(Serializer):
             if unit is not None:
                 unit_data = [d.to(unit) for d in data]
         else:
-            # The superclass deserialize() uses
-            # deserialize_from_string().
-            unit_data = super().deserialize(data)
+            # The superclass deserialize() extracts ... from !units[...].
+            data = super().deserialize(data)
+            if data.startswith('nan'):
+                unit = data[len('nan'):].strip()
+                unit_data = math.nan * units(unit)
+            else:
+                unit_data = units(data)
             if unit is not None:
                 unit_data.to(unit)
         return unit_data
@@ -159,100 +160,67 @@ class NumpySerializer(Serializer):
     deserialization will produce a Python list instead of a Numpy array.
     """
 
-    def __init__(self) -> None:
-        super().__init__()
-
     class Codec(TypeEncoder):
         python_type = np.ndarray
         def transform_python(self, value: np.ndarray) -> List:
             return value.tolist()
-
-    def deserialize_from_string(self, data: str) -> None:
-        raise NotImplementedError(
-            f'{self} cannot be deserialized.')
+        
+    def get_codecs(self):
+        return [self.Codec()]
 
 class NumpyBoolSerializer(Serializer):
-
-    def __init__(self) -> None:
-        super().__init__()
-
     class Codec(TypeEncoder):
         python_type = np.bool_
         def transform_python(self, value: np.bool_) -> bool:
             return bool(value)
-
-    def deserialize_from_string(self, data: str) -> None:
-        raise NotImplementedError(
-            f'{self} cannot be deserialized.')
+    
+    def get_codecs(self):
+        return [self.Codec()]
 
 class NumpyInt64Serializer(Serializer):
-
-    def __init__(self) -> None:
-        super().__init__()
-
     class Codec(TypeEncoder):
         python_type = np.int64
         def transform_python(self, value: np.int64) -> int:
             return int(value)
-
-    def deserialize_from_string(self, data: str) -> None:
-        raise NotImplementedError(
-            f'{self} cannot be deserialized.')
+    
+    def get_codecs(self):
+        return [self.Codec()]
 
 class NumpyInt32Serializer(Serializer):
-
-    def __init__(self) -> None:
-        super().__init__()
-
     class Codec(TypeEncoder):
         python_type = np.int32
         def transform_python(self, value: np.int32) -> int:
             return int(value)
-
-    def deserialize_from_string(self, data: str) -> None:
-        raise NotImplementedError(
-            f'{self} cannot be deserialized.')
+    
+    def get_codecs(self):
+        return [self.Codec()]
 
 class NumpyFloat32Serializer(Serializer):
-
-    def __init__(self) -> None:
-        super().__init__()
-
     class Codec(TypeEncoder):
         python_type = np.float32
         def transform_python(self, value: np.float32) -> float:
             return float(value)
-
-    def deserialize_from_string(self, data: str) -> None:
-        raise NotImplementedError(
-            f'{self} cannot be deserialized.')
+    
+    def get_codecs(self):
+        return [self.Codec()]
 
 class SetSerializer(Serializer):
-
-    def __init__(self) -> None:
-        super().__init__()
-
     class Codec(TypeEncoder):
         python_type = set
         def transform_python(self, value: set) -> List:
             return list(value)
-
-    def deserialize_from_string(self, data: str) -> None:
-        raise NotImplementedError(
-            f'{self} cannot be deserialized.')
+    
+    def get_codecs(self):
+        return [self.Codec()]
 
 class FunctionSerializer(Serializer):
-    def __init__(self) -> None:
-        super().__init__()
-
     class Codec(TypeEncoder):
         python_type = type(deserialize_value)
         def transform_python(self, value: Callable) -> str:
             return f"!FunctionSerializer[{str(value)}]"
-
-    def deserialize_from_string(self, data: str) -> None:
-        raise NotImplementedError(
-            f'{self} cannot be deserialized.')
+    
+    def get_codecs(self):
+        return [self.Codec()]
 
 
 # Subclasses of data types handled by custom

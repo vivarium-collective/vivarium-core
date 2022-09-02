@@ -3,11 +3,10 @@ import re
 from typing import Any
 
 import numpy as np
-from bson import _dict_to_bson, _bson_to_dict
 from bson.codec_options import TypeEncoder
 
 from vivarium.core.process import Process
-from vivarium.core.serialize import get_codec_options, deserialize_value
+from vivarium.core.serialize import serialize_value, deserialize_value
 from vivarium.core.registry import serializer_registry, Serializer
 from vivarium.library.units import units
 
@@ -21,19 +20,14 @@ class SerializeProcess(Process):
         return {}
 
 class SerializeProcessSerializer(Serializer):
-
-    def __init__(self) -> None:
-        super().__init__()
-
     class Codec(TypeEncoder):
         python_type = type(SerializeProcess())
         def transform_python(self, value: SerializeProcess) -> str:
             return ("!ProcessSerializer[" +
                 str(dict(value.parameters, _name=value.name)) + "]")
-
-    def deserialize_from_string(self, data: str) -> None:
-        raise NotImplementedError(
-            f'{self} cannot be deserialized.')
+    
+    def get_codecs(self):
+        return [self.Codec()]
 
 serializer_registry.register(
     "SerializeProcessSerializer", SerializeProcessSerializer())
@@ -64,7 +58,8 @@ class ToySerializer(Serializer):
 
         return f'!{self.name}[{string_serialization}]'
 
-    def deserialize_from_string(self, data: str) -> str:
+    def deserialize(self, data: str) -> str:
+        data = super().deserialize(data)
         if self.suffix:
             return data[len(self.prefix):-len(self.suffix)]
         return data[len(self.prefix):]
@@ -122,8 +117,6 @@ def test_exclamation_point_suffixing_serializer_string() -> None:
 def test_serialization_full() -> None:
     to_serialize = {
         'process': SerializeProcess(),
-        # Cannot handle non-string keys
-        # 1: True,
         'numpy_int': np.array([1, 2, 3]),
         'numpy_float': np.array([1.1, 2.2, 3.3]),
         'numpy_str': np.array(['a', 'b', 'c']),
@@ -140,8 +133,7 @@ def test_serialization_full() -> None:
         },
         'function': serialize_function,
     }
-    serialized = _dict_to_bson(to_serialize, False, get_codec_options())
-    serialized = _bson_to_dict(serialized, get_codec_options())
+    serialized = serialize_value(to_serialize)
     assert re.fullmatch(
         '!FunctionSerializer\\[<function serialize_function at 0x[0-9a-f]+>\\]',
         serialized.pop('function'))
@@ -150,7 +142,6 @@ def test_serialization_full() -> None:
             "!ProcessSerializer[{'timestep': 1.0, '_name': "
             "'SerializeProcess'}]"
         ),
-        # '1': True,
         'numpy_int': [1, 2, 3],
         'numpy_float': [1.1, 2.2, 3.3],
         'numpy_str': ['a', 'b', 'c'],
@@ -184,7 +175,6 @@ def test_serialization_full() -> None:
     deserialized.pop('nan_unit')
 
     expected_deserialized = {
-        # '1': True,
         'numpy_int': [1, 2, 3],
         'numpy_float': [1.1, 2.2, 3.3],
         'numpy_str': ['a', 'b', 'c'],
