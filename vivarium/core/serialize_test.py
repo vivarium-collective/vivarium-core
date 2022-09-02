@@ -25,7 +25,7 @@ class SerializeProcessSerializer(Serializer):
         def transform_python(self, value: SerializeProcess) -> str:
             return ("!ProcessSerializer[" +
                 str(dict(value.parameters, _name=value.name)) + "]")
-    
+
     def get_codecs(self) -> List:
         return [self.Codec()]
 

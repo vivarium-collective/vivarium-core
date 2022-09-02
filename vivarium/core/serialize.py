@@ -137,12 +137,12 @@ class UnitsSerializer(Serializer):
                 unit_data = [d.to(unit) for d in data]
         else:
             # The superclass deserialize() extracts ... from !units[...].
-            data = super().deserialize(data)
-            if data.startswith('nan'):
-                unit = data[len('nan'):].strip()
-                unit_data = math.nan * units(unit)
+            str_data = super().deserialize(data)
+            if str_data.startswith('nan'):
+                unit_str = str_data[len('nan'):].strip()
+                unit_data = math.nan * units(unit_str)
             else:
-                unit_data = units(data)
+                unit_data = units(str_data)
             if unit is not None:
                 unit_data.to(unit)
         return unit_data

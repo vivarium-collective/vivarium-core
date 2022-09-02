@@ -426,10 +426,8 @@ class Serializer:
         return string_serialization
 
     def can_deserialize(self, data):
-        """Serializer will deserialize a string if it has the form::
-        
-            f'!{self.name or self.__class__.__name__}[serialized_data]'
-
+        """Serializer will deserialize a string if it has the form:
+        ``f'!{self.name or self.__class__.__name__}[serialized_data]'``
         """
         if not isinstance(data, str):
             return False

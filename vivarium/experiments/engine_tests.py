@@ -1158,10 +1158,6 @@ class PoQoSerializer(Serializer):
     def get_codecs(self) -> List:
         return [self.Codec(), self.Codec2()]
 
-    def deserialize_from_string(self, data: str) -> None:
-        raise NotImplementedError(
-            f'{self} cannot be deserialized.')
-
 serializer_registry.register('PoQoSerializer', PoQoSerializer())
 
 def test_set_branch_emit() -> None:
