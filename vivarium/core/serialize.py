@@ -45,9 +45,6 @@ def deserialize_value(value: Any) -> Any:
 class IdentityDeserializer(Serializer):  # pylint: disable=abstract-method
     '''Serializer for base types that get serialized as themselves.'''
 
-    def __init__(self) -> None:
-        super().__init__()
-
     def can_deserialize(self, data: Any) -> bool:
         if isinstance(data, (int, float, bool)):
             return True
@@ -62,9 +59,6 @@ class IdentityDeserializer(Serializer):  # pylint: disable=abstract-method
 
 
 class SequenceDeserializer(Serializer):  # pylint: disable=abstract-method
-
-    def __init__(self) -> None:
-        super().__init__()
 
     def can_deserialize(self, data: Any) -> bool:
         return isinstance(data, list)
@@ -164,8 +158,8 @@ class NumpySerializer(Serializer):
         python_type = np.ndarray
         def transform_python(self, value: np.ndarray) -> List:
             return value.tolist()
-        
-    def get_codecs(self):
+
+    def get_codecs(self) -> List:
         return [self.Codec()]
 
 class NumpyBoolSerializer(Serializer):
@@ -173,8 +167,8 @@ class NumpyBoolSerializer(Serializer):
         python_type = np.bool_
         def transform_python(self, value: np.bool_) -> bool:
             return bool(value)
-    
-    def get_codecs(self):
+
+    def get_codecs(self) -> List:
         return [self.Codec()]
 
 class NumpyInt64Serializer(Serializer):
@@ -182,8 +176,8 @@ class NumpyInt64Serializer(Serializer):
         python_type = np.int64
         def transform_python(self, value: np.int64) -> int:
             return int(value)
-    
-    def get_codecs(self):
+
+    def get_codecs(self) -> List:
         return [self.Codec()]
 
 class NumpyInt32Serializer(Serializer):
@@ -191,8 +185,8 @@ class NumpyInt32Serializer(Serializer):
         python_type = np.int32
         def transform_python(self, value: np.int32) -> int:
             return int(value)
-    
-    def get_codecs(self):
+
+    def get_codecs(self) -> List:
         return [self.Codec()]
 
 class NumpyFloat32Serializer(Serializer):
@@ -200,8 +194,8 @@ class NumpyFloat32Serializer(Serializer):
         python_type = np.float32
         def transform_python(self, value: np.float32) -> float:
             return float(value)
-    
-    def get_codecs(self):
+
+    def get_codecs(self) -> List:
         return [self.Codec()]
 
 class SetSerializer(Serializer):
@@ -209,8 +203,8 @@ class SetSerializer(Serializer):
         python_type = set
         def transform_python(self, value: set) -> List:
             return list(value)
-    
-    def get_codecs(self):
+
+    def get_codecs(self) -> List:
         return [self.Codec()]
 
 class FunctionSerializer(Serializer):
@@ -218,8 +212,8 @@ class FunctionSerializer(Serializer):
         python_type = type(deserialize_value)
         def transform_python(self, value: Callable) -> str:
             return f"!FunctionSerializer[{str(value)}]"
-    
-    def get_codecs(self):
+
+    def get_codecs(self) -> List:
         return [self.Codec()]
 
 

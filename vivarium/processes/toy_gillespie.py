@@ -218,15 +218,16 @@ def test_gillespie_process(total_time=1000):
 
     # run the experiment in large increments
     increment = 10
-    for _ in range(total_time):
+    for i in range(total_time):
+        if i == total_time - 1:
+            gillespie_experiment.run_for(increment, force_complete=True)
+            # Now the process is at the global time.
+            break
         gillespie_experiment.run_for(increment)
-
         # check that process remains behind global time
         front = gillespie_experiment.front
         assert front[('process',)]['time'] < gillespie_experiment.global_time
 
-    # complete
-    gillespie_experiment.complete()
     front = gillespie_experiment.front
     assert front[('process',)]['time'] == gillespie_experiment.global_time
 

@@ -260,15 +260,13 @@ class RAMEmitter(Emitter):
         if data['table'] == 'history':
             emit_data = data['data']
             time = emit_data['time']
-            emit_data = _dict_to_bson(emit_data, False, self.codec_options)
-            emit_data = _bson_to_dict(emit_data, self.codec_options)
-            timepoint = {
+            data_at_time = {
                 key: value for key, value in emit_data.items()
                 if key not in ['time']}
-            timepoint = assoc_path({}, self.embed_path, timepoint)
+            data_at_time = assoc_path({}, self.embed_path, data_at_time)
             self.saved_data.setdefault(time, {})
             deep_merge_check(
-                self.saved_data[time], timepoint, check_equality=True)
+                self.saved_data[time], data_at_time, check_equality=True)
 
     def get_data(self, query: list = None) -> dict:
         """ Return the accumulated timeseries history of "emitted" data. """

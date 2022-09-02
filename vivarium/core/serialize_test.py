@@ -1,6 +1,6 @@
 import math
 import re
-from typing import Any
+from typing import Any, List
 
 import numpy as np
 from bson.codec_options import TypeEncoder
@@ -26,7 +26,7 @@ class SerializeProcessSerializer(Serializer):
             return ("!ProcessSerializer[" +
                 str(dict(value.parameters, _name=value.name)) + "]")
     
-    def get_codecs(self):
+    def get_codecs(self) -> List:
         return [self.Codec()]
 
 serializer_registry.register(

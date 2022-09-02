@@ -1107,7 +1107,12 @@ def test_engine_run_for() -> None:
 
     time = 0.0
     while sim.global_time < total_time:
-        sim.run_for(time_interval)
+        if time + time_interval >= total_time:
+            # If this is the last iteration of the simulation loop,
+            # force processes to complete.
+            sim.run_for(time_interval, force_complete=True)
+        else:
+            sim.run_for(time_interval)
         time += time_interval
         assert sim.global_time == time
 
@@ -1115,7 +1120,9 @@ def test_engine_run_for() -> None:
         front = sim.front
         for path, advance in front.items():
             expected_time = 0.0
-            if path[0] == 'process1':
+            if time >= total_time:
+                expected_time = total_time
+            elif path[0] == 'process1':
                 expected_time = int(time / timestep1) * timestep1
             elif path[0] == 'process2':
                 expected_time = int(time / timestep2) * timestep2
@@ -1123,8 +1130,6 @@ def test_engine_run_for() -> None:
                 f"front time {advance['time']} " \
                 f"is not expected {expected_time}"
 
-    # make all the processes complete
-    sim.complete()
     final_time = time
     assert sim.global_time == final_time
 
