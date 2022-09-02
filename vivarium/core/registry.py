@@ -401,7 +401,9 @@ class Serializer:
                 self.can_deserialize = lambda _: False
     
     def get_codecs(self):
-        """Get list of codecs in serializer.
+        """Get list of codecs in serializer. Codecs are class attributes of type
+        :py:class:`bson.codec_options.TypeCodec` that are used by PyMongo to
+        serialize and (optionally) deserialize data.
         """
         return []
     
