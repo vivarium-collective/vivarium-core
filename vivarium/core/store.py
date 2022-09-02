@@ -17,7 +17,7 @@ from pint import Quantity
 from typing import Optional
 
 from vivarium import divider_registry, serializer_registry, updater_registry
-from vivarium.core.process import Process, Step
+from vivarium.core.process import ParallelProcess, Process
 from vivarium.library.dict_utils import deep_merge, deep_merge_check, MULTI_UPDATE_KEY
 from vivarium.library.topology import without, dict_to_paths
 from vivarium.core.types import Processes, Topology, State, Steps, Flow
@@ -1056,6 +1056,15 @@ class Store:
         else:
             self.emit = emit
 
+    def recursive_end_process(self, value):
+        if isinstance(value.value, ParallelProcess):
+            value.value.end()
+            return
+        elif isinstance(value, Store):
+            for subval in value.inner:
+                self.recursive_end_process(value[subval])
+        return
+    
     def _delete_path(self, path):
         """
         Delete the subtree at the given path.
@@ -1069,6 +1078,8 @@ class Store:
         remove = path[-1]
         if remove in target.inner:
             lost = target.inner[remove]
+            # End any parallel processes to be deleted
+            self.recursive_end_process(target.inner[remove])
             del target.inner[remove]
             return lost
         return None
