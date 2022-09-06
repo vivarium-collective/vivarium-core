@@ -1,7 +1,7 @@
 import logging as log
 
 from vivarium.library.dict_utils import deep_merge_combine_lists
-from vivarium.core.process import Process
+from vivarium.core.process import Step
 
 
 def nested_set(dic, keys, value):
@@ -14,7 +14,7 @@ def nested_set(dic, keys, value):
     dic[keys[-1]] = value
 
 
-class TimelineProcess(Process):
+class TimelineProcess(Step):
 
     name = 'timeline'
 
@@ -81,7 +81,7 @@ class TimelineProcess(Process):
 
     def next_update(self, timestep, states):
         time = states['global']['time']
-        update = {'global': {'time': timestep}}
+        update = {'global': {'time': self.parameters['timestep']}}
         for (t, change_dict) in self.timeline:
             if time >= t:
                 for path_to_variable, value in change_dict.items():
