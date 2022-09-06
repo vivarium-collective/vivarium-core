@@ -112,7 +112,9 @@ def test_remove():
     output = sim.emitter.get_timeseries()
 
     assert len(output['agents']['1']['dead']) == time_dead + 1
-    assert len(output['time']) == time_total + 1
+    # Simulation stops emitting when Processes (not Steps) are deleted
+    # Add 2 to account for t=0 and t=6 (when processes see the death flag)
+    assert len(output['time']) == time_dead + 2
 
     return output
 

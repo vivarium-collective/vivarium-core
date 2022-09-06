@@ -344,7 +344,7 @@ def test_composer_in_experiment() -> None:
     output = simulate_experiment(experiment, settings)
 
     # check that timeline worked
-    assert output['aaa']['a1'][6] == 10
+    assert output['aaa']['a1'][5] == 10
     assert settings['total_time'] == 15
     assert len(output['aaa']['a1']) == 16
 
