@@ -1021,8 +1021,8 @@ class Store:
         if self.emit:
             if self.serializer:
                 if isinstance(self.value, list) and self.units:
-                    return self.serializer.serialize(
-                        [v.to(self.units) for v in self.value])
+                    return [self.serializer.serialize(v.to(self.units))
+                            for v in self.value]
                 if self.units:
                     return self.serializer.serialize(
                         self.value.to(self.units))

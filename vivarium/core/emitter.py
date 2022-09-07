@@ -265,6 +265,8 @@ class RAMEmitter(Emitter):
                 if key not in ['time']}
             data_at_time = assoc_path({}, self.embed_path, data_at_time)
             self.saved_data.setdefault(time, {})
+            data_at_time = _dict_to_bson(data_at_time, False, self.codec_options)
+            data_at_time = _bson_to_dict(data_at_time, self.codec_options)
             deep_merge_check(
                 self.saved_data[time], data_at_time, check_equality=True)
 
