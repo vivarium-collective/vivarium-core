@@ -1144,19 +1144,19 @@ class PoQoSerializer(Serializer):
     def __init__(self) -> None:
         super().__init__()
 
-    class Codec(TypeEncoder):
+    class PoCodec(TypeEncoder):
         python_type = type(Po())
         def transform_python(self, value: Po) -> str:
             return ("!ProcessSerializer[" +
                 str(dict(value.parameters, _name=value.name)) + "]")
-    class Codec2(TypeEncoder):
+    class QoCodec(TypeEncoder):
         python_type = type(Qo())
         def transform_python(self, value: Qo) -> str:
             return ("!ProcessSerializer[" +
                 str(dict(value.parameters, _name=value.name)) + "]")
 
     def get_codecs(self) -> List:
-        return [self.Codec(), self.Codec2()]
+        return [self.PoCodec(), self.QoCodec()]
 
 serializer_registry.register('PoQoSerializer', PoQoSerializer())
 

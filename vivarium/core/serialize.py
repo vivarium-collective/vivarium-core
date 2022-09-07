@@ -18,6 +18,17 @@ def serialize_value(
     value: Any,
     codec_options: CodecOptions=None
 ) -> Any:
+    """Apply PyMongo's TypeCodec-based serialization routine on value.
+
+    Args:
+        value (Any): Data to be serialized
+        codec_options (CodecOptions, optional): Options used when encoding /
+        decoding BSON. Defaults to None, in which case options are generated
+        using the codecs in the currently registered serializers.
+
+    Returns:
+        Any: Serialized data
+    """
     if not codec_options:
         codec_options = get_codec_options()
     value = _dict_to_bson(value, False, codec_options)
@@ -27,6 +38,20 @@ def serialize_value(
 # BSON C extensions cannot distinguish between strings that
 # should be deserialized as different types (e.g. Units)
 def deserialize_value(value: Any) -> Any:
+    """Find and apply the correct serializer for a value
+    by calling each registered serializer's ``can_deserialize``
+    method. Returns the value as is if no compatible serializer
+    is found.
+
+    Args:
+        value (Any): Data to be deserialized
+
+    Raises:
+        ValueError: Only one serializer should apply for any given value
+
+    Returns:
+        Any: Deserialized data
+    """
     compatible_serializers = []
     for serializer_name in serializer_registry.list():
         serializer = serializer_registry.access(serializer_name)

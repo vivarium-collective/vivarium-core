@@ -417,15 +417,15 @@ class Serializer:
     def deserialize(self, data):
         """This allows for data of the same BSON type to be deserialized
         differently (see regex matching of strings in
-        :py:meth:vivarium.core.serialize.UnitsSerializer.deserialize()
-        for an example). This should only be overriden if the `serialize` 
+        :py:meth:`vivarium.core.serialize.UnitsSerializer.deserialize()`
+        for an example). This should only be overriden if the ``serialize`` 
         method was also overriden.
         """
         pass
 
     def can_deserialize(self, data):
-        """This tells :py:meth:vivarium.core.serialize.deserialize_value()`
-        whether to call `deserialize` on data. It should only be overrriden
-        if the `serialize` method was also overriden.
+        """This tells :py:func:`vivarium.core.serialize.deserialize_value()`
+        whether to call ``deserialize`` on data. It should only be overrriden
+        if the ``serialize`` method was also overriden.
         """
         pass
