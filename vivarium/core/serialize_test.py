@@ -59,8 +59,9 @@ class ToySerializer(Serializer):
         return bool(self.regex_for_serialized.fullmatch(data))
 
     def deserialize(self, data: str) -> str:
-        data = self.regex_for_serialized.fullmatch(
-            data).group(1)
+        matched_regex = self.regex_for_serialized.fullmatch(data)
+        if matched_regex:
+            data = matched_regex.group(1)
         if self.suffix:
             return data[len(self.prefix):-len(self.suffix)]
         return data[len(self.prefix):]

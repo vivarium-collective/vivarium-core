@@ -87,6 +87,12 @@ class UnitsSerializer(Serializer):
     def get_codecs(self) -> List:
         return [self.UnitCodec(), self.QuantityCodec()]
 
+    def serialize(self, data: Any) -> str:
+        for codec in self.codecs:
+            if isinstance(data, codec.python_type):
+                return codec.transform_python(data)
+        raise TypeError(f'{data} is not of type Unit or Quantity')
+
     def can_deserialize(self, data: Any) -> bool:
         if not isinstance(data, str):
             return False
@@ -127,13 +133,14 @@ class UnitsSerializer(Serializer):
                 unit_data = [d.to(unit) for d in data]
         else:
             # Extract ... from !units[...].
-            str_data = self.regex_for_serialized.fullmatch(
-                data).group(1)
-            if str_data.startswith('nan'):
-                unit_str = str_data[len('nan'):].strip()
+            matched_regex = self.regex_for_serialized.fullmatch(data)
+            if matched_regex:
+                data = matched_regex.group(1)
+            if data.startswith('nan'):
+                unit_str = data[len('nan'):].strip()
                 unit_data = math.nan * units(unit_str)
             else:
-                unit_data = units(str_data)
+                unit_data = units(data)
             if unit is not None:
                 unit_data.to(unit)
         return unit_data

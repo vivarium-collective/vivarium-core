@@ -82,19 +82,24 @@ Python and BSON types. These types of serializers MUST each define the following
 2. The :py:meth:`vivarium.core.registry.Serializer.get_codecs()` method
 
 If it is necessary to serialize objects of the same Python type differently,
-the corresponding serializer(s) MUST define the 
-:py:meth:`vivarium.core.registry.Serializer.serialize()` method. Additionally,
-the stores containing objects of the affected type(s) must be assigned the
-correct custom serializer using the ``_serializer`` ports schema key.
+assign custom serializers to the stores containing objects of the affected
+type(s) using the ``_serializer`` ports schema key. The best practice is to
+define a TypeCodec-based serializer to handle a given type and only make use
+of the ``_serializer`` key for rare exceptions to the rule. Serializer(s) for
+these exceptions MUST override:
+ 
+1. :py:meth:`vivarium.core.registry.Serializer.serialize()`,
+2. :py:meth:`vivarium.core.registry.Serializer.can_deserialize()`
+3. :py:meth:`vivarium.core.registry.Serializer.deserialize()`
 
 If it is necessary to deserialize objects of the same BSON type differently,
-the corresponding serializer(s) MUST define the 
-:py:meth:`vivarium.core.registry.Serializer.can_deserialize()` and 
-:py:meth:`vivarium.core.registry.Serializer.deserialize()` methods.
+the corresponding serializer(s) MUST override: 
+
+1. :py:meth:`vivarium.core.registry.Serializer.can_deserialize()`
+2. :py:meth:`vivarium.core.registry.Serializer.deserialize()`
 """
 import copy
 import random
-import re
 
 import numpy as np
 
@@ -397,10 +402,7 @@ class Serializer:
         return []
     
     def serialize(self, data):
-        """By default, this is designed to support unit conversion before
-        serialization (see :py:meth:`vivarium.core.store.Store.emit_data()`).
-        
-        This should only overriden in the case that individual stores are
+        """This should only overriden in the case that individual stores are
         assigned custom serializers. For maximum performance, serialization
         should be left to PyMongo instead of calling this function.
 
@@ -410,9 +412,7 @@ class Serializer:
         handled by another codec. The best practice would be for ``serialize``
         to always return data of a built-in type.
         """
-        for codec in self.codecs:
-            if isinstance(data, codec.python_type):
-                return codec.transform_python(data)
+        pass
 
     def deserialize(self, data):
         """This allows for data of the same BSON type to be deserialized
@@ -421,11 +421,11 @@ class Serializer:
         for an example). This should only be overriden if the `serialize` 
         method was also overriden.
         """
-        return data
+        pass
 
     def can_deserialize(self, data):
         """This tells :py:meth:vivarium.core.serialize.deserialize_value()`
         whether to call `deserialize` on data. It should only be overrriden
         if the `serialize` method was also overriden.
         """
-        return False
+        pass
