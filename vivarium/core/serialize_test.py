@@ -42,15 +42,10 @@ class ToySerializer(Serializer):
         super().__init__()
         self.prefix = prefix
         self.suffix = suffix
-
-    def can_serialize(self, data: Any) -> bool:
-        return isinstance(data, str) and data.startswith('!!')
-
-    def serialize_to_string(self, data: str) -> str:
-        return f'{self.prefix}{data}{self.suffix}'
+        self.regex_for_serialized = re.compile(f'!{self.name}\\[(.*)\\]')
 
     def serialize(self, data: str) -> str:
-        string_serialization = self.serialize_to_string(data)
+        string_serialization = f'{self.prefix}{data}{self.suffix}'
         if not isinstance(string_serialization, str):
             raise ValueError(
                 f'{self}.serialize_to_string() returned invalid '
@@ -58,8 +53,14 @@ class ToySerializer(Serializer):
 
         return f'!{self.name}[{string_serialization}]'
 
+    def can_deserialize(self, data: Any) -> bool:
+        if not isinstance(data, str):
+            return False
+        return bool(self.regex_for_serialized.fullmatch(data))
+
     def deserialize(self, data: str) -> str:
-        data = super().deserialize(data)
+        data = self.regex_for_serialized.fullmatch(
+            data).group(1)
         if self.suffix:
             return data[len(self.prefix):-len(self.suffix)]
         return data[len(self.prefix):]

@@ -81,18 +81,16 @@ Python and BSON types. These types of serializers MUST each define the following
    or one of its subclasses
 2. The :py:meth:`vivarium.core.registry.Serializer.get_codecs()` method
 
-If it is necessary to serialize objects of the same Python type into different
-BSON types, the corresponding serializer(s) MUST define the 
-:py:meth:`vivarium.core.registry.Serializer.serialize()` method and the
-stores containing objects of the affected type(s) must be assigned the correct 
-custom serializers using the ``_serializer`` ports schema key.
+If it is necessary to serialize objects of the same Python type differently,
+the corresponding serializer(s) MUST define the 
+:py:meth:`vivarium.core.registry.Serializer.serialize()` method. Additionally,
+the stores containing objects of the affected type(s) must be assigned the
+correct custom serializer using the ``_serializer`` ports schema key.
 
-If it is necessary to deserialize objects of the same BSON type into different
-Python types, the corresponding serializer(s) MUST define the 
+If it is necessary to deserialize objects of the same BSON type differently,
+the corresponding serializer(s) MUST define the 
 :py:meth:`vivarium.core.registry.Serializer.can_deserialize()` and 
 :py:meth:`vivarium.core.registry.Serializer.deserialize()` methods.
-The ``can_deserialize`` method checks data and returns a boolean value 
-indicating whether to call the ``deserialize`` method on that data.
 """
 import copy
 import random
@@ -380,25 +378,16 @@ class Serializer:
     method and will be much slower.
     
     Deserialization is handled by PyMongo if the included codecs have the
-    ``bson_type``attribute and ``transform_bson()`` method. If not, the 
+    ``bson_type`` attribute and ``transform_bson()`` method. If not, the 
     :py:meth:`vivarium.core.registry.Serializer.deserialize()` 
     method is called instead and will be much slower.
 
     Args:
         name: Name of the serializer. Defaults to the class name.
     """
-    REGEX_FOR_NAME = re.compile('[A-Za-z0-9-_]+')
-    REGEX_FOR_SERIALIZED_ANY_TYPE = re.compile(
-        f'!{REGEX_FOR_NAME.pattern}\\[(.*)\\]')
-
     def __init__(self, name=''):
         self.name = name or self.__class__.__name__
-        self.regex_for_serialized = re.compile(f'!{self.name}\\[(.*)\\]')
         self.codecs = self.get_codecs()
-        for codec in self.codecs:
-            if hasattr(codec, 'bson_type') and hasattr(codec, 'transform_bson'):
-                self.deserialize = lambda x: x
-                self.can_deserialize = lambda _: False
     
     def get_codecs(self):
         """Get list of codecs in serializer. Codecs are class attributes of type
@@ -408,29 +397,35 @@ class Serializer:
         return []
     
     def serialize(self, data):
-        """Serialize data using correct codec.
+        """By default, this is designed to support unit conversion before
+        serialization (see :py:meth:`vivarium.core.store.Store.emit_data()`).
         
-        This is typically only called in the case that individual stores
-        are assigned custom serializers. For maximum performance, serialization
+        This should only overriden in the case that individual stores are
+        assigned custom serializers. For maximum performance, serialization
         should be left to PyMongo instead of calling this function.
+
+        Note that the values returned by this method later undergo another
+        round of serialization under PyMongo's codec system. This could cause
+        unexpected behavior if ``serialize`` returns data of a type that is
+        handled by another codec. The best practice would be for ``serialize``
+        to always return data of a built-in type.
         """
         for codec in self.codecs:
             if isinstance(data, codec.python_type):
                 return codec.transform_python(data)
 
     def deserialize(self, data):
-        """Given a string of the form ``!...[data here]``,
-        where ``...`` is ``self.name``, this returns the 
-        string inside the square brackets.
+        """This allows for data of the same BSON type to be deserialized
+        differently (see regex matching of strings in
+        :py:meth:vivarium.core.serialize.UnitsSerializer.deserialize()
+        for an example). This should only be overriden if the `serialize` 
+        method was also overriden.
         """
-        string_serialization = self.regex_for_serialized.fullmatch(
-            data).group(1)
-        return string_serialization
+        return data
 
     def can_deserialize(self, data):
-        """Serializer will deserialize a string if it has the form:
-        ``f'!{self.name or self.__class__.__name__}[serialized_data]'``
+        """This tells :py:meth:vivarium.core.serialize.deserialize_value()`
+        whether to call `deserialize` on data. It should only be overrriden
+        if the `serialize` method was also overriden.
         """
-        if not isinstance(data, str):
-            return False
-        return bool(self.regex_for_serialized.fullmatch(data))
+        return False

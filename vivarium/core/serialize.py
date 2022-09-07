@@ -1,3 +1,4 @@
+import re
 import math
 import warnings
 from typing import Any, List, Union
@@ -12,8 +13,12 @@ from bson import _dict_to_bson, _bson_to_dict
 from vivarium.library.units import units
 from vivarium.core.registry import serializer_registry, Serializer
 
-def serialize_value(value: Any) -> Any:
-    codec_options = get_codec_options()
+def serialize_value(
+    value: Any,
+    codec_options: CodecOptions=None
+) -> Any:
+    if not codec_options:
+        codec_options = get_codec_options()
     value = _dict_to_bson(value, False, codec_options)
     return _bson_to_dict(value, codec_options)
 
@@ -27,35 +32,14 @@ def deserialize_value(value: Any) -> Any:
         if serializer.can_deserialize(value):
             compatible_serializers.append(serializer)
     if not compatible_serializers:
-        raise ValueError(
-            f'No deserializer found for {value}')
+        # Most likely a built-in type with no custom serializer/deserializer
+        return value
     if len(compatible_serializers) > 1:
         raise ValueError(
             f'Multiple deserializers ({compatible_serializers}) found '
             f'for {value}')
     serializer = compatible_serializers[0]
     return serializer.deserialize(value)
-
-
-# We can ignore the abstract-method warning because Serializer only
-# requires that we override serialize() or serialize_to_string(), not
-# both. Similar reasoning applies to deserialize() and
-# deserialize_from_string().
-
-class IdentityDeserializer(Serializer):  # pylint: disable=abstract-method
-    '''Serializer for base types that get serialized as themselves.'''
-
-    def can_deserialize(self, data: Any) -> bool:
-        if isinstance(data, (int, float, bool)):
-            return True
-        if isinstance(data, str):
-            return not self.REGEX_FOR_SERIALIZED_ANY_TYPE.fullmatch(data)
-        if data is None:
-            return True
-        return False
-
-    def deserialize(self, data: Any) -> Any:
-        return data
 
 
 class SequenceDeserializer(Serializer):  # pylint: disable=abstract-method
@@ -84,6 +68,7 @@ class UnitsSerializer(Serializer):
 
     def __init__(self) -> None:
         super().__init__(name='units')
+        self.regex_for_serialized = re.compile(f'!{self.name}\\[(.*)\\]')
 
     class UnitCodec(TypeEncoder):
         python_type = type(units.fg)
@@ -101,6 +86,11 @@ class UnitsSerializer(Serializer):
 
     def get_codecs(self) -> List:
         return [self.UnitCodec(), self.QuantityCodec()]
+
+    def can_deserialize(self, data: Any) -> bool:
+        if not isinstance(data, str):
+            return False
+        return bool(self.regex_for_serialized.fullmatch(data))
 
     # Here the differing argument is `unit`, which is optional, so we
     # can ignore the pylint warning.
@@ -136,8 +126,9 @@ class UnitsSerializer(Serializer):
             if unit is not None:
                 unit_data = [d.to(unit) for d in data]
         else:
-            # The superclass deserialize() extracts ... from !units[...].
-            str_data = super().deserialize(data)
+            # Extract ... from !units[...].
+            str_data = self.regex_for_serialized.fullmatch(
+                data).group(1)
             if str_data.startswith('nan'):
                 unit_str = str_data[len('nan'):].strip()
                 unit_data = math.nan * units(unit_str)

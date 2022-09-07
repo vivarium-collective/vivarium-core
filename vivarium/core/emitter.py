@@ -11,7 +11,6 @@ import uuid
 from typing import Any, Dict, List, Optional, Tuple, Callable
 from urllib.parse import quote_plus
 
-from bson import _dict_to_bson, _bson_to_dict
 from pymongo.errors import DocumentTooLarge
 from pymongo import MongoClient
 
@@ -28,7 +27,10 @@ from vivarium.library.topology import (
     without_multi,
 )
 from vivarium.core.registry import emitter_registry
-from vivarium.core.serialize import get_codec_options, deserialize_value
+from vivarium.core.serialize import (
+    get_codec_options,
+    serialize_value,
+    deserialize_value)
 
 MONGO_DOCUMENT_LIMIT = 1e7
 
@@ -265,8 +267,7 @@ class RAMEmitter(Emitter):
                 if key not in ['time']}
             data_at_time = assoc_path({}, self.embed_path, data_at_time)
             self.saved_data.setdefault(time, {})
-            data_at_time = _dict_to_bson(data_at_time, False, self.codec_options)
-            data_at_time = _bson_to_dict(data_at_time, self.codec_options)
+            data_at_time = serialize_value(data_at_time, self.codec_options)
             deep_merge_check(
                 self.saved_data[time], data_at_time, check_equality=True)
 
@@ -375,9 +376,8 @@ class DatabaseEmitter(Emitter):
         # getting string representation of Numpy arrays
         except DocumentTooLarge:
             emit_data.pop('assembly_id')
-            data = _dict_to_bson(emit_data, False, self.codec_options)
-            data = _bson_to_dict(data, self.codec_options)
-            broken_down_data = breakdown_data(self.emit_limit, data)
+            emit_data = serialize_value(emit_data, self.codec_options)
+            broken_down_data = breakdown_data(self.emit_limit, emit_data)
             for (path, datum) in broken_down_data:
                 d: Dict[str, Any] = {}
                 assoc_path(d, path, datum)
