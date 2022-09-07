@@ -191,6 +191,12 @@ class Store:
       dictionary by default.
     * **_emit** (:py:class:`bool`): Whether to emit the variable to the
       :term:`emitter`. This is ``False`` by default.
+    * **_serializer** (:py:class:`vivarium.core.registry.Serializer` or
+      :py:class:`str`): Serializer (or name of serializer) whose ``serialize``
+      method should be called on data in this store before emitting and whose
+      ``deserialize`` method should be called when repopulating this store
+      from serialized data. Only define if it is necessary to serialize and
+      deserialize data in this store differently from other data of the same type.
     """
     schema_keys = {
         '_default',
@@ -651,9 +657,6 @@ class Store:
                     self.units = self.units or self.default[0].units
                     self.serializer = (self.serializer or
                                        serializer_registry.access('units'))
-                elif isinstance(self.default, np.ndarray):
-                    self.serializer = (self.serializer or
-                                       serializer_registry.access('numpy'))
 
             if '_value' in config:
                 self.value = self._check_schema(
@@ -1021,13 +1024,11 @@ class Store:
         if self.emit:
             if self.serializer:
                 if isinstance(self.value, list) and self.units:
-                    return self.serializer.serialize(
-                        [v.to(self.units) for v in self.value])
+                    return [self.serializer.serialize(v.to(self.units))
+                            for v in self.value]
                 if self.units:
                     return self.serializer.serialize(
                         self.value.to(self.units))
-                if isinstance(self.value, list):
-                    return self.value
                 return self.serializer.serialize(self.value)
             if self.units:
                 return self.value.to(self.units).magnitude

@@ -11,6 +11,7 @@ import uuid
 from typing import Any, Dict, List, Optional, Tuple, Callable
 from urllib.parse import quote_plus
 
+from pymongo.errors import DocumentTooLarge
 from pymongo import MongoClient
 
 from vivarium.library.units import remove_units
@@ -26,7 +27,10 @@ from vivarium.library.topology import (
     without_multi,
 )
 from vivarium.core.registry import emitter_registry
-from vivarium.core.serialize import deserialize_value
+from vivarium.core.serialize import (
+    get_codec_options,
+    serialize_value,
+    deserialize_value)
 
 MONGO_DOCUMENT_LIMIT = 1e7
 
@@ -246,6 +250,7 @@ class RAMEmitter(Emitter):
     def __init__(self, config: Dict[str, Any]) -> None:
         super().__init__(config)
         self.saved_data: Dict[float, Dict[str, Any]] = {}
+        self.codec_options = get_codec_options()
         self.embed_path = config.get('embed_path', tuple())
 
     def emit(self, data: Dict[str, Any]) -> None:
@@ -262,6 +267,7 @@ class RAMEmitter(Emitter):
                 if key not in ['time']}
             data_at_time = assoc_path({}, self.embed_path, data_at_time)
             self.saved_data.setdefault(time, {})
+            data_at_time = serialize_value(data_at_time, self.codec_options)
             deep_merge_check(
                 self.saved_data[time], data_at_time, check_equality=True)
 
@@ -293,6 +299,7 @@ class SharedRamEmitter(RAMEmitter):
         # We intentionally don't call the superclass constructor because
         # we don't want to create a per-instance ``saved_data``
         # attribute.
+        self.codec_options = get_codec_options()
         self.embed_path = config.get('embed_path', tuple())
 
 
@@ -338,9 +345,12 @@ class DatabaseEmitter(Emitter):
         self.create_indexes(self.configuration, CONFIGURATION_INDEXES)
         self.create_indexes(self.phylogeny, CONFIGURATION_INDEXES)
 
+        self.codec_options = get_codec_options()
+
     def emit(self, data: Dict[str, Any]) -> None:
         table_id = data['table']
-        table = getattr(self.db, table_id)
+        table = self.db.get_collection(
+            table_id, codec_options=self.codec_options)
         time = data['data'].pop('time', None)
         data['data'] = assoc_path({}, self.embed_path, data['data'])
         # Analysis scripts expect the time to be at the top level of the
@@ -357,14 +367,22 @@ class DatabaseEmitter(Emitter):
 
         Break up large emits into smaller pieces and emit them individually
         """
-        data = emit_data.pop('data')
-        broken_down_data = breakdown_data(self.emit_limit, data)
         assembly_id = str(uuid.uuid4())
-        for (path, datum) in broken_down_data:
-            d = dict(emit_data)
-            assoc_path(d, ('data',) + path, datum)
-            d['assembly_id'] = assembly_id
-            table.insert_one(d)
+        try:
+            emit_data['assembly_id'] = assembly_id
+            table.insert_one(emit_data)
+        # If document is too large, serialize and deserialize using
+        # BSON C extension before splitting to avoid heavy cost of
+        # getting string representation of Numpy arrays
+        except DocumentTooLarge:
+            emit_data.pop('assembly_id')
+            emit_data = serialize_value(emit_data, self.codec_options)
+            broken_down_data = breakdown_data(self.emit_limit, emit_data)
+            for (path, datum) in broken_down_data:
+                d: Dict[str, Any] = {}
+                assoc_path(d, path, datum)
+                d['assembly_id'] = assembly_id
+                table.insert_one(d)
 
     def get_data(self, query: list = None) -> dict:
         return get_history_data_db(self.history, self.experiment_id, query)

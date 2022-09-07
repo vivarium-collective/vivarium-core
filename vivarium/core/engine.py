@@ -32,7 +32,6 @@ from vivarium.core.process import (
     Step,
 )
 from vivarium.core.composer import Composite
-from vivarium.core.serialize import serialize_value
 from vivarium.library.topology import (
     get_in,
     delete_in,
@@ -646,7 +645,7 @@ class Engine:
         }
         emit_config: Dict[str, Any] = {
             'table': 'configuration',
-            'data': serialize_value(data)
+            'data': data
         }
         self.emitter.emit(emit_config)
 
@@ -659,8 +658,7 @@ class Engine:
             'time': self.global_time})
         emit_config = {
             'table': 'history',
-            'data': serialize_value(data),
-        }
+            'data': data}
         self.emitter.emit(emit_config)
 
     def _invoke_process(
