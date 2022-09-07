@@ -9,6 +9,7 @@ from pint import Unit
 from pint.quantity import Quantity
 from bson.codec_options import TypeEncoder, TypeRegistry, CodecOptions
 from bson import _dict_to_bson, _bson_to_dict
+from vivarium.core.process import Process
 
 from vivarium.library.units import units
 from vivarium.core.registry import serializer_registry, Serializer
@@ -214,6 +215,15 @@ class FunctionSerializer(Serializer):
     def get_codecs(self) -> List:
         return [self.Codec()]
 
+class ProcessSerializer(Serializer):
+    """Serializer for processes if ``emit_process`` is enabled."""
+
+    def __init__(self) -> None:
+        super().__init__(name='processes')
+
+    def serialize(self, data: Process) -> str:
+        proc_str = str(dict(data.parameters, _name=data.name))
+        return f"!ProcessSerializer[{proc_str}]"
 
 # Subclasses of data types handled by custom
 # TypeEncoders require their own TypeEncoders.
