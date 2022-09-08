@@ -34,6 +34,7 @@ def serialize_value(
     value = _dict_to_bson(value, False, codec_options)
     return _bson_to_dict(value, codec_options)
 
+
 # Deserialization still requires custom python code because
 # BSON C extensions cannot distinguish between strings that
 # should be deserialized as different types (e.g. Units)
