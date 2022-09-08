@@ -105,7 +105,6 @@ import numpy as np
 
 from vivarium.library.dict_utils import deep_merge
 from vivarium.library.units import Quantity
-from vivarium.core.serialize import deserialize_value
 
 
 class Registry(object):
