@@ -424,8 +424,8 @@ class Serializer:
         pass
 
     def can_deserialize(self, data):
-        """This tells :py:func:`vivarium.core.serialize.deserialize_value()`
-        whether to call ``deserialize`` on data. It should only be overrriden
+        """This tells :py:func:`vivarium.core.serialize.deserialize_value`
+        whether to call ``deserialize`` on data. It should only be overridden
         if the ``serialize`` method was also overridden.
         """
         pass

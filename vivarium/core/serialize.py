@@ -23,6 +23,7 @@ from vivarium.core.process import Process
 from vivarium.library.units import units
 from vivarium.core.registry import serializer_registry, Serializer
 
+
 def serialize_value(
     value: Any,
     codec_options: CodecOptions=None
@@ -43,12 +44,14 @@ def serialize_value(
     value = _dict_to_bson(value, False, codec_options)
     return _bson_to_dict(value, codec_options)
 
+
 # Deserialization still requires custom python code because
 # BSON C extensions cannot distinguish between strings that
 # should be deserialized as different types (e.g. Units)
 def deserialize_value(value: Any) -> Any:
     """Find and apply the correct serializer for a value
-    by calling each registered serializer's ``can_deserialize``
+    by calling each registered serializer's
+    :py:meth:`vivarium.core.registry.Serializer.can_deserialize()`
     method. Returns the value as is if no compatible serializer
     is found.
 
