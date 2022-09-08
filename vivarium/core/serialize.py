@@ -14,6 +14,7 @@ from vivarium.core.process import Process
 from vivarium.library.units import units
 from vivarium.core.registry import serializer_registry, Serializer
 
+
 def serialize_value(
     value: Any,
     codec_options: CodecOptions=None
