@@ -402,7 +402,7 @@ class Serializer:
         return []
     
     def serialize(self, data):
-        """This should only overriden in the case that individual stores are
+        """This should only overridden in the case that individual stores are
         assigned custom serializers. For maximum performance, serialization
         should be left to PyMongo instead of calling this function.
 
@@ -418,14 +418,14 @@ class Serializer:
         """This allows for data of the same BSON type to be deserialized
         differently (see regex matching of strings in
         :py:meth:`vivarium.core.serialize.UnitsSerializer.deserialize()`
-        for an example). This should only be overriden if the ``serialize`` 
-        method was also overriden.
+        for an example). This should only be overridden if the ``serialize`` 
+        method was also overridden.
         """
         pass
 
     def can_deserialize(self, data):
         """This tells :py:func:`vivarium.core.serialize.deserialize_value()`
         whether to call ``deserialize`` on data. It should only be overrriden
-        if the ``serialize`` method was also overriden.
+        if the ``serialize`` method was also overridden.
         """
         pass

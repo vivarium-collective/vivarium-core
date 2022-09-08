@@ -1,3 +1,12 @@
+"""
+==========
+Serialize
+==========
+
+Collection of serializers that transform Python data into
+a BSON-compatible form.
+"""
+
 import re
 import math
 import warnings
@@ -18,13 +27,13 @@ def serialize_value(
     value: Any,
     codec_options: CodecOptions=None
 ) -> Any:
-    """Apply PyMongo's TypeCodec-based serialization routine on value.
+    """Apply PyMongo's TypeCodec-based serialization routine on ``value``.
 
     Args:
         value (Any): Data to be serialized
-        codec_options (CodecOptions, optional): Options used when encoding /
-        decoding BSON. Defaults to None, in which case options are generated
-        using the codecs in the currently registered serializers.
+        codec_options (bson.codec_options.CodecOptions): Options used when
+            encoding / decoding BSON. Defaults to None, in which case options
+            are generated from the currently registered serializer codecs.
 
     Returns:
         Any: Serialized data
@@ -69,7 +78,8 @@ def deserialize_value(value: Any) -> Any:
 
 
 class SequenceDeserializer(Serializer):  # pylint: disable=abstract-method
-
+    """Iterates through lists and applies deserializers.
+    """
     def can_deserialize(self, data: Any) -> bool:
         return isinstance(data, list)
 
@@ -78,7 +88,8 @@ class SequenceDeserializer(Serializer):  # pylint: disable=abstract-method
 
 
 class DictDeserializer(Serializer):  # pylint: disable=abstract-method
-
+    """Iterates through dictionaries and applies deserializers.
+    """
     def can_deserialize(self, data: Any) -> bool:
         return isinstance(data, dict)
 
@@ -90,7 +101,9 @@ class DictDeserializer(Serializer):  # pylint: disable=abstract-method
 
 
 class UnitsSerializer(Serializer):
-    """Serializer for data with units."""
+    """Serializes data with units into strings of the form ``!units[...]``,
+    where ``...`` is the result of calling ``str(data)``. Deserializes strings
+    of this form back into data with units."""
 
     def __init__(self) -> None:
         super().__init__(name='units')
@@ -132,7 +145,7 @@ class UnitsSerializer(Serializer):
 
         Args:
             data: The data to deserialize. Providing a list here is
-                deprecated. You should use :py:func:`deserialize_value`
+                deprecated. You should use ``deserialize_value``
                 instead, which uses a separate list deserializer.
             unit: The units to convert ``data`` to after deserializing.
                 If omitted, no conversion occurs. This option is
@@ -187,6 +200,7 @@ class NumpySerializer(Serializer):
         return [self.Codec()]
 
 class NumpyBoolSerializer(Serializer):
+    """Serializer for ``np.bool_`` objects."""
     class Codec(TypeEncoder):
         python_type = np.bool_
         def transform_python(self, value: np.bool_) -> bool:
@@ -196,6 +210,7 @@ class NumpyBoolSerializer(Serializer):
         return [self.Codec()]
 
 class NumpyInt64Serializer(Serializer):
+    """Serializer for ``np.int64`` objects."""
     class Codec(TypeEncoder):
         python_type = np.int64
         def transform_python(self, value: np.int64) -> int:
@@ -205,8 +220,9 @@ class NumpyInt64Serializer(Serializer):
         return [self.Codec()]
 
 class NumpyInt32Serializer(Serializer):
+    """Serializer for ``np.int32`` objects."""
     class Codec(TypeEncoder):
-        python_type = np.int32
+        python_type = np.int32 #: test
         def transform_python(self, value: np.int32) -> int:
             return int(value)
 
@@ -214,6 +230,7 @@ class NumpyInt32Serializer(Serializer):
         return [self.Codec()]
 
 class NumpyFloat32Serializer(Serializer):
+    """Serializer for ``np.float32`` objects."""
     class Codec(TypeEncoder):
         python_type = np.float32
         def transform_python(self, value: np.float32) -> float:
@@ -223,6 +240,7 @@ class NumpyFloat32Serializer(Serializer):
         return [self.Codec()]
 
 class SetSerializer(Serializer):
+    """Serializer for set objects."""
     class Codec(TypeEncoder):
         python_type = set
         def transform_python(self, value: set) -> List:
@@ -232,6 +250,7 @@ class SetSerializer(Serializer):
         return [self.Codec()]
 
 class FunctionSerializer(Serializer):
+    """Serializer for function objects."""
     class Codec(TypeEncoder):
         python_type = type(deserialize_value)
         def transform_python(self, value: Callable) -> str:
@@ -254,6 +273,9 @@ class ProcessSerializer(Serializer):
 # TypeEncoders require their own TypeEncoders.
 # This includes Process, Composites, etc.
 def get_codec_options() -> CodecOptions:
+    """Returns a set of options used for serializing and
+    deserializing BSON by collecting codecs from all registered
+    serializers."""
     codecs = []
     for serializer in serializer_registry.registry.values():
         codecs += serializer.get_codecs()

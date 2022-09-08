@@ -10,5 +10,6 @@ Core Vivarium Package
    vivarium.core.process
    vivarium.core.composer
    vivarium.core.registry
+   vivarium.core.serialize
    vivarium.core.store
    vivarium.core.types
