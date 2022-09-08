@@ -2,6 +2,8 @@
 
 ## v1.5.3
 * (#211) Fix a memory leak when removing parallel processes.
+* (#204) Implement a new serialization API based on PyMongo's 
+  `TypeCodec` interface.
 
 ## v1.5.2
 

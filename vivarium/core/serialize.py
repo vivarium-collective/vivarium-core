@@ -23,7 +23,6 @@ from vivarium.core.process import Process
 from vivarium.library.units import units
 from vivarium.core.registry import serializer_registry, Serializer
 
-
 def serialize_value(
     value: Any,
     codec_options: CodecOptions=None
@@ -43,7 +42,6 @@ def serialize_value(
         codec_options = get_codec_options()
     value = _dict_to_bson(value, False, codec_options)
     return _bson_to_dict(value, codec_options)
-
 
 # Deserialization still requires custom python code because
 # BSON C extensions cannot distinguish between strings that
@@ -225,7 +223,7 @@ class NumpyInt64Serializer(Serializer):
 class NumpyInt32Serializer(Serializer):
     """Serializer for ``np.int32`` objects."""
     class Codec(TypeEncoder):
-        python_type = np.int32 #: test
+        python_type = np.int32
         def transform_python(self, value: np.int32) -> int:
             return int(value)
 
