@@ -1,5 +1,8 @@
 # Changelog
 
+## v1.5.3
+* (#211) Fix a memory leak when removing parallel processes.
+
 ## v1.5.2
 
 * (#207) Fix a bug in `Store.apply_update()` that caused failures when

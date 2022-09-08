@@ -39,7 +39,7 @@ def serialize_value(
 # should be deserialized as different types (e.g. Units)
 def deserialize_value(value: Any) -> Any:
     """Find and apply the correct serializer for a value
-    by calling each registered serializer's :py:method:`can_deserialize`
+    by calling each registered serializer's :py:meth:`vivarium.core.registry.Serializer.can_deserialize()`
     method. Returns the value as is if no compatible serializer
     is found.
 
