@@ -586,11 +586,9 @@ class Store:
         config.pop('_output', None)
 
         if '*' in config:
-            config = config.copy()
             self._apply_subschema_config(config.pop('*'))
 
         if '_subschema' in config:
-            config = config.copy()
             subschema = config.pop('_subschema')
             if source:
                 self.sources[source] = subschema
@@ -599,24 +597,20 @@ class Store:
             
 
         if '_subtopology' in config:
-            config = config.copy()
             self._merge_subtopology(config.pop('_subtopology'))
 
         if source:
             self.sources[source] = config
 
         if '_topology' in config:
-            config = config.copy()
             self.topology = config.pop('_topology')
 
         if '_flow' in config:
-            config = config.copy()
             flow = config.pop('_flow')
             if flow != {}:
                 self.flow = flow
 
         if '_divider' in config:
-            config = config.copy()
             new_divider = config.pop('_divider')
             self.divider = self._check_schema_support_defaults(
                 'divider', new_divider, divider_registry)
@@ -624,7 +618,6 @@ class Store:
         # If emit is set on a branch node, set the entire branch to the
         # emit value.
         if '_emit' in config and self.inner:
-            config = config.copy()
             emit_value = config.pop('_emit')
             self.set_emit_value(emit=emit_value)
 
