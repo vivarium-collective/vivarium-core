@@ -2,9 +2,6 @@
 Register processes, updaters, dividers, serializers upon import
 """
 
-# import matplotlib to help fix bug with import order
-import matplotlib.pyplot as plt
-
 # import registries
 from vivarium.core.registry import (
     process_registry,
@@ -54,8 +51,6 @@ from vivarium.core.serialize import (
 from vivarium.core.emitter import (
     Emitter, NullEmitter, RAMEmitter, SharedRamEmitter, DatabaseEmitter
 )
-
-_ = plt  # suppress PyCharm's unused-import warning
 
 
 # register processes
