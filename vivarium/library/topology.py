@@ -72,20 +72,6 @@ def assoc_path(d, path, value):
     return d
 
 
-def without(d, removing):
-    '''Get a copy of ``d`` without the key specified by ``removing``.'''
-    return without_multi(d, [removing])
-
-
-def without_multi(d, to_remove):
-    '''Get a copy of ``d`` without any of the keys in ``to_remove``.'''
-    return {
-        key: value
-        for key, value in d.items()
-        if key not in to_remove
-    }
-
-
 def update_in(d, path, f):
     '''Update every value in a dictionary based on ``f``.
 
@@ -173,8 +159,8 @@ def inverse_topology(outer, update, topology, inverse=None, multi_updates=True):
             if isinstance(path, dict):
                 node = inverse
                 if '_path' in path:
-                    inner = normalize_path(outer + path['_path'])
-                    path = without(path, '_path')
+                    path = path.copy()
+                    inner = normalize_path(outer + path.pop('_path'))
                 else:
                     inner = outer
 
@@ -201,8 +187,8 @@ def inverse_topology(outer, update, topology, inverse=None, multi_updates=True):
             value = update[key]
             if isinstance(path, dict):
                 if '_path' in path:
-                    inner = normalize_path(outer + path['_path'])
-                    path = without(path, '_path')
+                    path = path.copy()
+                    inner = normalize_path(outer + path.pop('_path'))
 
                     for update_key in update[key].keys():
                         if update_key not in path and '*' not in path:

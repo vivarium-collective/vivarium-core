@@ -24,7 +24,6 @@ from vivarium.library.topology import (
     assoc_path,
     get_in,
     paths_to_dict,
-    without_multi,
 )
 from vivarium.core.registry import emitter_registry
 from vivarium.core.serialize import (
@@ -358,7 +357,8 @@ class DatabaseEmitter(Emitter):
         # time key.
         if time is not None:
             data['data']['time'] = time
-        emit_data = without_multi(data, ['table'])
+        emit_data = data.copy()
+        emit_data.pop('table', None)
         emit_data['experiment_id'] = self.experiment_id
         self.write_emit(table, emit_data)
 
@@ -524,9 +524,12 @@ def get_history_data_db(
     data: Dict[float, Any] = {}
     for datum in assembly.values():
         time = datum['time']
+        datum = datum.copy()
+        datum.pop('_id', None)
+        datum.pop('time', None)
         deep_merge_check(
             data,
-            {time: without_multi(datum, ['_id', 'time'])},
+            {time: datum},
             check_equality=True,
         )
 

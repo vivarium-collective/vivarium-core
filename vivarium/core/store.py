@@ -19,7 +19,7 @@ from typing import Optional
 from vivarium import divider_registry, serializer_registry, updater_registry
 from vivarium.core.process import ParallelProcess, Process
 from vivarium.library.dict_utils import deep_merge, deep_merge_check, MULTI_UPDATE_KEY
-from vivarium.library.topology import without, dict_to_paths
+from vivarium.library.topology import dict_to_paths
 from vivarium.core.types import Processes, Topology, State, Steps, Flow
 
 _EMPTY_UPDATES = None, None, None, None, None, None
@@ -582,47 +582,44 @@ class Store:
             config = {}  # config needs to be a dict
 
         # remove _output special key. This is used only by schema_topology.
-        config = without(config, '_output')
+        config = config.copy()
+        config.pop('_output', None)
 
         if '*' in config:
-            self._apply_subschema_config(config['*'])
-            config = without(config, '*')
+            self._apply_subschema_config(config.pop('*'))
 
         if '_subschema' in config:
+            subschema = config.pop('_subschema')
             if source:
-                self.sources[source] = config['_subschema']
-            self._apply_subschema_config(config['_subschema'])
-            config = without(config, '_subschema')
+                self.sources[source] = subschema
+            self._apply_subschema_config(subschema)
+            
+            
 
         if '_subtopology' in config:
-            self._merge_subtopology(config['_subtopology'])
-            config = without(config, '_subtopology')
+            self._merge_subtopology(config.pop('_subtopology'))
 
         if source:
             self.sources[source] = config
 
         if '_topology' in config:
-            self.topology = config['_topology']
-            config = without(config, '_topology')
+            self.topology = config.pop('_topology')
 
         if '_flow' in config:
-            flow = config['_flow']
-            config = without(config, '_flow')
+            flow = config.pop('_flow')
             if flow != {}:
                 self.flow = flow
 
         if '_divider' in config:
-            new_divider = config['_divider']
+            new_divider = config.pop('_divider')
             self.divider = self._check_schema_support_defaults(
                 'divider', new_divider, divider_registry)
-            config = without(config, '_divider')
 
         # If emit is set on a branch node, set the entire branch to the
         # emit value.
         if '_emit' in config and self.inner:
-            emit_value = config['_emit']
+            emit_value = config.pop('_emit')
             self.set_emit_value(emit=emit_value)
-            config = without(config, '_emit')
 
         if self.schema_keys & set(config.keys()):
             # We are at a leaf node, so apply its config.
@@ -1761,11 +1758,11 @@ class Store:
 
         node = self
         if '_path' in path:
+            path = path.copy()
             node = self._establish_path(
-                path['_path'],
+                path.pop('_path'),
                 {},
                 source=source)
-            path = without(path, '_path')
 
         return node, path
 
