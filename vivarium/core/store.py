@@ -1978,6 +1978,8 @@ class Store:
     def build_topology_views(self):
         if self.leaf:
             if isinstance(self.value, Process):
+                if not self.value.schema:
+                    self.value.schema = self.value.get_schema()
                 self.topology_view = self.outer.schema_topology(
                     self.value.schema,
                     self.topology)
