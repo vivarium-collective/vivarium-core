@@ -106,7 +106,7 @@ class NumpyFallbackSerializer(Serializer):
     """
     python_type = np.ndarray
 
-    def serialize(self, data: np.ndarray) -> list:
+    def serialize(self, data: Any) -> list:
         return data.tolist()
 
 

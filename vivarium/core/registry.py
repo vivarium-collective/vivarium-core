@@ -79,9 +79,12 @@ Serializer API
 Serializers MUST define the following:
 
 1. The ``python_type`` class attributes that determines what types are
-    handled by the serializer
-2. The :py:meth:`vivarium.core.registry.Serializer.serializer()` method
-    which is called on all objects of type ``python_type``
+   handled by the serializer
+2. The :py:meth:`vivarium.core.registry.Serializer.serialize()` method
+   which is called on all objects of type ``python_type``
+
+Avoid defining custom serializers for built-in or Numpy types as these are
+automatically handled by ``orjson``, the package used to serialize data.
 
 If it is necessary to redefine the how objects are serialized by orjson,
 assign custom serializers to the stores containing objects of the affected
@@ -91,8 +94,9 @@ objects serialized this way are deserialized correctly, you SHOULD consider
 implementing the following as well:
 
 1. :py:meth:`vivarium.core.registry.Serializer.can_deserialize()` to determine
-    whether to call ``deserialize`` on data
+   whether to call ``deserialize`` on data
 2. :py:meth:`vivarium.core.registry.Serializer.deserialize()` to deserialize
+   data
 
 If it is necessary to deserialize objects of the same BSON type differently,
 the corresponding serializer(s) MUST implement these 2 methods.
@@ -377,7 +381,7 @@ class Serializer:
     recover the original object.
 
     Serialization of Python's built-in datatypes and most Numpy types is
-    handled directly by the :py:meth:`orjson.dumps()` method.
+    handled directly by the ``orjson.dumps()`` method.
     
     The serialization routines in Serializers are compiled into a fallback
     function that is called on objects not handled by ``orjson``.
