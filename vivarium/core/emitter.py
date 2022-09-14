@@ -27,7 +27,7 @@ from vivarium.library.topology import (
 )
 from vivarium.core.registry import emitter_registry
 from vivarium.core.serialize import (
-    get_codec_options,
+    make_default,
     serialize_value,
     deserialize_value)
 
@@ -49,24 +49,20 @@ CONFIGURATION_INDEXES = [
 SECRETS_PATH = 'secrets.json'
 
 
-def size_of(emit_data: Any) -> int:
-    return len(str(emit_data))
-
-
 def breakdown_data(
         limit: float,
         data: Any,
         path: Tuple = (),
         size: float = None,
 ) -> list:
-    size = size or size_of(data)
+    size = size or len(str(data))
     if size > limit:
         if isinstance(data, dict):
             output = []
             subsizes = {}
             total = 0
             for key, subdata in data.items():
-                subsizes[key] = size_of(subdata)
+                subsizes[key] = len(str(subdata))
                 total += subsizes[key]
 
             order = sorted(
@@ -249,7 +245,7 @@ class RAMEmitter(Emitter):
     def __init__(self, config: Dict[str, Any]) -> None:
         super().__init__(config)
         self.saved_data: Dict[float, Dict[str, Any]] = {}
-        self.codec_options = get_codec_options()
+        self.default = make_default()
         self.embed_path = config.get('embed_path', tuple())
 
     def emit(self, data: Dict[str, Any]) -> None:
@@ -266,7 +262,7 @@ class RAMEmitter(Emitter):
                 if key not in ['time']}
             data_at_time = assoc_path({}, self.embed_path, data_at_time)
             self.saved_data.setdefault(time, {})
-            data_at_time = serialize_value(data_at_time, self.codec_options)
+            data_at_time = serialize_value(data_at_time, self.default)
             deep_merge_check(
                 self.saved_data[time], data_at_time, check_equality=True)
 
@@ -298,7 +294,7 @@ class SharedRamEmitter(RAMEmitter):
         # We intentionally don't call the superclass constructor because
         # we don't want to create a per-instance ``saved_data``
         # attribute.
-        self.codec_options = get_codec_options()
+        self.default = make_default()
         self.embed_path = config.get('embed_path', tuple())
 
 
@@ -344,12 +340,11 @@ class DatabaseEmitter(Emitter):
         self.create_indexes(self.configuration, CONFIGURATION_INDEXES)
         self.create_indexes(self.phylogeny, CONFIGURATION_INDEXES)
 
-        self.codec_options = get_codec_options()
+        self.default = make_default()
 
     def emit(self, data: Dict[str, Any]) -> None:
         table_id = data['table']
-        table = self.db.get_collection(
-            table_id, codec_options=self.codec_options)
+        table = self.db.get_collection(table_id)
         time = data['data'].pop('time', None)
         data['data'] = assoc_path({}, self.embed_path, data['data'])
         # Analysis scripts expect the time to be at the top level of the
@@ -368,6 +363,7 @@ class DatabaseEmitter(Emitter):
         Break up large emits into smaller pieces and emit them individually
         """
         assembly_id = str(uuid.uuid4())
+        emit_data = serialize_value(emit_data, self.default)
         try:
             emit_data['assembly_id'] = assembly_id
             table.insert_one(emit_data)
@@ -376,7 +372,6 @@ class DatabaseEmitter(Emitter):
         # getting string representation of Numpy arrays
         except DocumentTooLarge:
             emit_data.pop('assembly_id')
-            emit_data = serialize_value(emit_data, self.codec_options)
             broken_down_data = breakdown_data(self.emit_limit, emit_data)
             for (path, datum) in broken_down_data:
                 d: Dict[str, Any] = {}

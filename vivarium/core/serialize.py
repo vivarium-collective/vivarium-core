@@ -10,38 +10,35 @@ a BSON-compatible form.
 import re
 import math
 import warnings
+import orjson
+import numpy as np
 from typing import Any, List, Union
 from collections.abc import Callable
 
-import numpy as np
 from pint import Unit
 from pint.quantity import Quantity
-from bson.codec_options import TypeEncoder, TypeRegistry, CodecOptions
-from bson import _dict_to_bson, _bson_to_dict
 from vivarium.core.process import Process
-
 from vivarium.library.units import units
 from vivarium.core.registry import serializer_registry, Serializer
 
 def serialize_value(
     value: Any,
-    codec_options: CodecOptions=None
+    default: Callable=None,
 ) -> Any:
-    """Apply PyMongo's TypeCodec-based serialization routine on ``value``.
+    """Apply orjson-based serialization routine on ``value``.
 
     Args:
         value (Any): Data to be serialized
-        codec_options (bson.codec_options.CodecOptions): Options used when
-            encoding / decoding BSON. Defaults to None, in which case options
-            are generated from the currently registered serializer codecs.
+        default (Callable): A function that is called on any data of a type that
+            is not natively supported by orjson.
 
     Returns:
         Any: Serialized data
     """
-    if not codec_options:
-        codec_options = get_codec_options()
-    value = _dict_to_bson(value, False, codec_options)
-    return _bson_to_dict(value, codec_options)
+    if not default:
+        default = make_default()
+    value = orjson.dumps(value, option=orjson.OPT_SERIALIZE_NUMPY, default=default)
+    return orjson.loads(value)
 
 # Deserialization still requires custom python code because
 # BSON C extensions cannot distinguish between strings that
@@ -100,6 +97,14 @@ class DictDeserializer(Serializer):  # pylint: disable=abstract-method
             for key, value in data.items()
         }
 
+class NumpyFallbackSerializer(Serializer):  # pylint: disable=abstract-method
+    """Orjson does not handle arrays with strings
+    """
+    python_type = np.ndarray
+
+    def serialize(self, data: np.ndarray) -> list:
+        return data.tolist()
+
 
 class UnitsSerializer(Serializer):
     """Serializes data with units into strings of the form ``!units[...]``,
@@ -107,31 +112,18 @@ class UnitsSerializer(Serializer):
     of this form back into data with units."""
 
     def __init__(self) -> None:
-        super().__init__(name='units')
-        self.regex_for_serialized = re.compile(f'!{self.name}\\[(.*)\\]')
+        super().__init__()
+        self.regex_for_serialized = re.compile(f'!units\\[(.*)\\]')
 
-    class UnitCodec(TypeEncoder):
-        python_type = type(units.fg)
-        def transform_python(self, value: Any) -> Union[List[str], str]:
-            try:
-                data = []
-                for subvalue in value:
-                    data.append(f"!units[{str(subvalue)}]")
-                return data
-            except TypeError:
-                return f"!units[{str(value)}]"
-
-    class QuantityCodec(UnitCodec):
-        python_type = type(1*units.fg)
-
-    def get_codecs(self) -> List:
-        return [self.UnitCodec(), self.QuantityCodec()]
-
-    def serialize(self, data: Any) -> str:
-        for codec in self.codecs:
-            if isinstance(data, codec.python_type):
-                return codec.transform_python(data)
-        raise TypeError(f'{data} is not of type Unit or Quantity')
+    python_type = type(units.fg)
+    def serialize(self, value: Any) -> Union[List[str], str]:
+        try:
+            data = []
+            for subvalue in value:
+                data.append(f"!units[{str(subvalue)}]")
+            return data
+        except TypeError:
+            return f"!units[{str(value)}]"
 
     def can_deserialize(self, data: Any) -> bool:
         if not isinstance(data, str):
@@ -185,99 +177,55 @@ class UnitsSerializer(Serializer):
                 unit_data.to(unit)
         return unit_data
 
+class QuantitySerializer(Serializer):
+    """Serializes data with units into strings of the form ``!units[...]``,
+    where ``...`` is the result of calling ``str(data)``. Deserializes strings
+    of this form back into data with units."""
 
-class NumpySerializer(Serializer):
-    """Serializer for Numpy arrays.
-    Numpy array serialization is lossy--we serialize to Python lists, so
-    deserialization will produce a Python list instead of a Numpy array.
-    """
-
-    class Codec(TypeEncoder):
-        python_type = np.ndarray
-        def transform_python(self, value: np.ndarray) -> List:
-            return value.tolist()
-
-    def get_codecs(self) -> List:
-        return [self.Codec()]
-
-class NumpyBoolSerializer(Serializer):
-    """Serializer for ``np.bool_`` objects."""
-    class Codec(TypeEncoder):
-        python_type = np.bool_
-        def transform_python(self, value: np.bool_) -> bool:
-            return bool(value)
-
-    def get_codecs(self) -> List:
-        return [self.Codec()]
-
-class NumpyInt64Serializer(Serializer):
-    """Serializer for ``np.int64`` objects."""
-    class Codec(TypeEncoder):
-        python_type = np.int64
-        def transform_python(self, value: np.int64) -> int:
-            return int(value)
-
-    def get_codecs(self) -> List:
-        return [self.Codec()]
-
-class NumpyInt32Serializer(Serializer):
-    """Serializer for ``np.int32`` objects."""
-    class Codec(TypeEncoder):
-        python_type = np.int32
-        def transform_python(self, value: np.int32) -> int:
-            return int(value)
-
-    def get_codecs(self) -> List:
-        return [self.Codec()]
-
-class NumpyFloat32Serializer(Serializer):
-    """Serializer for ``np.float32`` objects."""
-    class Codec(TypeEncoder):
-        python_type = np.float32
-        def transform_python(self, value: np.float32) -> float:
-            return float(value)
-
-    def get_codecs(self) -> List:
-        return [self.Codec()]
+    python_type = type(1*units.fg)
+    def serialize(self, value: Any) -> Union[List[str], str]:
+        try:
+            data = []
+            for subvalue in value:
+                data.append(f"!units[{str(subvalue)}]")
+            return data
+        except TypeError:
+            return f"!units[{str(value)}]"
 
 class SetSerializer(Serializer):
     """Serializer for set objects."""
-    class Codec(TypeEncoder):
-        python_type = set
-        def transform_python(self, value: set) -> List:
-            return list(value)
 
-    def get_codecs(self) -> List:
-        return [self.Codec()]
+    python_type = set
+    def serialize(self, value: set) -> List:
+        return list(value)
 
 class FunctionSerializer(Serializer):
     """Serializer for function objects."""
-    class Codec(TypeEncoder):
-        python_type = type(deserialize_value)
-        def transform_python(self, value: Callable) -> str:
-            return f"!FunctionSerializer[{str(value)}]"
 
-    def get_codecs(self) -> List:
-        return [self.Codec()]
+    python_type = type(deserialize_value)
+    def serialize(self, value: Callable) -> str:
+        return f"!FunctionSerializer[{str(value)}]"
+
 
 class ProcessSerializer(Serializer):
     """Serializer for processes if ``emit_process`` is enabled."""
 
-    def __init__(self) -> None:
-        super().__init__(name='processes')
-
+    python_type = Process
     def serialize(self, data: Process) -> str:
         proc_str = str(dict(data.parameters, _name=data.name))
         return f"!ProcessSerializer[{proc_str}]"
 
-# Subclasses of data types handled by custom
-# TypeEncoders require their own TypeEncoders.
-# This includes Process, Composites, etc.
-def get_codec_options() -> CodecOptions:
-    """Returns a set of options used for serializing and
-    deserializing BSON by collecting codecs from all registered
-    serializers."""
-    codecs = []
-    for serializer in serializer_registry.registry.values():
-        codecs += serializer.get_codecs()
-    return CodecOptions(type_registry=TypeRegistry(codecs))
+
+def make_default() -> Callable:
+    """Creates a fallback function that is called by orjson on data of
+    types that are not natively supported. Define and register instances of
+    :py:class:`vivarium.core.registry.Serializer()` with serialization
+    routines for the types in question."""
+
+    serializers = serializer_registry.registry.values()
+    def default(obj):
+        for serializer in serializers:
+            if isinstance(obj, serializer.python_type):
+                return serializer.serialize(obj)
+        raise TypeError
+    return default

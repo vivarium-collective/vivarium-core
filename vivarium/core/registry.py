@@ -74,29 +74,26 @@ serializer subclasses.
 Serializer API
 ==============
 
-For maximum performance, serializers SHOULD represent a 1-to-1 mapping between 
-Python and BSON types. These types of serializers MUST each define the following:
+Serializers MUST define the following:
 
-1. One or more class attributes of the type :py:class:`bson.codec_options.TypeCodec`
-   or one of its subclasses
-2. The :py:meth:`vivarium.core.registry.Serializer.get_codecs()` method
+1. The ``python_type`` class attributes that determines what types are
+    handled by the serializer
+2. The :py:meth:`vivarium.core.registry.Serializer.serializer()` method
+    which is called on all objects of type ``python_type``
 
-If it is necessary to serialize objects of the same Python type differently,
+If it is necessary to redefine the how objects are serialized by orjson,
 assign custom serializers to the stores containing objects of the affected
-type(s) using the ``_serializer`` ports schema key. The best practice is to
-define a TypeCodec-based serializer to handle a given type and only make use
-of the ``_serializer`` key for rare exceptions to the rule. Serializer(s) for
-these exceptions MUST override:
- 
-1. :py:meth:`vivarium.core.registry.Serializer.serialize()`,
-2. :py:meth:`vivarium.core.registry.Serializer.can_deserialize()`
-3. :py:meth:`vivarium.core.registry.Serializer.deserialize()`
+type(s) using the ``_serializer`` ports schema key. This can also be used
+to serialize objects of the same Python type differently. To ensure that
+objects serialized this way are deserialized correctly, you SHOULD consider
+implementing the following as well:
+
+1. :py:meth:`vivarium.core.registry.Serializer.can_deserialize()` to determine
+    whether to call ``deserialize`` on data
+2. :py:meth:`vivarium.core.registry.Serializer.deserialize()` to deserialize
 
 If it is necessary to deserialize objects of the same BSON type differently,
-the corresponding serializer(s) MUST override: 
-
-1. :py:meth:`vivarium.core.registry.Serializer.can_deserialize()`
-2. :py:meth:`vivarium.core.registry.Serializer.deserialize()`
+the corresponding serializer(s) MUST implement these 2 methods.
 """
 import copy
 import random
@@ -375,42 +372,32 @@ class Serializer:
     collections of many different kinds of objects, into BSON-compatible
     representations. Those representations can then be deserialized to
     recover the original object.
+
+    Serialization of Python's built-in datatypes and most Numpy types is
+    handled directly by the :py:meth:`orjson.dumps()` method.
     
-    Serializers should define one or more class attributes of the type 
-    :py:class:`bson.codec_options.TypeCodec`. If a store is assigned a
-    custom serializer using the ``_serializer`` key, serialization occurs
-    instead via the :py:meth:`vivarium.core.registry.Serializer.serialize()`
-    method and will be much slower.
+    The serialization routines in Serializers are compiled into a fallback
+    function that is called on objects not handled by ``orjson``.
+
+    If one wishes to modify how built-in/Numpy objects are serialized, the
+    relevant stores can be assigned a custom serializer using the 
+    ``_serializer`` key. The :py:meth:`vivarium.core.registry.Serializer.serialize()`
+    method of that serializer will be called on the values in these stores
+    before they are passed to ``orjson``.
     
-    Deserialization is handled by PyMongo if the included codecs have the
-    ``bson_type`` attribute and ``transform_bson()`` method. If not, the 
-    :py:meth:`vivarium.core.registry.Serializer.deserialize()` 
-    method is called instead and will be much slower.
+    During deserialization, the ``can_deserialize`` method of each Serializer
+    is used to determine whether to call the ``deserialize`` method.
 
     Args:
         name: Name of the serializer. Defaults to the class name.
     """
+    python_type = None #: Type matching is NOT exact (subclasses included)
+    
     def __init__(self, name=''):
         self.name = name or self.__class__.__name__
-        self.codecs = self.get_codecs()
-    
-    def get_codecs(self):
-        """Get list of codecs in serializer. Codecs are class attributes of type
-        :py:class:`bson.codec_options.TypeCodec` that are used by PyMongo to
-        serialize and (optionally) deserialize data.
-        """
-        return []
     
     def serialize(self, data):
-        """This should only overridden in the case that individual stores are
-        assigned custom serializers. For maximum performance, serialization
-        should be left to PyMongo instead of calling this function.
-
-        Note that the values returned by this method later undergo another
-        round of serialization under PyMongo's codec system. This could cause
-        unexpected behavior if ``serialize`` returns data of a type that is
-        handled by another codec. The best practice would be for ``serialize``
-        to always return data of a built-in type.
+        """Controls what happens to data of the type ``python_type``
         """
         pass
 
@@ -418,14 +405,12 @@ class Serializer:
         """This allows for data of the same BSON type to be deserialized
         differently (see regex matching of strings in
         :py:meth:`vivarium.core.serialize.UnitsSerializer.deserialize()`
-        for an example). This should only be overridden if the ``serialize`` 
-        method was also overridden.
+        for an example).
         """
         pass
 
     def can_deserialize(self, data):
         """This tells :py:func:`vivarium.core.serialize.deserialize_value`
-        whether to call ``deserialize`` on data. It should only be overridden
-        if the ``serialize`` method was also overridden.
+        whether to call ``deserialize`` on data.
         """
         pass

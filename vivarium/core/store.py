@@ -632,7 +632,7 @@ class Store:
             if '_units' in config:
                 self.units = self._check_schema(
                     'units', config.get('_units'))
-                self.serializer = serializer_registry.access('units')
+                self.serializer = serializer_registry.access('QuantitySerializer')
 
             if '_serializer' in config:
                 serializer = config['_serializer']
@@ -647,13 +647,13 @@ class Store:
                 if isinstance(self.default, Quantity):
                     self.units = self.units or self.default.units
                     self.serializer = (self.serializer or
-                                       serializer_registry.access('units'))
+                                       serializer_registry.access('QuantitySerializer'))
                 elif isinstance(self.default, list) and \
                         len(self.default) > 0 and \
                         isinstance(self.default[0], Quantity):
                     self.units = self.units or self.default[0].units
                     self.serializer = (self.serializer or
-                                       serializer_registry.access('units'))
+                                       serializer_registry.access('QuantitySerializer'))
 
             if '_value' in config:
                 self.value = self._check_schema(

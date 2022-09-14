@@ -20,14 +20,11 @@ class SerializeProcess(Process):
         return {}
 
 class SerializeProcessSerializer(Serializer):
-    class Codec(TypeEncoder):
-        python_type = type(SerializeProcess())
-        def transform_python(self, value: SerializeProcess) -> str:
-            return ("!ProcessSerializer[" +
-                str(dict(value.parameters, _name=value.name)) + "]")
-
-    def get_codecs(self) -> List:
-        return [self.Codec()]
+        
+    python_type = SerializeProcess
+    def serialize(self, value: SerializeProcess) -> str:
+        return ("!ProcessSerializer[" +
+            str(dict(value.parameters, _name=value.name)) + "]")
 
 serializer_registry.register(
     "SerializeProcessSerializer", SerializeProcessSerializer())
