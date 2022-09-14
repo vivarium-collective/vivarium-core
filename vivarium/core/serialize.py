@@ -10,11 +10,11 @@ a BSON-compatible form.
 import re
 import math
 import warnings
-import orjson
-import numpy as np
 from typing import Any, List, Union
 from collections.abc import Callable
 
+import orjson
+import numpy as np
 from pint import Unit
 from pint.quantity import Quantity
 from vivarium.core.process import Process
@@ -29,20 +29,20 @@ def serialize_value(
 
     Args:
         value (Any): Data to be serialized
-        default (Callable): A function that is called on any data of a type that
-            is not natively supported by orjson.
+        default (Callable): A function that is called on any data of a type
+            that is not natively supported by orjson. Returns an object that
+            can be handled by default up to 254 times before an exception is
+            raised.
 
     Returns:
         Any: Serialized data
     """
     if not default:
         default = make_default()
-    value = orjson.dumps(value, option=orjson.OPT_SERIALIZE_NUMPY, default=default)
+    value = orjson.dumps(value, option=orjson.OPT_SERIALIZE_NUMPY,
+        default=default)
     return orjson.loads(value)
 
-# Deserialization still requires custom python code because
-# BSON C extensions cannot distinguish between strings that
-# should be deserialized as different types (e.g. Units)
 def deserialize_value(value: Any) -> Any:
     """Find and apply the correct serializer for a value
     by calling each registered serializer's
@@ -75,9 +75,11 @@ def deserialize_value(value: Any) -> Any:
     return serializer.deserialize(value)
 
 
-class SequenceDeserializer(Serializer):  # pylint: disable=abstract-method
+class SequenceDeserializer(Serializer):
     """Iterates through lists and applies deserializers.
     """
+    python_type = list
+
     def can_deserialize(self, data: Any) -> bool:
         return isinstance(data, list)
 
@@ -85,9 +87,11 @@ class SequenceDeserializer(Serializer):  # pylint: disable=abstract-method
         return [deserialize_value(value) for value in data]
 
 
-class DictDeserializer(Serializer):  # pylint: disable=abstract-method
+class DictDeserializer(Serializer):
     """Iterates through dictionaries and applies deserializers.
     """
+    python_type = dict
+
     def can_deserialize(self, data: Any) -> bool:
         return isinstance(data, dict)
 
@@ -97,8 +101,8 @@ class DictDeserializer(Serializer):  # pylint: disable=abstract-method
             for key, value in data.items()
         }
 
-class NumpyFallbackSerializer(Serializer):  # pylint: disable=abstract-method
-    """Orjson does not handle arrays with strings
+class NumpyFallbackSerializer(Serializer):
+    """Orjson does not handle Numpy arrays with strings
     """
     python_type = np.ndarray
 
@@ -113,17 +117,17 @@ class UnitsSerializer(Serializer):
 
     def __init__(self) -> None:
         super().__init__()
-        self.regex_for_serialized = re.compile(f'!units\\[(.*)\\]')
+        self.regex_for_serialized = re.compile('!units\\[(.*)\\]')
 
     python_type = type(units.fg)
-    def serialize(self, value: Any) -> Union[List[str], str]:
+    def serialize(self, data: Any) -> Union[List[str], str]:
         try:
-            data = []
-            for subvalue in value:
-                data.append(f"!units[{str(subvalue)}]")
-            return data
+            return_value = []
+            for subvalue in data:
+                return_value.append(f"!units[{str(subvalue)}]")
+            return return_value
         except TypeError:
-            return f"!units[{str(value)}]"
+            return f"!units[{str(data)}]"
 
     def can_deserialize(self, data: Any) -> bool:
         if not isinstance(data, str):
@@ -181,36 +185,36 @@ class QuantitySerializer(Serializer):
     """Serializes data with units into strings of the form ``!units[...]``,
     where ``...`` is the result of calling ``str(data)``. Deserializes strings
     of this form back into data with units."""
-
     python_type = type(1*units.fg)
-    def serialize(self, value: Any) -> Union[List[str], str]:
+
+    def serialize(self, data: Any) -> Union[List[str], str]:
         try:
-            data = []
-            for subvalue in value:
-                data.append(f"!units[{str(subvalue)}]")
-            return data
+            return_value = []
+            for subvalue in data:
+                return_value.append(f"!units[{str(subvalue)}]")
+            return return_value
         except TypeError:
-            return f"!units[{str(value)}]"
+            return f"!units[{str(data)}]"
 
 class SetSerializer(Serializer):
     """Serializer for set objects."""
-
     python_type = set
-    def serialize(self, value: set) -> List:
-        return list(value)
+
+    def serialize(self, data: set) -> List:
+        return list(data)
 
 class FunctionSerializer(Serializer):
     """Serializer for function objects."""
-
     python_type = type(deserialize_value)
-    def serialize(self, value: Callable) -> str:
-        return f"!FunctionSerializer[{str(value)}]"
+
+    def serialize(self, data: Callable) -> str:
+        return f"!FunctionSerializer[{str(data)}]"
 
 
 class ProcessSerializer(Serializer):
     """Serializer for processes if ``emit_process`` is enabled."""
-
     python_type = Process
+
     def serialize(self, data: Process) -> str:
         proc_str = str(dict(data.parameters, _name=data.name))
         return f"!ProcessSerializer[{proc_str}]"
@@ -222,10 +226,31 @@ def make_default() -> Callable:
     :py:class:`vivarium.core.registry.Serializer()` with serialization
     routines for the types in question."""
 
-    serializers = serializer_registry.registry.values()
-    def default(obj):
-        for serializer in serializers:
-            if isinstance(obj, serializer.python_type):
-                return serializer.serialize(obj)
-        raise TypeError
+    def default(obj: Any) -> Any:
+        # Try to lookup by exclusive type
+        serializer = serializer_registry.access(str(type(obj)))
+        if not serializer:
+            compatible_serializers = []
+            for serializer_name in serializer_registry.list():
+                test_serializer = serializer_registry.access(serializer_name)
+                # Subclasses with registered serializers will be caught here
+                if isinstance(obj, test_serializer.python_type):
+                    compatible_serializers.append(test_serializer)
+            if len(compatible_serializers) > 1:
+                raise TypeError(
+                    f'Multiple serializers ({compatible_serializers}) found '
+                    f'for {obj} of type {type(obj)}')
+            if not compatible_serializers:
+                raise TypeError(
+                    f'No serializer found for {obj} of type {type(obj)}')
+            serializer = compatible_serializers[0]
+            if not isinstance(obj, Process):
+                # We don't warn for processes because since their types
+                # based on their subclasses, it's not possible to avoid
+                # searching through the serializers.
+                warnings.warn(
+                    f'Searched through serializers to find {serializer} '
+                    f'for data of type {type(obj)}. This is '
+                    f'inefficient.')
+        return serializer.serialize(obj)
     return default

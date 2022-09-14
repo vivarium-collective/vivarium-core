@@ -1,13 +1,12 @@
 import math
 import re
-from typing import Any, List
+from typing import Any
 
 import numpy as np
-from bson.codec_options import TypeEncoder
 
 from vivarium.core.process import Process
 from vivarium.core.serialize import serialize_value, deserialize_value
-from vivarium.core.registry import serializer_registry, Serializer
+from vivarium.core.registry import Serializer
 from vivarium.library.units import units
 
 
@@ -18,16 +17,6 @@ class SerializeProcess(Process):
 
     def next_update(self, timestep: float, states: dict) -> dict:
         return {}
-
-class SerializeProcessSerializer(Serializer):
-        
-    python_type = SerializeProcess
-    def serialize(self, value: SerializeProcess) -> str:
-        return ("!ProcessSerializer[" +
-            str(dict(value.parameters, _name=value.name)) + "]")
-
-serializer_registry.register(
-    "SerializeProcessSerializer", SerializeProcessSerializer())
 
 def serialize_function() -> None:
     pass

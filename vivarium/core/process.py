@@ -759,8 +759,7 @@ class ParallelProcess(Process):
         self._ended = False
         self._pending_command: Optional[
             Tuple[str, Optional[tuple], Optional[dict]]] = None
-        
-        # Uncomment if using spawn or forkserver
+
         del self.process
         del self.child
 

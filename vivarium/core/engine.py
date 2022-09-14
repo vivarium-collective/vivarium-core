@@ -12,7 +12,6 @@ import os
 import logging as log
 import pprint
 import re
-import gc
 from typing import (
     Any, Dict, Optional, Union, Tuple, Callable, Iterable, List,
     cast, Sequence)
@@ -1084,8 +1083,6 @@ class Engine:
 
             if force_complete and self.global_time == end_time:
                 force_complete = False
-
-            # gc.collect()
 
     @staticmethod
     def _end_process_if_parallel(process: Process) -> None:

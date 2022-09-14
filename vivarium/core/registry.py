@@ -69,7 +69,9 @@ Each :term:`serializer` is defined as a class that follows the API we
 describe below. Vivarium uses these serializers to convert emitted data
 into a BSON-compatible format for database storage. Serializer names are
 registered in :py:data:`serializer_registry`, which maps these names to
-serializer subclasses.
+serializer subclasses. For maximum performance, register serializers
+using a key equal to the string representation of its designated type
+(e.g. ``str(Serializer.python_type)``).
 
 Serializer API
 ==============
@@ -97,6 +99,7 @@ the corresponding serializer(s) MUST implement these 2 methods.
 """
 import copy
 import random
+from typing import Any
 
 import numpy as np
 
@@ -391,10 +394,11 @@ class Serializer:
     Args:
         name: Name of the serializer. Defaults to the class name.
     """
-    python_type = None #: Type matching is NOT exact (subclasses included)
+    python_type: Any = None #: Type matching is NOT exact (subclasses included)
     
-    def __init__(self, name=''):
-        self.name = name or self.__class__.__name__
+    def __init__(self):
+        # Register serializer under its exclusive type
+        self.name = str(self.python_type) or self.__class__.__name__
     
     def serialize(self, data):
         """Controls what happens to data of the type ``python_type``
