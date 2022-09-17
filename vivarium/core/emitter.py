@@ -311,7 +311,6 @@ class DatabaseEmitter(Emitter):
     >>> # The line below works only if you have to have 27017 open locally
     >>> # emitter = DatabaseEmitter(config)
     """
-    client = None
     default_host = 'localhost:27017'
 
     @classmethod
@@ -327,10 +326,9 @@ class DatabaseEmitter(Emitter):
         self.emit_limit = config.get('emit_limit', MONGO_DOCUMENT_LIMIT)
         self.embed_path = config.get('embed_path', tuple())
 
-        # create singleton instance of mongo client
-        if DatabaseEmitter.client is None:
-            DatabaseEmitter.client = MongoClient(
-                config.get('host', self.default_host))
+        # create object instance of mongo client to prevent forking issues
+        self.client = MongoClient(
+            config.get('host', self.default_host))
 
         self.db = getattr(self.client, config.get('database', 'simulations'))
         self.history = getattr(self.db, 'history')
