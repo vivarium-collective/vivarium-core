@@ -21,6 +21,7 @@ from vivarium.core.process import ParallelProcess, Process
 from vivarium.library.dict_utils import deep_merge, deep_merge_check, MULTI_UPDATE_KEY
 from vivarium.library.topology import dict_to_paths
 from vivarium.core.types import Processes, Topology, State, Steps, Flow
+from vivarium.core.serialize import QuantitySerializer
 
 _EMPTY_UPDATES = None, None, None, None, None, None
 DEFAULT_SCHEMA = '_default'
@@ -632,7 +633,8 @@ class Store:
             if '_units' in config:
                 self.units = self._check_schema(
                     'units', config.get('_units'))
-                self.serializer = serializer_registry.access('units')
+                self.serializer = serializer_registry.access(
+                    str(QuantitySerializer.python_type))
 
             if '_serializer' in config:
                 serializer = config['_serializer']
@@ -647,13 +649,15 @@ class Store:
                 if isinstance(self.default, Quantity):
                     self.units = self.units or self.default.units
                     self.serializer = (self.serializer or
-                                       serializer_registry.access('units'))
+                                       serializer_registry.access(
+                                        str(QuantitySerializer.python_type)))
                 elif isinstance(self.default, list) and \
                         len(self.default) > 0 and \
                         isinstance(self.default[0], Quantity):
                     self.units = self.units or self.default[0].units
                     self.serializer = (self.serializer or
-                                       serializer_registry.access('units'))
+                                       serializer_registry.access(
+                                        str(QuantitySerializer.python_type)))
 
             if '_value' in config:
                 self.value = self._check_schema(

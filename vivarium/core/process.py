@@ -103,14 +103,6 @@ class Process(metaclass=abc.ABCMeta):
               also contain the following special keys:
 
               * ``name``: Saved to ``self.name``.
-              * ``_original_parameters``: Returned by
-                ``__getstate__()`` for serialization.
-              * ``_no_original_parameters``: If specified with a value
-                of ``True``, original parameters will not be copied
-                during initialization, and ``__getstate__()`` will
-                instead return ``self.parameters``. This puts the
-                responsibility on the user to not mutate process
-                parameters.
               * ``_schema``: Overrides the schema.
               * ``_parallel``: Indicates that the process should be
                 parallelized. ``self.parallel`` will be set to True.
@@ -133,20 +125,6 @@ class Process(metaclass=abc.ABCMeta):
 
     def __init__(self, parameters: Optional[dict] = None) -> None:
         parameters = parameters or {}
-        if '_original_parameters' in parameters:
-            original_parameters = parameters.pop('_original_parameters')
-        else:
-            original_parameters = parameters
-        if parameters.get('_no_original_parameters', False):
-            self._original_parameters: Optional[dict] = None
-        else:
-            try:
-                self._original_parameters = copy.deepcopy(
-                    original_parameters)
-            except TypeError:
-                # Copying the parameters failed because some parameters do
-                # not support being copied.
-                self._original_parameters = None
 
         if 'name' in parameters:
             self.name = parameters['name']
@@ -357,28 +335,6 @@ class Process(metaclass=abc.ABCMeta):
         if self._parameters.get('time_step'):
             self._parameters['timestep'] = self._parameters['time_step']
 
-    def __getstate__(self) -> dict:
-        """Return parameters
-
-        This is sufficient to reproduce the Process if there are no
-        hidden states. Processes with hidden states may need to write
-        their own __getstate__.
-
-        The original parameters saved by the constructor are used here,
-        so any later changes to the parameters will be lost during
-        serialization.
-        """
-        if self.parameters.get('_no_original_parameters', False):
-            return self.parameters
-        if self._original_parameters is None:
-            raise TypeError(
-                'Parameters could not be copied, so serialization is '
-                'not supported.')
-        return self._original_parameters
-
-    def __setstate__(self, parameters: dict) -> None:
-        """Initialize process with parameters"""
-        self.__init__(parameters)  # type: ignore
 
     def initial_state(self, config: Optional[dict] = None) -> State:
         """Get initial state in embedded path dictionary.
@@ -743,18 +699,16 @@ class ParallelProcess(Process):
                 is deleted. Only used if ``profile`` is true.
         """
         super().__init__({
-            '_no_original_parameters': True,
             'name': process.name,
             '_parallel': True,
         })
-        self.process = process
         self.profile = profile
         self._stats_objs = stats_objs
         assert not self.profile or self._stats_objs is not None
-        self.parent, self.child = Pipe()
+        self.parent, child = Pipe()
         self.multiprocess = Multiprocess(
             target=_handle_parallel_process,
-            args=(self.child, self.process, self.profile))
+            args=(child, process, self.profile))
         self.multiprocess.start()
         self._ended = False
         self._pending_command: Optional[
@@ -902,7 +856,6 @@ class ToySerializedProcessInheritance(Process):
         parameters = parameters or {}
         super().__init__({
             '2': parameters['1'],
-            '_original_parameters': parameters,
         })
 
     def ports_schema(self) -> Schema:
@@ -942,8 +895,6 @@ def test_serialize_process() -> None:
     proc_pickle = pickle.loads(pickle.dumps(proc))
 
     assert proc.parameters['list'] == [1]
-    # If we pickled using `self.parameters` instead of
-    # `self._original_parameters`, this list would be [1, 1].
     assert proc_pickle.parameters['list'] == [1]
 
 

@@ -1,13 +1,12 @@
 import math
 import re
-from typing import Any, List
+from typing import Any
 
 import numpy as np
-from bson.codec_options import TypeEncoder
 
 from vivarium.core.process import Process
 from vivarium.core.serialize import serialize_value, deserialize_value
-from vivarium.core.registry import serializer_registry, Serializer
+from vivarium.core.registry import Serializer
 from vivarium.library.units import units
 
 
@@ -18,19 +17,6 @@ class SerializeProcess(Process):
 
     def next_update(self, timestep: float, states: dict) -> dict:
         return {}
-
-class SerializeProcessSerializer(Serializer):
-    class Codec(TypeEncoder):
-        python_type = type(SerializeProcess())
-        def transform_python(self, value: SerializeProcess) -> str:
-            return ("!ProcessSerializer[" +
-                str(dict(value.parameters, _name=value.name)) + "]")
-
-    def get_codecs(self) -> List:
-        return [self.Codec()]
-
-serializer_registry.register(
-    "SerializeProcessSerializer", SerializeProcessSerializer())
 
 def serialize_function() -> None:
     pass
@@ -192,6 +178,42 @@ def test_serialization_full() -> None:
         },
     }
     assert deserialized == expected_deserialized
+
+
+def test_non_string_keys() -> None:
+    to_serialize = {
+        np.str_(1): [1, 2, 3],
+        1: [1, 2, 3],
+        'string': {
+            'string2': {
+                'string3': {
+                    np.str_(1): 3
+                }
+            }
+        }
+    }
+    try:
+        serialize_value(to_serialize)
+    except TypeError as e:
+        expected_error = (
+            "These paths end in incompatible non-string or Numpy string " +
+            "keys: [('1',), (1,), ('string', 'string2', 'string3', '1')]")
+        assert str(e) == expected_error
+
+
+def test_unsupported_types() -> None:
+    to_serialize = {
+        'serializer': Serializer,
+        np.str_('bad string'): 1
+    }
+    try:
+        serialize_value(to_serialize)
+    except TypeError as e:
+        expected_error = (
+            "These paths end in incompatible non-string or Numpy string " +
+            "keys: [('bad string',)]")
+        assert str(e) == expected_error
+        assert str(e.__cause__) == 'Type is not JSON serializable: type'
 
 
 if __name__ == '__main__':
