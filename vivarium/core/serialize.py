@@ -21,6 +21,25 @@ from vivarium.core.process import Process
 from vivarium.library.units import units
 from vivarium.core.registry import serializer_registry, Serializer
 
+def find_numpy_and_non_strings(
+    d: dict,
+    curr_path: tuple=tuple(),
+    saved_paths: List[tuple]=None
+) -> List[tuple]:
+    """Return list of paths which terminate in a non-string or Numpy string
+    dictionary key. Orjson does not handle these types of keys by default."""
+    if not saved_paths:
+        saved_paths = []
+    if isinstance(d, dict):
+        for key in d.keys():
+            if not isinstance(key, str):
+                saved_paths.append(curr_path + (key,))
+            elif isinstance(key, np.str_):
+                saved_paths.append(curr_path + (key,))
+            saved_paths = find_numpy_and_non_strings(
+                d[key], curr_path+(key,), saved_paths)
+    return saved_paths
+
 def serialize_value(
     value: Any,
     default: Callable=None,
@@ -28,7 +47,8 @@ def serialize_value(
     """Apply orjson-based serialization routine on ``value``.
 
     Args:
-        value (Any): Data to be serialized
+        value (Any): Data to be serialized. All keys must be strings. Notably,
+            Numpy strings (``np.str_``) are not acceptable keys.
         default (Callable): A function that is called on any data of a type
             that is not natively supported by orjson. Returns an object that
             can be handled by default up to 254 times before an exception is
@@ -38,10 +58,15 @@ def serialize_value(
         Any: Serialized data
     """
     if not default:
-        default = make_default()
-    value = orjson.dumps(value, option=orjson.OPT_SERIALIZE_NUMPY,
-        default=default)
-    return orjson.loads(value)
+        default = make_fallback_serializer_function()
+    try:
+        value = orjson.dumps(value, option=orjson.OPT_SERIALIZE_NUMPY,
+            default=default)
+        return orjson.loads(value)
+    except TypeError as e:
+        bad_keys = find_numpy_and_non_strings(value)
+        raise TypeError('These paths end in incompatible non-string or Numpy '
+            f'string keys: {bad_keys}').with_traceback(e.__traceback__) from e
 
 def deserialize_value(value: Any) -> Any:
     """Find and apply the correct serializer for a value
@@ -220,7 +245,7 @@ class ProcessSerializer(Serializer):
         return f"!ProcessSerializer[{proc_str}]"
 
 
-def make_default() -> Callable:
+def make_fallback_serializer_function() -> Callable:
     """Creates a fallback function that is called by orjson on data of
     types that are not natively supported. Define and register instances of
     :py:class:`vivarium.core.registry.Serializer()` with serialization

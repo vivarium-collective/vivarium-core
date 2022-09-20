@@ -86,6 +86,9 @@ Serializers MUST define the following:
 Avoid defining custom serializers for built-in or Numpy types as these are
 automatically handled by ``orjson``, the package used to serialize data.
 
+.. note:: All dictionary keys MUST be Python strings for ``orjson`` to work.
+    Numpy strings (``np.str_``) are not allowed.
+
 If it is necessary to redefine the how objects are serialized by orjson,
 assign custom serializers to the stores containing objects of the affected
 type(s) using the ``_serializer`` ports schema key. This can also be used

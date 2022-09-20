@@ -27,7 +27,7 @@ from vivarium.library.topology import (
 )
 from vivarium.core.registry import emitter_registry
 from vivarium.core.serialize import (
-    make_default,
+    make_fallback_serializer_function,
     serialize_value,
     deserialize_value)
 
@@ -245,7 +245,7 @@ class RAMEmitter(Emitter):
     def __init__(self, config: Dict[str, Any]) -> None:
         super().__init__(config)
         self.saved_data: Dict[float, Dict[str, Any]] = {}
-        self.default = make_default()
+        self.fallback_serializer = make_fallback_serializer_function()
         self.embed_path = config.get('embed_path', tuple())
 
     def emit(self, data: Dict[str, Any]) -> None:
@@ -262,7 +262,8 @@ class RAMEmitter(Emitter):
                 if key not in ['time']}
             data_at_time = assoc_path({}, self.embed_path, data_at_time)
             self.saved_data.setdefault(time, {})
-            data_at_time = serialize_value(data_at_time, self.default)
+            data_at_time = serialize_value(
+                data_at_time, self.fallback_serializer)
             deep_merge_check(
                 self.saved_data[time], data_at_time, check_equality=True)
 
@@ -294,7 +295,7 @@ class SharedRamEmitter(RAMEmitter):
         # We intentionally don't call the superclass constructor because
         # we don't want to create a per-instance ``saved_data``
         # attribute.
-        self.default = make_default()
+        self.fallback_serializer = make_fallback_serializer_function()
         self.embed_path = config.get('embed_path', tuple())
 
 
@@ -338,7 +339,7 @@ class DatabaseEmitter(Emitter):
         self.create_indexes(self.configuration, CONFIGURATION_INDEXES)
         self.create_indexes(self.phylogeny, CONFIGURATION_INDEXES)
 
-        self.default = make_default()
+        self.fallback_serializer = make_fallback_serializer_function()
 
     def emit(self, data: Dict[str, Any]) -> None:
         table_id = data['table']
@@ -361,7 +362,7 @@ class DatabaseEmitter(Emitter):
         Break up large emits into smaller pieces and emit them individually
         """
         assembly_id = str(uuid.uuid4())
-        emit_data = serialize_value(emit_data, self.default)
+        emit_data = serialize_value(emit_data, self.fallback_serializer)
         try:
             emit_data['assembly_id'] = assembly_id
             table.insert_one(emit_data)
