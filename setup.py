@@ -58,6 +58,7 @@ if __name__ == '__main__':
             'pymongo>=4.0.1',
             'scipy>=1.7.3',
             'pytest>=6.2.5'
+            'orjson>=3.8.0'
         ],
         classifiers=[
             'Development Status :: 4 - Beta',
