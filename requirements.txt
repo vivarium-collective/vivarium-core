@@ -8,7 +8,7 @@ scipy==1.7.3
 orjson==3.8.0
 
 # Direct Development Dependencies
-mypy==0.931
+mypy==0.981
 mypy-extensions==0.4.3
 pylint==2.12.2
 pytest==6.2.5
