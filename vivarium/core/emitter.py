@@ -34,15 +34,11 @@ from vivarium.core.serialize import (
 MONGO_DOCUMENT_LIMIT = 1e7
 
 HISTORY_INDEXES = [
-    'time',
-    'type',
-    'simulation_id',
+    'data.time',
     'experiment_id',
 ]
 
 CONFIGURATION_INDEXES = [
-    'type',
-    'simulation_id',
     'experiment_id',
 ]
 
@@ -255,12 +251,9 @@ class RAMEmitter(Emitter):
         ``data['data']['time']`` in the history.
         """
         if data['table'] == 'history':
-            emit_data = data['data']
-            time = emit_data['time']
-            data_at_time = {
-                key: value for key, value in emit_data.items()
-                if key not in ['time']}
-            data_at_time = assoc_path({}, self.embed_path, data_at_time)
+            emit_data = data['data'].copy()
+            time = emit_data.pop('time', None)
+            data_at_time = assoc_path({}, self.embed_path, emit_data)
             self.saved_data.setdefault(time, {})
             data_at_time = serialize_value(
                 data_at_time, self.fallback_serializer)
@@ -366,16 +359,18 @@ class DatabaseEmitter(Emitter):
         try:
             emit_data['assembly_id'] = assembly_id
             table.insert_one(emit_data)
-        # If document is too large, serialize and deserialize using
-        # BSON C extension before splitting to avoid heavy cost of
-        # getting string representation of Numpy arrays
+        # If document is too large, break up into smaller dictionaries
+        # with shared assembly IDs and time keys
         except DocumentTooLarge:
             emit_data.pop('assembly_id')
+            time = emit_data['data'].pop('time', None)
             broken_down_data = breakdown_data(self.emit_limit, emit_data)
             for (path, datum) in broken_down_data:
                 d: Dict[str, Any] = {}
                 assoc_path(d, path, datum)
                 d['assembly_id'] = assembly_id
+                if time:
+                    d['data']['time'] = time
                 table.insert_one(d)
 
     def get_data(self, query: list = None) -> dict:
