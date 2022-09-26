@@ -6,6 +6,7 @@ Emitters
 Emitters log configuration data and time-series data somewhere.
 """
 
+import os
 import json
 import uuid
 from typing import Any, Dict, List, Optional, Tuple, Callable
@@ -306,6 +307,7 @@ class DatabaseEmitter(Emitter):
     >>> # emitter = DatabaseEmitter(config)
     """
     default_host = 'localhost:27017'
+    client_dict: Dict[int, MongoClient] = {}
 
     @classmethod
     def create_indexes(cls, table: Any, columns: List[str]) -> None:
@@ -320,9 +322,12 @@ class DatabaseEmitter(Emitter):
         self.emit_limit = config.get('emit_limit', MONGO_DOCUMENT_LIMIT)
         self.embed_path = config.get('embed_path', tuple())
 
-        # create object instance of mongo client to prevent forking issues
-        self.client = MongoClient(
-            config.get('host', self.default_host))
+        # create new MongoClient per OS process
+        curr_pid = os.getpid()
+        if curr_pid not in self.client_dict:
+            self.client_dict[curr_pid] = MongoClient(
+                config.get('host', self.default_host))
+        self.client = self.client_dict[curr_pid]
 
         self.db = getattr(self.client, config.get('database', 'simulations'))
         self.history = getattr(self.db, 'history')
