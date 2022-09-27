@@ -324,10 +324,10 @@ class DatabaseEmitter(Emitter):
 
         # create new MongoClient per OS process
         curr_pid = os.getpid()
-        if curr_pid not in self.client_dict:
-            self.client_dict[curr_pid] = MongoClient(
+        if curr_pid not in DatabaseEmitter.client_dict:
+            DatabaseEmitter.client_dict[curr_pid] = MongoClient(
                 config.get('host', self.default_host))
-        self.client = self.client_dict[curr_pid]
+        self.client = DatabaseEmitter.client_dict[curr_pid]
 
         self.db = getattr(self.client, config.get('database', 'simulations'))
         self.history = getattr(self.db, 'history')
