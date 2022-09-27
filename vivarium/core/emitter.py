@@ -13,7 +13,7 @@ from typing import Any, Dict, List, Optional, Tuple, Callable
 from urllib.parse import quote_plus
 
 from pymongo.errors import DocumentTooLarge
-from pymongo import MongoClient
+from pymongo.mongo_client import MongoClient
 
 from vivarium.library.units import remove_units
 from vivarium.library.dict_utils import (
