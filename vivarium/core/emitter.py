@@ -12,6 +12,7 @@ import uuid
 from typing import Any, Dict, List, Optional, Tuple, Callable
 from urllib.parse import quote_plus
 
+from pymongo import ASCENDING
 from pymongo.errors import DocumentTooLarge
 from pymongo.mongo_client import MongoClient
 
@@ -36,7 +37,9 @@ MONGO_DOCUMENT_LIMIT = 1e7
 
 HISTORY_INDEXES = [
     'data.time',
-    'experiment_id',
+    [('experiment_id', ASCENDING),
+     ('data.time', ASCENDING),
+     ('_id', ASCENDING)],
 ]
 
 CONFIGURATION_INDEXES = [
