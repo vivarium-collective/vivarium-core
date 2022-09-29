@@ -317,7 +317,7 @@ class DatabaseEmitter(Emitter):
     client_dict: Dict[int, MongoClient] = {}
 
     @classmethod
-    def create_indexes(cls, table: Any, columns: List[str]) -> None:
+    def create_indexes(cls, table: Any, columns: List[Any]) -> None:
         """Create the listed column indexes for the given DB table."""
         for column in columns:
             table.create_index(column)
@@ -385,20 +385,8 @@ class DatabaseEmitter(Emitter):
                     d['data']['time'] = time
                 table.insert_one(d)
 
-    def get_data(
-        self,
-        query: list = None,
-        func_dict: dict = None,
-        f: Callable[..., Any] = None,
-        filters: dict = None,
-        start_time: Union[int, MinKey] = MinKey(),
-        end_time: Union[int, MaxKey] = MaxKey(),
-        cpus: int = 1
-    ) -> dict:
-        host = self.client.address[0]
-        port = self.client.address[1]
-        return get_history_data_db(self.history, self.experiment_id, query,
-            func_dict, f, filters, start_time, end_time, cpus, host, port)
+    def get_data(self, query: list = None) -> dict:
+        return get_history_data_db(self.history, self.experiment_id, query)
 
 
 def get_experiment_database(
@@ -493,7 +481,7 @@ def get_query(
         List of projected documents for given query
     """
     history_collection = get_local_client(host, port, 'simulations').history
-    return list(history_collection.find(query, projection, 
+    return list(history_collection.find(query, projection,
         hint=HISTORY_INDEXES[1]))
 
 
@@ -515,12 +503,11 @@ def get_data_chunks(
         List of ObjectId tuples that represent chunk boundaries.
         For each tuple, include ``{'_id': {$gte: tuple[0], $lt: tuple[1]}}``
         in the query to search its corresponding chunk.
-        
     """
     id_cutoffs = list(history_collection.aggregate([{
         '$match': {
             'experiment_id': experiment_id,
-            'data.time': {'$gte': start_time, '$lte': end_time}}}, 
+            'data.time': {'$gte': start_time, '$lte': end_time}}},
         {'$project': {'_id':1}},
         {'$bucketAuto': {'groupBy': '$_id', 'buckets': cpus}},
         {'$group': {'_id': '', 'splitPoints': {'$push': '$_id.min'}}},
