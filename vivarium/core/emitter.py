@@ -9,12 +9,16 @@ Emitters log configuration data and time-series data somewhere.
 import os
 import json
 import uuid
-from typing import Any, Dict, List, Optional, Tuple, Callable
+import itertools
+from functools import partial
+from typing import Any, Dict, List, Optional, Tuple, Callable, Union
 from urllib.parse import quote_plus
+from concurrent.futures import ProcessPoolExecutor
 
 from pymongo import ASCENDING
 from pymongo.errors import DocumentTooLarge
 from pymongo.mongo_client import MongoClient
+from bson import MinKey, MaxKey
 
 from vivarium.library.units import remove_units
 from vivarium.library.dict_utils import (
@@ -381,8 +385,20 @@ class DatabaseEmitter(Emitter):
                     d['data']['time'] = time
                 table.insert_one(d)
 
-    def get_data(self, query: list = None) -> dict:
-        return get_history_data_db(self.history, self.experiment_id, query)
+    def get_data(
+        self,
+        query: list = None,
+        func_dict: dict = None,
+        f: Callable[..., Any] = None,
+        filters: dict = None,
+        start_time: Union[int, MinKey] = MinKey(),
+        end_time: Union[int, MaxKey] = MaxKey(),
+        cpus: int = 1
+    ) -> dict:
+        host = self.client.address[0]
+        port = self.client.address[1]
+        return get_history_data_db(self.history, self.experiment_id, query,
+            func_dict, f, filters, start_time, end_time, cpus, host, port)
 
 
 def get_experiment_database(
@@ -461,13 +477,74 @@ def apply_func(
     return document
 
 
+def get_query(
+    projection: dict,
+    host: str,
+    port: Any,
+    query: dict
+) -> list:
+    """Helper function for parallel queries
+
+    Args:
+        projection: a MongoDB projection in dictionary form
+        host, port: used to create new MongoClient for each parallel process
+        query: a MongoDB query in dictionary form
+    Returns:
+        List of projected documents for given query
+    """
+    history_collection = get_local_client(host, port, 'simulations').history
+    return list(history_collection.find(query, projection, 
+        hint=HISTORY_INDEXES[1]))
+
+
+def get_data_chunks(
+    history_collection: Any,
+    experiment_id: str,
+    start_time: Union[int, MinKey] = MinKey(),
+    end_time: Union[int, MaxKey] = MaxKey(),
+    cpus: int = 8
+) -> list:
+    """Helper function to get chunks for parallel queries
+
+    Args:
+        history_collection: the MongoDB history collection to query
+        experiment_id: the experiment id which is being retrieved
+        start_time, end_time: first and last simulation time to query
+        cpus: number of chunks to create
+    Returns:
+        List of ObjectId tuples that represent chunk boundaries.
+        For each tuple, include ``{'_id': {$gte: tuple[0], $lt: tuple[1]}}``
+        in the query to search its corresponding chunk.
+        
+    """
+    id_cutoffs = list(history_collection.aggregate([{
+        '$match': {
+            'experiment_id': experiment_id,
+            'data.time': {'$gte': start_time, '$lte': end_time}}}, 
+        {'$project': {'_id':1}},
+        {'$bucketAuto': {'groupBy': '$_id', 'buckets': cpus}},
+        {'$group': {'_id': '', 'splitPoints': {'$push': '$_id.min'}}},
+        {'$unset': '_id'}],
+        hint={'experiment_id':1, 'data.time':1, '_id':1}))[0]['splitPoints']
+    id_ranges = []
+    for i in range(len(id_cutoffs)-1):
+        id_ranges.append((id_cutoffs[i], id_cutoffs[i+1]))
+    id_ranges.append((id_cutoffs[-1], MaxKey()))
+    return id_ranges
+
+
 def get_history_data_db(
-        history_collection: Any,
-        experiment_id: Any,
-        query: list = None,
-        func_dict: dict = None,
-        f: Callable[..., Any] = None,
-        filters: Optional[dict] = None,
+    history_collection: Any,
+    experiment_id: Any,
+    query: list = None,
+    func_dict: dict = None,
+    f: Callable[..., Any] = None,
+    filters: Optional[dict] = None,
+    start_time: Union[int, MinKey] = MinKey(),
+    end_time: Union[int, MaxKey] = MaxKey(),
+    cpus: int = 1,
+    host: str ='localhost',
+    port: Any = '27017'
 ) -> Dict[float, dict]:
     """Query MongoDB for history data.
 
@@ -484,6 +561,10 @@ def get_history_data_db(
             is the recommended approach and takes priority over f.
         filters: MongoDB query arguments to further filter results
             beyond matching the experiment ID.
+        start_time, end_time: first and last simulation time to query
+        cpus: splits query into this many chunks to run in parallel
+        host: used if cpus>1 to create MongoClient in parallel processes
+        port: used if cpus>1 to create MongoClient in parallel processes
     Returns:
         data (dict)
     """
@@ -498,7 +579,21 @@ def get_history_data_db(
         projection['data.time'] = 1
         projection['assembly_id'] = 1
 
-    cursor = history_collection.find(experiment_query, projection)
+    if cpus > 1:
+        chunks = get_data_chunks(history_collection, experiment_id, cpus=cpus)
+        queries = []
+        for chunk in chunks:
+            queries.append({
+                **experiment_query,
+                '_id': {'$gte': chunk[0], '$lt': chunk[1]},
+                'data.time': {'$gte': start_time, '$lte': end_time}
+            })
+        partial_get_query = partial(get_query, projection, host, port)
+        with ProcessPoolExecutor(cpus) as executor:
+            queried_chunks = executor.map(partial_get_query, queries)
+        cursor = itertools.chain.from_iterable(queried_chunks)
+    else:
+        cursor = history_collection.find(experiment_query, projection)
     raw_data = []
     for document in cursor:
         assert document.get('assembly_id'), \
@@ -551,14 +646,36 @@ def get_local_client(host: str, port: Any, database_name: str) -> Any:
 
 
 def data_from_database(
-        experiment_id: str,
-        client: Any,
-        query: list = None,
-        func_dict: dict = None,
-        f: Callable[..., Any] = None,
-        filters: Optional[dict] = None,
+    experiment_id: str,
+    client: Any,
+    query: list = None,
+    func_dict: dict = None,
+    f: Callable[..., Any] = None,
+    filters: Optional[dict] = None,
+    start_time: Union[int, MinKey] = MinKey(),
+    end_time: Union[int, MaxKey] = MaxKey(),
+    cpus: int = 1
 ) -> Tuple[dict, Any]:
-    """Fetch something from a MongoDB."""
+    """Fetch something from a MongoDB.
+
+    Args:
+        experiment_id: the experiment id which is being retrieved
+        client: a MongoClient instance connected to the DB
+        query: a list of tuples pointing to fields within the experiment data.
+            In the format: [('path', 'to', 'field1'), ('path', 'to', 'field2')]
+        func_dict: a dict which maps the given query paths to a function that
+            operates on the retrieved values and returns the results. If None
+            then the raw values are returned.
+            In the format: {('path', 'to', 'field1'): function}
+        f: a function that applies equally to all fields in query. func_dict
+            is the recommended approach and takes priority over f.
+        filters: MongoDB query arguments to further filter results
+            beyond matching the experiment ID.
+        start_time, end_time: first and last simulation time to query
+        cpus: splits query into this many chunks to run in parallel
+    Returns:
+        data (dict)
+    """
 
     # Retrieve environment config
     config_collection = client.configuration
@@ -573,8 +690,10 @@ def data_from_database(
 
     # Retrieve timepoint data
     history = client.history
-    data = get_history_data_db(
-        history, experiment_id, query, func_dict, f, filters)
+    host = client.address[0]
+    port = client.address[1]
+    data = get_history_data_db(history, experiment_id, query, func_dict,
+        f, filters, start_time, end_time, cpus, host, port)
 
     return data, experiment_config
 
