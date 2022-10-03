@@ -412,23 +412,55 @@ def get_experiment_database(
     return db
 
 
+def delete_experiment(
+    host: str = 'localhost',
+    port: Any = 27017,
+    query: dict = None
+) -> None:
+    """Helper function to delete experiment data in parallel
+
+    Args:
+        host: Host name of database. This can usually be left as the default.
+        port: Port number of database. This can usually be left as the
+            default.
+        query: Filter for documents to delete.
+    """
+    history_collection = get_local_client(host, port, 'simulations').history
+    history_collection.delete_many(query, hint=HISTORY_INDEXES[1])
+
+
 def delete_experiment_from_database(
-        experiment_id: str,
-        port: Any = 27017,
-        database_name: str = 'simulations'
+    experiment_id: str,
+    host: str = 'localhost',
+    port: Any = 27017,
+    cpus: int = 1
 ) -> None:
     """Delete an experiment's data from a database.
 
     Args:
         experiment_id: Identifier of experiment.
+        host: Host name of database. This can usually be left as the default.
         port: Port number of database. This can usually be left as the
             default.
-        database_name: Name of the database table. This can usually be
-            left as the default.
+        cpus: Number of chunks to split delete operation into to be run in
+            parallel. Useful if single-threaded delete does not saturate I/O.
     """
-    db = get_experiment_database(port, database_name)
-    query = {'experiment_id': experiment_id}
-    db.history.delete_many(query)
+    db = get_local_client(host, port, 'simulations')
+    if cpus > 1:
+        chunks = get_data_chunks(db.history, experiment_id, cpus=cpus)
+        queries = []
+        for chunk in chunks:
+            queries.append({
+                'experiment_id': experiment_id,
+                '_id': {'$gte': chunk[0], '$lt': chunk[1]},
+                'data.time': {'$gte': MinKey(), '$lte': MaxKey()}
+            })
+        partial_del_exp = partial(delete_experiment, host, port)
+        with ProcessPoolExecutor(cpus) as executor:
+            executor.map(partial_del_exp, queries)
+    else:
+        query = {'experiment_id': experiment_id}
+        db.history.delete_many(query, hint=HISTORY_INDEXES[1])
     db.configuration.delete_many(query)
 
 
@@ -549,7 +581,8 @@ def get_history_data_db(
         filters: MongoDB query arguments to further filter results
             beyond matching the experiment ID.
         start_time, end_time: first and last simulation time to query
-        cpus: splits query into this many chunks to run in parallel
+        cpus: splits query into this many chunks to run in parallel, useful if
+            single-threaded query does not saturate I/O (e.g. on Google Cloud)
         host: used if cpus>1 to create MongoClient in parallel processes
         port: used if cpus>1 to create MongoClient in parallel processes
     Returns:
