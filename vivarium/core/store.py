@@ -500,6 +500,14 @@ class Store:
         """
         current_schema_value = getattr(self, schema_key)
         if current_schema_value is not None and current_schema_value != new_schema:
+            if schema_key == "units":
+                # Hashes from different Python interpreters (e.g. multiprocessing
+                # with spawn start method) are different even if the values are same
+                # Recalculate hashes in this process to double-check
+                current_hash = hash(frozenset(current_schema_value._units._d))
+                new_hash = hash(frozenset(new_schema._units._d))
+                if current_hash == new_hash:
+                    return new_schema
             raise ValueError(
                 f"Incompatible schema assignment at {self.path_for()}. "
                 f"Trying to assign the value {new_schema} to key {schema_key}, "
