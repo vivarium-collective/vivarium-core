@@ -382,6 +382,7 @@ class DatabaseEmitter(Emitter):
                 assoc_path(d, path, datum)
                 d['assembly_id'] = assembly_id
                 if time:
+                    d.setdefault('data', {})
                     d['data']['time'] = time
                 table.insert_one(d)
 
