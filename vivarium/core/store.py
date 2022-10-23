@@ -13,7 +13,7 @@ import uuid
 import warnings
 
 import numpy as np
-from pint import Quantity
+from pint import Unit, Quantity
 from typing import Optional
 
 from vivarium import divider_registry, serializer_registry, updater_registry
@@ -501,13 +501,16 @@ class Store:
         current_schema_value = getattr(self, schema_key)
         if current_schema_value is not None and current_schema_value != new_schema:
             if schema_key == "units":
-                # Hashes from different Python interpreters (e.g. multiprocessing
-                # with spawn start method) are different even if the values are same
-                # Recalculate hashes in this process to double-check
-                current_hash = hash(frozenset(current_schema_value._units._d))
-                new_hash = hash(frozenset(new_schema._units._d))
-                if current_hash == new_hash:
-                    return new_schema
+                # Different Python interpreters (inc. from multiprocessing with
+                # spawn start method) yield different hashes for the same value
+                # Reset cached hashes for Pint Units to force rehash before ==
+                if (isinstance(current_schema_value, Unit) 
+                    and isinstance(new_schema, Unit)
+                ):
+                    current_schema_value._units._hash = None
+                    new_schema._units._hash = None
+                    if current_schema_value == new_schema:
+                        return new_schema
             raise ValueError(
                 f"Incompatible schema assignment at {self.path_for()}. "
                 f"Trying to assign the value {new_schema} to key {schema_key}, "
