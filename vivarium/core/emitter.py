@@ -376,12 +376,14 @@ class DatabaseEmitter(Emitter):
         # with shared assembly IDs and time keys
         except DocumentTooLarge:
             emit_data.pop('assembly_id')
+            experiment_id = emit_data.pop('experiment_id')
             time = emit_data['data'].pop('time', None)
             broken_down_data = breakdown_data(self.emit_limit, emit_data)
             for (path, datum) in broken_down_data:
                 d: Dict[str, Any] = {}
                 assoc_path(d, path, datum)
                 d['assembly_id'] = assembly_id
+                d['experiment_id'] = experiment_id
                 if time:
                     d.setdefault('data', {})
                     d['data']['time'] = time
