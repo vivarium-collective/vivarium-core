@@ -37,8 +37,6 @@ from vivarium.core.serialize import (
     serialize_value,
     deserialize_value)
 
-MONGO_DOCUMENT_LIMIT = 1e7
-
 HISTORY_INDEXES = [
     'data.time',
     [('experiment_id', ASCENDING),
@@ -103,7 +101,7 @@ def breakdown_data(
             output.append((path, pruned))
             return output
 
-        print('value is too large to emit, ignoring data')
+        print(f'Data at {path} is too large, skipped: {size} > {limit}')
         return []
 
     return [(path, data)]
@@ -326,7 +324,10 @@ class DatabaseEmitter(Emitter):
         """config may have 'host' and 'database' items."""
         super().__init__(config)
         self.experiment_id = config.get('experiment_id')
-        self.emit_limit = config.get('emit_limit', MONGO_DOCUMENT_LIMIT)
+        # In the worst case, `breakdown_data` can underestimate the size of
+        # data by a factor of 4: len(str(0)) == 1 but 0 is a 4-byte int.
+        # Use 4 MB as the breakdown limit to stay under MongoDB's 16 MB limit.
+        self.emit_limit = config.get('emit_limit', 4000000)
         self.embed_path = config.get('embed_path', tuple())
 
         # create new MongoClient per OS process
@@ -375,12 +376,14 @@ class DatabaseEmitter(Emitter):
         # with shared assembly IDs and time keys
         except DocumentTooLarge:
             emit_data.pop('assembly_id')
+            experiment_id = emit_data.pop('experiment_id')
             time = emit_data['data'].pop('time', None)
             broken_down_data = breakdown_data(self.emit_limit, emit_data)
             for (path, datum) in broken_down_data:
                 d: Dict[str, Any] = {}
                 assoc_path(d, path, datum)
                 d['assembly_id'] = assembly_id
+                d['experiment_id'] = experiment_id
                 if time:
                     d.setdefault('data', {})
                     d['data']['time'] = time
