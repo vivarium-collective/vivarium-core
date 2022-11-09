@@ -27,7 +27,7 @@ from setup import VERSION
 # -- Project information -----------------------------------------------------
 
 project = 'Vivarium Core'
-copyright = '2018-{}, The Vivarium Core Authors'.format(
+copyright = '2020-{}, The Vivarium Core Authors'.format(
     datetime.now().year)
 author = 'The Vivarium Core Authors'
 
