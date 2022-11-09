@@ -24,6 +24,7 @@ from vivarium.core.process import Process
 from vivarium.library.units import units
 from vivarium.core.registry import serializer_registry, Serializer
 
+
 def find_numpy_and_non_strings(
     d: dict,
     curr_path: tuple=tuple(),
@@ -42,6 +43,7 @@ def find_numpy_and_non_strings(
             saved_paths = find_numpy_and_non_strings(
                 d[key], curr_path+(key,), saved_paths)
     return saved_paths
+
 
 def serialize_value(
     value: Any,
@@ -70,6 +72,7 @@ def serialize_value(
         bad_keys = find_numpy_and_non_strings(value)
         raise TypeError('These paths end in incompatible non-string or Numpy '
             f'string keys: {bad_keys}').with_traceback(e.__traceback__) from e
+
 
 def deserialize_value(value: Any) -> Any:
     """Find and apply the correct serializer for a value
@@ -129,6 +132,7 @@ class DictDeserializer(Serializer):
             for key, value in data.items()
         }
 
+
 class NumpyFallbackSerializer(Serializer):
     """Orjson does not handle Numpy arrays with strings
     """
@@ -148,6 +152,7 @@ class UnitsSerializer(Serializer):
         self.regex_for_serialized = re.compile('!units\\[(.*)\\]')
 
     python_type = type(units.fg)
+
     def serialize(self, data: Any) -> Union[List[str], str]:
         try:
             return_value = []
@@ -206,8 +211,9 @@ class UnitsSerializer(Serializer):
             else:
                 unit_data = units(data)
             if unit is not None:
-                unit_data.to(unit)
+                unit_data.to(unit)  # type: ignore
         return unit_data
+
 
 class QuantitySerializer(Serializer):
     """Serializes data with units into strings of the form ``!units[...]``,
@@ -224,12 +230,14 @@ class QuantitySerializer(Serializer):
         except TypeError:
             return f"!units[{str(data)}]"
 
+
 class SetSerializer(Serializer):
     """Serializer for set objects."""
     python_type = set
 
     def serialize(self, data: set) -> List:
         return list(data)
+
 
 class FunctionSerializer(Serializer):
     """Serializer for function objects."""
