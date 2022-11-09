@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.5.4
+* (#223) Update pint imports to support newest version
+* (#222) More breakdown fixes
+* (#220) Recalculate hashes for comparison of Units
+* (#219) Parallel queries. Ccreates helper methods to intelligently split large queries into smaller, approximately 
+  equal chunks that can be run in parallel on separate OS processes.  
+* (#218) MongoClient optimizations
+* (#217) Create Mongo index for simulation time. 
+* (#215) Serialization fixes for BSON.
+* (#214) Optimize dictionary key removal.
+* (#213) Clean up documentation for Serializer API.
+
 ## v1.5.3
 * (#211) Fix a memory leak when removing parallel processes.
 * (#204) Implement a new serialization API based on PyMongo's 
