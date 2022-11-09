@@ -18,7 +18,7 @@ import numpy as np
 from pint import Unit
 try:
     from pint.quantity import Quantity
-except:
+except ImportError:
     from pint import Quantity
 from vivarium.core.process import Process
 from vivarium.library.units import units

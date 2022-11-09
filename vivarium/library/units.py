@@ -25,10 +25,10 @@ from typing import Any
 import pint
 
 # noinspection PyProtectedMember
+from pint import Unit
 try:
     from pint.quantity import _Quantity as Quantity
-    from pint.unit import Unit
-except:
+except ImportError:
     from pint import Quantity, Unit
 
 #: Units registry that stores the units used throughout Vivarium
