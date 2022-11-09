@@ -23,9 +23,13 @@ False
 from typing import Any
 
 import pint
+
 # noinspection PyProtectedMember
-from pint.quantity import _Quantity as Quantity
-from pint.unit import Unit
+try:
+    from pint.quantity import _Quantity as Quantity
+    from pint.unit import Unit
+except:
+    from pint import Quantity, Unit
 
 #: Units registry that stores the units used throughout Vivarium
 units = pint.UnitRegistry()
