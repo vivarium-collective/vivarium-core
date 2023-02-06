@@ -1,9 +1,7 @@
 import numpy as np
 
 from vivarium.core.engine import Engine
-from vivarium.core.process import Process
 from vivarium.core.composer import Composer
-from vivarium.plots.topology import plot_topology
 from vivarium.library.units import units
 from vivarium.processes.divide_condition import DivideCondition
 from vivarium.processes.meta_division import MetaDivision
@@ -13,35 +11,7 @@ from vivarium.processes.growth_rate import GrowthRate
 TIMESTEP = 10
 
 
-class Tl(Process):
-
-    defaults = {
-        'ktrl': 5e-4,
-        'kdeg': 5e-5}
-
-    def ports_schema(self):
-        return {
-            'mRNA': {
-                'C': {
-                    '_default': 100 * units.mg / units.mL,
-                    '_divider': 'split',
-                    '_emit': True}},
-            'Protein': {
-                'X': {
-                    '_default': 200 * units.mg / units.mL,
-                    '_divider': 'split',
-                    '_emit': True}}}
-
-    def next_update(self, timestep, states):
-        C = states['mRNA']['C']
-        X = states['Protein']['X']
-        dX = (self.parameters['ktrl'] * C - self.parameters['kdeg'] * X) * timestep
-        return {
-            'Protein': {
-                'X': dX}}
-
-
-class TlDivision(Composer):
+class AgentDivision(Composer):
     defaults = {
         'time_step': TIMESTEP,
         'Tl': {},
@@ -68,7 +38,6 @@ class TlDivision(Composer):
             composer=self)
         time_step_config = {'time_step': config['time_step']}
         return {
-            'Tl': Tl({**config['Tl'], **time_step_config}),
             'growth': GrowthRate({**config['growth'], **time_step_config}),
             'divide_condition': DivideCondition(config['divide_condition']),
             'division': MetaDivision(division_config)}
@@ -77,9 +46,6 @@ class TlDivision(Composer):
         boundary_path = config['boundary_path']
         agents_path = config['agents_path']
         return {
-            'Tl': {
-                'mRNA': ('RNA',),
-                'Protein': ('Protein',)},
             'growth': {
                 'variables': boundary_path,
                 'rates': ('rates',)},
@@ -105,7 +71,7 @@ def test_hierarchy_update():
                 'Protein': {'X': 50 * units.mg / units.mL}}}}
 
     # make a txtl composite, embedded under an 'agents' store
-    txtl_composer = TlDivision({})
+    txtl_composer = AgentDivision({})
     txtl_composite1 = txtl_composer.generate(
         {'agent_id': agent_id},
         path=('agents', agent_id))
@@ -119,12 +85,13 @@ def test_hierarchy_update():
     # run the experiment long enough to divide
     hierarchy_experiment1.update(2000)
 
-    # plot the topology
-    plot_topology(
-        txtl_composite1,
-        out_dir='out',
-        filename='hierarchy_topology.pdf',
-        )
+    # check that the processes updated after division
+    assert '0' not in txtl_composite1['processes']['agents'], 'agent 0 not removed from processes'
+    assert '0' not in txtl_composite1['steps']['agents'], 'agent 0 not removed from steps'
+    assert '00' in txtl_composite1['processes']['agents'], 'agent 00 not added to processes'
+    assert '01' in txtl_composite1['processes']['agents'], 'agent 01 not added to processes'
+    assert '00' in txtl_composite1['steps']['agents'], 'agent 00 not added to steps'
+    assert '01' in txtl_composite1['steps']['agents'], 'agent 01 not added to steps'
 
 
 if __name__ == '__main__':
