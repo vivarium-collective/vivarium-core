@@ -76,6 +76,10 @@ def test_hierarchy_update():
         {'agent_id': agent_id},
         path=('agents', agent_id))
 
+    # check the agents before division
+    for n in ['processes', 'steps', 'topology', 'flow']:
+        assert '0' in txtl_composite1[n]['agents'], f'agent 0 not in {n}'
+
     # make the experiment
     hierarchy_experiment1 = Engine(
         composite=txtl_composite1,
@@ -85,13 +89,11 @@ def test_hierarchy_update():
     # run the experiment long enough to divide
     hierarchy_experiment1.update(2000)
 
-    # check that the processes updated after division
-    assert '0' not in txtl_composite1['processes']['agents'], 'agent 0 not removed from processes'
-    assert '0' not in txtl_composite1['steps']['agents'], 'agent 0 not removed from steps'
-    assert '00' in txtl_composite1['processes']['agents'], 'agent 00 not added to processes'
-    assert '01' in txtl_composite1['processes']['agents'], 'agent 01 not added to processes'
-    assert '00' in txtl_composite1['steps']['agents'], 'agent 00 not added to steps'
-    assert '01' in txtl_composite1['steps']['agents'], 'agent 01 not added to steps'
+    # check that the agents updated after division
+    for n in ['processes', 'steps', 'topology']:  # flow not included.
+        assert '0' not in txtl_composite1[n]['agents'], f'agent 0 not removed from {n}'
+        assert '00' in txtl_composite1[n]['agents'], f'agent 00 not added to {n}'
+        assert '01' in txtl_composite1[n]['agents'], f'agent 01 not added to {n}'
 
 
 if __name__ == '__main__':

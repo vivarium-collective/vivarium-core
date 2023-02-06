@@ -1408,7 +1408,6 @@ class Store:
             target.apply_defaults()
             target.set_value(merged_initial_state)
 
-
         self._delete_path(mother_path)
         deletions.append(tuple(here + mother_path))
 
