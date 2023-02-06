@@ -1,5 +1,6 @@
 import numpy as np
 
+from vivarium.core.engine import Engine
 from vivarium.core.process import Process
 from vivarium.core.composer import Composer
 from vivarium.plots.topology import plot_topology
@@ -7,7 +8,6 @@ from vivarium.library.units import units
 from vivarium.processes.divide_condition import DivideCondition
 from vivarium.processes.meta_division import MetaDivision
 from vivarium.processes.growth_rate import GrowthRate
-from vivarium.core.composition import composite_in_experiment
 
 
 TIMESTEP = 10
@@ -104,12 +104,6 @@ def test_hierarchy_update():
                 'RNA': {'C': 5 * units.mg / units.mL},
                 'Protein': {'X': 50 * units.mg / units.mL}}}}
 
-    # experiment settings
-    exp_settings = {
-        'experiment_id': 'hierarchy_experiment',
-        'initial_state': initial_state,
-        'emit_step': 100.0}
-
     # make a txtl composite, embedded under an 'agents' store
     txtl_composer = TlDivision({})
     txtl_composite1 = txtl_composer.generate(
@@ -117,16 +111,16 @@ def test_hierarchy_update():
         path=('agents', agent_id))
 
     # make the experiment
-    hierarchy_experiment1 = composite_in_experiment(
+    hierarchy_experiment1 = Engine(
         composite=txtl_composite1,
-        settings=exp_settings,
-        initial_state=initial_state)
+        initial_state=initial_state,
+        emit_step=100.0)
 
     # run the experiment long enough to divide
     hierarchy_experiment1.update(2000)
 
     # plot the topology
-    fig = plot_topology(
+    plot_topology(
         txtl_composite1,
         out_dir='out',
         filename='hierarchy_topology.pdf',

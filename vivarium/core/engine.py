@@ -537,6 +537,11 @@ class Engine:
                 self._parallelize_processes(self.steps)
             )
 
+            # put the parallelized processes back in the composite.
+            if composite:
+                composite['processes'] = self.processes
+                composite['steps'] = self.steps
+
             # initialize the store
             self.state: Store = generate_state(
                 self.processes,
