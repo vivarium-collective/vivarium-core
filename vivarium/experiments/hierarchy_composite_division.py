@@ -31,7 +31,7 @@ class AgentDivision(Composer):
         'daughter_path': tuple(),
     }
 
-    def generate_processes(self, config):
+    def generate_processes(self, config) -> dict:
         division_config = dict(
             daughter_path=config['daughter_path'],
             agent_id=config['agent_id'],
@@ -42,7 +42,7 @@ class AgentDivision(Composer):
             'divide_condition': DivideCondition(config['divide_condition']),
             'division': MetaDivision(division_config)}
 
-    def generate_topology(self, config):
+    def generate_topology(self, config) -> dict:
         boundary_path = config['boundary_path']
         agents_path = config['agents_path']
         return {
@@ -57,7 +57,7 @@ class AgentDivision(Composer):
                 'agents': agents_path}}
 
 
-def test_hierarchy_update():
+def test_hierarchy_update() -> None:
     # configure hierarchy
     agent_id = '0'
 
@@ -91,9 +91,12 @@ def test_hierarchy_update():
 
     # check that the agents updated after division
     for n in ['processes', 'steps', 'topology']:  # flow not included.
-        assert '0' not in txtl_composite1[n]['agents'], f'agent 0 not removed from {n}'
-        assert '00' in txtl_composite1[n]['agents'], f'agent 00 not added to {n}'
-        assert '01' in txtl_composite1[n]['agents'], f'agent 01 not added to {n}'
+        assert '0' not in txtl_composite1[n]['agents'], \
+            f'agent 0 not removed from {n}'
+        assert '00' in txtl_composite1[n]['agents'], \
+            f'agent 00 not added to {n}'
+        assert '01' in txtl_composite1[n]['agents'], \
+            f'agent 01 not added to {n}'
 
 
 if __name__ == '__main__':
