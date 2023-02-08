@@ -1375,7 +1375,7 @@ class Store:
                 topology = topology or {}
 
             # get the daughter flow
-            if 'flow' in daughter:
+            if 'flow' in daughter and daughter['flow']:
                 flow = daughter['flow']
             else:
                 # if no flow provided, copy the mother's flow

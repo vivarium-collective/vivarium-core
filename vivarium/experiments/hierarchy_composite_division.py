@@ -90,7 +90,7 @@ def test_hierarchy_update() -> None:
     hierarchy_experiment1.update(2000)
 
     # check that the agents updated after division
-    for n in ['processes', 'steps', 'topology']:  # flow not included.
+    for n in ['processes', 'steps', 'topology']:  # TODO: add flow
         assert '0' not in txtl_composite1[n]['agents'], \
             f'agent 0 not removed from {n}'
         assert '00' in txtl_composite1[n]['agents'], \
