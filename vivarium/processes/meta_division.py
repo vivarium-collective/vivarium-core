@@ -81,7 +81,9 @@ class MetaDivision(Step):
                 daughter_updates.append({
                     'key': daughter_id,
                     'processes': composer['processes'],
+                    'steps': composer['steps'],
                     'topology': composer['topology'],
+                    'flow': composer['flow'],
                     'initial_state': {}})
 
             log.info(

@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.5.5
+* (#224) Keep processes and steps in composite spec that is passed to `Engine`. Add `test_hierarchy_update` to keep
+  this working.
+
 ## v1.5.4
 * (#223) Update pint imports to support newest version
 * (#222) More breakdown fixes

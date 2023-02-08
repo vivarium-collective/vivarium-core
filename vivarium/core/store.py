@@ -1375,7 +1375,7 @@ class Store:
                 topology = topology or {}
 
             # get the daughter flow
-            if 'flow' in daughter:
+            if 'flow' in daughter and daughter['flow']:
                 flow = daughter['flow']
             else:
                 # if no flow provided, copy the mother's flow
@@ -1407,7 +1407,6 @@ class Store:
             target = self.get_path(daughter_path)
             target.apply_defaults()
             target.set_value(merged_initial_state)
-
 
         self._delete_path(mother_path)
         deletions.append(tuple(here + mother_path))

@@ -537,6 +537,11 @@ class Engine:
                 self._parallelize_processes(self.steps)
             )
 
+            # put the parallelized processes back in the composite.
+            if composite:
+                composite['processes'] = self.processes
+                composite['steps'] = self.steps
+
             # initialize the store
             self.state: Store = generate_state(
                 self.processes,
@@ -822,6 +827,10 @@ class Engine:
             for path, topology_update in topology_updates:
                 assoc_path(self.topology, path, topology_update)
 
+        if flow_updates:
+            for path, topology_update in flow_updates:
+                assoc_path(self.flow, path, flow_updates)
+
         if process_updates:
             for path, process in process_updates:
                 assoc_path(self.processes, path, process)
@@ -851,6 +860,7 @@ class Engine:
         delete_in(self.processes, deletion)
         delete_in(self.steps, deletion)
         delete_in(self.topology, deletion)
+        delete_in(self.flow, deletion)
 
         for path in list(self.process_paths.keys()):
             if starts_with(path, deletion):
