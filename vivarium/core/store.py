@@ -19,7 +19,7 @@ from typing import Optional
 from vivarium import divider_registry, serializer_registry, updater_registry
 from vivarium.core.process import ParallelProcess, Process
 from vivarium.library.dict_utils import deep_merge, deep_merge_check, MULTI_UPDATE_KEY
-from vivarium.library.topology import without, dict_to_paths, inverse_topology
+from vivarium.library.topology import dict_to_paths, inverse_topology
 from vivarium.core.types import Processes, Topology, State, Steps, Flow
 from vivarium.core.serialize import QuantitySerializer
 

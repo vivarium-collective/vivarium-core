@@ -1298,12 +1298,7 @@ def test_engine_process_division() -> Engine:
 
     engine = Engine(engine_divider)
 
-    import ipdb; ipdb.set_trace()
-
     engine.update(13)
-
-    import ipdb; ipdb.set_trace()
-
 
 
 engine_tests = {

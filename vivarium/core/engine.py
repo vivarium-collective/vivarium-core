@@ -308,7 +308,6 @@ class _StepGraph:
         return new
 
 
-<<<<<<< HEAD
 class Engine(Process):
 # =======
 # class Engine:
@@ -408,8 +407,6 @@ class Engine(Process):
                 * ``emit_config``: If True, this will emit the serialized
                 initial state with the configuration data.
                 * ``profile``: Whether to profile the simulation with cProfile.
-                * ``emit_config``: If True, this will emit the serialized initial
-                state with the configuration data.
                 * ``initial_global_time``: The initial time for the simulation.
                 Useful when this Engine is part of a larger, older
                 simulation.
@@ -428,6 +425,7 @@ class Engine(Process):
         'experiment_name': None,
         'flow': None,
         'global_time_precision': None,
+        'initial_global_time': 0,
         'initial_state': None,
         'intertopology': None,
         'invoke': None,
@@ -514,7 +512,7 @@ class Engine(Process):
         self.emit_config = self.parameters['emit_config']
 
         # initialize global time
-        self.global_time = initial_global_time
+        self.global_time = self.parameters['initial_global_time']
 
         # front tracks how far each process has been simulated in time,
         # and also holds the processes' updates before they are applied.

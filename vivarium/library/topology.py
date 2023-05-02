@@ -13,6 +13,14 @@ from vivarium.library.dict_utils import deep_merge, deep_merge_multi_update
 SPECIAL_UPDATES = ('_add', '_move', '_generate', '_divide', '_delete', '_reduce')
 
 
+def without(d, removing):
+    '''Get a copy of ``d`` without the key specified by ``removing``.'''
+    return {
+        key: value
+        for key, value in d.items()
+        if key != removing}
+
+
 def get_in(d, path, default=None):
     '''Get the value from a dictionary by its path.
 

@@ -81,10 +81,10 @@ def test_hierarchy_update() -> None:
         assert '0' in txtl_composite1[n]['agents'], f'agent 0 not in {n}'
 
     # make the experiment
-    hierarchy_experiment1 = Engine(
+    hierarchy_experiment1 = Engine(dict(
         composite=txtl_composite1,
         initial_state=initial_state,
-        emit_step=100.0)
+        emit_step=100.0))
 
     # run the experiment long enough to divide
     hierarchy_experiment1.update(2000)
