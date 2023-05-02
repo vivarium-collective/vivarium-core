@@ -1,5 +1,71 @@
 # Changelog
 
+## v1.5.5
+* (#224) Keep processes and steps in composite spec that is passed to `Engine`. Add `test_hierarchy_update` to keep
+  this working.
+
+## v1.5.4
+* (#223) Update pint imports to support newest version
+* (#222) More breakdown fixes
+* (#220) Recalculate hashes for comparison of Units
+* (#219) Parallel queries. Ccreates helper methods to intelligently split large queries into smaller, approximately 
+  equal chunks that can be run in parallel on separate OS processes.  
+* (#218) MongoClient optimizations
+* (#217) Create Mongo index for simulation time. 
+* (#215) Serialization fixes for BSON.
+* (#214) Optimize dictionary key removal.
+* (#213) Clean up documentation for Serializer API.
+
+## v1.5.3
+* (#211) Fix a memory leak when removing parallel processes.
+* (#204) Implement a new serialization API based on PyMongo's 
+  `TypeCodec` interface.
+
+## v1.5.2
+
+* (#207) Fix a bug in `Store.apply_update()` that caused failures when
+  `self.value` was a list and `self.units` was set.
+* (#205) Prevents formation of multi_updates when generating initial state.
+
+## v1.5.1
+
+* (#206) Support multiple emits for the same timestep and remove
+  `Engine.complete()`. Instead, callers of `Engine.run_for()` must pass
+  `force_complete=True` at the end of their caller-managed simulation
+  loops.
+
+## v1.4.2
+
+* (#203) Make `Store.sources` more comprehensive, in particular by
+  including dividers and flows.
+
+## v1.4.1
+
+* (#202) Add the `filters` argument to `data_from_database()` to allow
+  further filtering of MongoDB query results.
+
+## v1.3.1
+
+* (#200) Inside Engine, store the Step execution layers as lists instead
+  of sets to ensure deterministic execution order.
+* (#201) Restore ability to pass `initial_state` keys in `settings`
+  dictionaries to `composition.py` functions.
+
+## v1.3.0
+
+* (#198) Introduce process commands to support more interactions with
+  parallel processes. Now all `Process` methods of a parallelized
+  process can be queried from the parent OS process. Users can also add
+  support for custom methods of their processes.
+
+  This change also simplifies the way `Engine` handles parallel
+  processes warns users when serializers are not being found
+  efficiently.
+* (#192) Marks `composition.py` as deprecated and ensures that the rest
+  of Vivarium Core doesn't depend on it.
+* (#199) Remove some Numpy dtypes that are not available on some
+  platforms from serialize.py.
+
 ## v1.2.8
 
 * (#186) Apply function to data from database emitter in `get_history_data_db`.

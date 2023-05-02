@@ -27,10 +27,11 @@ jobs:
         pip install pytest
         pip install numpy
         if [ -f doc/requirements.txt ]; then pip install -r doc/requirements.txt; fi
-        brew install vale
+        wget https://github.com/errata-ai/vale/releases/download/v2.15.4/vale_2.15.4_Linux_64-bit.tar.gz
+        mkdir ~/bin && tar -xvzf vale_2.15.4_Linux_64-bit.tar.gz -C ~/bin
     - name: Test Building Documentation
       run: |
         doc/test.sh ci
     - name: Lint the Documentation
       run: |
-        doc/lint.sh ci
+        PATH="~/bin:$PATH" doc/lint.sh ci

@@ -27,7 +27,7 @@ from setup import VERSION
 # -- Project information -----------------------------------------------------
 
 project = 'Vivarium Core'
-copyright = '2018-{}, The Vivarium Core Authors'.format(
+copyright = '2020-{}, The Vivarium Core Authors'.format(
     datetime.now().year)
 author = 'The Vivarium Core Authors'
 
@@ -93,6 +93,7 @@ intersphinx_mapping = {
     'python': ('https://docs.python.org/3', None),
     'shapely': ('https://shapely.readthedocs.io/en/latest/', None),
     'pint': ('https://pint.readthedocs.io/en/stable/', None),
+    'pymongo': ('https://pymongo.readthedocs.io/en/stable/', None)
 }
 
 # -- sphinx.ext.napoleon options --

@@ -57,3 +57,7 @@ def test_profiler() -> None:
 
     assert 0.6 <= process_a_runtime <= 0.7
     assert 0.3 <= process_b_runtime <= 0.4
+
+
+if __name__ == '__main__':
+    test_profiler()

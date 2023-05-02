@@ -13,7 +13,7 @@ import logging as log
 import pprint
 import re
 from typing import (
-    Any, Dict, Optional, Union, Tuple, Callable, Iterable, List, Set,
+    Any, Dict, Optional, Union, Tuple, Callable, Iterable, List,
     cast, Sequence)
 import math
 import datetime
@@ -33,6 +33,8 @@ from vivarium.core.process import (
 )
 
 from vivarium.core.serialize import serialize_value
+from vivarium.core.composer import Composite
+
 from vivarium.library.topology import (
     get_in,
     delete_in,
@@ -41,6 +43,7 @@ from vivarium.library.topology import (
     inverse_topology,
     normalize_path,
 )
+from vivarium.library.dict_utils import apply_func_to_leaves
 from vivarium.core.types import (
     HierarchyPath, Topology, State, Update, Processes, Steps,
     Flow, Schema)
@@ -120,22 +123,6 @@ def timestamp(dt: Optional[Any] = None) -> str:
         dt.hour, dt.minute, dt.second)
 
 
-def invoke_process(
-        process: Process,
-        interval: float,
-        states: State,
-) -> Update:
-    """Compute a process's next update.
-
-    Call the process's
-    :py:meth:`vivarium.core.process.Process.next_update` function with
-    ``interval`` and ``states``.
-    """
-
-    update = process.next_update(interval, states)
-    return update
-
-
 def empty_front(t: float) -> Dict[str, Union[float, dict]]:
     return {
         'time': t,
@@ -156,10 +143,12 @@ class Defer:
         called.
 
         Args:
-            defer: An object with a ``.get()`` method whose output will
-                be passed to the function. For example, the object could
-                be an :py:class:`InvokeProcess` object whose ``.get()``
-                method will return the process update.
+            defer: An object with a ``.get_command_result()`` method
+                whose output will be passed to the function. For
+                example, the object could be an
+                :py:class:`vivarium.core.process.Process` object whose
+                ``.get_command_result()`` method will return the process
+                update.
             function: The function. For example,
                 :py:func:`invert_topology` to transform the returned
                 update.
@@ -176,7 +165,7 @@ class Defer:
             The result of calling the function.
         """
         return self.f(
-            self.defer.get(),
+            self.defer.get_command_result(),
             self.args)
 
 
@@ -188,44 +177,6 @@ class EmptyDefer(Defer):
 
     def get(self) -> Update:
         return {}
-
-
-class InvokeProcess:
-    def __init__(
-            self,
-            process: Process,
-            interval: float,
-            states: State,
-    ) -> None:
-        """A wrapper object that computes an update.
-
-        This class holds the update of a process that is not running in
-        parallel. When instantiated, it immediately computes the
-        process's next update.
-
-        Args:
-            process: The process that will calculate the update.
-            interval: The timestep for the update.
-            states: The simulation state to pass to the process's
-                ``next_update`` function.
-        """
-        self.process = process
-        self.interval = interval
-        self.states = states
-        self.update = invoke_process(
-            self.process,
-            self.interval,
-            self.states)
-
-    def get(self) -> Update:
-        """Return the computed update.
-
-        This method is analogous to the ``.get()`` method in
-        :py:class:`vivarium.core.process.ParallelProcess` so that
-        parallel and non-parallel updates can be intermixed in the
-        simulation engine.
-        """
-        return self.update
 
 
 class _StepGraph:
@@ -308,10 +259,10 @@ class _StepGraph:
         self._sequential_steps.append(path)
         self._validate()
 
-    def get_execution_layers(self) -> List[Set[HierarchyPath]]:
+    def get_execution_layers(self) -> List[List[HierarchyPath]]:
         """Get step execution layers, with steps represnted by paths.
 
-        An execution layer is a set of steps that can be executed in
+        An execution layer is a list of steps that can be executed in
         parallel. The graph's execution layers are an ordered list of
         these layers such that:
 
@@ -328,8 +279,8 @@ class _StepGraph:
             represented by its path.
         """
         layers = nx.topological_generations(self._graph)
-        to_return = [set([step]) for step in self._sequential_steps]
-        to_return += [set(layer) for layer in layers]
+        to_return = [[step] for step in self._sequential_steps]
+        to_return += [sorted(layer) for layer in layers]
         return to_return
 
     def remove(self, path: HierarchyPath) -> None:
@@ -357,9 +308,40 @@ class _StepGraph:
         return new
 
 
+<<<<<<< HEAD
 class Engine(Process):
-    """Defines simulations
+# =======
+# class Engine:
+#     def __init__(
+#             self,
+#             composite: Optional[Composite] = None,
+#             processes: Optional[Processes] = None,
+#             steps: Optional[Steps] = None,
+#             flow: Optional[Flow] = None,
+#             topology: Optional[Topology] = None,
+#             store: Optional[Store] = None,
+#             initial_state: Optional[State] = None,
+#             experiment_id: Optional[str] = None,
+#             experiment_name: Optional[str] = None,
+#             metadata: Optional[dict] = None,
+#             description: str = '',
+#             emitter: Union[str, dict] = 'timeseries',
+#             store_schema: Optional[dict] = None,
+#             emit_topology: bool = True,
+#             emit_processes: bool = False,
+#             emit_config: bool = False,
+#             emit_step: float = 1,
+#             display_info: bool = True,
+#             progress_bar: bool = False,
+#             global_time_precision: Optional[int] = None,
+#             profile: bool = False,
+#             initial_global_time: float = 0,
+#     ) -> None:
+#         """Defines simulations
+# >>>>>>> 60f5d7ab95c4967be3f744e6028348fa8862cbc5
 
+
+    """Defines simulations
         Args:
             parameters: a parameter dict that may contain the following keys:
                 * ``composite``: A :term:`Composite`, which specifies the
@@ -383,9 +365,17 @@ class Engine(Process):
                 names to tuples that specify a path through the :term:`tree`
                 from the root to the :term:`store` that will be passed to the
                 process for that port.
-                * ``store``: A pre-loaded Store. This is an alternative to
-                passing in processes and topology dict, which can not be loaded
-                at the same time.
+                * ``store``: A pre-loaded Store. This is an alternative to passing
+                in processes and topology dict, which can not be loaded
+                at the same time. Note that if you provide this
+                argument, you must ensure that all parallel processes
+                (i.e. :py:class:`vivarium.core.process.Process` objects
+                with the ``parallel`` attribute set to ``True``) are
+                instances of
+                :py:class:`vivarium.core.process.ParallelProcess`. This
+                constructor converts parallel processes to
+                ``ParallelProcess`` objects automatically if you do not
+                provide this ``store`` argument.
                 * ``initial_state``: By default an empty dictionary, this is the
                 initial state of the simulation.
                 * ``experiment_id``: A unique identifier for the experiment. A
@@ -418,6 +408,11 @@ class Engine(Process):
                 * ``emit_config``: If True, this will emit the serialized
                 initial state with the configuration data.
                 * ``profile``: Whether to profile the simulation with cProfile.
+                * ``emit_config``: If True, this will emit the serialized initial
+                state with the configuration data.
+                * ``initial_global_time``: The initial time for the simulation.
+                Useful when this Engine is part of a larger, older
+                simulation.
     """
 
     defaults: Dict[str, Any] = {
@@ -491,10 +486,6 @@ class Engine(Process):
         if self.display_info:
             self._print_display()
 
-        # parallel settings
-        self.invoke = self.parameters['invoke'] or InvokeProcess
-        self.parallel: Dict[HierarchyPath, ParallelProcess] = {}
-
         # get a mapping of all paths to processes
         self.process_paths: Dict[HierarchyPath, Process] = {}
         self._step_graph = _StepGraph()
@@ -523,7 +514,7 @@ class Engine(Process):
         self.emit_config = self.parameters['emit_config']
 
         # initialize global time
-        self.global_time = 0.0
+        self.global_time = initial_global_time
 
         # front tracks how far each process has been simulated in time,
         # and also holds the processes' updates before they are applied.
@@ -646,6 +637,20 @@ class Engine(Process):
                     'load either composite, store, or '
                     '(processes and topology) into Engine')
 
+            self.processes = cast(
+                Dict[str, Any],
+                self._parallelize_processes(self.processes)
+            )
+            self.steps = cast(
+                Dict[str, Any],
+                self._parallelize_processes(self.steps)
+            )
+
+            # put the parallelized processes back in the composite.
+            if composite:
+                composite['processes'] = self.processes
+                composite['steps'] = self.steps
+
             # initialize the store
             self.state: Store = generate_state(
                 self.processes,
@@ -665,6 +670,23 @@ class Engine(Process):
             self.steps = self.state.get_steps() or {}
             self.flow = self.state.get_flow() or {}
             self.topology = self.state.get_topology()
+
+    def _parallelize_processes(
+            self, processes: Any) -> Union[dict, Process]:
+        '''Replace parallel processes with ParallelProcess objects.'''
+        if isinstance(processes, Process):
+            if processes.parallel and not isinstance(
+                    processes, ParallelProcess):
+                processes = ParallelProcess(
+                    processes, bool(self.profiler), self.stats_objs)
+        elif isinstance(processes, dict):
+            processes = {
+                key: self._parallelize_processes(value)
+                for key, value in processes.items()
+            }
+        else:
+            raise AssertionError(f'Unrecognized collection: {processes}')
+        return processes
 
     def _add_step_path(
             self,
@@ -737,7 +759,7 @@ class Engine(Process):
         }
         emit_config: Dict[str, Any] = {
             'table': 'configuration',
-            'data': serialize_value(data)
+            'data': data
         }
         self.emitter.emit(emit_config)
 
@@ -750,13 +772,12 @@ class Engine(Process):
             'time': self.global_time})
         emit_config = {
             'table': 'history',
-            'data': serialize_value(data)}
+            'data': data}
         self.emitter.emit(emit_config)
 
     def _invoke_process(
             self,
             process: Process,
-            path: HierarchyPath,
             interval: float,
             states: State,
     ) -> Any:
@@ -768,28 +789,16 @@ class Engine(Process):
 
         Args:
             process: The process.
-            path: The path at which the process resides. This is used to
-                track parallel processes in ``self.parallel``.
             interval: The timestep for which to compute the update.
             states: The simulation state to pass to
                 :py:meth:`vivarium.core.process.Process.next_update`.
 
         Returns:
             The deferred simulation update, for example a
-            :py:class:`vivarium.core.process.ParallelProcess` or an
-            :py:class:`InvokeProcess` object.
+            :py:class:`vivarium.core.process.ParallelProcess`.
         """
-        if process.parallel:
-            # add parallel process if it doesn't exist
-            if path not in self.parallel:
-                self.parallel[path] = ParallelProcess(
-                    process, bool(self.profiler))
-            # trigger the computation of the parallel process
-            self.parallel[path].update(interval, states)
-
-            return self.parallel[path]
-        # if not parallel, perform a normal invocation
-        return self.invoke(process, interval, states)
+        process.send_command('next_update', (interval, states))
+        return process
 
     def _process_update(
             self,
@@ -819,15 +828,13 @@ class Engine(Process):
             Tuple of the deferred update (in absolute terms) and
             ``store``.
         """
-
-        update = self._invoke_process(
+        process = self._invoke_process(
             process,
-            path,
             interval,
             states)
 
         absolute = Defer(
-            update,
+            process,
             invert_topology,
             (path, store.topology))
 
@@ -917,11 +924,29 @@ class Engine(Process):
             flow_updates, deletions, view_expire
         ) = self.state.apply_update(update, state)
 
+        process_updates = [
+            (path, self._parallelize_processes(process))
+            for path, process in process_updates
+        ]
+        step_updates = [
+            (path, self._parallelize_processes(step))
+            for path, step in step_updates
+        ]
+        # Make sure the Store contains the parallelized processes.
+        for path, process in process_updates:
+            self.state.get_path(path).value = process
+        for path, step in step_updates:
+            self.state.get_path(path).value = step
+
         flow_update_dict = dict(flow_updates)
 
         if topology_updates:
             for path, topology_update in topology_updates:
                 assoc_path(self.topology, path, topology_update)
+
+        if flow_updates:
+            for path, topology_update in flow_updates:
+                assoc_path(self.flow, path, flow_updates)
 
         if process_updates:
             for path, process in process_updates:
@@ -952,6 +977,7 @@ class Engine(Process):
         delete_in(self.processes, deletion)
         delete_in(self.steps, deletion)
         delete_in(self.topology, deletion)
+        delete_in(self.flow, deletion)
 
         for path in list(self.process_paths.keys()):
             if starts_with(path, deletion):
@@ -1045,11 +1071,6 @@ class Engine(Process):
         if self.display_info:
             self._print_summary(runtime)
 
-    def complete(self) -> None:
-        """Force all processes to complete at the current global time"""
-        self.run_for(interval=0, force_complete=True)
-        self._check_complete()
-
     def _check_complete(self) -> None:
         """Check that all processes completed"""
         for path, advance in self.front.items():
@@ -1060,16 +1081,7 @@ class Engine(Process):
                 f"the process at path {path} is an unapplied update"
 
     def _remove_deleted_processes(self) -> None:
-        # find any parallel processes that were removed and terminate them
-        for terminated in self.parallel.keys() - (
-                self.process_paths.keys() | self._step_paths.keys()):
-            self.parallel[terminated].end()
-            stats = self.parallel[terminated].stats
-            if stats:
-                self.stats_objs.append(stats)
-            del self.parallel[terminated]
-
-        # remove deleted process paths from the front
+        '''Remove deleted processes from the front.'''
         self.front = {
             path: progress
             for path, progress in self.front.items()
@@ -1161,6 +1173,16 @@ class Engine(Process):
     ) -> Update:
         """Run each process within the given interval and update their states.
 
+        :py:meth:`run_for` gives the caller more control over the
+        simulation loop than :py:meth:`update`. In particular, it may be
+        called repeatedly within a caller-managed simulation loop
+        without forcing processes to complete after each call (as would
+        be the case with :py:meth:`update`). It is the responsibility
+        of the caller to ensure that when :py:meth:`run_for` is called
+        for the last time in the caller-managed simulation loop,
+        `force_complete=True` so that all the processes finish at the
+        end of the simulation.
+
         Args:
             interval: the amount of time to simulate the composite.
             force_complete: a bool indicating whether to force processes
@@ -1238,6 +1260,13 @@ class Engine(Process):
     def is_engine(self) -> bool:
         return True
 
+    @staticmethod
+    def _end_process_if_parallel(process: Process) -> None:
+        if process.parallel:
+            assert isinstance(process, ParallelProcess)
+            process.end()
+
+
     def end(self) -> None:
         """Terminate all processes running in parallel.
 
@@ -1246,10 +1275,8 @@ class Engine(Process):
         profiling stats, including stats from parallel sub-processes.
         These stats are stored in ``self.stats``.
         """
-        for parallel in self.parallel.values():
-            parallel.end()
-            if parallel.stats:
-                self.stats_objs.append(parallel.stats)
+        apply_func_to_leaves(
+            self.processes, self._end_process_if_parallel)
         if self.profiler:
             self.profiler.disable()
             total_stats = pstats.Stats(self.profiler)

@@ -19,9 +19,10 @@ more-itertools==8.5.0
 nbsphinx==0.8.7
 networkx==2.5
 numpy==1.19.1
+orjson==3.8.0
 packaging==20.4
 Pillow==7.2.0
-Pint==0.15
+Pint==0.20.1
 pluggy==0.13.1
 py==1.9.0
 Pygments==2.6.1

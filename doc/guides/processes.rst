@@ -562,3 +562,40 @@ The above pseudocode is simplified, and for all but the most simple
 processes you will be better off using Vivarium's built-in simulation
 capabilities. We hope though that this helps you understand how
 processes are simulated and the purpose of the API we defined.
+
+-------------------
+Parallel Processing
+-------------------
+
+Process Commands
+================
+
+When a :term:`process` is run in parallel, we can't interact with it in
+the normal Python way. Instead, we can only exchange messages with it
+through a pipe. Vivarium structures these exchanges using :term:`process
+commands`.
+
+Vivarium provides some built-in commands, which are documented in
+:py:meth:`vivarium.core.process.Process.send_command`. Also see that
+method's documentation for instructions on how to add support for your
+own commands.
+
+Process commands are designed to be used asynchronously, so to retrieve
+the result of running a command, you need to call
+:py:meth:`vivarium.core.process.Process.get_command_result`. As a
+convenience, you can also call
+:py:meth:`vivarium.core.process.Process.run_command` to send a command
+and get its result as a return value in one function call.
+
+Running Processes in Parallel
+=============================
+
+In normal situations though, you shouldn't have to worry about process
+commands. Instead, just pass ``'_parallel': True`` in a process's
+configuration dictionary, and the Vivarium Engine will handle the
+parallelization for you. Just remember that parallelization requires
+that processes be serialized and deserialized at the start of the
+simulation, and this serialization only preserves the process
+parameters. This means that if you instantiate a process and then change
+its instance variables, those changes won't be preserved when the
+process gets parallelized.

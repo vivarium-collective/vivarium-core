@@ -4,7 +4,7 @@ import copy
 from functools import reduce
 import operator
 import traceback
-from typing import Optional
+from typing import Optional, Any, Callable
 
 from vivarium.library.units import Quantity
 
@@ -21,23 +21,43 @@ def merge_dicts(dicts):
     return merge
 
 
-def deep_merge_check(dct, merge_dct):
-    """Recursive dict merge with checks
+def deep_merge_check(dct, merge_dct, check_equality=False, path=tuple()):
+    """Recursively merge dictionaries with checks to avoid overwriting.
 
-    Throws exceptions for conflicting values.
-    This mutates dct - the contents of merge_dct are added to dct (which is also returned).
-    If you want to keep dct you could call it like deep_merge_check(copy.deepcopy(dct), merge_dct)
+    Args:
+        dct: The dictionary to merge into. This dictionary is mutated
+            and ends up being the merged dictionary.  If you want to
+            keep dct you could call it like
+            ``deep_merge_check(copy.deepcopy(dct), merge_dct)``.
+        merge_dct: The dictionary to merge into ``dct``.
+        check_equality: Whether to use ``==`` to check for conflicts
+            instead of the default ``is`` comparator. Note that ``==``
+            can cause problems when used with Numpy arrays.
+        path: If the ``dct`` is nested within a larger dictionary, the
+            path to ``dct``. This is normally an empty tuple (the
+            default) for the end user but is used for recursive calls.
+
+    Returns:
+        ``dct``
+
+    Raises:
+        ValueError: Raised when conflicting values are found between
+            ``dct`` and ``merge_dct``.
     """
-
-    for k, v in merge_dct.items():
+    for k in merge_dct:
         if (k in dct and isinstance(dct[k], dict)
                 and isinstance(merge_dct[k], collections.abc.Mapping)):
-            try:
-                deep_merge_check(dct[k], merge_dct[k])
-            except ValueError:
-                raise ValueError('dict merge mismatch: key "{}" has values {} AND {}'.format(k, dct[k], merge_dct[k]))
-        elif k in dct and (dct[k] is not merge_dct[k]):
-            raise ValueError('dict merge mismatch: key "{}" has values {} AND {}'.format(k, dct[k], merge_dct[k]))
+            deep_merge_check(dct[k], merge_dct[k], check_equality, path + (k,))
+        elif k in dct and not check_equality and (dct[k] is not merge_dct[k]):
+            raise ValueError(
+                f'Failure to deep-merge dictionaries at path {path + (k,)}: '
+                f'{dct[k]} IS NOT {merge_dct[k]}'
+            )
+        elif k in dct and check_equality and (dct[k] != merge_dct[k]):
+            raise ValueError(
+                f'Failure to deep-merge dictionaries at path {path + (k,)}: '
+                f'{dct[k]} DOES NOT EQUAL {merge_dct[k]}'
+            )
         else:
             dct[k] = merge_dct[k]
     return dct
@@ -312,6 +332,22 @@ def make_path_dict(embedded_dict):
     for path in paths_list:
         path_dict[path] = get_value_from_path(embedded_dict, path)
     return path_dict
+
+
+def apply_func_to_leaves(root: Any, func: Callable[[Any], None]) -> None:
+    '''Apply a function to every leaf node in a nested dictionary.
+
+    >>> root = {1: [], 2: {3: [], 4: []}}
+    >>> func = lambda x: x.append(True)
+    >>> apply_func_to_leaves(root, func)
+    >>> root
+    {1: [True], 2: {3: [True], 4: [True]}}
+    '''
+    if not isinstance(root, dict):
+        func(root)
+        return
+    for child in root.values():
+        apply_func_to_leaves(child, func)
 
 
 def test_deep_copy_internal():

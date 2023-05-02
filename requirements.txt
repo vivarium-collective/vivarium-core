@@ -2,12 +2,13 @@
 matplotlib==3.5.1
 networkx==2.6.3
 numpy==1.22.1
-Pint==0.18
+Pint==0.20.1
 pymongo==4.0.1
 scipy==1.7.3
+orjson==3.8.0
 
 # Direct Development Dependencies
-mypy==0.931
+mypy==0.981
 mypy-extensions==0.4.3
 pylint==2.12.2
 pytest==6.2.5

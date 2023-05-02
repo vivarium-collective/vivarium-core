@@ -13,14 +13,15 @@ import uuid
 import warnings
 
 import numpy as np
-from pint import Quantity
+from pint import Unit, Quantity
 from typing import Optional
 
 from vivarium import divider_registry, serializer_registry, updater_registry
-from vivarium.core.process import Process, Step
+from vivarium.core.process import ParallelProcess, Process
 from vivarium.library.dict_utils import deep_merge, deep_merge_check, MULTI_UPDATE_KEY
 from vivarium.library.topology import without, dict_to_paths, inverse_topology
 from vivarium.core.types import Processes, Topology, State, Steps, Flow
+from vivarium.core.serialize import QuantitySerializer
 
 
 _EMPTY_UPDATES = None, None, None, None, None, None
@@ -193,6 +194,12 @@ class Store:
       dictionary by default.
     * **_emit** (:py:class:`bool`): Whether to emit the variable to the
       :term:`emitter`. This is ``False`` by default.
+    * **_serializer** (:py:class:`vivarium.core.registry.Serializer` or
+      :py:class:`str`): Serializer (or name of serializer) whose ``serialize``
+      method should be called on data in this store before emitting and whose
+      ``deserialize`` method should be called when repopulating this store
+      from serialized data. Only define if it is necessary to serialize and
+      deserialize data in this store differently from other data of the same type.
     """
     schema_keys = {
         '_default',
@@ -495,6 +502,17 @@ class Store:
         """
         current_schema_value = getattr(self, schema_key)
         if current_schema_value is not None and current_schema_value != new_schema:
+            if schema_key == "units":
+                # Different Python interpreters (inc. from multiprocessing with
+                # spawn start method) yield different hashes for the same value
+                # Reset cached hashes for Pint Units to force rehash before ==
+                if (isinstance(current_schema_value, Unit) 
+                    and isinstance(new_schema, Unit)
+                ):
+                    current_schema_value._units._hash = None
+                    new_schema._units._hash = None
+                    if current_schema_value == new_schema:
+                        return new_schema
             raise ValueError(
                 f"Incompatible schema assignment at {self.path_for()}. "
                 f"Trying to assign the value {new_schema} to key {schema_key}, "
@@ -578,25 +596,28 @@ class Store:
             config = {}  # config needs to be a dict
 
         # remove _output special key. This is used only by schema_topology.
-        config = without(config, '_output')
+        config = config.copy()
+        config.pop('_output', None)
 
         if '*' in config:
-            self._apply_subschema_config(config['*'])
-            config = without(config, '*')
+            self._apply_subschema_config(config.pop('*'))
 
         if '_subschema' in config:
+            subschema = config.pop('_subschema')
             if source:
-                self.sources[source] = config['_subschema']
-            self._apply_subschema_config(config['_subschema'])
-            config = without(config, '_subschema')
+                self.sources[source] = subschema
+            self._apply_subschema_config(subschema)
+            
+            
 
         if '_subtopology' in config:
-            self._merge_subtopology(config['_subtopology'])
-            config = without(config, '_subtopology')
+            self._merge_subtopology(config.pop('_subtopology'))
+
+        if source:
+            self.sources[source] = config
 
         if '_topology' in config:
-            self.topology = config['_topology']
-            config = without(config, '_topology')
+            self.topology = config.pop('_topology')
 
         if '_flow' in config:
             flow = config.pop('_flow')
@@ -604,18 +625,18 @@ class Store:
                 self.flow = flow
 
         if '_divider' in config:
-            new_divider = config['_divider']
+            new_divider = config.pop('_divider')
             self.divider = self._check_schema_support_defaults(
                 'divider', new_divider, divider_registry)
-            config = without(config, '_divider')
 
-        # if emit set in branch, set the entire branch to the emit value
+        # If emit is set on a branch node, set the entire branch to the
+        # emit value.
         if '_emit' in config and self.inner:
-                emit_value = config['_emit']
-                self.set_emit_value(emit=emit_value)
-                config = without(config, '_emit')
+            emit_value = config.pop('_emit')
+            self.set_emit_value(emit=emit_value)
 
         if self.schema_keys & set(config.keys()):
+            # We are at a leaf node, so apply its config.
             if self.inner:
                 raise Exception(
                     'trying to assign leaf values to a branch at: {}'.format(
@@ -625,7 +646,8 @@ class Store:
             if '_units' in config:
                 self.units = self._check_schema(
                     'units', config.get('_units'))
-                self.serializer = serializer_registry.access('units')
+                self.serializer = serializer_registry.access(
+                    str(QuantitySerializer.python_type))
 
             if '_serializer' in config:
                 serializer = config['_serializer']
@@ -640,16 +662,15 @@ class Store:
                 if isinstance(self.default, Quantity):
                     self.units = self.units or self.default.units
                     self.serializer = (self.serializer or
-                                       serializer_registry.access('units'))
+                                       serializer_registry.access(
+                                        str(QuantitySerializer.python_type)))
                 elif isinstance(self.default, list) and \
                         len(self.default) > 0 and \
                         isinstance(self.default[0], Quantity):
                     self.units = self.units or self.default[0].units
                     self.serializer = (self.serializer or
-                                       serializer_registry.access('units'))
-                elif isinstance(self.default, np.ndarray):
-                    self.serializer = (self.serializer or
-                                       serializer_registry.access('numpy'))
+                                       serializer_registry.access(
+                                        str(QuantitySerializer.python_type)))
 
             if '_value' in config:
                 self.value = self._check_schema(
@@ -674,11 +695,8 @@ class Store:
                 config.get('_properties', {}))
 
             self.emit = config.get('_emit', self.emit)
-
-            if source:
-                self.sources[source] = config
-
         else:
+            # We are at a branch node. Create and configure child nodes.
             if self.leaf and config:
                 if self.value:
                     raise Exception(
@@ -1073,13 +1091,11 @@ class Store:
         if self.emit:
             if self.serializer:
                 if isinstance(self.value, list) and self.units:
-                    return self.serializer.serialize(
-                        [v.to(self.units) for v in self.value])
+                    return [self.serializer.serialize(v.to(self.units))
+                            for v in self.value]
                 if self.units:
                     return self.serializer.serialize(
                         self.value.to(self.units))
-                if isinstance(self.value, list):
-                    return self.value
                 return self.serializer.serialize(self.value)
             if self.units:
                 return self.value.to(self.units).magnitude
@@ -1108,6 +1124,15 @@ class Store:
         else:
             self.emit = emit
 
+    def recursive_end_process(self, value):
+        if isinstance(value.value, ParallelProcess):
+            value.value.end()
+            return
+        elif isinstance(value, Store):
+            for subval in value.inner:
+                self.recursive_end_process(value[subval])
+        return
+    
     def _delete_path(self, path):
         """
         Delete the subtree at the given path.
@@ -1121,6 +1146,8 @@ class Store:
         remove = path[-1]
         if remove in target.inner:
             lost = target.inner[remove]
+            # End any parallel processes to be deleted
+            self.recursive_end_process(target.inner[remove])
             del target.inner[remove]
             return lost
         return None
@@ -1403,7 +1430,7 @@ class Store:
                 topology = topology or {}
 
             # get the daughter flow
-            if 'flow' in daughter:
+            if 'flow' in daughter and daughter['flow']:
                 flow = daughter['flow']
             else:
                 # if no flow provided, copy the mother's flow
@@ -1435,7 +1462,6 @@ class Store:
             target = self.get_path(daughter_path)
             target.apply_defaults()
             target.set_value(merged_initial_state)
-
 
         self._delete_path(mother_path)
         deletions.append(tuple(here + mother_path))
@@ -1665,6 +1691,11 @@ class Store:
                 raise Exception(
                     f"failed update at path {self.path_for()} "
                     f"with value {self.value} for update {pformat(update)}")
+        if self.units:
+            if isinstance(self.value, list):
+                self.value = [v.to(self.units) for v in self.value]
+            else:
+                self.value = self.value.to(self.units)
 
         return _EMPTY_UPDATES
 
@@ -1796,11 +1827,11 @@ class Store:
 
         node = self
         if '_path' in path:
+            path = path.copy()
             node = self._establish_path(
-                path['_path'],
+                path.pop('_path'),
                 {},
                 source=source)
-            path = without(path, '_path')
 
         return node, path
 
@@ -1909,7 +1940,7 @@ class Store:
         source = source or self.path_for()
 
         if set(schema.keys()) & self.schema_keys:
-            self.get_path(topology)._apply_config(schema)
+            self.get_path(topology)._apply_config(schema, source=source)
         else:
             mismatch_topology = (
                 set(topology.keys()) - set(schema.keys()))

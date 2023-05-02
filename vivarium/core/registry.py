@@ -60,10 +60,53 @@ function MUST return either:
 .. note:: Dividers MAY not be deterministic and MAY not be symmetric.
     For example, a divider splitting an odd, integer-valued value may
     randomly decide which daughter cell receives the remainder.
+    
+-----------
+Serializers
+-----------
+
+Each :term:`serializer` is defined as a class that follows the API we
+describe below. Vivarium uses these serializers to convert emitted data
+into a BSON-compatible format for database storage. Serializer names are
+registered in :py:data:`serializer_registry`, which maps these names to
+serializer subclasses. For maximum performance, register serializers
+using a key equal to the string representation of its designated type
+(e.g. ``str(Serializer.python_type)``).
+
+Serializer API
+==============
+
+Serializers MUST define the following:
+
+1. The ``python_type`` class attributes that determines what types are
+   handled by the serializer
+2. The :py:meth:`vivarium.core.registry.Serializer.serialize()` method
+   which is called on all objects of type ``python_type``
+
+Avoid defining custom serializers for built-in or Numpy types as these are
+automatically handled by ``orjson``, the package used to serialize data.
+
+.. note:: All dictionary keys MUST be Python strings for ``orjson`` to work.
+    Numpy strings (``np.str_``) are not allowed.
+
+If it is necessary to redefine the how objects are serialized by orjson,
+assign custom serializers to the stores containing objects of the affected
+type(s) using the ``_serializer`` ports schema key. This can also be used
+to serialize objects of the same Python type differently. To ensure that
+objects serialized this way are deserialized correctly, you SHOULD consider
+implementing the following as well:
+
+1. :py:meth:`vivarium.core.registry.Serializer.can_deserialize()` to determine
+   whether to call ``deserialize`` on data
+2. :py:meth:`vivarium.core.registry.Serializer.deserialize()` to deserialize
+   data
+
+If it is necessary to deserialize objects of the same BSON type differently,
+the corresponding serializer(s) MUST implement these 2 methods.
 """
 import copy
 import random
-import re
+from typing import Any
 
 import numpy as np
 
@@ -88,12 +131,7 @@ class Registry(object):
                 returned by ``Registry.list()``.
 
                 This may be useful if you want to be able to look up an
-                item in the registry under multiple keys. For example,
-                in a registry of serializers, you could register a
-                serializer with its name as ``key`` and the types it can
-                serialize under ``alternate_keys``. Then, when presented
-                with an object to serialize, you could use the object's
-                type to look up the appropriate serializer.
+                item in the registry under multiple keys.
         """
         keys = [key]
         keys.extend(alternate_keys)
@@ -335,131 +373,55 @@ def divide_null(state):
     return None
 
 
+
 # Serializers
 class Serializer:
     """Base serializer class.
 
     Serializers work together to convert Python objects, which may be
-    collections of many different kinds of objects, into JSON-compatible
+    collections of many different kinds of objects, into BSON-compatible
     representations. Those representations can then be deserialized to
     recover the original object.
 
-    Most serializers convert an object to a string. To implement a
-    serializer of this type, you only need to implement the
-    :py:meth:`vivarium.core.registry.Serializer.serialize_to_string` and
-    :py:meth:`vivarium.core.registry.Serializer.deserialize()` methods.
+    Serialization of Python's built-in datatypes and most Numpy types is
+    handled directly by the ``orjson.dumps()`` method.
+    
+    The serialization routines in Serializers are compiled into a fallback
+    function that is called on objects not handled by ``orjson``.
+
+    If one wishes to modify how built-in/Numpy objects are serialized, the
+    relevant stores can be assigned a custom serializer using the 
+    ``_serializer`` key. The :py:meth:`vivarium.core.registry.Serializer.serialize()`
+    method of that serializer will be called on the values in these stores
+    before they are passed to ``orjson``.
+    
+    During deserialization, the ``can_deserialize`` method of each Serializer
+    is used to determine whether to call the ``deserialize`` method.
 
     Args:
         name: Name of the serializer. Defaults to the class name.
-        exclusive_types: Types that are exclusively handled by this
-            serializer. These can be used to quickly lookup which
-            serializer handles a particular type. If an object does not
-            match any of these exclusive types, the `can_serialize`
-            method will be used as a fallback.
-
-            Note that exclusive type matching is exact--inheritance is
-            not accounted for. This means that if your serializer has an
-            exclusive type of A and B inherits from A, an instance of B
-            will not match to your serializer's exclusive types.
     """
-    REGEX_FOR_NAME = re.compile('[A-Za-z0-9-_]+')
-    REGEX_FOR_SERIALIZED_ANY_TYPE = re.compile(
-        f'!{REGEX_FOR_NAME.pattern}\\[(.*)\\]')
-
-    def __init__(self, name='', exclusive_types=tuple()):
-        self.name = name or self.__class__.__name__
-        self.regex_for_serialized = re.compile(f'!{self.name}\\[(.*)\\]')
-        self.alternate_keys = (
-            str(exclusive_type)
-            for exclusive_type in exclusive_types
-        )
-
-    def serialize_to_string(self, data):
-        """Serialize some data.
-
-        Subclasses should override this function,
-
-        Args:
-            data: Data to serialize.
-
-        Returns:
-            The serialized data.
-        """
-        raise NotImplementedError(
-            f'{self} has not implemented serialize_to_string().')
-
+    python_type: Any = None #: Type matching is NOT exact (subclasses included)
+    
+    def __init__(self):
+        # Register serializer under its exclusive type
+        self.name = str(self.python_type) or self.__class__.__name__
+    
     def serialize(self, data):
-        """Serialize some data.
-
-        Subclasses that are serializing to strings can just implement
-        :py:meth:`vivarium.core.registry.Serializer.serialize_to_string`,
-        and this method will use that implementation to generate a
-        string that serializes the data.
-
-        Subclasses with more complex serialization needs must override
-        this function.
-
-        Args:
-            data: Data to serialize.
-
-        Returns:
-            The serialized data.
+        """Controls what happens to data of the type ``python_type``
         """
-        string_serialization = self.serialize_to_string(data)
-        if not isinstance(string_serialization, str):
-            raise ValueError(
-                f'{self}.serialize_to_string() returned invalid '
-                f'serialization: {string_serialization}')
-
-        return f'!{self.name}[{string_serialization}]'
-
-    def can_serialize(self, data):
-        """Check whether the serializer can serialize some data.
-
-        Every subclass must implement this method.
-        """
-        raise NotImplementedError(
-            f'{self} has not implemented can_serialize().')
-
-    def deserialize_from_string(self, data):
-        """Deserialize data from a string.
-
-        This function is the inverse of
-        :py:meth:`vivarium.core.registry.Serializer.serialize_to_string`.
-        It need only be overridden in a subclass if that subclass does
-        not override
-        :py:meth:`vivarium.core.registry.Serializer.deserialize`.
-        """
-        raise NotImplementedError(
-            f'{self} has not implemented deserialize_from_string().')
+        pass
 
     def deserialize(self, data):
-        """Deserialize some data.
-
-        Subclasses relying on
-        :py:meth:`vivarium.core.registry.Serializer.serialize_to_string`
-        should not override this function and instead override
-        :py:meth:`vivarium.core.registry.Serializer.deserialize_from_string`.
-
-        Args:
-            data: Serialized data to deserialize.
-
-        Returns:
-            The deserialized data.
+        """This allows for data of the same BSON type to be deserialized
+        differently (see regex matching of strings in
+        :py:meth:`vivarium.core.serialize.UnitsSerializer.deserialize()`
+        for an example).
         """
-        string_serialization = self.regex_for_serialized.fullmatch(
-            data).group(1)
-        return self.deserialize_from_string(string_serialization)
+        pass
 
     def can_deserialize(self, data):
-        """Check whether the serializer can deserialize an object.
-
-        By default, this function checks that ``data`` is a string of the
-        form produced by the default implementation of
-        :py:meth:`vivarium.core.registry.Serializer.serialize`. If a
-        subclass overrides this ``serialize()`` method, it should also
-        override ``can_deserialize()``.
+        """This tells :py:func:`vivarium.core.serialize.deserialize_value`
+        whether to call ``deserialize`` on data.
         """
-        if not isinstance(data, str):
-            return False
-        return bool(self.regex_for_serialized.fullmatch(data))
+        pass

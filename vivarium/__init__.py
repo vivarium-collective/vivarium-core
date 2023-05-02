@@ -2,9 +2,6 @@
 Register processes, updaters, dividers, serializers upon import
 """
 
-# import matplotlib to help fix bug with import order
-import matplotlib.pyplot as plt
-
 # import registries
 from vivarium.core.registry import (
     process_registry,
@@ -44,18 +41,15 @@ from vivarium.core.registry import (
     divide_null, divide_binomial, divide_set_value,
 )
 from vivarium.core.serialize import (
-    IdentitySerializer, NumpySerializer, SequenceSerializer,
-    NumpyScalarSerializer, UnitsSerializer, ProcessSerializer,
-    ComposerSerializer, FunctionSerializer, ObjectIdSerializer,
-    DictSerializer,
+    NumpyFallbackSerializer, UnitsSerializer, QuantitySerializer,
+    SetSerializer, ProcessSerializer, FunctionSerializer,
+    SequenceDeserializer, DictDeserializer
 )
 
 # import emitters
 from vivarium.core.emitter import (
-    Emitter, NullEmitter, RAMEmitter, DatabaseEmitter
+    Emitter, NullEmitter, RAMEmitter, SharedRamEmitter, DatabaseEmitter
 )
-
-_ = plt  # suppress PyCharm's unused-import warning
 
 
 # register processes
@@ -97,17 +91,18 @@ divider_registry.register('null', divide_null)
 
 # register serializers
 for SerializerClass in (
-        IdentitySerializer, NumpySerializer, SequenceSerializer,
-        NumpyScalarSerializer, UnitsSerializer, ProcessSerializer,
-        ComposerSerializer, FunctionSerializer, ObjectIdSerializer,
-        DictSerializer):
+    NumpyFallbackSerializer, UnitsSerializer, QuantitySerializer,
+    SetSerializer, ProcessSerializer, FunctionSerializer,
+    SequenceDeserializer, DictDeserializer
+    ):
     serializer = SerializerClass()
     serializer_registry.register(
-        serializer.name, serializer, serializer.alternate_keys)
+        serializer.name, serializer)
 
 # register emitters
 emitter_registry.register('print', Emitter)
 emitter_registry.register('null', NullEmitter)
 emitter_registry.register('timeseries', RAMEmitter)
 emitter_registry.register('ram', RAMEmitter)
+emitter_registry.register('shared_ram', SharedRamEmitter)
 emitter_registry.register('database', DatabaseEmitter)

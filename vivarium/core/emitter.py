@@ -6,43 +6,49 @@ Emitters
 Emitters log configuration data and time-series data somewhere.
 """
 
+import os
 import json
 import uuid
-from typing import Any, Dict, List, Optional, Tuple, Callable
+import itertools
+from functools import partial
+from typing import Any, Dict, List, Optional, Tuple, Callable, Union
 from urllib.parse import quote_plus
+from concurrent.futures import ProcessPoolExecutor
 
-from pymongo import MongoClient
+from pymongo import ASCENDING
+from pymongo.errors import DocumentTooLarge
+from pymongo.mongo_client import MongoClient
+from bson import MinKey, MaxKey
 
 from vivarium.library.units import remove_units
 from vivarium.library.dict_utils import (
     value_in_embedded_dict,
     make_path_dict,
-    deep_merge,
+    deep_merge_check,
 )
-from vivarium.library.topology import assoc_path, get_in, paths_to_dict
-from vivarium.core.serialize import deserialize_value
+from vivarium.library.topology import (
+    assoc_path,
+    get_in,
+    paths_to_dict,
+)
 from vivarium.core.registry import emitter_registry
-
-MONGO_DOCUMENT_LIMIT = 1e7
+from vivarium.core.serialize import (
+    make_fallback_serializer_function,
+    serialize_value,
+    deserialize_value)
 
 HISTORY_INDEXES = [
-    'time',
-    'type',
-    'simulation_id',
-    'experiment_id',
+    'data.time',
+    [('experiment_id', ASCENDING),
+     ('data.time', ASCENDING),
+     ('_id', ASCENDING)],
 ]
 
 CONFIGURATION_INDEXES = [
-    'type',
-    'simulation_id',
     'experiment_id',
 ]
 
 SECRETS_PATH = 'secrets.json'
-
-
-def size_of(emit_data: Any) -> int:
-    return len(str(emit_data))
 
 
 def breakdown_data(
@@ -51,14 +57,14 @@ def breakdown_data(
         path: Tuple = (),
         size: float = None,
 ) -> list:
-    size = size or size_of(data)
+    size = size or len(str(data))
     if size > limit:
         if isinstance(data, dict):
             output = []
             subsizes = {}
             total = 0
             for key, subdata in data.items():
-                subsizes[key] = size_of(subdata)
+                subsizes[key] = len(str(subdata))
                 total += subsizes[key]
 
             order = sorted(
@@ -95,7 +101,7 @@ def breakdown_data(
             output.append((path, pruned))
             return output
 
-        print('value is too large to emit, ignoring data')
+        print(f'Data at {path} is too large, skipped: {size} > {limit}')
         return []
 
     return [(path, data)]
@@ -238,9 +244,11 @@ class RAMEmitter(Emitter):
     in RAM.
     """
 
-    def __init__(self, config: Dict[str, str]) -> None:
+    def __init__(self, config: Dict[str, Any]) -> None:
         super().__init__(config)
         self.saved_data: Dict[float, Dict[str, Any]] = {}
+        self.fallback_serializer = make_fallback_serializer_function()
+        self.embed_path = config.get('embed_path', tuple())
 
     def emit(self, data: Dict[str, Any]) -> None:
         """
@@ -249,11 +257,14 @@ class RAMEmitter(Emitter):
         ``data['data']['time']`` in the history.
         """
         if data['table'] == 'history':
-            emit_data = data['data']
-            time = emit_data['time']
-            self.saved_data[time] = {
-                key: value for key, value in emit_data.items()
-                if key not in ['time']}
+            emit_data = data['data'].copy()
+            time = emit_data.pop('time', None)
+            data_at_time = assoc_path({}, self.embed_path, emit_data)
+            self.saved_data.setdefault(time, {})
+            data_at_time = serialize_value(
+                data_at_time, self.fallback_serializer)
+            deep_merge_check(
+                self.saved_data[time], data_at_time, check_equality=True)
 
     def get_data(self, query: list = None) -> dict:
         """ Return the accumulated timeseries history of "emitted" data. """
@@ -271,6 +282,22 @@ class RAMEmitter(Emitter):
         return self.saved_data
 
 
+class SharedRamEmitter(RAMEmitter):
+    """
+    Accumulate the timeseries history portion of the "emitted" data to a table
+    in RAM that is shared across all instances of the emitter.
+    """
+
+    saved_data: Dict[float, Dict[str, Any]] = {}
+
+    def __init__(self, config: Dict[str, Any]) -> None:  # pylint: disable=super-init-not-called
+        # We intentionally don't call the superclass constructor because
+        # we don't want to create a per-instance ``saved_data``
+        # attribute.
+        self.fallback_serializer = make_fallback_serializer_function()
+        self.embed_path = config.get('embed_path', tuple())
+
+
 class DatabaseEmitter(Emitter):
     """
     Emit data to a mongoDB database
@@ -284,11 +311,11 @@ class DatabaseEmitter(Emitter):
     >>> # The line below works only if you have to have 27017 open locally
     >>> # emitter = DatabaseEmitter(config)
     """
-    client = None
     default_host = 'localhost:27017'
+    client_dict: Dict[int, MongoClient] = {}
 
     @classmethod
-    def create_indexes(cls, table: Any, columns: List[str]) -> None:
+    def create_indexes(cls, table: Any, columns: List[Any]) -> None:
         """Create the listed column indexes for the given DB table."""
         for column in columns:
             table.create_index(column)
@@ -297,12 +324,18 @@ class DatabaseEmitter(Emitter):
         """config may have 'host' and 'database' items."""
         super().__init__(config)
         self.experiment_id = config.get('experiment_id')
-        self.emit_limit = config.get('emit_limit', MONGO_DOCUMENT_LIMIT)
+        # In the worst case, `breakdown_data` can underestimate the size of
+        # data by a factor of 4: len(str(0)) == 1 but 0 is a 4-byte int.
+        # Use 4 MB as the breakdown limit to stay under MongoDB's 16 MB limit.
+        self.emit_limit = config.get('emit_limit', 4000000)
+        self.embed_path = config.get('embed_path', tuple())
 
-        # create singleton instance of mongo client
-        if DatabaseEmitter.client is None:
-            DatabaseEmitter.client = MongoClient(
+        # create new MongoClient per OS process
+        curr_pid = os.getpid()
+        if curr_pid not in DatabaseEmitter.client_dict:
+            DatabaseEmitter.client_dict[curr_pid] = MongoClient(
                 config.get('host', self.default_host))
+        self.client = DatabaseEmitter.client_dict[curr_pid]
 
         self.db = getattr(self.client, config.get('database', 'simulations'))
         self.history = getattr(self.db, 'history')
@@ -312,12 +345,20 @@ class DatabaseEmitter(Emitter):
         self.create_indexes(self.configuration, CONFIGURATION_INDEXES)
         self.create_indexes(self.phylogeny, CONFIGURATION_INDEXES)
 
+        self.fallback_serializer = make_fallback_serializer_function()
+
     def emit(self, data: Dict[str, Any]) -> None:
         table_id = data['table']
-        table = getattr(self.db, table_id)
-        emit_data = {
-            key: value for key, value in data.items()
-            if key not in ['table']}
+        table = self.db.get_collection(table_id)
+        time = data['data'].pop('time', None)
+        data['data'] = assoc_path({}, self.embed_path, data['data'])
+        # Analysis scripts expect the time to be at the top level of the
+        # dictionary, but some emits, like configuration emits, lack a
+        # time key.
+        if time is not None:
+            data['data']['time'] = time
+        emit_data = data.copy()
+        emit_data.pop('table', None)
         emit_data['experiment_id'] = self.experiment_id
         self.write_emit(table, emit_data)
 
@@ -326,14 +367,27 @@ class DatabaseEmitter(Emitter):
 
         Break up large emits into smaller pieces and emit them individually
         """
-        data = emit_data.pop('data')
-        broken_down_data = breakdown_data(self.emit_limit, data)
         assembly_id = str(uuid.uuid4())
-        for (path, datum) in broken_down_data:
-            d = dict(emit_data)
-            assoc_path(d, ('data',) + path, datum)
-            d['assembly_id'] = assembly_id
-            table.insert_one(d)
+        emit_data = serialize_value(emit_data, self.fallback_serializer)
+        try:
+            emit_data['assembly_id'] = assembly_id
+            table.insert_one(emit_data)
+        # If document is too large, break up into smaller dictionaries
+        # with shared assembly IDs and time keys
+        except DocumentTooLarge:
+            emit_data.pop('assembly_id')
+            experiment_id = emit_data.pop('experiment_id')
+            time = emit_data['data'].pop('time', None)
+            broken_down_data = breakdown_data(self.emit_limit, emit_data)
+            for (path, datum) in broken_down_data:
+                d: Dict[str, Any] = {}
+                assoc_path(d, path, datum)
+                d['assembly_id'] = assembly_id
+                d['experiment_id'] = experiment_id
+                if time:
+                    d.setdefault('data', {})
+                    d['data']['time'] = time
+                table.insert_one(d)
 
     def get_data(self, query: list = None) -> dict:
         return get_history_data_db(self.history, self.experiment_id, query)
@@ -362,23 +416,55 @@ def get_experiment_database(
     return db
 
 
+def delete_experiment(
+    host: str = 'localhost',
+    port: Any = 27017,
+    query: dict = None
+) -> None:
+    """Helper function to delete experiment data in parallel
+
+    Args:
+        host: Host name of database. This can usually be left as the default.
+        port: Port number of database. This can usually be left as the
+            default.
+        query: Filter for documents to delete.
+    """
+    history_collection = get_local_client(host, port, 'simulations').history
+    history_collection.delete_many(query, hint=HISTORY_INDEXES[1])
+
+
 def delete_experiment_from_database(
-        experiment_id: str,
-        port: Any = 27017,
-        database_name: str = 'simulations'
+    experiment_id: str,
+    host: str = 'localhost',
+    port: Any = 27017,
+    cpus: int = 1
 ) -> None:
     """Delete an experiment's data from a database.
 
     Args:
         experiment_id: Identifier of experiment.
+        host: Host name of database. This can usually be left as the default.
         port: Port number of database. This can usually be left as the
             default.
-        database_name: Name of the database table. This can usually be
-            left as the default.
+        cpus: Number of chunks to split delete operation into to be run in
+            parallel. Useful if single-threaded delete does not saturate I/O.
     """
-    db = get_experiment_database(port, database_name)
-    query = {'experiment_id': experiment_id}
-    db.history.delete_many(query)
+    db = get_local_client(host, port, 'simulations')
+    if cpus > 1:
+        chunks = get_data_chunks(db.history, experiment_id, cpus=cpus)
+        queries = []
+        for chunk in chunks:
+            queries.append({
+                'experiment_id': experiment_id,
+                '_id': {'$gte': chunk[0], '$lt': chunk[1]},
+                'data.time': {'$gte': MinKey(), '$lte': MaxKey()}
+            })
+        partial_del_exp = partial(delete_experiment, host, port)
+        with ProcessPoolExecutor(cpus) as executor:
+            executor.map(partial_del_exp, queries)
+    else:
+        query = {'experiment_id': experiment_id}
+        db.history.delete_many(query, hint=HISTORY_INDEXES[1])
     db.configuration.delete_many(query)
 
 
@@ -390,7 +476,11 @@ def assemble_data(data: list) -> dict:
             assembly_id = datum['assembly_id']
             if assembly_id not in assembly:
                 assembly[assembly_id] = {}
-            deep_merge(assembly[assembly_id], datum['data'])
+            deep_merge_check(
+                assembly[assembly_id],
+                datum['data'],
+                check_equality=True,
+            )
         else:
             assembly_id = str(uuid.uuid4())
             assembly[assembly_id] = datum['data']
@@ -411,12 +501,73 @@ def apply_func(
     return document
 
 
+def get_query(
+    projection: dict,
+    host: str,
+    port: Any,
+    query: dict
+) -> list:
+    """Helper function for parallel queries
+
+    Args:
+        projection: a MongoDB projection in dictionary form
+        host, port: used to create new MongoClient for each parallel process
+        query: a MongoDB query in dictionary form
+    Returns:
+        List of projected documents for given query
+    """
+    history_collection = get_local_client(host, port, 'simulations').history
+    return list(history_collection.find(query, projection,
+        hint=HISTORY_INDEXES[1]))
+
+
+def get_data_chunks(
+    history_collection: Any,
+    experiment_id: str,
+    start_time: Union[int, MinKey] = MinKey(),
+    end_time: Union[int, MaxKey] = MaxKey(),
+    cpus: int = 8
+) -> list:
+    """Helper function to get chunks for parallel queries
+
+    Args:
+        history_collection: the MongoDB history collection to query
+        experiment_id: the experiment id which is being retrieved
+        start_time, end_time: first and last simulation time to query
+        cpus: number of chunks to create
+    Returns:
+        List of ObjectId tuples that represent chunk boundaries.
+        For each tuple, include ``{'_id': {$gte: tuple[0], $lt: tuple[1]}}``
+        in the query to search its corresponding chunk.
+    """
+    id_cutoffs = list(history_collection.aggregate([{
+        '$match': {
+            'experiment_id': experiment_id,
+            'data.time': {'$gte': start_time, '$lte': end_time}}},
+        {'$project': {'_id':1}},
+        {'$bucketAuto': {'groupBy': '$_id', 'buckets': cpus}},
+        {'$group': {'_id': '', 'splitPoints': {'$push': '$_id.min'}}},
+        {'$unset': '_id'}],
+        hint={'experiment_id':1, 'data.time':1, '_id':1}))[0]['splitPoints']
+    id_ranges = []
+    for i in range(len(id_cutoffs)-1):
+        id_ranges.append((id_cutoffs[i], id_cutoffs[i+1]))
+    id_ranges.append((id_cutoffs[-1], MaxKey()))
+    return id_ranges
+
+
 def get_history_data_db(
-        history_collection: Any,
-        experiment_id: Any,
-        query: list = None,
-        func_dict: dict = None,
-        f: Callable[..., Any] = None,
+    history_collection: Any,
+    experiment_id: Any,
+    query: list = None,
+    func_dict: dict = None,
+    f: Callable[..., Any] = None,
+    filters: Optional[dict] = None,
+    start_time: Union[int, MinKey] = MinKey(),
+    end_time: Union[int, MaxKey] = MaxKey(),
+    cpus: int = 1,
+    host: str ='localhost',
+    port: Any = '27017'
 ) -> Dict[float, dict]:
     """Query MongoDB for history data.
 
@@ -431,11 +582,20 @@ def get_history_data_db(
             In the format: {('path', 'to', 'field1'): function}
         f: a function that applies equally to all fields in query. func_dict
             is the recommended approach and takes priority over f.
+        filters: MongoDB query arguments to further filter results
+            beyond matching the experiment ID.
+        start_time, end_time: first and last simulation time to query
+        cpus: splits query into this many chunks to run in parallel, useful if
+            single-threaded query does not saturate I/O (e.g. on Google Cloud)
+        host: used if cpus>1 to create MongoClient in parallel processes
+        port: used if cpus>1 to create MongoClient in parallel processes
     Returns:
         data (dict)
     """
 
     experiment_query = {'experiment_id': experiment_id}
+    if filters:
+        experiment_query.update(filters)
 
     projection = None
     if query:
@@ -443,7 +603,21 @@ def get_history_data_db(
         projection['data.time'] = 1
         projection['assembly_id'] = 1
 
-    cursor = history_collection.find(experiment_query, projection)
+    if cpus > 1:
+        chunks = get_data_chunks(history_collection, experiment_id, cpus=cpus)
+        queries = []
+        for chunk in chunks:
+            queries.append({
+                **experiment_query,
+                '_id': {'$gte': chunk[0], '$lt': chunk[1]},
+                'data.time': {'$gte': start_time, '$lte': end_time}
+            })
+        partial_get_query = partial(get_query, projection, host, port)
+        with ProcessPoolExecutor(cpus) as executor:
+            queried_chunks = executor.map(partial_get_query, queries)
+        cursor = itertools.chain.from_iterable(queried_chunks)
+    else:
+        cursor = history_collection.find(experiment_query, projection)
     raw_data = []
     for document in cursor:
         assert document.get('assembly_id'), \
@@ -463,12 +637,17 @@ def get_history_data_db(
     assembly = assemble_data(raw_data)
 
     # restructure by time
-    data = {}
+    data: Dict[float, Any] = {}
     for datum in assembly.values():
         time = datum['time']
-        data[time] = {
-            key: value for key, value in datum.items()
-            if key not in ['_id', 'time']}
+        datum = datum.copy()
+        datum.pop('_id', None)
+        datum.pop('time', None)
+        deep_merge_check(
+            data,
+            {time: datum},
+            check_equality=True,
+        )
 
     return data
 
@@ -491,13 +670,36 @@ def get_local_client(host: str, port: Any, database_name: str) -> Any:
 
 
 def data_from_database(
-        experiment_id: str,
-        client: Any,
-        query: list = None,
-        func_dict: dict = None,
-        f: Callable[..., Any] = None,
+    experiment_id: str,
+    client: Any,
+    query: list = None,
+    func_dict: dict = None,
+    f: Callable[..., Any] = None,
+    filters: Optional[dict] = None,
+    start_time: Union[int, MinKey] = MinKey(),
+    end_time: Union[int, MaxKey] = MaxKey(),
+    cpus: int = 1
 ) -> Tuple[dict, Any]:
-    """Fetch something from a MongoDB."""
+    """Fetch something from a MongoDB.
+
+    Args:
+        experiment_id: the experiment id which is being retrieved
+        client: a MongoClient instance connected to the DB
+        query: a list of tuples pointing to fields within the experiment data.
+            In the format: [('path', 'to', 'field1'), ('path', 'to', 'field2')]
+        func_dict: a dict which maps the given query paths to a function that
+            operates on the retrieved values and returns the results. If None
+            then the raw values are returned.
+            In the format: {('path', 'to', 'field1'): function}
+        f: a function that applies equally to all fields in query. func_dict
+            is the recommended approach and takes priority over f.
+        filters: MongoDB query arguments to further filter results
+            beyond matching the experiment ID.
+        start_time, end_time: first and last simulation time to query
+        cpus: splits query into this many chunks to run in parallel
+    Returns:
+        data (dict)
+    """
 
     # Retrieve environment config
     config_collection = client.configuration
@@ -512,8 +714,10 @@ def data_from_database(
 
     # Retrieve timepoint data
     history = client.history
-    data = get_history_data_db(
-        history, experiment_id, query, func_dict, f)
+    host = client.address[0]
+    port = client.address[1]
+    data = get_history_data_db(history, experiment_id, query, func_dict,
+        f, filters, start_time, end_time, cpus, host, port)
 
     return data, experiment_config
 
