@@ -425,7 +425,7 @@ class Engine(Process):
         'experiment_name': None,
         'flow': None,
         'global_time_precision': None,
-        'initial_global_time': 0,
+        'initial_global_time': 0.0,
         'initial_state': None,
         'intertopology': None,
         'invoke': None,
