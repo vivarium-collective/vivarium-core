@@ -958,21 +958,24 @@ class ToyDivider(Composer):
             'divider': ToyDividerProcess(division_config),
         }
 
-        return self.embed_prefix(processes, config)
+        return processes
+        # return self.embed_prefix(processes, config)
 
     def generate_steps(self, config):
         steps = {
             'step': ToyDividerStep(),
         }
 
-        return self.embed_prefix(steps, config)
+        return steps
+        # return self.embed_prefix(steps, config)
 
     def generate_flow(self, config):
         flow = {
             'step': [],
         }
 
-        return self.embed_prefix(flow, config)
+        return flow
+        # return self.embed_prefix(flow, config)
 
     def generate_topology(self, config):
         agents_path = config['agents_path']
@@ -986,7 +989,8 @@ class ToyDivider(Composer):
             },
         }
 
-        return self.embed_prefix(topology, config)
+        return topology
+        # return self.embed_prefix(topology, config)
 
 
 if __name__ == '__main__':
