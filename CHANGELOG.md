@@ -1,5 +1,8 @@
 # Changelog
 
+## v1.5.6
+* (#225) Update registry imports to `store.py`.
+
 ## v1.5.5
 * (#224) Keep processes and steps in composite spec that is passed to `Engine`. Add `test_hierarchy_update` to keep
   this working.
