@@ -15,11 +15,11 @@ from collections.abc import Callable
 
 import orjson
 import numpy as np
-from pint import Unit
-try:
-    from pint.quantity import Quantity
-except ImportError:
-    from pint import Quantity
+# from pint import Unit
+# try:
+#     from pint.quantity import Quantity
+# except ImportError:
+#     from pint import Quantity
 from vivarium.core.process import Process
 from vivarium.library.units import units
 from vivarium.core.registry import serializer_registry, Serializer
@@ -169,8 +169,7 @@ class UnitsSerializer(Serializer):
 
     # Here the differing argument is `unit`, which is optional, so we
     # can ignore the pylint warning.
-    def deserialize(  # pylint: disable=arguments-differ
-            self, data: str, unit: Unit = None) -> Quantity:
+    def deserialize(self, data: str, unit=None):  # type: ignore  # pylint: disable=arguments-differ
         """Deserialize data with units from a human-readable string.
 
         Args:
