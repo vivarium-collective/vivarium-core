@@ -4,7 +4,7 @@ networkx==2.6.3
 numpy==1.22.1
 Pint==0.20.1
 pymongo==4.0.1
-scipy==1.7.3
+scipy>=1.7.3
 orjson==3.8.0
 
 # Direct Development Dependencies
