@@ -1046,6 +1046,8 @@ class Engine:
         """
         apply_func_to_leaves(
             self.processes, self._end_process_if_parallel)
+        apply_func_to_leaves(
+            self.steps, self._end_process_if_parallel)
         if self.profiler:
             self.profiler.disable()
             total_stats = pstats.Stats(self.profiler)
