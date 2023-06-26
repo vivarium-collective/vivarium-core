@@ -167,7 +167,8 @@ class Defer:
 
 class EmptyDefer(Defer):
     def __init__(self) -> None:
-        function = lambda update, arg: update
+        def function(update: dict, _: tuple) -> dict:
+            return update
         args = ()
         super().__init__(None, function, args)
 
@@ -492,18 +493,18 @@ class Engine:
                 for dependency in sub_flow:
                     dependency = path + dependency
                     if dependency not in step_paths:
-                        raise Exception(
+                        raise ValueError(
                             f'Unknown dependency step {dependency} is '
                             'in the flow')
 
     def _make_store(
             self,
-            store: Store = None,
-            composite: Composite = None,
-            processes: Processes = None,
-            steps: Steps = None,
-            flow: Flow = None,
-            topology: Topology = None,
+            store: Optional[Store] = None,
+            composite: Optional[Composite] = None,
+            processes: Optional[Processes] = None,
+            steps: Optional[Steps] = None,
+            flow: Optional[Flow] = None,
+            topology: Optional[Topology] = None,
     ) -> None:
         """
         If a :term:`Store` is provided, retrieve the :term:`Processes`,
@@ -524,7 +525,7 @@ class Engine:
                 self.topology = composite['topology']
                 self.initial_state = composite['state'] or self.initial_state
             else:
-                raise Exception(
+                raise ValueError(
                     'load either composite, store, or '
                     '(processes and topology) into Engine')
 
@@ -666,71 +667,6 @@ class Engine:
             'data': data}
         self.emitter.emit(emit_config)
 
-    def _invoke_process(
-            self,
-            process: Process,
-            interval: float,
-            states: State,
-    ) -> Any:
-        """Trigger computation of a process's update.
-
-        To allow processes to run in parallel, this function only
-        triggers update computation. When the function exits,
-        computation may not be complete.
-
-        Args:
-            process: The process.
-            interval: The timestep for which to compute the update.
-            states: The simulation state to pass to
-                :py:meth:`vivarium.core.process.Process.next_update`.
-
-        Returns:
-            The deferred simulation update, for example a
-            :py:class:`vivarium.core.process.ParallelProcess`.
-        """
-        process.send_command('next_update', (interval, states))
-        return process
-
-    def _process_update(
-            self,
-            path: HierarchyPath,
-            process: Process,
-            store: Store,
-            states: State,
-            interval: float,
-    ) -> Tuple[Defer, Store]:
-        """Start generating a process's update.
-
-        This function is similar to :py:meth:`_invoke_process` except in
-        addition to triggering the computation of the process's update
-        (by calling ``_invoke_process``), it also generates a
-        :py:class:`Defer` object to transform the update into absolute
-        terms.
-
-        Args:
-            path: Path to process.
-            process: The process.
-            store: The store at ``path``.
-            states: Simulation state to pass to process's
-                ``next_update`` method.
-            interval: Timestep for which to compute the update.
-
-        Returns:
-            Tuple of the deferred update (in absolute terms) and
-            ``store``.
-        """
-        process = self._invoke_process(
-            process,
-            interval,
-            states)
-
-        absolute = Defer(
-            process,
-            invert_topology,
-            (path, store.topology))
-
-        return absolute, store
-
     def _process_state(
             self,
             path: HierarchyPath,
@@ -778,7 +714,7 @@ class Engine:
         """
         store, states = self._process_state(path)
         if process.update_condition(interval, states):
-            return self._process_update(
+            return _process_update(
                 path, process, store, states, interval)
         return (EmptyDefer(), store)
 
@@ -942,7 +878,7 @@ class Engine:
         self._check_complete()
         runtime = clock.time() - clock_start
         if self.display_info:
-            self._print_summary(runtime)
+            _print_summary(runtime)
 
     def _check_complete(self) -> None:
         """Check that all processes completed"""
@@ -1019,7 +955,7 @@ class Engine:
 
                         # calculate the update for this process
                         if process.update_condition(process_timestep, states):
-                            update = self._process_update(
+                            update = _process_update(
                                 path, process, store, states, process_timestep)
 
                             # update front, to be applied at its projected time
@@ -1129,16 +1065,6 @@ class Engine:
         if self.description:
             print('Description: {}'.format(self.description))
 
-    def _print_summary(
-            self,
-            runtime: float
-    ) -> None:
-        """Print summary of simulation runtime."""
-        if runtime < 1:
-            print('Completed in {:.6f} seconds'.format(runtime))
-        else:
-            print('Completed in {:.2f} seconds'.format(runtime))
-
 
 def print_progress_bar(
         iteration: float,
@@ -1164,6 +1090,77 @@ def print_progress_bar(
     if iteration == total:
         print()
 
+def _print_summary(
+        runtime: float
+) -> None:
+    """Print summary of simulation runtime."""
+    if runtime < 1:
+        print('Completed in {:.6f} seconds'.format(runtime))
+    else:
+        print('Completed in {:.2f} seconds'.format(runtime))
+
+def _invoke_process(
+        process: Process,
+        interval: float,
+        states: State,
+) -> Any:
+    """Trigger computation of a process's update.
+
+    To allow processes to run in parallel, this function only
+    triggers update computation. When the function exits,
+    computation may not be complete.
+
+    Args:
+        process: The process.
+        interval: The timestep for which to compute the update.
+        states: The simulation state to pass to
+            :py:meth:`vivarium.core.process.Process.next_update`.
+
+    Returns:
+        The deferred simulation update, for example a
+        :py:class:`vivarium.core.process.ParallelProcess`.
+    """
+    process.send_command('next_update', (interval, states))
+    return process
+
+def _process_update(
+        path: HierarchyPath,
+        process: Process,
+        store: Store,
+        states: State,
+        interval: float,
+) -> Tuple[Defer, Store]:
+    """Start generating a process's update.
+
+    This function is similar to :py:func:`_invoke_process` except in
+    addition to triggering the computation of the process's update
+    (by calling ``_invoke_process``), it also generates a
+    :py:class:`Defer` object to transform the update into absolute
+    terms.
+
+    Args:
+        path: Path to process.
+        process: The process.
+        store: The store at ``path``.
+        states: Simulation state to pass to process's
+            ``next_update`` method.
+        interval: Timestep for which to compute the update.
+
+    Returns:
+        Tuple of the deferred update (in absolute terms) and
+        ``store``.
+    """
+    process = _invoke_process(
+        process,
+        interval,
+        states)
+
+    absolute = Defer(
+        process,
+        invert_topology,
+        (path, store.topology))
+
+    return absolute, store
 
 def test_flow_with_extra_step() -> None:
     class StepA(Step):

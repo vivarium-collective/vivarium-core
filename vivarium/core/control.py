@@ -108,7 +108,7 @@ class Control:
                 experiment = experiment.pop('experiment')
             return experiment()
 
-        raise Exception(f'invalid experiment config: {experiment_config}')
+        raise ValueError(f'invalid experiment config: {experiment_config}')
 
     def run_one_plot(
             self,
@@ -138,7 +138,7 @@ class Control:
                 data=data_copy,
                 out_dir=out_dir)
         else:
-            raise Exception(f'invalid plot config: {plot_config}')
+            raise ValueError(f'invalid plot config: {plot_config}')
 
     def run_plots(
             self,

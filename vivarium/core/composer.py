@@ -64,7 +64,8 @@ def _get_composite_state_recur(
             sub_state = inverse_topology(
                 path, process_state, sub_topology, multi_updates=False)
         else:
-            Exception(f'invalid processes {sub_processes} or steps {sub_steps}')
+            raise ValueError(f'invalid processes {sub_processes} or steps'
+                             + str(sub_steps))
         state = deep_merge(state, sub_state)
     return state
 
@@ -332,6 +333,7 @@ class Composer(metaclass=abc.ABCMeta):
             :py:class:`vivarium.core.process.Step` objects.
         '''
         _ = config
+        _ = self # Silence pylint no-self-use
         return {}  # pragma: no cover
 
     def generate_flow(self, config: Optional[dict]) -> Flow:
@@ -353,6 +355,7 @@ class Composer(metaclass=abc.ABCMeta):
             previously added to the :term:`engine`.
         '''
         _ = config
+        _ = self # Silence pylint no-self-use
         return {}  # pragma: no cover
 
     @abc.abstractmethod

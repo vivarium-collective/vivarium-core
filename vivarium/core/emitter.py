@@ -55,7 +55,7 @@ def breakdown_data(
         limit: float,
         data: Any,
         path: Tuple = (),
-        size: float = None,
+        size: Optional[float] = None,
 ) -> list:
     size = size or len(str(data))
     if size > limit:
@@ -178,9 +178,10 @@ class Emitter:
             data: The data to emit. This gets called by the Vivarium
                 engine with a snapshot of the simulation state.
         """
+        _ = self # Silence pylint no-self-use
         print(data)
 
-    def get_data(self, query: list = None) -> dict:
+    def get_data(self, query: Optional[list] = None) -> dict:
         """Get the emitted data.
 
         Returns:
@@ -189,9 +190,10 @@ class Emitter:
             dictionary is returned.
         """
         _ = query
+        _ = self # Silence pylint no-self-use
         return {}
 
-    def get_data_deserialized(self, query: list = None) -> Any:
+    def get_data_deserialized(self, query: Optional[list] = None) -> Any:
         """Get the emitted data with variable values deserialized.
 
         Returns:
@@ -201,7 +203,7 @@ class Emitter:
         """
         return deserialize_value(self.get_data(query))
 
-    def get_data_unitless(self, query: list = None) -> Any:
+    def get_data_unitless(self, query: Optional[list] = None) -> Any:
         """Get the emitted data with units stripped from variable values.
 
         Returns:
@@ -211,7 +213,7 @@ class Emitter:
         """
         return remove_units(self.get_data_deserialized(query))
 
-    def get_path_timeseries(self, query: list = None) -> dict:
+    def get_path_timeseries(self, query: Optional[list] = None) -> dict:
         """Get the deserialized data as a :term:`path timeseries`.
 
         Returns:
@@ -220,7 +222,7 @@ class Emitter:
         """
         return path_timeseries_from_data(self.get_data_deserialized(query))
 
-    def get_timeseries(self, query: list = None) -> dict:
+    def get_timeseries(self, query: Optional[list] = None) -> dict:
         """Get the deserialized data as an :term:`embedded timeseries`.
 
         Returns:
@@ -266,7 +268,7 @@ class RAMEmitter(Emitter):
             deep_merge_check(
                 self.saved_data[time], data_at_time, check_equality=True)
 
-    def get_data(self, query: list = None) -> dict:
+    def get_data(self, query: Optional[list] = None) -> dict:
         """ Return the accumulated timeseries history of "emitted" data. """
         if query:
             returned_data = {}
@@ -389,7 +391,7 @@ class DatabaseEmitter(Emitter):
                     d['data']['time'] = time
                 table.insert_one(d)
 
-    def get_data(self, query: list = None) -> dict:
+    def get_data(self, query: Optional[list] = None) -> dict:
         return get_history_data_db(self.history, self.experiment_id, query)
 
 
@@ -419,7 +421,7 @@ def get_experiment_database(
 def delete_experiment(
     host: str = 'localhost',
     port: Any = 27017,
-    query: dict = None
+    query: Optional[dict] = None
 ) -> None:
     """Helper function to delete experiment data in parallel
 
@@ -490,7 +492,7 @@ def assemble_data(data: list) -> dict:
 def apply_func(
     document: Any,
     field: Tuple,
-    f: Callable[..., Any] = None,
+    f: Optional[Callable[..., Any]] = None,
 ) -> Any:
     if field[0] not in document:
         return document
@@ -559,9 +561,9 @@ def get_data_chunks(
 def get_history_data_db(
     history_collection: Any,
     experiment_id: Any,
-    query: list = None,
-    func_dict: dict = None,
-    f: Callable[..., Any] = None,
+    query: Optional[list] = None,
+    func_dict: Optional[dict[tuple, Callable[..., Any]]] = None,
+    f: Optional[Callable[..., Any]] = None,
     filters: Optional[dict] = None,
     start_time: Union[int, MinKey] = MinKey(),
     end_time: Union[int, MaxKey] = MaxKey(),
@@ -622,7 +624,7 @@ def get_history_data_db(
     for document in cursor:
         assert document.get('assembly_id'), \
             "all database documents require an assembly_id"
-        if (f or func_dict) and query:
+        if ((f is not None) or (func_dict is not None)) and query:
             for field in query:
                 if func_dict:  # func_dict takes priority over f
                     func = func_dict.get(field)
@@ -659,22 +661,22 @@ def get_atlas_client(secrets_path: str) -> Any:
     emitter_config = get_atlas_database_emitter_config(
         **secrets['database'])
     uri = emitter_config['host']
-    client = MongoClient(uri)
+    client: MongoClient = MongoClient(uri)
     return client[emitter_config['database']]
 
 
 def get_local_client(host: str, port: Any, database_name: str) -> Any:
     """Open a MongoDB client onto the given host, port, and DB."""
-    client = MongoClient('{}:{}'.format(host, port))
+    client: MongoClient = MongoClient('{}:{}'.format(host, port))
     return client[database_name]
 
 
 def data_from_database(
     experiment_id: str,
     client: Any,
-    query: list = None,
-    func_dict: dict = None,
-    f: Callable[..., Any] = None,
+    query: Optional[list] = None,
+    func_dict: Optional[dict[tuple, Callable[..., Any]]] = None,
+    f: Optional[Callable[..., Any]] = None,
     filters: Optional[dict] = None,
     start_time: Union[int, MinKey] = MinKey(),
     end_time: Union[int, MaxKey] = MaxKey(),
