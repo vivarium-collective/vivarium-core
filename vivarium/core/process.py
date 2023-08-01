@@ -462,7 +462,7 @@ class Process(metaclass=abc.ABCMeta):
         return self.parameters['timestep']
 
     def default_state(self) -> State:
-        """Get the default values of the variables in each port.
+        """Recursively get the default values of the variables in each port.
 
         The default values are computed based on the schema.
 
@@ -471,14 +471,22 @@ class Process(metaclass=abc.ABCMeta):
             value to that variable.
         """
         schema = self.get_schema()
-        state: State = {}
-        for port, states in schema.items():
-            for key, value in states.items():
-                if '_default' in value:
-                    if port not in state:
-                        state[port] = {}
-                    state[port][key] = value['_default']
-        return state
+
+        def get_defaults(d: dict) -> Optional[State]:
+            defaults = {}
+            for k, v in d.items():
+                if isinstance(v, dict):
+                    def_val = v.get('_default', get_defaults(v))
+                    if def_val is not None:
+                        defaults[k] = def_val
+            if len(defaults) > 0:
+                return defaults
+            return None
+
+        default_state = get_defaults(schema)
+        if default_state is None:
+            return {}
+        return default_state
 
     def is_deriver(self) -> bool:
         """Check whether this process is a :term:`deriver`.

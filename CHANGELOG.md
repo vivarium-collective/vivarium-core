@@ -1,6 +1,9 @@
 # Changelog
 
 ## v1.5.6
+* (#227) Make `Process.default_state` parse ports schema recursively.
+
+## v1.5.6
 * (#225) Update registry imports to `store.py`.
 
 ## v1.5.5
