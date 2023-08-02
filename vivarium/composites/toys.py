@@ -829,13 +829,13 @@ def test_composite_merge() -> None:
 def test_get_composite() -> None:
     process1 = ToyProcess({'name': 'process1'})
 
-    composite = Composite(dict(
-        processes={'process2': ToyProcess()},
-        topology={
+    composite = Composite({
+        'processes': {'process2': ToyProcess()},
+        'topology': {
             'process2': {
                 'port1': ('store_A',),
                 'port2': ('store_B',)}}
-    ))
+    })
     composite.merge(
         processes={process1.name: process1},
         topology={

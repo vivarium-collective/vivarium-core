@@ -262,7 +262,7 @@ def keys_list(d: dict) -> list:
 
 def value_in_embedded_dict(
         data: dict,
-        timeseries: dict = None,
+        timeseries: Optional[dict] = None,
         time_index: Optional[float] = None) -> dict:
     """
     converts data from a single time step into an embedded dictionary with lists

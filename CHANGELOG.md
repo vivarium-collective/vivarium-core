@@ -3,6 +3,9 @@
 ## v1.5.8
 * (#227) Make `Process.default_state` parse ports schema recursively.
 
+## v1.5.7
+* (#226) Drop Python 3.8 in favor of 3.11 and update dependencies.
+
 ## v1.5.6
 * (#225) Update registry imports to `store.py`.
 
