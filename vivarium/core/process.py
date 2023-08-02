@@ -351,6 +351,7 @@ class Process(metaclass=abc.ABCMeta):
             mapping state paths to initial values.
         """
         _ = config
+        _ = self # Silence pylint no-self-use
         return {}
 
     def generate_processes(
@@ -384,6 +385,7 @@ class Process(metaclass=abc.ABCMeta):
 
     def generate_flow(self, config: Optional[dict] = None) -> Flow:
         _ = config
+        _ = self # Silence pylint no-self-use
         return {}
 
     def generate(
@@ -492,6 +494,7 @@ class Process(metaclass=abc.ABCMeta):
             Whether this process is a deriver. This class always returns
             ``False``, but subclasses may change this.
         """
+        _ = self # Silence pylint no-self-use
         return False
 
     def is_step(self) -> bool:
@@ -524,6 +527,7 @@ class Process(metaclass=abc.ABCMeta):
             An empty dictionary. You may override this behavior to
             return your process's private state.
         """
+        _ = self # Silence pylint no-self-use
         return {}  # pragma: no cover
 
     @abc.abstractmethod
@@ -777,11 +781,11 @@ class ParallelProcess(Process):
         return self.run_command('condition_path')
 
     @property
-    def schema(self) -> Schema:
+    def schema(self) -> Optional[Schema]:
         return self.run_command('schema')
 
     @schema.setter
-    def schema(self, value: Schema) -> None:
+    def schema(self, value: Optional[Schema]) -> None:
         self.run_command('set_schema', (value,))
 
     def merge_overrides(self, override: Schema) -> None:
@@ -868,6 +872,7 @@ class ToySerializedProcessInheritance(Process):
 class ToyParallelProcess(Process):
 
     def compare_pid(self, pid: float) -> bool:
+        _ = self # Silence pylint no-self-use
         return os.getpid() == pid
 
     def send_command(
