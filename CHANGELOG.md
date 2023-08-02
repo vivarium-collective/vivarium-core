@@ -1,6 +1,6 @@
 # Changelog
 
-## v1.5.6
+## v1.5.8
 * (#227) Make `Process.default_state` parse ports schema recursively.
 
 ## v1.5.6
