@@ -18,7 +18,7 @@ class CountsToMolar(Deriver):
         mass = 1000 * units.fg
         density = 1100 * units.g / units.L
         volume = mass / density
-        mmol_to_counts = (AVOGADRO * volume)
+        mmol_to_counts = AVOGADRO * volume
         return {
             'global': {
                 'volume': volume.to('fL'),

@@ -10,7 +10,7 @@ a BSON-compatible form.
 import re
 import math
 import warnings
-from typing import Any, List, Union
+from typing import Any, List, Optional, Union
 from collections.abc import Callable
 
 import orjson
@@ -28,7 +28,7 @@ from vivarium.core.registry import serializer_registry, Serializer
 def find_numpy_and_non_strings(
     d: dict,
     curr_path: tuple=tuple(),
-    saved_paths: List[tuple]=None
+    saved_paths: Optional[List[tuple]]=None
 ) -> List[tuple]:
     """Return list of paths which terminate in a non-string or Numpy string
     dictionary key. Orjson does not handle these types of keys by default."""
@@ -47,7 +47,7 @@ def find_numpy_and_non_strings(
 
 def serialize_value(
     value: Any,
-    default: Callable=None,
+    default: Optional[Callable]=None,
 ) -> Any:
     """Apply orjson-based serialization routine on ``value``.
 
@@ -62,7 +62,7 @@ def serialize_value(
     Returns:
         Any: Serialized data
     """
-    if not default:
+    if default is None:
         default = make_fallback_serializer_function()
     try:
         value = orjson.dumps(value, option=orjson.OPT_SERIALIZE_NUMPY,

@@ -32,10 +32,10 @@ class AgentDivision(Composer):
     }
 
     def generate_processes(self, config) -> dict:
-        division_config = dict(
-            daughter_path=config['daughter_path'],
-            agent_id=config['agent_id'],
-            composer=self)
+        division_config = {
+            'daughter_path': config['daughter_path'],
+            'agent_id': config['agent_id'],
+            'composer': self}
         time_step_config = {'time_step': config['time_step']}
         return {
             'growth': GrowthRate({**config['growth'], **time_step_config}),

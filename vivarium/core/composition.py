@@ -113,8 +113,8 @@ def add_environment(
 
 def process_in_experiment(
         process: Process,
-        settings: Dict[str, Any] = None,
-        initial_state: Dict[str, Any] = None,
+        settings: Optional[Dict[str, Any]] = None,
+        initial_state: Optional[Dict[str, Any]] = None,
 ) -> Engine:
     """Put a Process in an Engine
 
@@ -151,8 +151,8 @@ def process_in_experiment(
 
 def composite_in_experiment(
         composite: Composite,
-        settings: Dict[str, Any] = None,
-        initial_state: Dict[str, Any] = None,
+        settings: Optional[Dict[str, Any]] = None,
+        initial_state: Optional[Dict[str, Any]] = None,
 ) -> Engine:
     """Put a Composite in an Engine
 
@@ -195,9 +195,9 @@ def composite_in_experiment(
 
 def composer_in_experiment(
         composer: Composer,
-        settings: Dict[str, Any] = None,
-        initial_state: Dict[str, Any] = None,
-        config: Dict[str, Any] = None,
+        settings: Optional[Dict[str, Any]] = None,
+        initial_state: Optional[Dict[str, Any]] = None,
+        config: Optional[Dict[str, Any]] = None,
         outer_path: HierarchyPath = (),
 ) -> Engine:
     """Generate a Composite in an Engine
