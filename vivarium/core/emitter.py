@@ -118,7 +118,7 @@ def get_emitter(config: Optional[Dict[str, str]]) -> 'Emitter':
     * ``timeseries``: :py:class:`RAMEmitter`
 
     Arguments:
-        config: Must comtain the ``type`` key, which specifies the emitter
+        config: Must contain the ``type`` key, which specifies the emitter
             type name (e.g. ``database``).
 
     Returns:
