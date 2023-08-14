@@ -614,6 +614,84 @@ class ToyComposer(Composer):
                 'port2': ('store_C',)}}
 
 
+class MixedLevelPorts(Process):
+    """Process with ports that configure top-level, second-level, third-level,
+    and fourth-level stores. Used to test recursive Process.default_state"""
+    name = 'mixed_level_ports'
+
+    def ports_schema(self) -> Schema:
+        return {
+            'a': {'_default': 0},
+            'b': {
+                'c': {'_default': 1},
+                'd': {'_default': 2}},
+            'e': {
+                'f': {
+                    'g': {'_default': 3},
+                    'h': {'_default': 4},
+                    'i': {'_default': 5}}},
+            'j': {
+                'k': {
+                    'l': {
+                        'm': {'_default': 6},
+                        'n': {'_default': 7},
+                        'o': {'_default': 8}},
+                    'p': {'_default': 9},
+                    'q': {'r': {'_default': 10}}}},
+        }
+
+    def next_update(
+            self, timestep: Union[float, int], states: State) -> Update:
+        return {}
+
+
+class MixedLevelPortsComposer(Composer):
+
+    def generate_processes(
+            self,
+            config: Optional[dict]
+    ) -> Dict[str, MixedLevelPorts]:
+        return {'mixed_level_ports': MixedLevelPorts()}
+
+    def generate_topology(
+            self,
+            config: Optional[dict] = None
+    ) -> Topology:
+        return {
+            'mixed_level_ports': {
+                'a': ('store_a',),
+                'b': ('store_b',),
+                'e': ('store_e',),
+                'j': ('store_j',)}}
+
+
+def test_default_state() -> None:
+    composer = MixedLevelPortsComposer()
+    composite = composer.generate()
+    default_state = composite.default_state()
+
+    expected_default_state = {
+        'store_a': 0,
+        'store_b': {
+            'c': 1,
+            'd': 2},
+        'store_e': {
+            'f': {
+                'g': 3,
+                'h': 4,
+                'i': 5}},
+        'store_j': {
+            'k': {
+                'l': {
+                    'm': 6,
+                    'n': 7,
+                    'o': 8},
+                'p': 9,
+                'q': {'r': 10}}},
+    }
+    assert default_state == expected_default_state
+
+
 def test_override() -> None:
     config = {
         '_schema': {
@@ -928,6 +1006,7 @@ class ToyDivider(Composer):
 
 
 if __name__ == '__main__':
+    test_default_state() # pragma: no cover
     test_composite_initial_state()  # pragma: no cover
     test_composite_parameters()  # pragma: no cover
     test_composite_merge()  # pragma: no cover
