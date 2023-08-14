@@ -1236,9 +1236,17 @@ class Store:
         deletions = []
 
         # get the source node
-        source_key = move['source']
-        source_path = (source_key,)
+        source_path = move['source']
+        if isinstance(source_path, str):
+            source_path = (source_path,)
         source_node = self.get_path(source_path)
+
+        # update the state
+        if 'update' in move:
+            update_value = move['update']
+            hierarchy_updates = source_node.apply_update(update_value, process_store)
+            assert all(value == [] or value is False for value in hierarchy_updates), \
+                f"no hierarchical updates allowed in a 'move' update."
 
         # move source node to target path
         target_port = move['target']
@@ -1464,6 +1472,7 @@ class Store:
 
             * source - the source path from an outer process port
             * target - the location where the node will be placed.
+            * update (optional) - an update to the node being moved.
 
         * `_generate` - The value has four keys, which are essentially
           the arguments to the `generate()` function:
