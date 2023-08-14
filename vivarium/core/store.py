@@ -1236,28 +1236,18 @@ class Store:
         deletions = []
 
         # get the source node
-        source_key = move['source']
-        source_path = (source_key,)
+        source_path = move['source']
+        if isinstance(source_path, str):
+            source_path = (source_path,)
         source_node = self.get_path(source_path)
 
         # update the state
         if 'update' in move:
             update_value = move['update']
-            (
-                inner_topology, inner_processes, inner_steps,
-                inner_flows, inner_deletions, inner_view_expire
-            ) = source_node.apply_update(update_value, process_store)
-            if inner_topology:
-                topology_updates.extend(inner_topology)
-            if inner_processes:
-                process_updates.extend(inner_processes)
-            if inner_steps:
-                step_updates.extend(inner_steps)
-            if inner_flows:
-                flow_updates.extend(inner_flows)
-            if inner_deletions:
-                deletions.extend(inner_deletions)
-                
+            hierarchy_updates = source_node.apply_update(update_value, process_store)
+            assert all(value == [] or value is False for value in hierarchy_updates), \
+                f"no hierarchical updates allowed in a 'move' update."
+
         # move source node to target path
         target_port = move['target']
         target_topology = process_store.topology[target_port]
