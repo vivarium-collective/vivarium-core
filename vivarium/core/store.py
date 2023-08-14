@@ -1472,6 +1472,7 @@ class Store:
 
             * source - the source path from an outer process port
             * target - the location where the node will be placed.
+            * update (optional) - an update to the node being moved.
 
         * `_generate` - The value has four keys, which are essentially
           the arguments to the `generate()` function:
