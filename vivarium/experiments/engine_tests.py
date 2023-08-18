@@ -1223,7 +1223,6 @@ def test_move_update() -> None:
     agents_in_1 = ['a1', 'a2']
     agents_in_2 = ['a3', 'a4']
     agents_in_3 = ['a5', 'a6']
-    total_agents = len(agents_in_1) + len(agents_in_2) + len(agents_in_3)
 
     composite = Composite({
         'processes': {
@@ -1271,7 +1270,7 @@ def test_move_update() -> None:
 
     sim.update(4)
     data = sim.emitter.get_data()
-    print(pp(data))
+
     # it should move at t=2, t=4
     assert list(data[4]['store1'].keys()) == agents_in_2
     assert list(data[4]['store2'].keys()) == agents_in_3
