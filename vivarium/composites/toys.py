@@ -1032,24 +1032,25 @@ class MoveProcess(Process):
         agents2 = states['2']
         agents3 = states['3']
 
-        update = {'1': {'_move': []},
-                  '2': {'_move': []},
-                  '3': {'_move': []}}
+        update: Dict = {
+            '1': {'_move': []},
+            '2': {'_move': []},
+            '3': {'_move': []}}
 
         # agents in location 1 move to 2
-        for agent_id, state in agents1.items():
+        for agent_id in agents1.keys():
             update['1']['_move'].append({
                 'source': (agent_id,),
                 'target': ('2',),
                 'update': {'internal': 1.0}})
         # agents in location 2 move to 3
-        for agent_id, state in agents2.items():
+        for agent_id in agents2.keys():
             update['2']['_move'].append({
                 'source': (agent_id,),
                 'target':  ('3',),
                 'update': {'internal': 1.0}})
         # agents in location 3 move to 1
-        for agent_id, state in agents3.items():
+        for agent_id in agents3.keys():
             update['3']['_move'].append({
                 'source': (agent_id,),
                 'target': ('1',),
