@@ -15,11 +15,11 @@ from collections.abc import Callable
 
 import orjson
 import numpy as np
-from pint import Unit
+from pint import Unit  # pylint: disable=unused-import
 try:
-    from pint.quantity import Quantity
+    from pint.quantity import Quantity  # pylint: disable=unused-import
 except ImportError:
-    from pint import Quantity
+    from pint import Quantity  # pylint: disable=unused-import
 from vivarium.core.process import Process
 from vivarium.library.units import units
 from vivarium.core.registry import serializer_registry, Serializer
