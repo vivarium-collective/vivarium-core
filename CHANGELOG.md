@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.5.9
+* (#230) add a test for '_move' updates. Extend '_move' updates to support targets going down a path rather than just a 
+  top-level port name
+
 ## v1.5.8
 * (#227) Make `Process.default_state` parse ports schema recursively. 
 * Add 'update' key to '_move' hierarchy update method.
