@@ -1,6 +1,5 @@
 import math
 from typing import Optional, Dict, Any, Union
-
 import numpy as np
 
 from vivarium.core.process import (
@@ -1003,6 +1002,60 @@ class ToyDivider(Composer):
                 'variable': ('variable',),
             },
         }
+
+
+class MoveProcess(Process):
+    # defaults = {}
+
+    def __init__(self, parameters: Optional[Dict[str, Any]] = None):
+        super().__init__(parameters)
+
+    def ports_schema(self) -> Schema:
+        location_schema = {
+            '*': {
+                'internal': {
+                    '_default': 0.0,
+                    '_updater': 'accumulate',
+                    '_emit': True,
+                }
+            }
+        }
+        return {
+            '1': location_schema,
+            '2': location_schema,
+            '3': location_schema
+        }
+
+    def next_update(
+            self, timestep: Union[float, int], states: State) -> Update:
+        agents1 = states['1']
+        agents2 = states['2']
+        agents3 = states['3']
+
+        update = {'1': {'_move': []},
+                  '2': {'_move': []},
+                  '3': {'_move': []}}
+
+        # agents in location 1 move to 2
+        for agent_id, state in agents1.items():
+            update['1']['_move'].append({
+                'source': (agent_id,),
+                'target': ('2',),
+                'update': {'internal': 1.0}})
+        # agents in location 2 move to 3
+        for agent_id, state in agents2.items():
+            update['2']['_move'].append({
+                'source': (agent_id,),
+                'target':  ('3',),
+                'update': {'internal': 1.0}})
+        # agents in location 3 move to 1
+        for agent_id, state in agents3.items():
+            update['3']['_move'].append({
+                'source': (agent_id,),
+                'target': ('1',),
+                'update': {'internal': 1.0}})
+
+        return update
 
 
 if __name__ == '__main__':
