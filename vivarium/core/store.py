@@ -1249,8 +1249,12 @@ class Store:
                 f"no hierarchical updates allowed in a 'move' update."
 
         # move source node to target path
+        extended_path = ()
         target_port = move['target']
-        target_topology = process_store.topology[target_port]
+        if isinstance(target_port, tuple):
+            target_port = move['target'][0]
+            extended_path = move['target'][1:]
+        target_topology = process_store.topology[target_port] + extended_path
         target_node = process_store.outer.get_path(target_topology)
         target = target_node.add_node(source_path, source_node)
         target_path = target.path_for() + source_path
