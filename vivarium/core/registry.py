@@ -89,7 +89,7 @@ automatically handled by ``orjson``, the package used to serialize data.
 .. note:: All dictionary keys MUST be Python strings for ``orjson`` to work.
     Numpy strings (``np.str_``) are not allowed.
 
-If it is necessary to redefine the how objects are serialized by orjson,
+If it is necessary to redefine how objects are serialized by orjson,
 assign custom serializers to the stores containing objects of the affected
 type(s) using the ``_serializer`` ports schema key. This can also be used
 to serialize objects of the same Python type differently. To ensure that
