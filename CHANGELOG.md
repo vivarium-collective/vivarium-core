@@ -1,5 +1,8 @@
 # Changelog
 
+## v1.6.0
+* (#231) Update `networkx` error message for already deleted Step.
+
 ## v1.5.9
 * (#230) add a test for '_move' updates. Extend '_move' updates to support targets going down a path rather than just a 
   top-level port name

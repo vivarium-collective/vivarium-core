@@ -808,7 +808,7 @@ class Engine:
                     self._step_graph.remove(path)
                 except nx.exception.NetworkXError as e:
                     # The step might have been deleted already.
-                    msg = f'The node {path} is not in the graph.'
+                    msg = f'The node {path} is not in the digraph.'
                     if e.args[0] != msg:
                         raise e
                 del self._step_paths[path]
