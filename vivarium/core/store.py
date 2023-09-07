@@ -499,7 +499,9 @@ class Store:
                 value is different from the existing one.
         """
         current_schema_value = getattr(self, schema_key)
-        if current_schema_value is not None and current_schema_value != new_schema:
+        if current_schema_value is not None and np.all(
+            current_schema_value != new_schema
+        ):
             if schema_key == "units":
                 # Different Python interpreters (inc. from multiprocessing with
                 # spawn start method) yield different hashes for the same value
@@ -527,8 +529,8 @@ class Store:
                 new_schema[schema_key])
         if (
                 current_schema_value
-                and current_schema_value != DEFAULT_SCHEMA
-                and current_schema_value != new_schema):
+                and np.all(current_schema_value != DEFAULT_SCHEMA)
+                and np.all(current_schema_value != new_schema)):
             warnings.warn(
                 f"Incompatible schema assignment at {self.path_for()}. "
                 f"Trying to assign the value {new_schema} to key {schema_key}, "
