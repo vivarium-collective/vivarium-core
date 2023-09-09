@@ -1,5 +1,8 @@
 # Changelog
 
+## v1.6.1
+* (#232) Fix some bugs in `emitter.py` and allow Numpy arrays in Store schemas
+
 ## v1.6.0
 * (#231) Update `networkx` error message for already deleted Step.
 
