@@ -74,7 +74,7 @@ class ToyLivingCompartment(Composer):
                 'agents': agents_path}}
 
 
-def test_remove():
+def test_remove(return_value=False):
     agent_id = '1'
 
     # timeline turns death on
@@ -114,13 +114,14 @@ def test_remove():
     assert len(output['agents']['1']['dead']) == time_dead + 1
     assert len(output['time']) == time_total + 1
 
-    return output
+    if return_value:
+        return output
 
 
 def run_remove():
     out_dir = os.path.join(PROCESS_OUT_DIR, NAME)
     os.makedirs(out_dir, exist_ok=True)
-    output = test_remove()
+    output = test_remove(return_value=True)
     pp(output)
 
 

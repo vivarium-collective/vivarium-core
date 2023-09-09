@@ -17,7 +17,7 @@ from vivarium.core.types import OutputDict
 
 from vivarium.core.engine import timestamp
 from vivarium.core.directories import BASE_OUT_DIR
-from vivarium.composites.toys import ToyCompartment, test_composer
+from vivarium.composites.toys import ToyCompartment, run_composer
 
 from vivarium.plots.simulation_output import plot_simulation_output
 
@@ -193,9 +193,9 @@ def toy_control(
         # put in dictionary with name
         '1': {
             'name': 'exp_1',
-            'experiment': test_composer},
+            'experiment': run_composer},
         # map to function to run as is
-        '2': test_composer,
+        '2': run_composer,
     }
     plot_library = {
         # put in dictionary with config

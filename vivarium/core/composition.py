@@ -381,7 +381,7 @@ def test_process_deletion() -> None:
     assert masses == expected_masses
 
 
-def test_composer() -> Dict:
+def test_composer(return_value: bool = False) -> Optional[Dict]:
     toy_compartment = ToyCompartment({})
     settings = {
         'total_time': 10,
@@ -394,7 +394,9 @@ def test_composer() -> Dict:
                 'GLC': 0,
                 'MASS': 3,
                 'DENSITY': 10}}}
-    return simulate_composer(toy_compartment, settings)
+    if return_value:
+        return simulate_composer(toy_compartment, settings)
+    return None
 
 
 if __name__ == '__main__':

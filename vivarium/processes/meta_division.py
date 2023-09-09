@@ -175,7 +175,7 @@ def _get_toy_experiment(agent_id, time_divide, time_total, parallel):
 
 
 
-def test_division():
+def test_division(return_value=False):
     agent_id = '1'
     time_divide = 5
     time_total = 10
@@ -194,10 +194,11 @@ def test_division():
     assert len(output[time_divide]['agents']) == 1
     assert len(output[time_divide + 1]['agents']) == 2
 
-    return output
+    if return_value:
+        return output
 
 
-def test_division_parallel():
+def test_division_parallel(return_value=False):
     agent_id = '1'
     time_divide = 5
     time_total = 10
@@ -225,13 +226,14 @@ def test_division_parallel():
     assert len(output[time_divide]['agents']) == 1
     assert len(output[time_divide + 1]['agents']) == 2
 
-    return output
+    if return_value:
+        return output
 
 
 def run_division():
     out_dir = os.path.join(PROCESS_OUT_DIR, NAME)
     os.makedirs(out_dir, exist_ok=True)
-    output = test_division()
+    output = test_division(return_value=True)
     pp(output)
 
 
