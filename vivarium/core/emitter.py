@@ -378,6 +378,8 @@ class DatabaseEmitter(Emitter):
         # with shared assembly IDs and time keys
         except DocumentTooLarge:
             emit_data.pop('assembly_id')
+            # insert_one adds this key to emit_data
+            emit_data.pop('_id')
             experiment_id = emit_data.pop('experiment_id')
             time = emit_data['data'].pop('time', None)
             broken_down_data = breakdown_data(self.emit_limit, emit_data)
@@ -619,6 +621,10 @@ def get_history_data_db(
             queried_chunks = executor.map(partial_get_query, queries)
         cursor = itertools.chain.from_iterable(queried_chunks)
     else:
+        experiment_query = {
+            **experiment_query,
+            'data.time': {'$gte': start_time, '$lte': end_time}
+        }
         cursor = history_collection.find(experiment_query, projection)
     raw_data = []
     for document in cursor:
@@ -673,7 +679,7 @@ def get_local_client(host: str, port: Any, database_name: str) -> Any:
 
 def data_from_database(
     experiment_id: str,
-    client: Any,
+    db: Any,
     query: Optional[list] = None,
     func_dict: Optional[dict] = None,
     f: Optional[Callable[..., Any]] = None,
@@ -686,7 +692,7 @@ def data_from_database(
 
     Args:
         experiment_id: the experiment id which is being retrieved
-        client: a MongoClient instance connected to the DB
+        db: a pymongo.database.Database instance connected to the DB
         query: a list of tuples pointing to fields within the experiment data.
             In the format: [('path', 'to', 'field1'), ('path', 'to', 'field2')]
         func_dict: a dict which maps the given query paths to a function that
@@ -704,7 +710,7 @@ def data_from_database(
     """
 
     # Retrieve environment config
-    config_collection = client.configuration
+    config_collection = db.configuration
     experiment_query = {'experiment_id': experiment_id}
     experiment_configs = list(config_collection.find(experiment_query))
 
@@ -715,9 +721,9 @@ def data_from_database(
     experiment_config = experiment_assembly[assembly_id]
 
     # Retrieve timepoint data
-    history = client.history
-    host = client.address[0]
-    port = client.address[1]
+    history = db.history
+    host = db.client.address[0]
+    port = db.client.address[1]
     data = get_history_data_db(history, experiment_id, query, func_dict,
         f, filters, start_time, end_time, cpus, host, port)
 

@@ -183,7 +183,7 @@ class ExchangeAlternator(Composer):
                     'OFF': ('OFF',)}}}
 
 
-def test_alternator():
+def test_alternator(return_value=False):
     initial_on = 10.0
     initial_off = 13.0
 
@@ -215,13 +215,15 @@ def test_alternator():
     output = experiment.emitter.get_data()
     experiment.end()  # end required for parallel processes
 
-    return output
+    if return_value:
+        return output
+    return None
 
 
 def run_alternator():
     out_dir = os.path.join(PROCESS_OUT_DIR, NAME)
     os.makedirs(out_dir, exist_ok=True)
-    output = test_alternator()
+    output = test_alternator(return_value=True)
     pp(output)
 
 

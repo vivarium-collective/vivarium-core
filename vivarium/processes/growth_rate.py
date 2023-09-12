@@ -67,7 +67,7 @@ class GrowthRate(Process):
         return {'variables': variable_update}
 
 
-def test_growth_rate(total_time=1350):
+def test_growth_rate(total_time=1350, return_value=False):
     initial_mass = 100
     growth_rate = 0.0005
     config = {
@@ -91,7 +91,9 @@ def test_growth_rate(total_time=1350):
     decimal_precision = 11
     assert abs(expected_mass - final_mass) < \
            1.5 * 10 ** (-decimal_precision)
-    return output
+    if return_value:
+        return output
+    return None
 
 
 def main():
@@ -100,7 +102,7 @@ def main():
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
 
-    data = test_growth_rate()
+    data = test_growth_rate(return_value=True)
     plot_settings = {}
     plot_simulation_output(data, plot_settings, out_dir)
 

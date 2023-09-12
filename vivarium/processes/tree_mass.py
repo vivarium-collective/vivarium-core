@@ -105,7 +105,7 @@ class TreeMass(Deriver):
                         'initial': initial_mass}}}}
 
 
-def test_tree_mass():
+def test_tree_mass(return_data=False):
 
     mass_1 = 1.0 * units.g / units.mol
     mass_2 = 2.0 * units.g / units.mol
@@ -164,13 +164,14 @@ def test_tree_mass():
     experiment.end()
 
     assert output[0.0]['global']['mass'] == 4 * units.g
-    return output
+    if return_data:
+        return output
 
 
 def _run_tree_mass():
     out_dir = os.path.join(PROCESS_OUT_DIR, NAME)
     os.makedirs(out_dir, exist_ok=True)
-    output = test_tree_mass()
+    output = test_tree_mass(return_data=True)
     pp(output)
 
 

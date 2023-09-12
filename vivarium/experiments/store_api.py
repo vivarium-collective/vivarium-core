@@ -1,3 +1,4 @@
+from typing import Optional, cast
 import pytest
 
 from vivarium.composites.toys import Qo, ToyProcess, ToyComposer
@@ -17,7 +18,7 @@ def get_toy_store() -> Store:
     return store2
 
 
-def test_insert_process() -> Store:
+def test_insert_process(return_value: bool = False) -> Optional[Store]:
     """Test Store.insert by adding a new process
 
     Return:
@@ -36,25 +37,27 @@ def test_insert_process() -> Store:
     assert isinstance(
         store['process3'].value, Process), \
         'process3 not inserted successfully'
-    return store
+    if return_value:
+        return store
+    return None
 
 
 def test_rewire_ports() -> None:
     """connect a process' ports to different store"""
-    store = test_insert_process()
+    store = cast(Store, test_insert_process(return_value=True))
 
     # connect process1's port1 to the store at process3's port1
-    store = test_insert_process()
+    store = cast(Store, test_insert_process(return_value=True))
     store['process1'].connect('port1', store['process3']['port1'])
     assert store['process1']['port1'] == store['process3']['port1']
 
     # connect process2's port2 to store store_A
-    store = test_insert_process()
+    store = cast(Store, test_insert_process(return_value=True))
     store['process2'].connect('port2', store['store_A'])
     assert store['process2', 'port2', 'var_a'] == store['store_A', 'var_a']
 
     # turn variable 'var_a' into 'var_b'
-    store = test_insert_process()
+    store = cast(Store, test_insert_process(return_value=True))
     store['process2'].connect(['port2', 'var_a'], store['store_A', 'var_b'])
     # store['process2', 'port2', 'var_a'] = store['store_A', 'var_b']
     assert store['process2', 'port2', 'var_a'] == store['store_A', 'var_b']

@@ -98,7 +98,7 @@ class ToyAgent(Composer):
                 'outer': config['engulf']['inner_path']}}
 
 
-def test_engulf():
+def test_engulf(return_value=False):
     num_agents = 3
     agent_ids = [
         str(agent_id + 1)
@@ -160,13 +160,14 @@ def test_engulf():
     assert [*output[10.0]['agents'].keys()] == ['1']
     assert [*output[10.0]['agents']['1']['agents'].keys()] == ['3', '2']
 
-    return output
+    if return_value:
+        return output
 
 
 def run_engulf():
     out_dir = os.path.join(PROCESS_OUT_DIR, NAME)
     os.makedirs(out_dir, exist_ok=True)
-    output = test_engulf()
+    output = test_engulf(return_value=True)
     pp(output)
 
 

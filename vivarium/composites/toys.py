@@ -711,7 +711,25 @@ def test_override() -> None:
     assert default_state == expected_default_state
 
 
-def test_composer() -> Dict:
+def test_composer():
+    toy_compartment = ToyCompartment({})
+    total_time = 10
+    initial_state = {
+        'periplasm': {
+            'GLC': 20,
+            'MASS': 100,
+            'DENSITY': 10},
+        'cytoplasm': {
+            'GLC': 0,
+            'MASS': 3,
+            'DENSITY': 10}}
+
+    composite = toy_compartment.generate()
+    sim = Engine(composite=composite, initial_state=initial_state)
+    sim.update(total_time)
+
+
+def run_composer() -> Dict:
     toy_compartment = ToyCompartment({})
     total_time = 10
     initial_state = {

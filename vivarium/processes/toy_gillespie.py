@@ -204,7 +204,7 @@ class StochasticTscTrl(Composer):
 
 
 
-def test_gillespie_process(total_time=1000):
+def test_gillespie_process(total_time=1000, return_value=False):
     gillespie_process = StochasticTSC({'name': 'process'})
 
     # make the experiment
@@ -232,10 +232,12 @@ def test_gillespie_process(total_time=1000):
     assert front[('process',)]['time'] == gillespie_experiment.global_time
 
     gillespie_data = gillespie_experiment.emitter.get_timeseries()
-    return gillespie_data
+    if return_value:
+        return gillespie_data
+    return None
 
 
-def test_gillespie_composite(total_time=10000):
+def test_gillespie_composite(total_time=10000, return_value=False):
     stochastic_tsc_trl = StochasticTscTrl().generate()
 
     # make the experiment
@@ -249,7 +251,9 @@ def test_gillespie_composite(total_time=10000):
     stoch_experiment.update(total_time)
     data = stoch_experiment.emitter.get_timeseries()
 
-    return data
+    if return_value:
+        return data
+    return None
 
 
 def main():
@@ -258,8 +262,8 @@ def main():
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
 
-    process_output = test_gillespie_process()
-    composite_output = test_gillespie_composite()
+    process_output = test_gillespie_process(return_value=True)
+    composite_output = test_gillespie_composite(return_value=True)
 
     # plot the simulation output
     plot_settings = {}

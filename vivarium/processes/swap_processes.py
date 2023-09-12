@@ -125,7 +125,7 @@ class ToyLivingCompartment(Composer):
                 'self': self_path}}
 
 
-def test_death():
+def test_death(return_value=False):
     agent_id = '1'
 
     # make the composite
@@ -175,13 +175,14 @@ def test_death():
     assert internal_a[time_dead] > internal_a[0]
     assert internal_a[time_total] < internal_a[time_dead]
 
-    return output
+    if return_value:
+        return output
 
 
 def run_death():
     out_dir = os.path.join(PROCESS_OUT_DIR, NAME)
     os.makedirs(out_dir, exist_ok=True)
-    output = test_death()
+    output = test_death(return_value=True)
     plot_simulation_output(output, {}, out_dir)
 
 

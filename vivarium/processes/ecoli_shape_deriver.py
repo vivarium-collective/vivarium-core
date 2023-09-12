@@ -146,7 +146,7 @@ class EcoliShape(Deriver):
 
 
 
-def test_deriver(total_time=10):
+def test_deriver(total_time=10, return_value=False):
 
     growth_rate = 6e-3
 
@@ -182,9 +182,10 @@ def test_deriver(total_time=10):
         # save state
         saved_state[time] = copy.deepcopy(state)
 
-    return saved_state
+    if return_value:
+        return saved_state
 
 
 if __name__ == '__main__':
-    saved_data = test_deriver(100)
+    saved_data = test_deriver(100, return_value=True)
     print(saved_data)

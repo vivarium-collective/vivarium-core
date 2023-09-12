@@ -106,7 +106,7 @@ class ToyAgent(Composer):
             }}
 
 
-def test_burst():
+def test_burst(return_value=False):
     agent_1_id = '1'
     agent_2_id = '2'
 
@@ -175,13 +175,14 @@ def test_burst():
     assert output[0.0]['concentrations']['A'] == initial_a
     assert output[5.0]['concentrations']['A'] + output[5.0]['agents'][agent_1_id]['concentrations']['A'] == initial_a
 
-    return output
+    if return_value:
+        return output
 
 
 def run_burst():
     out_dir = os.path.join(PROCESS_OUT_DIR, NAME)
     os.makedirs(out_dir, exist_ok=True)
-    output = test_burst()
+    output = test_burst(return_value=True)
     pp(output)
 
 
