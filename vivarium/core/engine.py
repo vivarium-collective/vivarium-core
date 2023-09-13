@@ -19,8 +19,10 @@ import math
 import datetime
 import time as clock
 import uuid
+import warnings
 
 import networkx as nx
+import numpy as np
 import pytest
 
 from vivarium.core.store import (
@@ -1236,3 +1238,173 @@ def test_flow_with_valid_steps() -> None:
             'stepA2': [],
         },
     )
+
+def test_numpy_schema_validation() -> None:
+    class ProcessA(Process):
+
+        defaults = {
+            'ports_schema_dict': {
+                'b': {'_default': 1}
+            }
+        }
+
+        def __init__(self, parameters: Optional[dict] = None) -> None:
+            super().__init__(parameters)
+            self.ports_schema_dict = self.parameters['ports_schema_dict']
+
+        def ports_schema(self) -> Schema:
+            return self.ports_schema_dict
+
+        def next_update(self, timestep: float, states: State) -> Update:
+            return {}
+
+    # Since procA1 and procA2 differ in their _divider schemas,
+    # _check_schema_support_defaults should raise a warning
+    with pytest.warns(UserWarning, match='Incompatible schema assignment'):
+        _ = Engine(
+            processes={
+                'procA1': ProcessA(
+                    {
+                        'ports_schema_dict': {
+                            'a': {
+                                '_divider': {
+                                    'divider': 'set_value',
+                                    'config': {
+                                        'value': np.ones(10)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                ),
+                'procA2': ProcessA(
+                    {
+                        'ports_schema_dict': {
+                            'a': {
+                                '_divider': {
+                                    'divider': 'set_value',
+                                    'config': {
+                                        'value': np.zeros(10)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                ),
+            },
+            topology={
+                'procA1': {'a': ('a',)},
+                'procA2': {'a': ('a',)},
+            }
+        )
+
+    # Check that np.ones(10) is not considered equal to 1
+    with pytest.raises(ValueError, match='The truth value of an array'):
+        _ = Engine(
+            processes={
+                'procA1': ProcessA(
+                    {
+                        'ports_schema_dict': {
+                            'a': {
+                                '_divider': {
+                                    'divider': 'set_value',
+                                    'config': {
+                                        'value': 1
+                                    }
+                                }
+                            }
+                        }
+                    }
+                ),
+                'procA2': ProcessA(
+                    {
+                        'ports_schema_dict': {
+                            'a': {
+                                '_divider': {
+                                    'divider': 'set_value',
+                                    'config': {
+                                        'value': np.ones(10)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                ),
+            },
+            topology={
+                'procA1': {'a': ('a',)},
+                'procA2': {'a': ('a',)},
+            }
+        )
+
+    # Since ProcA1 and ProcA2 differ in their _value schemas,
+    # _check_schema should raise an exception
+    with pytest.raises(ValueError, match='Incompatible schema assignment'):
+        _ = Engine(
+            processes={
+                'procA1': ProcessA(
+                    {
+                        'ports_schema_dict': {
+                            'a': {
+                                '_value': np.ones(10)
+                            }
+                        }
+                    }
+                ),
+                'procA2': ProcessA(
+                    {
+                        'ports_schema_dict': {
+                            'a': {
+                                '_value': np.zeros(10)
+                            }
+                        }
+                    }
+                ),
+            },
+            topology={
+                'procA1': {'a': ('a',)},
+                'procA2': {'a': ('a',)},
+            }
+        )
+
+    # Matching schemas should raise no warnings or exceptions
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        _ = Engine(
+                processes={
+                    'procA1': ProcessA(
+                        {
+                            'ports_schema_dict': {
+                                'a': {
+                                    '_value': np.ones(10),
+                                    '_divider': {
+                                        'divider': 'set_value',
+                                        'config': {
+                                            'value': np.ones(10)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    ),
+                    'procA2': ProcessA(
+                        {
+                            'ports_schema_dict': {
+                                'a': {
+                                    '_value': np.ones(10),
+                                    '_divider': {
+                                        'divider': 'set_value',
+                                        'config': {
+                                            'value': np.ones(10)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    ),
+                },
+                topology={
+                    'procA1': {'a': ('a',)},
+                    'procA2': {'a': ('a',)},
+                }
+            )

@@ -18,7 +18,7 @@ from typing import Optional
 
 from vivarium.core.registry import divider_registry, serializer_registry, updater_registry
 from vivarium.core.process import ParallelProcess, Process
-from vivarium.library.dict_utils import deep_merge, deep_merge_check, MULTI_UPDATE_KEY
+from vivarium.library.dict_utils import deep_compare, deep_merge, deep_merge_check, MULTI_UPDATE_KEY
 from vivarium.library.topology import dict_to_paths
 from vivarium.core.types import Processes, Topology, State, Steps, Flow
 from vivarium.core.serialize import QuantitySerializer
@@ -499,9 +499,13 @@ class Store:
                 value is different from the existing one.
         """
         current_schema_value = getattr(self, schema_key)
-        if current_schema_value is not None and np.all(
-            current_schema_value != new_schema
-        ):
+        if isinstance(current_schema_value, dict) and isinstance(new_schema, dict):
+            schemas_equal = deep_compare(current_schema_value, new_schema)
+        elif isinstance(current_schema_value, np.ndarray) and isinstance(new_schema, np.ndarray):
+            schemas_equal = np.array_equal(current_schema_value, new_schema)
+        else:
+            schemas_equal = (current_schema_value == new_schema)
+        if current_schema_value is not None and not schemas_equal:
             if schema_key == "units":
                 # Different Python interpreters (inc. from multiprocessing with
                 # spawn start method) yield different hashes for the same value
@@ -527,10 +531,14 @@ class Store:
                 new_schema[schema_key], str):
             new_schema[schema_key] = schema_registry.access(
                 new_schema[schema_key])
+        if isinstance(current_schema_value, dict) and isinstance(new_schema, dict):
+            schemas_equal = deep_compare(current_schema_value, new_schema)
+        else:
+            schemas_equal = (current_schema_value == new_schema)
         if (
                 current_schema_value
-                and np.all(current_schema_value != DEFAULT_SCHEMA)
-                and np.all(current_schema_value != new_schema)):
+                and current_schema_value != DEFAULT_SCHEMA
+                and not schemas_equal):
             warnings.warn(
                 f"Incompatible schema assignment at {self.path_for()}. "
                 f"Trying to assign the value {new_schema} to key {schema_key}, "

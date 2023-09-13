@@ -5,7 +5,9 @@ from functools import reduce
 import operator
 import traceback
 from typing import Optional, Any, Callable
+import warnings
 
+import numpy as np
 from vivarium.library.units import Quantity
 
 
@@ -19,6 +21,43 @@ def merge_dicts(dicts):
     for d in dicts:
         merge.update(d)
     return merge
+
+
+def deep_compare(dct_1, dct_2, path=tuple()):
+    """Recursively checks for equality between two dictionaries in a way
+    that supports Numpy arrays.
+
+    Args:
+        dct_1, dct_2, dictionaries to compare
+        path: If ``dct_1`` or ``dct_2`` are nested within larger dictionaries,
+            this is the path to them. This is normally an empty tuple
+            for the end user but is used for recursive calls
+    
+    Returns:
+        True when two dictionaries are equal, False otherwise
+    
+    Raises:
+        ValueError: Raised when conflicting values are found between
+            ``dct_1`` and ``dct_2``
+    """
+    key_diff = dct_1.keys() ^ dct_2.keys()
+    if len(key_diff) > 0:
+        warnings.warn(f'Unshared keys at {path}: {key_diff}')
+        return False
+    for key, val_1 in dct_1.items():
+        val_2 = dct_2[key]
+        if isinstance(val_1, dict) and isinstance(val_2, dict):
+            if not deep_compare(val_1, val_2, path + (key,)):
+                return False
+        elif isinstance(val_1, np.ndarray) and isinstance(val_2, np.ndarray):
+            if not np.array_equal(val_1, val_2):
+                warnings.warn(f'Dicts differ at {path}: {val_1}, {val_2}')
+                return False
+        else:
+            if not val_1 == val_2:
+                warnings.warn(f'Dicts differ at {path}: {val_1}, {val_2}')
+                return False
+    return True
 
 
 def deep_merge_check(dct, merge_dct, check_equality=False, path=tuple()):
