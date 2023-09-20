@@ -1,7 +1,8 @@
 # Changelog
 
 ## v1.6.1
-* (#233) Fix some bugs in `emitter.py` and allow Numpy arrays in Store schemas
+* (#234) Allow Numpy arrays to be deeply nested in Store schemas
+* (#233) Fix some bugs in `emitter.py`
 
 ## v1.6.0
 * (#231) Update `networkx` error message for already deleted Step.
