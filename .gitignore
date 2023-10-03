@@ -21,6 +21,7 @@ Pipfile
 Pipfile.lock
 .vscode/*
 .env
+notebooks/.ipynb_checkpoints/
 
 # Compiled source #
 ###################
