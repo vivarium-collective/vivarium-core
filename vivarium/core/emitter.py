@@ -388,8 +388,8 @@ class DatabaseEmitter(Emitter):
                 assoc_path(d, path, datum)
                 d['assembly_id'] = assembly_id
                 d['experiment_id'] = experiment_id
+                d.setdefault('data', {})
                 if time:
-                    d.setdefault('data', {})
                     d['data']['time'] = time
                 table.insert_one(d)
 
