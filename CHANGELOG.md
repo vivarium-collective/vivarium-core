@@ -1,5 +1,8 @@
 # Changelog
 
+## v1.6.2
+* (#236) Add data key to breakdown documents if missing
+
 ## v1.6.1
 * (#234) Allow Numpy arrays to be deeply nested in Store schemas
 * (#233) Fix some bugs in `emitter.py`
