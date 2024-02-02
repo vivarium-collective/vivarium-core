@@ -165,14 +165,14 @@ def test_data_to_database():
     delete_experiment_from_database('manual_insert')
     data = {
         '0.0': {'data': {'store': 1}, 
-                'experiment_id': 'manual_insert', 'assembly_id': 1},
+                'experiment_id': 'manual_insert'},
         '1.0': {'data': {'store': 2}, 
-                'experiment_id': 'manual_insert', 'assembly_id': 2},
+                'experiment_id': 'manual_insert'},
         '2.0': {'data': {'store': [3.5]}, 
-                'experiment_id': 'manual_insert', 'assembly_id': 3}
+                'experiment_id': 'manual_insert'}
     }
-    config = {'experiment_id': 'manual_insert', 
-              'data': {'store': 1}, 'assembly_id': 4}
+    config = {'experiment_id': 'manual_insert',
+              'data': {'store': 1}}
     db = get_experiment_database()
     data_to_database(data, config, db)
     retrieved_data, retrieved_config = data_from_database('manual_insert', db)

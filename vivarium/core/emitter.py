@@ -731,22 +731,37 @@ def data_from_database(
 
 
 def data_to_database(
-        data: Dict[float, dict], environment_config: Any, client: Any) -> Any:
-    """Insert something into a MongoDB."""
-    history_collection = client.history
+        data: Dict[float, dict], environment_config: Any, db: Any) -> None:
+    """Insert data into MongoDB.
+    
+    Args:
+        data: Dictionary mapping time to subdictionaries. Subdictionaries
+            must have an `experiment_id` key for compatibility with retrieval
+            functions like :py:func:`~.data_from_database`.
+        environment_config: Dictionary that will be written to `configuration`
+            collection. Must have an `experiment_id` key.
+        db: MongoDB database (e.g. from :py:func:`~.get_experiment_database`)
+    """
+    history_collection = db.history
     reshaped_data = []
     for time, timepoint_data in data.items():
         # Since time is the dictionary key, it has to be a string for
         # JSON/BSON compatibility. But now that we're uploading it, we
         # want it to be a float for fast searching.
-        reshaped_entry = {'time': float(time)}
+        reshaped_entry = {}
         for key, val in timepoint_data.items():
             if key not in ('_id', 'time'):
                 reshaped_entry[key] = val
+        # All other functions expect `time` key under `data` key
+        data_dict = reshaped_entry.setdefault('data', {})
+        reshaped_entry['data'] = dict(data_dict)
+        reshaped_entry['data']['time'] = float(time)
+        # Add required assembly ID if it does not exist
+        reshaped_entry.setdefault('assembly_id', str(uuid.uuid4()))
         reshaped_data.append(reshaped_entry)
     history_collection.insert_many(reshaped_data)
 
-    config_collection = client.configuration
+    config_collection = db.configuration
     config_collection.insert_one(environment_config)
 
 
