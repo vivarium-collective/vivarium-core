@@ -87,7 +87,7 @@ def test_hierarchy_update() -> None:
         emit_step=100.0)
 
     # run the experiment long enough to divide
-    hierarchy_experiment1.update(2000)
+    hierarchy_experiment1.update(3000)
 
     # check that the agents updated after division
     for n in ['processes', 'steps', 'topology']:  # TODO: add flow
