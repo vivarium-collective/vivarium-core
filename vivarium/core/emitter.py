@@ -389,7 +389,7 @@ class DatabaseEmitter(Emitter):
                 d['assembly_id'] = assembly_id
                 d['experiment_id'] = experiment_id
                 d.setdefault('data', {})
-                if time:
+                if time is not None:
                     d['data']['time'] = time
                 table.insert_one(d)
 
