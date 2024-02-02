@@ -12,6 +12,7 @@ from vivarium.core.composer import Composer
 from vivarium.core.emitter import (
     get_experiment_database,
     data_from_database,
+    data_to_database,
     delete_experiment_from_database)
 
 
@@ -157,10 +158,30 @@ def test_query_db():
     data_multi, _ = data_from_database(experiment.experiment_id, db, cpus=2)
     data, _ = data_from_database(experiment.experiment_id, db)
     assert data_multi == data
+    delete_experiment_from_database(experiment.experiment_id, cpus=2)
 
-    delete_experiment_from_database(experiment.experiment_id)
+
+def test_data_to_database():
+    delete_experiment_from_database('manual_insert')
+    data = {
+        '0.0': {'data': {'store': 1}, 
+                'experiment_id': 'manual_insert', 'assembly_id': 1},
+        '1.0': {'data': {'store': 2}, 
+                'experiment_id': 'manual_insert', 'assembly_id': 2},
+        '2.0': {'data': {'store': [3.5]}, 
+                'experiment_id': 'manual_insert', 'assembly_id': 3}
+    }
+    config = {'experiment_id': 'manual_insert', 
+              'data': {'store': 1}, 'assembly_id': 4}
+    db = get_experiment_database()
+    data_to_database(data, config, db)
+    retrieved_data, retrieved_config = data_from_database('manual_insert', db)
+    assert retrieved_data == {float(t): val['data'] for t, val in data.items()}
+    assert retrieved_config == config['data']
+    delete_experiment_from_database('manual_insert')
 
 
 if __name__ == '__main__':
     test_large_emits()
     test_query_db()
+    test_data_to_database()
