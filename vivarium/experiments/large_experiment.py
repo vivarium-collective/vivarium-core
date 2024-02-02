@@ -94,11 +94,11 @@ def test_large_emits():
     db = get_experiment_database()
     # check that configuration emit was split into sub-documents
     config_cursor = db.configuration.find({'experiment_id': experiment_id})
-    config_raw = [doc for doc in config_cursor]
+    config_raw = list(config_cursor)
     assert len(config_raw) > 1
     # check that sim emit was split into sub-documents (2 timesteps)
     history_cursor = db.history.find({'experiment_id': experiment_id})
-    history_raw = [doc for doc in history_cursor]
+    history_raw = list(history_cursor)
     assert len(history_raw) > 2
 
     # retrieve the data directly from database
@@ -108,7 +108,7 @@ def test_large_emits():
     processes = experiment_config['processes']
     assert len(processes) == config['number_of_processes']
     for proc in processes:
-        np.testing.assert_allclose(np.array(data[1.0]['store'][proc]), 
+        np.testing.assert_allclose(np.array(data[1.0]['store'][proc]),
             np.array(data[0.0]['store'][proc]) + 1)
 
     # delete the experiment
@@ -133,7 +133,7 @@ def test_query_db():
     experiment.update(10)
 
     db = get_experiment_database()
-    
+
     # test query
     query = [('store', 'process_0'), ('store', 'process_9')]
     data, _ = data_from_database(experiment.experiment_id, db, query)
@@ -147,9 +147,9 @@ def test_query_db():
                                  func_dict=func_dict)
     for emit_data in data.values():
         assert emit_data['store']['process_0'] == 3
-    
+
     # test start and end time
-    data, _ = data_from_database(experiment.experiment_id, db, 
+    data, _ = data_from_database(experiment.experiment_id, db,
                                  start_time=1, end_time=5)
     assert data.keys() == {1.0, 2.0, 3.0, 4.0, 5.0}
 
@@ -157,7 +157,7 @@ def test_query_db():
     data_multi, _ = data_from_database(experiment.experiment_id, db, cpus=2)
     data, _ = data_from_database(experiment.experiment_id, db)
     assert data_multi == data
-    
+
     delete_experiment_from_database(experiment.experiment_id)
 
 
