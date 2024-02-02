@@ -162,7 +162,6 @@ def test_query_db():
 
 
 def test_data_to_database():
-    delete_experiment_from_database('manual_insert')
     data = {
         '0.0': {'data': {'store': 1}, 
                 'experiment_id': 'manual_insert'},
@@ -179,6 +178,7 @@ def test_data_to_database():
     assert retrieved_data == {float(t): val['data'] for t, val in data.items()}
     assert retrieved_config == config['data']
     delete_experiment_from_database('manual_insert')
+    db.configuration.delete_many({'experiment_id': 'manual_insert'})
 
 
 if __name__ == '__main__':
