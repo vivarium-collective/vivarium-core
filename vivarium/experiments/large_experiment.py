@@ -4,6 +4,8 @@ Experiment to test maximum BSON document size with MongoDB emitter
 import uuid
 import random
 
+import numpy as np
+
 from vivarium.core.engine import Engine
 from vivarium.core.process import Process
 from vivarium.core.composer import Composer
@@ -16,7 +18,7 @@ from vivarium.core.emitter import (
 class ManyParametersProcess(Process):
     defaults = {
         'number_of_parameters': 100,
-        'number_of_ports': 1}
+        'arr_size': 1}
     def __init__(self, parameters=None):
         # make a bunch of parameters
         random_parameters = {
@@ -24,19 +26,17 @@ class ManyParametersProcess(Process):
             for key in range(parameters['number_of_parameters'])}
         super().__init__({**parameters, **random_parameters})
     def ports_schema(self):
-        return {'port': {
-            str(i): {'_default': 0, '_emit': True}
-            for i in range(self.parameters['number_of_ports'])}}
+        return {'port': {'_default': np.random.random(
+            self.parameters['arr_size']), '_emit': True}}
     def next_update(self, timestep, states):
-        return {'port': {str(i): 1
-            for i in range(self.parameters['number_of_ports'])}}
+        return {'port': 1}
 
 
 class ManyParametersComposite(Composer):
     defaults = {
         'number_of_processes': 10,
         'number_of_parameters': 100,
-        'number_of_ports': 1}
+        'arr_size': 1}
     def __init__(self, config=None):
         super().__init__(config)
         self.process_ids = [
@@ -48,7 +48,7 @@ class ManyParametersComposite(Composer):
             process_id: ManyParametersProcess({
                 'name': process_id,
                 'number_of_parameters': self.config['number_of_parameters'],
-                'number_of_ports': self.config['number_of_ports']})
+                'arr_size': self.config['arr_size']})
             for process_id in self.process_ids}
     def generate_topology(self, config):
         return {
@@ -56,11 +56,16 @@ class ManyParametersComposite(Composer):
             for process_id in self.process_ids}
 
 
-def run_large_experiment(config):
+def test_large_emits():
     """
     This experiment runs a large experiment to test the database emitter.
     This requires MongoDB to be configured and running.
     """
+    config = {
+        'number_of_processes': 10,
+        'number_of_parameters': 100000,
+        'arr_size': 150000}
+
     composer = ManyParametersComposite(config)
     composite = composer.generate()
 
@@ -68,7 +73,7 @@ def run_large_experiment(config):
         'experiment_name': 'large database experiment',
         'experiment_id': f'large_{str(uuid.uuid4())}',
         'emitter': 'database',
-        'emit_config': True
+        'emit_processes': True
     }
 
     experiment = Engine(**{
@@ -86,39 +91,76 @@ def run_large_experiment(config):
     data = experiment.emitter.get_data()
     assert list(data.keys()) == [0.0, 1.0]
 
-    # retrieve the data directly from database
     db = get_experiment_database()
-    data, experiment_config = data_from_database(experiment_id, db)
-    assert 'processes' in experiment_config
-    assert 0.0 in data
+    # check that configuration emit was split into sub-documents
+    config_cursor = db.configuration.find({'experiment_id': experiment_id})
+    config_raw = [doc for doc in config_cursor]
+    assert len(config_raw) > 1
+    # check that sim emit was split into sub-documents (2 timesteps)
+    history_cursor = db.history.find({'experiment_id': experiment_id})
+    history_raw = [doc for doc in history_cursor]
+    assert len(history_raw) > 2
 
-    # check keys of emitted data
-    state = experiment_config['state']
-    store_names = set(str(i) for i in range(config['number_of_ports']))
-    store_values = set([1] * config['number_of_ports'])
-    assert state.keys() == set(composite.processes) | set(('store',))
-    for proc, stores in state['store'].items():
-        assert stores.keys() == store_names
-        assert set(data[1.0]['store'][proc].values()) == store_values
+    # retrieve the data directly from database
+    data, experiment_config = data_from_database(experiment_id, db)
+
+    # check values of emitted data
+    processes = experiment_config['processes']
+    assert len(processes) == config['number_of_processes']
+    for proc in processes:
+        np.testing.assert_allclose(np.array(data[1.0]['store'][proc]), 
+            np.array(data[0.0]['store'][proc]) + 1)
 
     # delete the experiment
     delete_experiment_from_database(experiment_id)
 
 
-def test_large_initial_emit():
-    run_large_experiment({
-        'number_of_processes': 1000,
-        'number_of_parameters': 1000,
-        'number_of_ports': 1})
+def test_query_db():
+    """
+    This tests the query features of the MongoDB API.
+    """
+    composer = ManyParametersComposite()
+    composite = composer.generate()
+    settings = {
+        'experiment_name': 'large database experiment',
+        'experiment_id': f'large_{str(uuid.uuid4())}',
+        'emitter': 'database'
+    }
+    experiment = Engine(**{
+        'processes': composite['processes'],
+        'topology': composite['topology'],
+        **settings})
+    experiment.update(10)
 
+    db = get_experiment_database()
+    
+    # test query
+    query = [('store', 'process_0'), ('store', 'process_9')]
+    data, _ = data_from_database(experiment.experiment_id, db, query)
+    assert data[0.0]['store'].keys() == {'process_0', 'process_9'}
 
-def test_large_sim_emit():
-    run_large_experiment({
-        'number_of_processes': 1000,
-        'number_of_parameters': 1,
-        'number_of_ports': 1000})
+    # test func_dict
+    func_dict = {
+        ('store', 'process_0'): lambda x: 3,
+    }
+    data, _ = data_from_database(experiment.experiment_id, db, query,
+                                 func_dict=func_dict)
+    for emit_data in data.values():
+        assert emit_data['store']['process_0'] == 3
+    
+    # test start and end time
+    data, _ = data_from_database(experiment.experiment_id, db, 
+                                 start_time=1, end_time=5)
+    assert data.keys() == {1.0, 2.0, 3.0, 4.0, 5.0}
+
+    # test multiple cpu processes
+    data_multi, _ = data_from_database(experiment.experiment_id, db, cpus=2)
+    data, _ = data_from_database(experiment.experiment_id, db)
+    assert data_multi == data
+    
+    delete_experiment_from_database(experiment.experiment_id)
 
 
 if __name__ == '__main__':
-    test_large_initial_emit()
-    test_large_sim_emit()
+    test_large_emits()
+    test_query_db()
