@@ -735,10 +735,10 @@ def data_to_database(
     
     Args:
         data: Dictionary mapping time to subdictionaries. Subdictionaries
-            must have an `experiment_id` key for compatibility with retrieval
+            must have an ``experiment_id`` key for compatibility with retrieval
             functions like :py:func:`~.data_from_database`.
-        environment_config: Dictionary that will be written to `configuration`
-            collection. Must have an `experiment_id` key.
+        environment_config: Dictionary that will be written to ``configuration``
+            collection. Must have an ``experiment_id`` key.
         db: MongoDB database (e.g. from :py:func:`~.get_experiment_database`)
     """
     history_collection = db.history
