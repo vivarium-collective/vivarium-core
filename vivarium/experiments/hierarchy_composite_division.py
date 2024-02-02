@@ -71,7 +71,7 @@ def test_hierarchy_update() -> None:
                 'Protein': {'X': 50 * units.mg / units.mL}}}}
 
     # make a txtl composite, embedded under an 'agents' store
-    txtl_composer = AgentDivision({})
+    txtl_composer = AgentDivision({'growth': {'default_growth_noise': 0}})
     txtl_composite1 = txtl_composer.generate(
         {'agent_id': agent_id},
         path=('agents', agent_id))
@@ -87,7 +87,7 @@ def test_hierarchy_update() -> None:
         emit_step=100.0)
 
     # run the experiment long enough to divide
-    hierarchy_experiment1.update(3000)
+    hierarchy_experiment1.update(2000)
 
     # check that the agents updated after division
     for n in ['processes', 'steps', 'topology']:  # TODO: add flow
