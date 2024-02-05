@@ -469,6 +469,7 @@ def delete_experiment_from_database(
     else:
         query = {'experiment_id': experiment_id}
         db.history.delete_many(query, hint=HISTORY_INDEXES[1])
+    db.configuration.delete_many({'experiment_id': experiment_id})
 
 
 def assemble_data(data: list) -> dict:
