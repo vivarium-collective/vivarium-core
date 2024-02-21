@@ -1027,7 +1027,8 @@ class Engine:
                         self._emit_store_data()
                         emit_time += self.emit_step
                         if self.global_time_precision is not None:
-                            emit_time = round(emit_time, self.global_time_precision)
+                            emit_time = round(emit_time,
+                                              self.global_time_precision)
 
             else:
                 # all processes have run past the interval
