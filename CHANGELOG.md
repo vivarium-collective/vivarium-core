@@ -2,6 +2,7 @@
 
 ## v1.6.3
 * (#237) Add tests for MongoDB emitter and fix related bugs
+* (#238) apply `global_time_precision` to the `emit_time`
 
 ## v1.6.2
 * (#236) Add data key to breakdown documents if missing

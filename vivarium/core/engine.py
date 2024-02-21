@@ -922,6 +922,8 @@ class Engine:
         """
         end_time = self.global_time + interval
         emit_time = self.global_time + self.emit_step
+        if self.global_time_precision is not None:
+            emit_time = round(emit_time, self.global_time_precision)
 
         while self.global_time < end_time or force_complete:
             full_step = math.inf
@@ -1024,6 +1026,9 @@ class Engine:
                     while emit_time <= self.global_time:
                         self._emit_store_data()
                         emit_time += self.emit_step
+                        if self.global_time_precision is not None:
+                            emit_time = round(emit_time,
+                                              self.global_time_precision)
 
             else:
                 # all processes have run past the interval
