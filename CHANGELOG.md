@@ -1,5 +1,8 @@
 # Changelog
 
+## v1.6.4
+* (#240) fix Pint Quantity import error by using more recent version.
+
 ## v1.6.3
 * (#237) Add tests for MongoDB emitter and fix related bugs
 * (#238) apply `global_time_precision` to the `emit_time`
