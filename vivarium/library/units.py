@@ -26,10 +26,7 @@ import pint
 
 # noinspection PyProtectedMember
 from pint import Unit
-try:
-    from pint.quantity import _Quantity as Quantity
-except ImportError:
-    from pint import Quantity
+from pint import Quantity
 
 #: Units registry that stores the units used throughout Vivarium
 units = pint.UnitRegistry()
