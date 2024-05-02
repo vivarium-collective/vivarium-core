@@ -2,7 +2,7 @@ import re
 from setuptools import setup
 
 
-VERSION = '1.6.3'
+VERSION = '1.6.4'
 
 
 if __name__ == '__main__':
@@ -54,7 +54,7 @@ if __name__ == '__main__':
             'matplotlib>=3.5.1',
             'networkx>=2.6.3',
             'numpy>=1.22.1',
-            'Pint>=0.18',
+            'Pint>=0.23',
             'pymongo>=4.0.1',
             'scipy>=1.7.3',
             'pytest>=6.2.5',
