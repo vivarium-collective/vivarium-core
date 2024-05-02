@@ -49,8 +49,9 @@ if __name__ == '__main__':
         long_description_content_type='text/markdown',
         package_data={},
         include_package_data=True,
-        python_requires='>=3.9, <3.12',
+        python_requires='>=3.9, <3.13',
         install_requires=[
+            'setuptools>=58.0.0',
             'matplotlib>=3.5.1',
             'networkx>=2.6.3',
             'numpy>=1.22.1',
