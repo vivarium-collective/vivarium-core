@@ -46,7 +46,7 @@ installed.
 Python 3
 --------
 
-Vivarium Core requires Python 3.10, 3.11, or 3.12.
+Vivarium Core requires Python 3.10, 3.11, 3.12, or 3.13.
 
 *Check Installation*
 
@@ -55,7 +55,7 @@ Vivarium Core requires Python 3.10, 3.11, or 3.12.
     $ python --version
     Python <version>
 
-Make sure you see a version starting with 3.10, 3.11, or 3.12.
+Make sure you see a version starting with 3.10, 3.11, 3.12, or 3.13.
 
 *Install*
 

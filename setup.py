@@ -49,7 +49,7 @@ if __name__ == '__main__':
         long_description_content_type='text/markdown',
         package_data={},
         include_package_data=True,
-        python_requires='>=3.10, <3.13',
+        python_requires='>=3.10, <3.14',
         install_requires=[
             'matplotlib>=3.5.1',
             'networkx>=3.4',
@@ -73,6 +73,7 @@ if __name__ == '__main__':
             'Programming Language :: Python :: 3.10',
             'Programming Language :: Python :: 3.11',
             'Programming Language :: Python :: 3.12',
+            'Programming Language :: Python :: 3.13',
             'Topic :: Scientific/Engineering',
         ],
         keywords='vivarium multi-scale computational-biology biology simulation framework',
