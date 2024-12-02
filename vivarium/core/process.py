@@ -7,12 +7,12 @@ Process Classes
 import abc
 import copy
 import cProfile
-from multiprocessing import Pipe
-from multiprocessing import Process as Multiprocess
+import multiprocessing
 from multiprocessing.connection import Connection
 import os
 import pstats
 import pickle
+import sys
 from typing import Any, Dict, Optional, Union, List, Tuple
 from warnings import warn
 
@@ -717,8 +717,18 @@ class ParallelProcess(Process):
         self.profile = profile
         self._stats_objs = stats_objs
         assert not self.profile or self._stats_objs is not None
-        self.parent, child = Pipe()
-        self.multiprocess = Multiprocess(
+        # Linux's default ``fork`` start method causes a lot of random
+        # issues, including python/cpython#110770 (prompted this change)
+        # and python/cpython#84559 (general discussion). This default
+        # will be changed to ``forkserver`` in Python 3.14. MacOS and
+        # Windows use the much safer but slightly slower ``spawn`` method
+        if sys.platform not in ("darwin", "win32"):
+            start_method = "forkserver"
+        else:
+            start_method = "spawn"
+        mp_ctx = multiprocessing.get_context(start_method)
+        self.parent, child = mp_ctx.Pipe()
+        self.multiprocess = mp_ctx.Process(
             target=_handle_parallel_process,
             args=(child, process, self.profile))
         self.multiprocess.start()
