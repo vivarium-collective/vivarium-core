@@ -208,7 +208,7 @@ def plot_simulation_output(
             else:
                 set_axes(ax)
                 row_idx += 1
-            ax.set_xlim([time_vec[0], time_vec[-1]])
+            ax.set_xlim((time_vec[0], time_vec[-1]))
 
     if out_dir:
         plt.subplots_adjust(wspace=column_width/3, hspace=column_width/3)

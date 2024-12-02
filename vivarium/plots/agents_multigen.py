@@ -219,7 +219,7 @@ def plot_agents_multigen(
 
             if path in ylabels_map:
                 ax.set_ylabel(ylabels_map[path], fontsize=title_size)
-            ax.set_xlim([time_vec[0], time_vec[-1]])
+            ax.set_xlim((time_vec[0], time_vec[-1]))
             ax.xaxis.get_offset_text().set_fontsize(tick_label_size)
             ax.yaxis.get_offset_text().set_fontsize(tick_label_size)
 
@@ -234,7 +234,7 @@ def plot_agents_multigen(
                 ax.spines['bottom'].set_position(('axes', -0.2))
             else:
                 set_axes(ax, sci_notation=sci_notation)
-            ax.set_xlim([time_vec[0], time_vec[-1]])
+            ax.set_xlim((time_vec[0], time_vec[-1]))
             # save axis
             port_axes[path] = ax
 

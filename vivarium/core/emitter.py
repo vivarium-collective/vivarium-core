@@ -506,7 +506,7 @@ def apply_func(
 
 
 def get_query(
-    projection: dict,
+    projection: Optional[dict],
     host: str,
     port: Any,
     query: dict

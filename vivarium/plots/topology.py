@@ -332,7 +332,7 @@ def graph_figure(
                            node_shape=cast(str, [STORAGE_PATH]))
 
     # edges
-    edge_args = {}
+    edge_args: dict = {}
 
     # edge colors
     if color_edges:

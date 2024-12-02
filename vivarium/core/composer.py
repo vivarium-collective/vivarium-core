@@ -55,6 +55,7 @@ def _get_composite_state_recur(
         elif isinstance(sub_processes, Process) or \
                 isinstance(sub_steps, Process):
             node: Process = sub_processes or sub_steps
+            process_state = None
             if state_type == 'initial':
                 process_state = node.initial_state(config.get(node.name))
             elif state_type == 'default':

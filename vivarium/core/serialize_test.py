@@ -111,7 +111,7 @@ def test_serialization_full() -> None:
         'numpy_bool': np.array([True, True, False]),
         'numpy_matrix': np.array([[1, 2], [3, 4]]),
         'list_units': [1 * units.fg, 2 * units.fg],
-        'units_list': [1, 2] * units.fg,
+        'units_list': [1 * units.fg, 2 * units.fg],
         'list': [True, False, 'test', 1, None],
         'quantity': 5 * units.fg,
         'unit': units.fg,
