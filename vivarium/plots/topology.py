@@ -329,7 +329,7 @@ def graph_figure(
                            edgecolors=store_color_list,
                            node_size=node_size,
                            linewidths=store_width_list,
-                           node_shape=cast(str, STORAGE_PATH))
+                           node_shape=cast(str, [STORAGE_PATH]))
 
     # edges
     edge_args = {}
