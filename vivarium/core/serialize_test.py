@@ -197,7 +197,8 @@ def test_non_string_keys() -> None:
     except TypeError as e:
         expected_error = (
             "These paths end in incompatible non-string or Numpy string " +
-            "keys: [(np.str_('1'),), (1,), ('string', 'string2', 'string3', np.str_('1'))]")
+            "keys: [(np.str_('1'),), (1,), ('string', 'string2', 'string3', " +
+            "np.str_('1'))]")
         assert str(e) == expected_error
 
 
