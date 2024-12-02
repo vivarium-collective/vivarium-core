@@ -52,7 +52,7 @@ if __name__ == '__main__':
         python_requires='>=3.10, <3.13',
         install_requires=[
             'matplotlib>=3.5.1',
-            'networkx>=2.6.3',
+            'networkx>=3.4',
             'numpy>=1.22.1',
             'Pint>=0.23',
             'pymongo>=4.0.1',
