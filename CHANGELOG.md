@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.6.5
+* (#241) Drop Python 3.9 support in favor of 3.12 and 3.13,
+bump required networkx to 3.4, fix issue with plot_topology
+on networkx 3.4+, and change default multiprocessing
+start method to safer ``forkserver`` method on Linux
+
 ## v1.6.4
 * (#240) fix Pint Quantity import error by using more recent version.
 
