@@ -728,7 +728,7 @@ class ParallelProcess(Process):
             start_method = "spawn"
         mp_ctx = multiprocessing.get_context(start_method)
         self.parent, child = mp_ctx.Pipe()
-        self.multiprocess = mp_ctx.Process(
+        self.multiprocess = mp_ctx.Process( # type: ignore[attr-defined]
             target=_handle_parallel_process,
             args=(child, process, self.profile))
         self.multiprocess.start()
