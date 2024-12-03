@@ -111,7 +111,7 @@ def test_serialization_full() -> None:
         'numpy_bool': np.array([True, True, False]),
         'numpy_matrix': np.array([[1, 2], [3, 4]]),
         'list_units': [1 * units.fg, 2 * units.fg],
-        'units_list': [1, 2] * units.fg,
+        'units_list': [1 * units.fg, 2 * units.fg],
         'list': [True, False, 'test', 1, None],
         'quantity': 5 * units.fg,
         'unit': units.fg,
@@ -197,7 +197,8 @@ def test_non_string_keys() -> None:
     except TypeError as e:
         expected_error = (
             "These paths end in incompatible non-string or Numpy string " +
-            "keys: [('1',), (1,), ('string', 'string2', 'string3', '1')]")
+            "keys: [(np.str_('1'),), (1,), ('string', 'string2', 'string3', " +
+            "np.str_('1'))]")
         assert str(e) == expected_error
 
 
@@ -211,7 +212,7 @@ def test_unsupported_types() -> None:
     except TypeError as e:
         expected_error = (
             "These paths end in incompatible non-string or Numpy string " +
-            "keys: [('bad string',)]")
+            "keys: [(np.str_('bad string'),)]")
         assert str(e) == expected_error
         assert str(e.__cause__) == 'Type is not JSON serializable: type'
 

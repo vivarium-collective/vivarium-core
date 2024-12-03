@@ -2,7 +2,7 @@ import re
 from setuptools import setup
 
 
-VERSION = '1.6.4'
+VERSION = '1.6.5'
 
 
 if __name__ == '__main__':
@@ -49,16 +49,17 @@ if __name__ == '__main__':
         long_description_content_type='text/markdown',
         package_data={},
         include_package_data=True,
-        python_requires='>=3.9, <3.12',
+        python_requires='>=3.10, <3.14',
         install_requires=[
             'matplotlib>=3.5.1',
-            'networkx>=2.6.3',
+            'networkx>=3.4',
             'numpy>=1.22.1',
             'Pint>=0.23',
             'pymongo>=4.0.1',
             'scipy>=1.7.3',
             'pytest>=6.2.5',
-            'orjson>=3.8.0'
+            'orjson>=3.8.0',
+            'setuptools>=73.0.1'
         ],
         classifiers=[
             'Development Status :: 4 - Beta',
@@ -69,9 +70,10 @@ if __name__ == '__main__':
             'Operating System :: OS Independent',
             'Programming Language :: Python',
             'Programming Language :: Python :: 3',
-            'Programming Language :: Python :: 3.9',
             'Programming Language :: Python :: 3.10',
             'Programming Language :: Python :: 3.11',
+            'Programming Language :: Python :: 3.12',
+            'Programming Language :: Python :: 3.13',
             'Topic :: Scientific/Engineering',
         ],
         keywords='vivarium multi-scale computational-biology biology simulation framework',

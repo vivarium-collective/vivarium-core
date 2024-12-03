@@ -968,8 +968,7 @@ class Engine:
 
                             # absolute timestep
                             timestep = future - self.global_time
-                            if timestep < full_step:
-                                full_step = timestep
+                            full_step = min(full_step, timestep)
                         else:
                             # mark this path "quiet" so its time can be advanced
                             self.front[path]['update'] = (EmptyDefer(), store)
@@ -977,14 +976,12 @@ class Engine:
                     else:
                         # absolute timestep
                         timestep = future - self.global_time
-                        if timestep < full_step:
-                            full_step = timestep
+                        full_step = min(full_step, timestep)
 
                 else:
                     # don't shoot past processes that didn't run this time
                     process_delay = process_time - self.global_time
-                    if process_delay < full_step:
-                        full_step = process_delay
+                    full_step = min(full_step, process_delay)
 
             # apply updates based on process times in self.front
             if full_step == math.inf:
