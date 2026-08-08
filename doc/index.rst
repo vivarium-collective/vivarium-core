@@ -5,6 +5,18 @@ Welcome to the documentation for Vivarium Core!
 The Vivarium Core library provides the Vivarium interface and engine
 for composing and simulating integrative, multiscale models.
 
+.. important::
+
+   **Vivarium Core is Vivarium 1.0 and is no longer actively developed.** It has
+   been superseded by **Vivarium 2.0**, whose execution core is
+   `process-bigraph <https://github.com/vivarium-collective/process-bigraph>`_
+   (``pip install process-bigraph``), built on
+   `bigraph-schema <https://github.com/vivarium-collective/bigraph-schema>`_. If
+   you are starting a new project, use Vivarium 2.0 instead of this package. See
+   the `process-bigraph tutorials
+   <https://vivarium-collective.github.io/process-bigraph/notebooks/index.html>`_
+   to get started.
+
 .. image:: ./_static/hierarchy.png
     :width: 90%
     :align: center

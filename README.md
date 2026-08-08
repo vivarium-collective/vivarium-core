@@ -1,5 +1,20 @@
 # Vivarium Core
 
+> [!IMPORTANT]
+> **Vivarium Core is Vivarium 1.0 and is no longer actively developed.**
+> It has been superseded by **Vivarium 2.0**, a redesigned and more capable
+> framework for building and executing multiscale biological models.
+>
+> **If you are starting a new project, use Vivarium 2.0 instead of this package.**
+> Its execution core is **[process-bigraph](https://github.com/vivarium-collective/process-bigraph)**
+> (`pip install process-bigraph`), built on
+> [bigraph-schema](https://github.com/vivarium-collective/bigraph-schema).
+>
+> Vivarium Core remains available for existing 1.0 models, but new features,
+> tools, and support live in the Vivarium 2.0 ecosystem. See the
+> [process-bigraph tutorials](https://vivarium-collective.github.io/process-bigraph/notebooks/index.html)
+> to get started.
+
 [![PyPI](https://img.shields.io/pypi/v/vivarium-core)](https://pypi.org/project/vivarium-core/)
 [![documentation](https://github.com/vivarium-collective/vivarium-core/actions/workflows/docs.yml/badge.svg)](https://vivarium-core.readthedocs.io/en/latest/)
 [![lint](https://github.com/vivarium-collective/vivarium-core/actions/workflows/pylint.yml/badge.svg)](https://github.com/vivarium-collective/vivarium-core/actions/workflows/pylint.yml?query=branch%3Amaster)

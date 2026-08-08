@@ -42,6 +42,7 @@ if __name__ == '__main__':
         entry_points={
             'console_scripts': []},
         description=(
+            '[Vivarium 1.0 — superseded by Vivarium 2.0 / process-bigraph] '
             'Engine for composing and simulating computational biology '
             'models with the Vivarium interface.'
         ),
