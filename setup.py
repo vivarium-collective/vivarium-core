@@ -63,7 +63,7 @@ if __name__ == '__main__':
             'setuptools>=73.0.1'
         ],
         classifiers=[
-            'Development Status :: 4 - Beta',
+            'Development Status :: 7 - Inactive',
             'Intended Audience :: Developers',
             'Intended Audience :: Education',
             'Intended Audience :: Science/Research',
