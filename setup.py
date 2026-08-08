@@ -42,6 +42,7 @@ if __name__ == '__main__':
         entry_points={
             'console_scripts': []},
         description=(
+            '[Vivarium 1.0 — superseded by Vivarium 2.0 / process-bigraph] '
             'Engine for composing and simulating computational biology '
             'models with the Vivarium interface.'
         ),
@@ -62,7 +63,7 @@ if __name__ == '__main__':
             'setuptools>=73.0.1'
         ],
         classifiers=[
-            'Development Status :: 4 - Beta',
+            'Development Status :: 7 - Inactive',
             'Intended Audience :: Developers',
             'Intended Audience :: Education',
             'Intended Audience :: Science/Research',
