@@ -82,7 +82,7 @@ def starts_with(
 
 def invert_topology(
         update: Update,
-        args: Tuple[HierarchyPath, Topology],
+        args: Tuple[HierarchyPath, Topology, bool],
 ) -> List[State]:
     """Invert an update into a list of updates relative to the hierarchy root.
 
@@ -91,39 +91,86 @@ def invert_topology(
     simulation hierarchy, this function "inverts" a topology by wrapping
     :py:func:`vivarium.library.topology.inverse_topology`.
 
-    A separate inverted update is generated for each routing that could
-    overlap another (each named port, and recursively each explicit
-    variable route of a port whose topology is a ``dict``, including the
-    routes under a ``_path``). Applying these in sequence lets every
-    contribution reach the target store's updater, so multiple ports --
-    or multiple variables of one port -- pointing at the same store all
-    take effect instead of overwriting one another (see issue #209). Glob
-    (``*``) ports distribute a single update across dynamic children,
-    which are always distinct stores, so they are inverted as a single
-    update over the keys that don't belong to a named port.
+    When a topology cannot route two contributions to the same store (the
+    common case, decided once by :py:func:`topology_can_overlap`), the
+    whole update is inverted in a single pass, giving one update with one
+    shared store traversal -- the same cheap path used before issue #209.
+
+    Only when ports can overlap does a separate inverted update get
+    generated for each routing (each named port, and recursively each
+    explicit variable route of a port whose topology is a ``dict``,
+    including the routes under a ``_path``). Applying those in sequence
+    lets every contribution reach the target store's updater, so multiple
+    ports -- or multiple variables of one port -- pointing at the same
+    store all take effect instead of overwriting one another (see issue
+    #209). Glob (``*``) ports distribute a single update across dynamic
+    children, which are always distinct stores, so they are inverted as a
+    single update over the keys that don't belong to a named port.
 
     Args:
         update: The update.
-        args: Tuple of the path to which the update is relative and the
-            topology.
+        args: Tuple of the path the update is relative to, the topology,
+            and whether the topology's ports can overlap.
 
     Returns:
         A list of updates, each relative to the root of ``path``, to be
         applied in sequence.
     """
-    path, topology = args
-    return _split_inverse(path[:-1], update, topology)
+    path, topology, can_overlap = args
+    outer = path[:-1]
+    if can_overlap:
+        return _split_inverse(outer, update, topology)
+    return [inverse_topology(outer, update, topology)]
 
 
-# The only special update keys that must stay together are '_updater' and
-# '_value': apply_update reads a one-off update's value from '_value'
-# precisely when '_updater' is present. Every other special key ('_add',
-# '_move', '_reduce', ...) is applied independently, so it may safely land
-# in its own sequential update.
-def _binds_value(value: Any) -> bool:
-    """Whether ``value`` pairs a one-off ``_updater`` with its ``_value``."""
-    return isinstance(value, dict) and (
-        '_updater' in value and '_value' in value)
+def topology_can_overlap(topology: Topology) -> bool:
+    """Whether a process topology could route two contributions to one leaf.
+
+    Returns ``False`` only when every port resolves to a distinct,
+    non-nested store, so the update can be inverted in a single combined
+    pass. Anything whose targets can't be resolved statically -- a glob,
+    a ``_path`` base shift, or a string rename -- or whose targets coincide
+    or nest returns ``True`` so the robust per-route split is used. The
+    decision depends only on the topology, so it is computed once per
+    process.
+    """
+    targets = _resolve_targets(topology)
+    if targets is None:
+        return True
+
+    for i, first in enumerate(targets):
+        for second in targets[i + 1:]:
+            shared = min(len(first), len(second))
+            # equal targets, or one nested inside the other, can collide
+            if first[:shared] == second[:shared]:
+                return True
+    return False
+
+
+def _resolve_targets(topology: Topology) -> Optional[List[HierarchyPath]]:
+    """Resolve a topology's ports to the store paths they write.
+
+    Returns the list of resolved (``..``-normalized) target paths, or
+    ``None`` when a route can't be resolved statically (a glob ``*``, a
+    ``_path`` base shift, or a non-tuple/dict route such as a string
+    rename), in which case the caller must assume the ports can overlap.
+    """
+    targets: List[HierarchyPath] = []
+    for port, sub_topology in topology.items():
+        if port == '*':
+            return None
+        if isinstance(sub_topology, tuple):
+            targets.append(normalize_path(sub_topology))
+        elif isinstance(sub_topology, dict) \
+                and '_path' not in sub_topology \
+                and '*' not in sub_topology:
+            nested = _resolve_targets(sub_topology)
+            if nested is None:
+                return None
+            targets.extend(nested)
+        else:
+            return None
+    return targets
 
 
 def _split_inverse(
@@ -157,10 +204,11 @@ def _split_inverse(
         # sequentially-applied updates. A '_path' dict first shifts the base
         # path, then splits its explicit routes the same way. A tuple
         # topology, a glob, or a bare '_path' maps the value to a single
-        # store as a unit, and a '_updater'/'_value' pair must stay together
-        # (see _binds_value), so those are inverted whole.
+        # store as a unit, and a '_updater'/'_value' pair must stay together,
+        # so those are inverted whole.
         if isinstance(sub_topology, dict) and isinstance(value, dict) \
-                and '*' not in sub_topology and not _binds_value(value):
+                and '*' not in sub_topology \
+                and not ('_updater' in value and '_value' in value):
             if '_path' in sub_topology:
                 routes = {
                     key: sub_path
@@ -1251,10 +1299,16 @@ def _process_update(
         interval,
         states)
 
+    # decide once per store whether the ports can overlap
+    can_overlap = getattr(store, '_invert_can_overlap', None)
+    if can_overlap is None:
+        can_overlap = topology_can_overlap(store.topology)
+        store._invert_can_overlap = can_overlap
+
     absolute = Defer(
         process,
         invert_topology,
-        (path, store.topology))
+        (path, store.topology, can_overlap))
 
     return absolute, store
 

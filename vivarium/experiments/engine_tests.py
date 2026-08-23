@@ -1236,6 +1236,51 @@ def test_one_off_updater_override() -> None:
     assert output == expected_output
 
 
+class RewireOverlapProcess(Process):
+    """Two ports that can be rewired onto the same store to create an
+    overlap after the engine has started (see issue #209)."""
+    name = 'rewire_overlap_process'
+
+    def ports_schema(self) -> Schema:
+        return {
+            'port1': {'x': {'_default': 0, '_emit': True}},
+            'port2': {'x': {'_default': 0, '_emit': True}}}
+
+    def next_update(
+            self,
+            timestep: Union[float, int],
+            states: State) -> Update:
+        return {'port1': {'x': 1}, 'port2': {'x': 10}}
+
+
+def test_invert_cache_invalidated_on_rewire() -> None:
+    """Rewiring a port to overlap another must invalidate the cached
+    "can overlap" decision, so the update is split and no contribution is
+    lost (see issue #209)."""
+    process = RewireOverlapProcess({})
+    exp = Engine(
+        processes={'proc': process},
+        topology={'proc': {'port1': ('s1',), 'port2': ('s2',)}},
+        initial_state={'s1': {'x': 0}, 's2': {'x': 0}})
+
+    # ports go to distinct stores, so the fast non-split path is cached
+    exp.update(1)
+    proc_store = exp.state.get_path(('proc',))
+    assert proc_store._invert_can_overlap is False
+    assert exp.state.get_path(('s1',)).get_value() == {'x': 1}
+
+    # rewire port2 onto s1, creating an overlap
+    proc_store.connect('port2', exp.state.get_path(('s1',)))
+    assert proc_store._invert_can_overlap is None  # cache invalidated
+
+    exp.update(1)
+    # both ports now hit s1 and must both apply: +1 and +10
+    assert proc_store._invert_can_overlap is True  # recomputed as overlapping
+    assert exp.state.get_path(('s1',)).get_value() == {'x': 12}
+    # s2 is no longer wired, so it keeps its earlier value
+    assert exp.state.get_path(('s2',)).get_value() == {'x': 10}
+
+
 def test_emit_config() -> None:
     # test alternate emit options
     merge_port = MergePort({})
@@ -2196,6 +2241,7 @@ engine_tests = {
     '37': test_path_directive_not_split,
     '38': test_path_base_rooted_routes,
     '39': test_one_off_updater_override,
+    '40': test_invert_cache_invalidated_on_rewire,
 }
 
 
