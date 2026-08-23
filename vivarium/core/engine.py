@@ -84,21 +84,23 @@ def invert_topology(
         update: Update,
         args: Tuple[HierarchyPath, Topology],
 ) -> List[State]:
-    """Wrapper function around ``inverse_topology``.
-
-    Wraps :py:func:`vivarium.library.topology.inverse_topology`.
+    """Invert an update into a list of updates relative to the hierarchy root.
 
     Updates are produced relative to the process that produced them. To
     transform them such that they are relative to the root of the
-    simulation hierarchy, this function "inverts" a topology.
+    simulation hierarchy, this function "inverts" a topology by wrapping
+    :py:func:`vivarium.library.topology.inverse_topology`.
 
-    A separate inverted update is generated for each port so that they
-    can be applied to the state in sequence. This robustly supports
-    processes with multiple ports pointing to the same store (see issue
-    #209) instead of relying on the fragile multi-update aggregation,
-    which breaks when overlapping stores hold ``dict`` values, when a
-    port's topology is a ``dict``, or when a port points directly to a
-    single leaf store.
+    A separate inverted update is generated for each routing that could
+    overlap another (each named port, and recursively each explicit
+    variable route of a port whose topology is a ``dict``, including the
+    routes under a ``_path``). Applying these in sequence lets every
+    contribution reach the target store's updater, so multiple ports --
+    or multiple variables of one port -- pointing at the same store all
+    take effect instead of overwriting one another (see issue #209). Glob
+    (``*``) ports distribute a single update across dynamic children,
+    which are always distinct stores, so they are inverted as a single
+    update over the keys that don't belong to a named port.
 
     Args:
         update: The update.
@@ -110,21 +112,75 @@ def invert_topology(
         applied in sequence.
     """
     path, topology = args
-    outer = path[:-1]
+    return _split_inverse(path[:-1], update, topology)
 
-    # Glob ('*') topologies distribute a single update across every
-    # child, so they cannot be split by port; preserve the original
-    # single-update behavior in that case.
-    if any(port == '*' for port in topology):
-        return [inverse_topology(outer, update, topology)]
 
-    inverses = []
-    for port, sub_topology in topology.items():
+# The only special update keys that must stay together are '_updater' and
+# '_value': apply_update reads a one-off update's value from '_value'
+# precisely when '_updater' is present. Every other special key ('_add',
+# '_move', '_reduce', ...) is applied independently, so it may safely land
+# in its own sequential update.
+def _binds_value(value: Any) -> bool:
+    """Whether ``value`` pairs a one-off ``_updater`` with its ``_value``."""
+    return isinstance(value, dict) and (
+        '_updater' in value and '_value' in value)
+
+
+def _split_inverse(
+        outer: HierarchyPath,
+        update: Update,
+        topology: Topology,
+) -> List[State]:
+    """Recursively split an update so overlapping routings stay separate.
+
+    See :py:func:`invert_topology` for the rationale.
+    """
+    named_ports = [port for port in topology if port != '*']
+    inverses: List[State] = []
+
+    if '*' in topology:
+        glob_update = {
+            key: value for key, value in update.items()
+            if key not in named_ports}
+        if glob_update:
+            inverses.append(
+                inverse_topology(outer, glob_update, {'*': topology['*']}))
+
+    for port in named_ports:
         if port not in update:
             continue
+        sub_topology = topology[port]
+        value = update[port]
+
+        # Split a dict topology into its individual variable->store routes so
+        # that variables overlapping on the same store become separate,
+        # sequentially-applied updates. A '_path' dict first shifts the base
+        # path, then splits its explicit routes the same way. A tuple
+        # topology, a glob, or a bare '_path' maps the value to a single
+        # store as a unit, and a '_updater'/'_value' pair must stay together
+        # (see _binds_value), so those are inverted whole.
+        if isinstance(sub_topology, dict) and isinstance(value, dict) \
+                and '*' not in sub_topology and not _binds_value(value):
+            if '_path' in sub_topology:
+                routes = {
+                    key: sub_path
+                    for key, sub_path in sub_topology.items()
+                    if key != '_path'}
+                if routes:
+                    inner = normalize_path(outer + sub_topology['_path'])
+                    for update_key in value:
+                        if update_key not in routes:
+                            routes[update_key] = (update_key,)
+                    inverses.extend(_split_inverse(inner, value, routes))
+                    continue
+            else:
+                inverses.extend(_split_inverse(outer, value, sub_topology))
+                continue
+
         inverses.append(
             inverse_topology(
-                outer, {port: update[port]}, {port: sub_topology}))
+                outer, {port: value}, {port: sub_topology}))
+
     return inverses
 
 

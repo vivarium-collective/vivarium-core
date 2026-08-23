@@ -11,8 +11,6 @@ import numpy as np
 from vivarium.library.units import Quantity
 
 
-MULTI_UPDATE_KEY = '_multi_update'
-
 tuple_separator = '___'
 
 
@@ -120,45 +118,6 @@ def deep_merge_combine_lists(dct, merge_dct):
         else:
             dct[k] = merge_dct[k]
     return dct
-
-
-def deep_merge_multi_update(dct, merge_dct):
-    """ Recursive dict merge combines multiple values
-
-    If a value already exists for a key, it is added in a list
-    """
-    if dct is None:
-        dct = {}
-    if merge_dct is None:
-        merge_dct = {}
-    for k, v in merge_dct.items():
-        if (k in dct and isinstance(dct[k], dict)
-                and isinstance(merge_dct[k], collections.abc.Mapping)):
-            deep_merge_multi_update(dct[k], merge_dct[k])
-        elif k in dct:
-            # put values together in a list under '_multi_update' key
-            if isinstance(dct[k], dict) and MULTI_UPDATE_KEY in dct[k]:
-                dct[k]['_multi_update'].append(merge_dct[k])
-            else:
-                dct[k] = {
-                    '_multi_update': [
-                        dct[k], merge_dct[k]]}
-        else:
-            dct[k] = merge_dct[k]
-    return dct
-
-
-def remove_multi_update(d):
-    new = {}
-    for k, v in d.items():
-        if isinstance(v, dict):
-            if '_multi_update' in v:
-                new[k] = v['_multi_update'][0]
-            else:
-                new[k] = remove_multi_update(v)
-        else:
-            new[k] = v
-    return new
 
 
 def deep_merge(dct, merge_dct):

@@ -7,7 +7,7 @@ Topology Utilities
 import copy
 import re
 
-from vivarium.library.dict_utils import deep_merge, deep_merge_multi_update
+from vivarium.library.dict_utils import deep_merge
 
 
 def get_in(d, path, default=None):
@@ -141,7 +141,7 @@ def dict_to_paths(root, d):
         return [(root, d)]
 
 
-def inverse_topology(outer, update, topology, inverse=None, multi_updates=True):
+def inverse_topology(outer, update, topology, inverse=None):
     '''
     Transform an update from the form its process produced into
     one aligned to the given topology.
@@ -150,6 +150,12 @@ def inverse_topology(outer, update, topology, inverse=None, multi_updates=True):
     the perspective of a Process ports_schema()) lives in `Store`, called
     `topology_state`. This one stands alone as it does not require a store
     to calculate.
+
+    Updates that overlap on the same store are merged with
+    :py:func:`deep_merge`. When two contributions target the exact same
+    leaf, the last one wins; callers that need both applied (e.g.
+    :py:func:`vivarium.core.engine.invert_topology`) split the update
+    into separate, sequentially-applied updates before calling this.
     '''
 
     inverse = inverse or {}
@@ -169,8 +175,7 @@ def inverse_topology(outer, update, topology, inverse=None, multi_updates=True):
                         inner + (child,),
                         update[child],
                         path,
-                        inverse,
-                        multi_updates)
+                        inverse)
             else:
                 for child, child_update in update.items():
                     inner = normalize_path(outer + path + (child,))
@@ -206,22 +211,14 @@ def inverse_topology(outer, update, topology, inverse=None, multi_updates=True):
                     inner,
                     value,
                     path,
-                    inverse,
-                    multi_updates)
+                    inverse)
             else:
                 inner = normalize_path(outer + path)
                 if isinstance(value, dict):
-                    if multi_updates:
-                        inverse = update_in(
-                            inverse,
-                            inner,
-                            lambda current: deep_merge_multi_update(current, value))
-                    # Do not allow multiupdates when forming initial state
-                    else:
-                        inverse = update_in(
-                            inverse,
-                            inner,
-                            lambda current: deep_merge(current, value))
+                    inverse = update_in(
+                        inverse,
+                        inner,
+                        lambda current: deep_merge(current, value))
                 else:
                     assoc_path(inverse, inner, value)
     return inverse

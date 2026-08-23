@@ -18,7 +18,7 @@ from typing import Optional
 
 from vivarium.core.registry import divider_registry, serializer_registry, updater_registry
 from vivarium.core.process import ParallelProcess, Process
-from vivarium.library.dict_utils import deep_compare, deep_merge, deep_merge_check, MULTI_UPDATE_KEY
+from vivarium.library.dict_utils import deep_compare, deep_merge, deep_merge_check
 from vivarium.library.topology import dict_to_paths
 from vivarium.core.types import Processes, Topology, State, Steps, Flow
 from vivarium.core.serialize import QuantitySerializer
@@ -1509,7 +1509,19 @@ class Store:
 
         Additional special update keys for different update operations:
 
-        * `_updater` - Override the default updater with any updater you want.
+        * `_updater` - Override this store's default updater for this one
+          update with any updater you want. When `_updater` is given, the
+          value the updater is applied to is taken from the `_value` key
+          (see below) rather than from the update dict itself.
+
+        * `_value` - The value passed to the updater when `_updater` is
+          also present in the same update. This lets a process apply a
+          one-off updater with an explicit value, e.g.
+          ``{'_updater': 'set', '_value': 5}`` sets the store to ``5``
+          regardless of its default updater. `_value` has no effect
+          unless `_updater` is given alongside it, so the two must be
+          provided together; if `_updater` is present but `_value` is
+          omitted, the store's default value is used.
 
         * `_reduce` - This allows a reduction over the entire subtree from some
           point downward. Its three keys are:
@@ -1528,14 +1540,6 @@ class Store:
               in the tree.
         """
         view_expire = False
-
-        if isinstance(update, dict) and MULTI_UPDATE_KEY in update:
-            # apply multiple updates to same node
-            multi_update = update[MULTI_UPDATE_KEY]
-            assert isinstance(multi_update, list)
-            for update_value in multi_update:
-                self.apply_update(update_value, state)
-            return _EMPTY_UPDATES
 
         if self.inner or self.subschema:
             # Branch update: this node has an inner
