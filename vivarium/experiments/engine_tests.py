@@ -362,6 +362,313 @@ def test_multi_port_merge() -> None:
     assert output == expected_output
 
 
+class DictTopologyMultiPort(Process):
+    """Two ports that point to the same store via ``_path`` dict topologies
+    and update the same variable."""
+    name = 'dict_topology_multi_port'
+
+    def ports_schema(self) -> Schema:
+        return {
+            'A': {
+                'a': {
+                    '_default': 0,
+                    '_emit': True}},
+            'B': {
+                'a': {
+                    '_default': 0,
+                    '_emit': True}}}
+
+    def next_update(
+            self,
+            timestep: Union[float, int],
+            states: State) -> Update:
+        return {
+            'A': {'a': 1},
+            'B': {'a': 1}}
+
+
+class DictTopologyComposer(Composer):
+    """Merges both of DictTopologyMultiPort's ports into one store using
+    ``_path`` dict topologies (see issue #209)."""
+    name = 'dict_topology_composer'
+
+    def generate_processes(
+            self, config: Optional[dict]) -> Dict[str, Any]:
+        return {
+            'multi_port': DictTopologyMultiPort({})}
+
+    def generate_topology(self, config: Optional[dict]) -> Topology:
+        return {
+            'multi_port': {
+                'A': {'_path': ('shared',)},
+                'B': {'_path': ('shared',)}
+            }
+        }
+
+def test_dict_topology_multi_port() -> None:
+    """Overlapping ports with dict (``_path``) topologies must aggregate
+    their updates instead of silently dropping one of them."""
+    composer = DictTopologyComposer({})
+    network = composer.generate()
+    exp = Engine(
+        processes=network['processes'],
+        topology=network['topology'])
+
+    exp.update(2)
+    output = exp.emitter.get_timeseries()
+    expected_output = {
+        'shared': {'a': [0, 2, 4]},
+        'time': [0.0, 1.0, 2.0]}
+
+    assert output == expected_output
+
+
+class InitialStateMultiPort(Process):
+    """Two ports to the same store that also seed it via ``initial_state``
+    (see issue #209)."""
+    name = 'initial_state_multi_port'
+
+    def ports_schema(self) -> Schema:
+        return {
+            'A': {
+                'a': {
+                    '_default': 0,
+                    '_emit': True}},
+            'B': {
+                'a': {
+                    '_default': 0,
+                    '_emit': True}}}
+
+    def initial_state(self, config: Optional[dict] = None) -> State:
+        return {
+            'A': {'a': 5},
+            'B': {'a': 5}}
+
+    def next_update(
+            self,
+            timestep: Union[float, int],
+            states: State) -> Update:
+        return {
+            'A': {'a': 1},
+            'B': {'a': 1}}
+
+
+class InitialStateComposer(Composer):
+    """Merges both of InitialStateMultiPort's ports into one store."""
+    name = 'initial_state_composer'
+
+    def generate_processes(
+            self, config: Optional[dict]) -> Dict[str, Any]:
+        return {
+            'multi_port': InitialStateMultiPort({})}
+
+    def generate_topology(self, config: Optional[dict]) -> Topology:
+        return {
+            'multi_port': {
+                'A': ('shared',),
+                'B': ('shared',)}}
+
+
+def test_multi_port_initial_state() -> None:
+    """A process with overlapping ports must be able to provide an
+    ``initial_state`` without forming multi-update lists (see issue #209
+    and PR #205)."""
+    composer = InitialStateComposer({})
+    network = composer.generate()
+    exp = Engine(
+        processes=network['processes'],
+        topology=network['topology'],
+        initial_state=composer.initial_state())
+
+    exp.update(2)
+    output = exp.emitter.get_timeseries()
+    # The two ports deep-merge to a single starting value of 5, then each
+    # step adds 1 per port.
+    expected_output = {
+        'shared': {'a': [5, 7, 9]},
+        'time': [0.0, 1.0, 2.0]}
+
+    assert output == expected_output
+
+
+class DictValueMultiPort(Process):
+    """Two ports to the same dict-valued store, each updating different
+    keys (see issue #209)."""
+    name = 'dict_value_multi_port'
+
+    def ports_schema(self) -> Schema:
+        return {
+            'A': {
+                'a': {
+                    '_default': {},
+                    '_updater': 'dict_value',
+                    '_emit': True}},
+            'B': {
+                'a': {
+                    '_default': {},
+                    '_updater': 'dict_value',
+                    '_emit': True}}}
+
+    def next_update(
+            self,
+            timestep: Union[float, int],
+            states: State) -> Update:
+        return {
+            'A': {'a': {'_add': [{'key': 'x', 'state': 1}]}},
+            'B': {'a': {'_add': [{'key': 'y', 'state': 2}]}}}
+
+
+class DictValueComposer(Composer):
+    """Merges both of DictValueMultiPort's ports into one dict-valued
+    store."""
+    name = 'dict_value_composer'
+
+    def generate_processes(
+            self, config: Optional[dict]) -> Dict[str, Any]:
+        return {
+            'multi_port': DictValueMultiPort({})}
+
+    def generate_topology(self, config: Optional[dict]) -> Topology:
+        return {
+            'multi_port': {
+                'A': ('shared',),
+                'B': ('shared',)}}
+
+
+def test_multi_port_dict_values() -> None:
+    """Overlapping ports whose shared store holds ``dict`` values must
+    merge both updates rather than break the multi-update aggregation
+    (see issue #209)."""
+    composer = DictValueComposer({})
+    network = composer.generate()
+    exp = Engine(
+        processes=network['processes'],
+        topology=network['topology'])
+
+    exp.update(1)
+    data = exp.emitter.get_data()
+    # Both ports' updates land in the same dict store.
+    assert data[1.0]['shared']['a'] == {'x': 1, 'y': 2}
+
+
+class MixedTopologyMultiPort(Process):
+    """Two ports to the same store, one wired with a tuple topology and
+    the other with a ``_path`` dict topology (see issue #209)."""
+    name = 'mixed_topology_multi_port'
+
+    def ports_schema(self) -> Schema:
+        return {
+            'A': {
+                'a': {
+                    '_default': 0,
+                    '_emit': True}},
+            'B': {
+                'a': {
+                    '_default': 0,
+                    '_emit': True}}}
+
+    def next_update(
+            self,
+            timestep: Union[float, int],
+            states: State) -> Update:
+        return {
+            'A': {'a': 1},
+            'B': {'a': 1}}
+
+
+class MixedTopologyComposer(Composer):
+    """Merges MixedTopologyMultiPort's ports into one store, mixing tuple
+    and dict topologies."""
+    name = 'mixed_topology_composer'
+
+    def generate_processes(
+            self, config: Optional[dict]) -> Dict[str, Any]:
+        return {
+            'multi_port': MixedTopologyMultiPort({})}
+
+    def generate_topology(self, config: Optional[dict]) -> Topology:
+        return {
+            'multi_port': {
+                'A': ('shared',),
+                'B': {'_path': ('shared',)}}}
+
+
+def test_mixed_topology_multi_port() -> None:
+    """Overlapping ports must aggregate correctly even when one port uses
+    a tuple topology and another uses a dict (``_path``) topology (see
+    issue #209)."""
+    composer = MixedTopologyComposer({})
+    network = composer.generate()
+    exp = Engine(
+        processes=network['processes'],
+        topology=network['topology'])
+
+    exp.update(2)
+    output = exp.emitter.get_timeseries()
+    expected_output = {
+        'shared': {'a': [0, 2, 4]},
+        'time': [0.0, 1.0, 2.0]}
+
+    assert output == expected_output
+
+
+class DirectLeafMultiPort(Process):
+    """Two ports that each point directly at a single leaf store instead
+    of a subtree (see issue #209)."""
+    name = 'direct_leaf_multi_port'
+
+    def ports_schema(self) -> Schema:
+        return {
+            'A': {
+                '_default': 0,
+                '_emit': True},
+            'B': {
+                '_default': 0,
+                '_emit': True}}
+
+    def next_update(
+            self,
+            timestep: Union[float, int],
+            states: State) -> Update:
+        return {
+            'A': 1,
+            'B': 1}
+
+
+class DirectLeafComposer(Composer):
+    """Merges both of DirectLeafMultiPort's leaf ports into one store."""
+    name = 'direct_leaf_composer'
+
+    def generate_processes(
+            self, config: Optional[dict]) -> Dict[str, Any]:
+        return {
+            'multi_port': DirectLeafMultiPort({})}
+
+    def generate_topology(self, config: Optional[dict]) -> Topology:
+        return {
+            'multi_port': {
+                'A': ('shared',),
+                'B': ('shared',)}}
+
+
+def test_direct_leaf_multi_port() -> None:
+    """Overlapping ports that point directly at a single leaf store must
+    aggregate their updates (see issue #209)."""
+    composer = DirectLeafComposer({})
+    network = composer.generate()
+    exp = Engine(
+        processes=network['processes'],
+        topology=network['topology'])
+
+    exp.update(2)
+    output = exp.emitter.get_timeseries()
+    expected_output = {
+        'shared': [0, 2, 4],
+        'time': [0.0, 1.0, 2.0]}
+
+    assert output == expected_output
+
+
 def test_emit_config() -> None:
     # test alternate emit options
     merge_port = MergePort({})
@@ -1305,6 +1612,11 @@ engine_tests = {
     '20': test_add_new_state,
     '21': test_floating_point_timesteps,
     '22': test_move_update,
+    '23': test_dict_topology_multi_port,
+    '24': test_multi_port_initial_state,
+    '25': test_multi_port_dict_values,
+    '26': test_mixed_topology_multi_port,
+    '27': test_direct_leaf_multi_port,
 }
 
 
