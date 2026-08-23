@@ -1300,10 +1300,10 @@ def _process_update(
         states)
 
     # decide once per store whether the ports can overlap
-    can_overlap = getattr(store, '_invert_can_overlap', None)
+    can_overlap = store.invert_can_overlap
     if can_overlap is None:
         can_overlap = topology_can_overlap(store.topology)
-        store._invert_can_overlap = can_overlap
+        store.invert_can_overlap = can_overlap
 
     absolute = Defer(
         process,

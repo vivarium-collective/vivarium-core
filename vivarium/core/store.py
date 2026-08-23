@@ -227,7 +227,7 @@ class Store:
         self.topology_view = None
         # cached decision (set by the Engine) of whether this process
         # store's ports can overlap, used to pick the update-inversion path
-        self._invert_can_overlap: Optional[bool] = None
+        self.invert_can_overlap: Optional[bool] = None
         # self.flow is None when this node has no flow (either because
         # it is not a Step or because it is a Step treated like a
         # Deriver) and a list when this node holds a Step with
@@ -439,7 +439,7 @@ class Store:
         self.topology = insert_topology(
             topology, port_path, self.outer.path_to(target_store))
         # the topology changed, so drop the cached overlap decision
-        self._invert_can_overlap = None
+        self.invert_can_overlap = None
 
         self.value.schema = self.value.get_schema()
         self.outer._topology_ports(
@@ -632,7 +632,7 @@ class Store:
         if '_topology' in config:
             self.topology = config.pop('_topology')
             # the topology changed, so drop the cached overlap decision
-            self._invert_can_overlap = None
+            self.invert_can_overlap = None
 
         if '_flow' in config:
             flow = config.pop('_flow')

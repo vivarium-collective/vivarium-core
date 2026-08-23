@@ -1266,16 +1266,16 @@ def test_invert_cache_invalidated_on_rewire() -> None:
     # ports go to distinct stores, so the fast non-split path is cached
     exp.update(1)
     proc_store = exp.state.get_path(('proc',))
-    assert proc_store._invert_can_overlap is False
+    assert proc_store.invert_can_overlap is False
     assert exp.state.get_path(('s1',)).get_value() == {'x': 1}
 
     # rewire port2 onto s1, creating an overlap
     proc_store.connect('port2', exp.state.get_path(('s1',)))
-    assert proc_store._invert_can_overlap is None  # cache invalidated
+    assert proc_store.invert_can_overlap is None  # cache invalidated
 
     exp.update(1)
     # both ports now hit s1 and must both apply: +1 and +10
-    assert proc_store._invert_can_overlap is True  # recomputed as overlapping
+    assert proc_store.invert_can_overlap is True  # recomputed as overlapping
     assert exp.state.get_path(('s1',)).get_value() == {'x': 12}
     # s2 is no longer wired, so it keeps its earlier value
     assert exp.state.get_path(('s2',)).get_value() == {'x': 10}
