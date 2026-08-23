@@ -152,7 +152,7 @@ def inverse_topology(outer, update, topology, inverse=None):
     to calculate.
 
     Updates that overlap on the same store are merged with
-    :py:func:`deep_merge`. When two contributions target the exact same
+    ``deep_merge``. When two contributions target the exact same
     leaf, the last one wins; callers that need both applied (e.g.
     :py:func:`vivarium.core.engine.invert_topology`) split the update
     into separate, sequentially-applied updates before calling this.
