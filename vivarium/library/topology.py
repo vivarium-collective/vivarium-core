@@ -190,7 +190,13 @@ def inverse_topology(outer, update, topology, inverse=None, multi_updates=True):
                     path = path.copy()
                     inner = normalize_path(outer + path.pop('_path'))
 
-                    for update_key in update[key].keys():
+                    if not isinstance(value, dict):
+                        # A leaf value is routed directly to the store at
+                        # ``_path`` instead of to keyed sub-stores.
+                        assoc_path(inverse, inner, value)
+                        continue
+
+                    for update_key in value.keys():
                         if update_key not in path and '*' not in path:
                             path[update_key] = (update_key,)
                 else:

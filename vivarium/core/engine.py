@@ -83,7 +83,7 @@ def starts_with(
 def invert_topology(
         update: Update,
         args: Tuple[HierarchyPath, Topology],
-) -> State:
+) -> List[State]:
     """Wrapper function around ``inverse_topology``.
 
     Wraps :py:func:`vivarium.library.topology.inverse_topology`.
@@ -92,16 +92,40 @@ def invert_topology(
     transform them such that they are relative to the root of the
     simulation hierarchy, this function "inverts" a topology.
 
+    A separate inverted update is generated for each port so that they
+    can be applied to the state in sequence. This robustly supports
+    processes with multiple ports pointing to the same store (see issue
+    #209) instead of relying on the fragile multi-update aggregation,
+    which breaks when overlapping stores hold ``dict`` values, when a
+    port's topology is a ``dict``, or when a port points directly to a
+    single leaf store.
+
     Args:
         update: The update.
         args: Tuple of the path to which the update is relative and the
             topology.
 
     Returns:
-        The update, relative to the root of ``path``.
+        A list of updates, each relative to the root of ``path``, to be
+        applied in sequence.
     """
     path, topology = args
-    return inverse_topology(path[:-1], update, topology)
+    outer = path[:-1]
+
+    # Glob ('*') topologies distribute a single update across every
+    # child, so they cannot be split by port; preserve the original
+    # single-update behavior in that case.
+    if any(port == '*' for port in topology):
+        return [inverse_topology(outer, update, topology)]
+
+    inverses = []
+    for port, sub_topology in topology.items():
+        if port not in update:
+            continue
+        inverses.append(
+            inverse_topology(
+                outer, {port: update[port]}, {port: sub_topology}))
+    return inverses
 
 
 def timestamp(dt: Optional[Any] = None) -> str:
@@ -722,13 +746,15 @@ class Engine:
 
     def apply_update(
             self,
-            update: Update,
+            update: Union[Update, List[Update]],
             state: Store
     ) -> bool:
         """Apply an update to the simulation state.
 
         Args:
             update: The update to apply. Must be relative to ``state``.
+                May also be a list of updates to apply in sequence, as
+                produced by :py:func:`invert_topology`.
             state: The store to which the update is relative (usually
                 root of simulation state. We need this so to preserve
                 the "perspective" from which the update was generated.
@@ -739,6 +765,14 @@ class Engine:
 
         if not update:
             return False
+
+        if isinstance(update, list):
+            # Apply each per-port update in sequence.
+            view_expire = False
+            for sub_update in update:
+                if self.apply_update(sub_update, state):
+                    view_expire = True
+            return view_expire
 
         (
             topology_updates, process_updates, step_updates,
