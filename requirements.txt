@@ -10,7 +10,7 @@ orjson==3.10.12
 # Direct Development Dependencies
 mypy==1.13.0
 mypy-extensions==1.0.0
-pylint==3.3.2
+pylint==3.3.9
 pytest==8.3.4
 pytest-cov==6.0.0
 setuptools==73.0.1
@@ -19,7 +19,7 @@ sphinx-rtd-theme==3.0.2
 
 # Indirect Dependencies
 alabaster==1.0.0
-astroid==3.3.5
+astroid==3.3.11
 asttokens==3.0.0
 attrs==24.2.0
 babel==2.16.0
