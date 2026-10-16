@@ -4,6 +4,7 @@ Topology Utilities
 ==================
 '''
 
+import collections.abc
 import copy
 import re
 
@@ -184,11 +185,7 @@ def inverse_topology(outer, update, topology, inverse=None):
                 for child, child_update in glob_children:
                     inner = normalize_path(outer + path + (child,))
                     if isinstance(child_update, dict):
-                        inverse = update_in(
-                            inverse,
-                            inner,
-                            lambda current: deep_merge(
-                                current, child_update))
+                        _merge_at(inverse, inner, child_update)
                     else:
                         assoc_path(inverse, inner, child_update)
 
@@ -219,13 +216,38 @@ def inverse_topology(outer, update, topology, inverse=None):
             else:
                 inner = normalize_path(outer + path)
                 if isinstance(value, dict):
-                    inverse = update_in(
-                        inverse,
-                        inner,
-                        lambda current: deep_merge(current, value))
+                    _merge_at(inverse, inner, value)
                 else:
                     assoc_path(inverse, inner, value)
     return inverse
+
+
+def _merge_at(tree, path, value):
+    """Deep-merge dict ``value`` into ``tree`` at ``path``, in place.
+
+    Unlike ``update_in``, this doesn't copy every dict along ``path``, so
+    building an inverse stays linear in the number of ports. Dicts from
+    ``value`` are copied as they are inserted instead, so ``tree`` never
+    shares a dict with ``value`` and later merges can't write into the
+    caller's update.
+    """
+    node = tree
+    for step in path:
+        node = node.setdefault(step, {})
+    _merge_copy(node, value)
+
+
+def _merge_copy(dct, merge_dct):
+    for key, value in merge_dct.items():
+        existing = dct.get(key)
+        if isinstance(existing, dict) \
+                and isinstance(value, collections.abc.Mapping):
+            _merge_copy(existing, value)
+        elif isinstance(value, dict):
+            dct[key] = _merge_copy({}, value)
+        else:
+            dct[key] = value
+    return dct
 
 
 def normalize_path(path):
@@ -395,6 +417,32 @@ def test_inverse_topology():
                 'c': 20}}}
 
     assert inverse == expected_inverse
+
+
+def test_inverse_topology_leaves_update_untouched():
+    # nested and repeated routes merge into the inverse without writing
+    # into, or sharing dicts with, the caller's update
+    update = {
+        'a': {'x': {'y': 1}},
+        'b': {'z': 2},
+        'c': {'x': {'w': 3}},
+        'g': {'0': {'m': {'k': 4}}, '1': {'m': {'k': 5}}}}
+    original = copy.deepcopy(update)
+    topology = {
+        'a': ('s',),
+        'b': ('s', 'x'),
+        'c': ('s',),
+        'g': {'*': {'m': ('t',), 'n': ('t', 'deeper')}}}
+    inverse = inverse_topology((), update, topology)
+    assert inverse == {
+        's': {'x': {'y': 1, 'z': 2, 'w': 3}},
+        '0': {'t': {'k': 4}},
+        '1': {'t': {'k': 5}}}
+    assert update == original
+
+    inverse['s']['x']['new'] = True
+    inverse['0']['t']['new'] = True
+    assert update == original
 
 
 def test_inverse_topology_glob_skips_named_keys():

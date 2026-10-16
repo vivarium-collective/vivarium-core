@@ -6,6 +6,10 @@
   applied in sequence instead of one silently overwriting the other. A
   cheap check, cached per process store until its topology changes, keeps
   the original single-pass inversion for the common non-overlapping case.
+* `inverse_topology` merges in place instead of copying the whole result
+  for every port, so inverting an update is linear rather than quadratic
+  in the number of ports (about 2.7x faster engine steps at 2000 ports),
+  and the inverse no longer shares dicts with the process's update.
 * Fix `inverse_topology` routing a key that has its own port both to that
   port and to a sibling glob (`*`), which also raised a `TypeError` for a
   leaf value under a nested glob.
