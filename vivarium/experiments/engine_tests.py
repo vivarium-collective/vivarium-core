@@ -1271,7 +1271,6 @@ def test_invert_cache_invalidated_on_rewire() -> None:
 
     # rewire port2 onto s1, creating an overlap
     proc_store.connect('port2', exp.state.get_path(('s1',)))
-    assert proc_store.invert_can_overlap is None  # cache invalidated
 
     exp.update(1)
     # both ports now hit s1 and must both apply: +1 and +10
@@ -1279,6 +1278,58 @@ def test_invert_cache_invalidated_on_rewire() -> None:
     assert exp.state.get_path(('s1',)).get_value() == {'x': 12}
     # s2 is no longer wired, so it keeps its earlier value
     assert exp.state.get_path(('s2',)).get_value() == {'x': 10}
+
+
+def test_topology_edits_invalidate_cache() -> None:
+    """Any change to a process store's topology -- reassignment, or an
+    in-place edit at any depth, including through the dict originally
+    passed to the Engine -- must make the engine recompute the cached
+    overlap decision, so a manual rewire can't leave a stale fast-path
+    verdict behind (see issue #209)."""
+
+    def rewire_port2_onto_s1(topology: dict, store: Store) -> None:
+        topology['proc']['port2'] = ('s1',)
+
+    def rewire_via_store(topology: dict, store: Store) -> None:
+        store.topology['port2'] = ('s1',)
+
+    def rewire_nested_in_place(topology: dict, store: Store) -> None:
+        store.topology['port2']['x'] = ('s1', 'x')
+
+    def reassign(topology: dict, store: Store) -> None:
+        store.topology = {'port1': ('s1',), 'port2': ('s1',)}
+
+    cases: List[Any] = [
+        ('original dict', {'port2': ('s2',)}, rewire_port2_onto_s1),
+        ('store, top level', {'port2': ('s2',)}, rewire_via_store),
+        ('store, nested', {'port2': {'x': ('s2', 'x')}},
+         rewire_nested_in_place),
+        ('reassignment', {'port2': ('s2',)}, reassign),
+    ]
+    for label, port2_topology, edit in cases:
+        topology: Dict[str, Any] = {
+            'proc': {'port1': ('s1',), **port2_topology}}
+        exp = Engine(
+            processes={'proc': RewireOverlapProcess({})},
+            topology=topology,
+            initial_state={'s1': {'x': 0}, 's2': {'x': 0}})
+        proc_store = exp.state.get_path(('proc',))
+
+        # distinct stores, so the fast path is cached; an unchanged
+        # topology keeps the same snapshot instead of recomputing
+        exp.update(1)
+        assert proc_store.invert_can_overlap is False, label
+        snapshot = proc_store.invert_topology_snapshot
+        exp.update(1)
+        assert proc_store.invert_topology_snapshot is snapshot, label
+        assert exp.state.get_path(('s1',)).get_value() == {'x': 2}, label
+
+        # the edit creates an overlap on s1, so both ports must apply
+        # (+1 and +10); a stale verdict would drop port1's +1
+        edit(topology, proc_store)
+        exp.update(1)
+        assert proc_store.invert_can_overlap is True, label
+        assert exp.state.get_path(('s1',)).get_value() == {'x': 13}, label
 
 
 class SameLeafSetProcess(Process):
@@ -2329,6 +2380,7 @@ engine_tests = {
     '40': test_invert_cache_invalidated_on_rewire,
     '41': test_same_leaf_overlap_ordering,
     '42': test_overlapping_delete_not_duplicated_or_dropped,
+    '43': test_topology_edits_invalidate_cache,
 }
 
 

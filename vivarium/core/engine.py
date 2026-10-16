@@ -6,6 +6,7 @@ Engine
 Engine runs the simulation.
 """
 
+import copy
 import cProfile
 import pstats
 import os
@@ -1315,11 +1316,15 @@ def _process_update(
         interval,
         states)
 
-    # decide once per store whether the ports can overlap
+    # Recompute only when the topology differs from the one the cached
+    # decision came from. The snapshot is a deep copy so in-place edits
+    # to nested dicts can't change it too; its tuples are shared with the
+    # live topology, so the comparison is mostly identity checks.
     can_overlap = store.invert_can_overlap
-    if can_overlap is None:
+    if can_overlap is None or store.topology != store.invert_topology_snapshot:
         can_overlap = topology_can_overlap(store.topology)
         store.invert_can_overlap = can_overlap
+        store.invert_topology_snapshot = copy.deepcopy(store.topology)
 
     absolute = Defer(
         process,
