@@ -6,6 +6,9 @@
   applied in sequence instead of one silently overwriting the other. A
   cheap check, cached per process store until its topology changes, keeps
   the original single-pass inversion for the common non-overlapping case.
+* Fix `inverse_topology` routing a key that has its own port both to that
+  port and to a sibling glob (`*`), which also raised a `TypeError` for a
+  leaf value under a nested glob.
 * **Breaking:** removed the `multi_updates` keyword argument from
   `vivarium.library.topology.inverse_topology`, along with the
   `_multi_update` mechanism it supported: `MULTI_UPDATE_KEY`,

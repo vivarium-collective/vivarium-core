@@ -162,22 +162,26 @@ def inverse_topology(outer, update, topology, inverse=None):
 
     for key, path in topology.items():
         if key == '*':
+            # keys with their own route are not glob children
+            glob_children = [
+                (child, child_update)
+                for child, child_update in update.items()
+                if child == '*' or child not in topology]
             if isinstance(path, dict):
-                node = inverse
                 if '_path' in path:
                     path = path.copy()
                     inner = normalize_path(outer + path.pop('_path'))
                 else:
                     inner = outer
 
-                for child, child_update in update.items():
+                for child, child_update in glob_children:
                     inverse = inverse_topology(
                         inner + (child,),
-                        update[child],
+                        child_update,
                         path,
                         inverse)
             else:
-                for child, child_update in update.items():
+                for child, child_update in glob_children:
                     inner = normalize_path(outer + path + (child,))
                     if isinstance(child_update, dict):
                         inverse = update_in(
@@ -391,6 +395,31 @@ def test_inverse_topology():
                 'c': 20}}}
 
     assert inverse == expected_inverse
+
+
+def test_inverse_topology_glob_skips_named_keys():
+    # a named port next to a top-level glob is not also a glob child
+    inverse = inverse_topology(
+        (),
+        {'special': {'mass': 100}, '1': {'mass': 1}},
+        {'*': ('cells',), 'special': ('cells', '0')})
+    assert inverse == {'cells': {'0': {'mass': 100}, '1': {'mass': 1}}}
+
+    # same for a glob nested under a '_path' port, with a dict value...
+    topology = {
+        'agents': {
+            '_path': ('cells',),
+            '*': {'mass': ('mass',)},
+            'special': ('special_store',)}}
+    inverse = inverse_topology(
+        (), {'agents': {'special': {'mass': 5}, '0': {'mass': 1}}}, topology)
+    assert inverse == {
+        'cells': {'0': {'mass': 1}, 'special_store': {'mass': 5}}}
+
+    # ...and with a leaf value, which used to raise a TypeError
+    inverse = inverse_topology(
+        (), {'agents': {'special': 5, '0': {'mass': 1}}}, topology)
+    assert inverse == {'cells': {'0': {'mass': 1}, 'special_store': 5}}
 
 
 def test_deletion():
