@@ -1281,6 +1281,91 @@ def test_invert_cache_invalidated_on_rewire() -> None:
     assert exp.state.get_path(('s2',)).get_value() == {'x': 10}
 
 
+class SameLeafSetProcess(Process):
+    """Two ports wired to the same leaf, both using the overwriting 'set'
+    updater instead of a commutative one like 'accumulate'."""
+    name = 'same_leaf_set_process'
+
+    def ports_schema(self) -> Schema:
+        return {
+            'A': {'x': {'_default': None, '_updater': 'set', '_emit': True}},
+            'B': {'x': {'_default': None, '_updater': 'set', '_emit': True}}}
+
+    def next_update(
+            self,
+            timestep: Union[float, int],
+            states: State) -> Update:
+        return {'A': {'x': 'from_A'}, 'B': {'x': 'from_B'}}
+
+
+def test_same_leaf_overlap_ordering() -> None:
+    """When two ports resolve to the exact same leaf and the store's
+    updater overwrites rather than commutes (e.g. 'set'), the split
+    updates are applied in the order their ports appear in the topology
+    dict, so the last-listed port wins. This pins down the ordering
+    contract left implicit by the #209 fix: it is a function of topology
+    declaration order, not of anything about the update's content."""
+    process = SameLeafSetProcess({})
+
+    # 'B' listed after 'A' in the topology -> 'B' is applied last and wins.
+    exp = Engine(
+        processes={'proc': process},
+        topology={'proc': {'A': ('shared',), 'B': ('shared',)}},
+        initial_state={'shared': {'x': None}})
+    exp.update(1)
+    assert exp.state.get_path(('shared', 'x')).get_value() == 'from_B'
+
+    # Swapping the topology's declaration order swaps the winner, even
+    # though the process's update content is unchanged.
+    exp2 = Engine(
+        processes={'proc': process},
+        topology={'proc': {'B': ('shared',), 'A': ('shared',)}},
+        initial_state={'shared': {'x': None}})
+    exp2.update(1)
+    assert exp2.state.get_path(('shared', 'x')).get_value() == 'from_A'
+
+
+class OverlappingDeleteProcess(Process):
+    """Two ports wired to the same glob store, each independently
+    deleting and adding disjoint keys (see issue #209). Without the
+    per-port split, the two ports' ``_delete``/``_add`` directives would
+    be deep-merged in a single inversion pass, and since they are plain
+    lists rather than dicts, the second port's lists would simply
+    overwrite the first's instead of both taking effect."""
+    name = 'overlapping_delete_process'
+
+    def ports_schema(self) -> Schema:
+        return {
+            'A': {'*': {'_default': 0, '_emit': True}},
+            'B': {'*': {'_default': 0, '_emit': True}}}
+
+    def next_update(
+            self,
+            timestep: Union[float, int],
+            states: State) -> Update:
+        return {
+            'A': {'_delete': ['a1'], '_add': [{'key': 'a2', 'state': 1}]},
+            'B': {'_delete': ['b1'], '_add': [{'key': 'b2', 'state': 1}]}}
+
+
+def test_overlapping_delete_not_duplicated_or_dropped() -> None:
+    """Each port's ``_delete``/``_add`` directive is contained entirely
+    within that port's own split update, so when two overlapping ports
+    both delete/add keys in the same store, each key is deleted/added
+    exactly once -- neither duplicated across the split pieces nor
+    dropped by a merge, as both would silently overwrite in a single
+    combined inversion pass (see issue #209)."""
+    process = OverlappingDeleteProcess({})
+    exp = Engine(
+        processes={'proc': process},
+        topology={'proc': {'A': ('pool',), 'B': ('pool',)}},
+        initial_state={'pool': {'a1': 1, 'b1': 1}})
+
+    exp.update(1)
+    assert exp.state.get_path(('pool',)).get_value() == {
+        'a2': 1, 'b2': 1}
+
+
 def test_emit_config() -> None:
     # test alternate emit options
     merge_port = MergePort({})
@@ -2242,6 +2327,8 @@ engine_tests = {
     '38': test_path_base_rooted_routes,
     '39': test_one_off_updater_override,
     '40': test_invert_cache_invalidated_on_rewire,
+    '41': test_same_leaf_overlap_ordering,
+    '42': test_overlapping_delete_not_duplicated_or_dropped,
 }
 
 

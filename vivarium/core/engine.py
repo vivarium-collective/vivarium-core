@@ -107,6 +107,22 @@ def invert_topology(
     children, which are always distinct stores, so they are inverted as a
     single update over the keys that don't belong to a named port.
 
+    Ordering contract: the resulting updates are applied in the order
+    their routes appear in the topology dict (Python dicts preserve
+    insertion order), which is fixed once per process and independent of
+    the update's content. For a commutative updater like ``accumulate``
+    this doesn't matter, but for an overwriting updater like ``set``, the
+    last-listed route wins whenever two routes land on the exact same
+    leaf (see :py:func:`vivarium.experiments.engine_tests.\
+test_same_leaf_overlap_ordering`).
+
+    Each route's update (including any ``_delete``/``_add``/``_divide``
+    directives it carries) lands in exactly one split piece, so applying
+    the list in sequence can't double-process or drop a directive -- it
+    can only ever apply each one once, in topology order (see
+    :py:func:`vivarium.experiments.engine_tests.\
+test_overlapping_delete_not_duplicated_or_dropped`).
+
     Args:
         update: The update.
         args: Tuple of the path the update is relative to, the topology,
