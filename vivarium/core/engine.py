@@ -81,9 +81,13 @@ def starts_with(
         for i, el in enumerate(sub))
 
 
+# (grouped, sub_topology) entries; see topology_split_plan
+SplitPlan = List[Tuple[bool, Topology]]
+
+
 def invert_topology(
         update: Update,
-        args: Tuple[HierarchyPath, Topology, bool],
+        args: Tuple[HierarchyPath, Topology, Optional[SplitPlan]],
 ) -> List[State]:
     """Invert an update into a list of updates relative to the hierarchy root.
 
@@ -93,75 +97,152 @@ def invert_topology(
     :py:func:`vivarium.library.topology.inverse_topology`.
 
     When a topology cannot route two contributions to the same store (the
-    common case, decided once by :py:func:`topology_can_overlap`), the
-    whole update is inverted in a single pass, giving one update with one
-    shared store traversal -- the same cheap path used before issue #209.
+    common case, decided by :py:func:`topology_split_plan`), the whole
+    update is inverted in a single pass, giving one update with one shared
+    store traversal -- the same cheap path used before issue #209.
 
-    Only when ports can overlap does a separate inverted update get
-    generated for each routing (each named port, and recursively each
-    explicit variable route of a port whose topology is a ``dict``,
-    including the routes under a ``_path``). Applying those in sequence
-    lets every contribution reach the target store's updater, so multiple
-    ports -- or multiple variables of one port -- pointing at the same
-    store all take effect instead of overwriting one another (see issue
-    #209). Glob (``*``) ports distribute a single update across dynamic
-    children, which are always distinct stores, so they are inverted as a
-    single update over the keys that don't belong to a named port.
+    Otherwise the plan splits the ports, in topology order, into groups.
+    Consecutive ports whose target stores are known and don't overlap
+    (same store, or one nested in the other) share one inverted update.
+    A port whose targets can't be resolved statically, or which overlaps
+    itself, gets a separate inverted update for each routing (recursively
+    each explicit variable route of a ``dict`` topology, including the
+    routes under a ``_path``, whose unlisted keys share one update). Applying
+    the updates in sequence lets every contribution reach the target
+    store's updater, so multiple ports -- or multiple variables of one
+    port -- pointing at the same store all take effect instead of
+    overwriting one another (see issue #209). A glob (``*``) port is one
+    update over the keys that don't belong to a named port.
 
-    Ordering contract: the resulting updates are applied in the order
-    their routes appear in the topology dict (Python dicts preserve
-    insertion order), which is fixed once per process and independent of
-    the update's content. For a commutative updater like ``accumulate``
-    this doesn't matter, but for an overwriting updater like ``set``, the
-    last-listed route wins whenever two routes land on the exact same
-    leaf (see :py:func:`vivarium.experiments.engine_tests.\
+    Ordering contract: overlapping routes are applied in the order they
+    appear in the topology dict (Python dicts preserve insertion order),
+    which depends only on the topology, not on the update's content. For a
+    commutative updater like ``accumulate`` this doesn't matter, but for an
+    overwriting updater like ``set``, the last-listed route wins whenever
+    two routes land on the exact same leaf (see
+    :py:func:`vivarium.experiments.engine_tests.\
 test_same_leaf_overlap_ordering`).
 
     Each route's update (including any ``_delete``/``_add``/``_divide``
-    directives it carries) lands in exactly one split piece, so applying
-    the list in sequence can't double-process or drop a directive -- it
-    can only ever apply each one once, in topology order (see
-    :py:func:`vivarium.experiments.engine_tests.\
+    directives it carries) lands in exactly one of the returned updates,
+    so applying them in sequence can't double-process or drop a directive
+    (see :py:func:`vivarium.experiments.engine_tests.\
 test_overlapping_delete_not_duplicated_or_dropped`).
 
     Args:
         update: The update.
         args: Tuple of the path the update is relative to, the topology,
-            and whether the topology's ports can overlap.
+            and the topology's split plan from
+            :py:func:`topology_split_plan` (``None`` for a single pass).
 
     Returns:
         A list of updates, each relative to the root of ``path``, to be
         applied in sequence.
     """
-    path, topology, can_overlap = args
+    path, topology, plan = args
     outer = path[:-1]
-    if can_overlap:
-        return _split_inverse(outer, update, topology)
-    return [inverse_topology(outer, update, topology)]
+    if plan is None:
+        return [inverse_topology(outer, update, topology)]
+
+    inverses: List[State] = []
+    for grouped, sub_topology in plan:
+        if grouped:
+            sub_update = {
+                port: update[port] for port in sub_topology if port in update}
+            if sub_update:
+                inverses.append(
+                    inverse_topology(outer, sub_update, sub_topology))
+        elif '*' in sub_topology:
+            glob_update = {
+                key: value for key, value in update.items()
+                if key == '*' or key not in topology}
+            if glob_update:
+                inverses.append(
+                    inverse_topology(outer, glob_update, sub_topology))
+        else:
+            (port,) = sub_topology
+            if port in update:
+                inverses.extend(_split_inverse(
+                    outer, {port: update[port]}, sub_topology))
+    return inverses
+
+
+class _TargetSet:
+    """Store paths, answering whether a new path overlaps any of them.
+
+    Two paths overlap when they are equal or one is nested in the other.
+    """
+    __slots__ = ('exact', 'prefixes')
+
+    def __init__(self) -> None:
+        self.exact: set = set()
+        # proper prefixes of the paths in self.exact
+        self.prefixes: set = set()
+
+    def overlaps(self, target: HierarchyPath) -> bool:
+        if target in self.exact or target in self.prefixes:
+            return True
+        return any(target[:i] in self.exact for i in range(len(target)))
+
+    def add(self, target: HierarchyPath) -> None:
+        self.exact.add(target)
+        self.prefixes.update(target[:i] for i in range(len(target)))
+
+
+def topology_split_plan(topology: Topology) -> Optional[SplitPlan]:
+    """Plan how to invert updates for a process topology.
+
+    Returns ``None`` when every port resolves to a distinct, non-nested
+    store, so updates can be inverted in a single pass. Otherwise returns
+    ``(grouped, sub_topology)`` entries in topology order: a grouped entry
+    holds consecutive ports with known, mutually non-overlapping targets,
+    inverted together; any other entry holds one port (a glob, a ``_path``
+    with explicit routes, a route that is neither a tuple nor a dict, or a
+    port that overlaps itself) to be split per route. See
+    :py:func:`invert_topology`. The plan depends only on the topology, so
+    the engine caches it until the topology changes.
+    """
+    plan: SplitPlan = []
+    group: Topology = {}
+    written = _TargetSet()
+    for port, sub_topology in topology.items():
+        targets = None if port == '*' else _resolve_targets(
+            {port: sub_topology})
+        if targets is not None:
+            own = _TargetSet()
+            for target in targets:
+                if own.overlaps(target):
+                    targets = None
+                    break
+                own.add(target)
+
+        if targets is None:
+            if group:
+                plan.append((True, group))
+                group, written = {}, _TargetSet()
+            plan.append((False, {port: sub_topology}))
+            continue
+        if any(written.overlaps(target) for target in targets):
+            plan.append((True, group))
+            group, written = {}, _TargetSet()
+        group[port] = sub_topology
+        for target in targets:
+            written.add(target)
+
+    if group:
+        plan.append((True, group))
+    if len(plan) <= 1 and all(grouped for grouped, _ in plan):
+        return None
+    return plan
 
 
 def topology_can_overlap(topology: Topology) -> bool:
     """Whether a process topology could route two contributions to one leaf.
 
-    Returns ``False`` only when every port resolves to a distinct,
-    non-nested store, so the update can be inverted in a single combined
-    pass. Anything whose targets can't be resolved statically -- a glob,
-    a ``_path`` base shift, or a string rename -- or whose targets coincide
-    or nest returns ``True`` so the robust per-route split is used. The
-    decision depends only on the topology, so it is computed once per
-    process.
+    ``False`` exactly when :py:func:`topology_split_plan` allows a single
+    inversion pass.
     """
-    targets = _resolve_targets(topology)
-    if targets is None:
-        return True
-
-    for i, first in enumerate(targets):
-        for second in targets[i + 1:]:
-            shared = min(len(first), len(second))
-            # equal targets, or one nested inside the other, can collide
-            if first[:shared] == second[:shared]:
-                return True
-    return False
+    return topology_split_plan(topology) is not None
 
 
 def _resolve_targets(topology: Topology) -> Optional[List[HierarchyPath]]:
@@ -169,8 +250,9 @@ def _resolve_targets(topology: Topology) -> Optional[List[HierarchyPath]]:
 
     Returns the list of resolved (``..``-normalized) target paths, or
     ``None`` when a route can't be resolved statically (a glob ``*``, a
-    ``_path`` base shift, or a non-tuple/dict route such as a string
-    rename), in which case the caller must assume the ports can overlap.
+    ``_path`` with explicit routes, or a non-tuple/dict route such as a
+    string rename), in which case the caller must assume the ports can
+    overlap.
     """
     targets: List[HierarchyPath] = []
     for port, sub_topology in topology.items():
@@ -178,6 +260,10 @@ def _resolve_targets(topology: Topology) -> Optional[List[HierarchyPath]]:
             return None
         if isinstance(sub_topology, tuple):
             targets.append(normalize_path(sub_topology))
+        elif isinstance(sub_topology, dict) \
+                and sub_topology.keys() == {'_path'}:
+            # a bare '_path' writes only under its base
+            targets.append(normalize_path(sub_topology['_path']))
         elif isinstance(sub_topology, dict) \
                 and '_path' not in sub_topology \
                 and '*' not in sub_topology:
@@ -197,23 +283,13 @@ def _split_inverse(
 ) -> List[State]:
     """Recursively split an update so overlapping routings stay separate.
 
-    See :py:func:`invert_topology` for the rationale.
+    ``topology`` has no glob (``*``); see :py:func:`invert_topology` for
+    the rationale.
     """
-    named_ports = [port for port in topology if port != '*']
     inverses: List[State] = []
-
-    if '*' in topology:
-        glob_update = {
-            key: value for key, value in update.items()
-            if key not in named_ports}
-        if glob_update:
-            inverses.append(
-                inverse_topology(outer, glob_update, {'*': topology['*']}))
-
-    for port in named_ports:
+    for port, sub_topology in topology.items():
         if port not in update:
             continue
-        sub_topology = topology[port]
         value = update[port]
 
         # Split a dict topology into its individual variable->store routes so
@@ -1327,16 +1403,16 @@ def _process_update(
     # decision came from. The snapshot is a deep copy so in-place edits
     # to nested dicts can't change it too; its tuples are shared with the
     # live topology, so the comparison is mostly identity checks.
-    can_overlap = store.invert_can_overlap
-    if can_overlap is None or store.topology != store.invert_topology_snapshot:
-        can_overlap = topology_can_overlap(store.topology)
-        store.invert_can_overlap = can_overlap
+    if store.invert_can_overlap is None \
+            or store.topology != store.invert_topology_snapshot:
+        store.invert_split_plan = topology_split_plan(store.topology)
+        store.invert_can_overlap = store.invert_split_plan is not None
         store.invert_topology_snapshot = copy.deepcopy(store.topology)
 
     absolute = Defer(
         process,
         invert_topology,
-        (path, store.topology, can_overlap))
+        (path, store.topology, store.invert_split_plan))
 
     return absolute, store
 

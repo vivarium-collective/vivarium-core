@@ -7,7 +7,8 @@ from vivarium.composites.toys import (
     Proton, Electron, MoveProcess)
 from vivarium.core.composer import Composer, Composite
 from vivarium.core.engine import (
-    Engine, pf, pp, _StepGraph, invert_topology)
+    Engine, pf, pp, _StepGraph, invert_topology, topology_can_overlap,
+    topology_split_plan)
 from vivarium.core.process import Process, Step, Deriver
 from vivarium.core.store import Store, hierarchy_depth
 from vivarium.core.types import (
@@ -1418,6 +1419,131 @@ def test_overlapping_delete_not_duplicated_or_dropped() -> None:
         'a2': 1, 'b2': 1}
 
 
+def test_topology_can_overlap() -> None:
+    """The static overlap check flags equal or nested targets wherever
+    they sit in the topology, resolves a bare ``_path`` to its base, and
+    gives up (assumes overlap) on anything it can't resolve."""
+    assert not topology_can_overlap({'a': ('x',), 'b': ('y',)})
+    # one target is a path prefix of the other, whatever the input order
+    assert topology_can_overlap(
+        {'a': ('x', 'y'), 'c': ('w',), 'b': ('x',)})
+    assert topology_can_overlap({'a': ('x',), 'b': ('x',)})
+    # a string prefix is not a path prefix
+    assert not topology_can_overlap({'a': ('x',), 'b': ('xy',)})
+    # '..' is resolved before comparing
+    assert topology_can_overlap({'a': ('y', '..', 'x'), 'b': ('x',)})
+    # mixed key types don't break sorting
+    assert topology_can_overlap({'a': (1,), 'b': ('z',), 'c': (1, 'q')})
+
+    # a bare '_path' writes only under its base, even nested in a dict
+    assert not topology_can_overlap(
+        {'a': {'_path': ('x',)}, 'b': ('y',)})
+    assert not topology_can_overlap(
+        {'a': {'v': {'_path': ('x',)}, 'w': ('y',)}})
+    assert topology_can_overlap(
+        {'a': {'_path': ('x',)}, 'b': ('x', 'z')})
+    # explicit '_path' routes and globs aren't resolved statically
+    assert topology_can_overlap({'a': {'_path': ('x',), 'v': ('v',)}})
+    assert topology_can_overlap({'*': ('cells',)})
+
+    # large topologies are checked in roughly linear time
+    many: Topology = {f'p{i}': ('cell', f's{i}') for i in range(20000)}
+    assert not topology_can_overlap(many)
+    many['last'] = ('cell', 's123', 'deeper')
+    assert topology_can_overlap(many)
+
+
+def test_topology_split_plan() -> None:
+    """Consecutive non-overlapping ports share a group; a port starts a new
+    group when it overlaps the current one, and ports that can't be
+    resolved statically or that overlap themselves stand alone."""
+    path_routes = {'_path': ('p',), 'r': ('q',)}
+    self_overlap = {'u': ('s',), 'v': ('s',)}
+    topology: Topology = {
+        'a': ('x',),
+        'b': ('y',),
+        'c': ('x', 'deep'),  # nested in 'a': new group
+        'd': ('z',),
+        '*': ('cells',),
+        'e': path_routes,
+        'f': self_overlap,
+        'g': ('w',),
+        'h': ('x',),  # 'a' is in an earlier group, so no new group
+    }
+    assert topology_split_plan(topology) == [
+        (True, {'a': ('x',), 'b': ('y',)}),
+        (True, {'c': ('x', 'deep'), 'd': ('z',)}),
+        (False, {'*': ('cells',)}),
+        (False, {'e': path_routes}),
+        (False, {'f': self_overlap}),
+        (True, {'g': ('w',), 'h': ('x',)}),
+    ]
+    assert topology_split_plan({'a': ('x',), 'b': ('y',)}) is None
+    assert topology_split_plan({}) is None
+
+    # one overlap among many ports costs one extra update, not one each
+    many: Topology = {f'p{i}': (f's{i}',) for i in range(50)}
+    many['p1'] = ('s0',)
+    update = {port: {'v': 1} for port in many}
+    inverted = invert_topology(
+        update, (('proc',), many, topology_split_plan(many)))
+    assert len(inverted) == 2
+    assert inverted[0] == {'s0': {'v': 1}}
+    assert inverted[1]['s0'] == {'v': 1}
+    assert len(inverted[1]) == 49
+
+
+class BarePathProcess(Process):
+    """Ports wired with bare ``_path`` topologies, one holding a leaf."""
+    name = 'bare_path_process'
+
+    def ports_schema(self) -> Schema:
+        return {
+            'trigger': {'_default': False, '_updater': 'set'},
+            'cell': {
+                'x': {'_default': 0},
+                'y': {'_default': 0}},
+            'other': {'z': {'_default': 0}}}
+
+    def next_update(
+            self,
+            timestep: Union[float, int],
+            states: State) -> Update:
+        return {
+            'trigger': True,
+            'cell': {'x': 1, 'y': 2},
+            'other': {'z': 3}}
+
+
+def test_bare_path_fast_path() -> None:
+    """Bare ``_path`` ports with distinct bases take the single-pass fast
+    path, and give the same result as when they overlap and are split."""
+    topology: Dict[str, Any] = {
+        'trigger': {'_path': ('trig',)},
+        'cell': {'_path': ('cell',)},
+        'other': ('elsewhere',)}
+    exp = Engine(
+        processes={'proc': BarePathProcess({})},
+        topology={'proc': topology},
+        initial_state={'trig': False, 'cell': {'x': 0, 'y': 0}})
+    exp.update(1)
+    assert exp.state.get_path(('proc',)).invert_can_overlap is False
+    assert exp.state.get_path(('trig',)).get_value() is True
+    assert exp.state.get_path(('cell',)).get_value() == {'x': 1, 'y': 2}
+    assert exp.state.get_path(('elsewhere',)).get_value() == {'z': 3}
+
+    # point 'other' into the 'cell' base: both writes to cell/z apply
+    overlapping = dict(topology, other=('cell',))
+    exp = Engine(
+        processes={'proc': BarePathProcess({})},
+        topology={'proc': overlapping},
+        initial_state={'trig': False, 'cell': {'x': 0, 'y': 0, 'z': 0}})
+    exp.update(1)
+    assert exp.state.get_path(('proc',)).invert_can_overlap is True
+    assert exp.state.get_path(('cell',)).get_value() == {
+        'x': 1, 'y': 2, 'z': 3}
+
+
 def test_path_defaults_inverted_together() -> None:
     """Unlisted keys of a split ``_path`` port go to distinct children of
     its base, so they're inverted as one update after the explicit routes
@@ -1430,7 +1556,8 @@ def test_path_defaults_inverted_together() -> None:
             '_path': ('base',),
             'near_var': ('near',),
             'far_var': ('..', 'far')}}
-    inverted = invert_topology(update, (('proc',), topology, True))
+    inverted = invert_topology(
+        update, (('proc',), topology, topology_split_plan(topology)))
     # one update per explicit route, then one for all the defaults
     assert inverted == [
         {'base': {'near': 2}},
@@ -2416,6 +2543,9 @@ engine_tests = {
     '41': test_same_leaf_overlap_ordering,
     '42': test_overlapping_delete_not_duplicated_or_dropped,
     '43': test_topology_edits_invalidate_cache,
+    '44': test_topology_can_overlap,
+    '47': test_topology_split_plan,
+    '45': test_bare_path_fast_path,
     '46': test_path_defaults_inverted_together,
 }
 
