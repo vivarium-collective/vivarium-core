@@ -6,7 +6,8 @@ from vivarium.composites.toys import (
     PoQo, Sine, ToyDivider, ToyTransport, ToyEnvironment, ToyProcess,
     Proton, Electron, MoveProcess)
 from vivarium.core.composer import Composer, Composite
-from vivarium.core.engine import Engine, pf, pp, _StepGraph
+from vivarium.core.engine import (
+    Engine, pf, pp, _StepGraph, invert_topology)
 from vivarium.core.process import Process, Step, Deriver
 from vivarium.core.store import Store, hierarchy_depth
 from vivarium.core.types import (
@@ -1417,6 +1418,40 @@ def test_overlapping_delete_not_duplicated_or_dropped() -> None:
         'a2': 1, 'b2': 1}
 
 
+def test_path_defaults_inverted_together() -> None:
+    """Unlisted keys of a split ``_path`` port go to distinct children of
+    its base, so they're inverted as one update after the explicit routes
+    instead of one update each -- and an explicit route aliasing a default
+    key still gets both contributions."""
+    update = {
+        'port': {'base_var': 1, 'near_var': 2, 'extra': 4, 'far_var': 3}}
+    topology: Topology = {
+        'port': {
+            '_path': ('base',),
+            'near_var': ('near',),
+            'far_var': ('..', 'far')}}
+    inverted = invert_topology(update, (('proc',), topology, True))
+    # one update per explicit route, then one for all the defaults
+    assert inverted == [
+        {'base': {'near': 2}},
+        {'far': 3},
+        {'base': {'base_var': 1, 'extra': 4}}]
+
+    # 'near_var' is routed onto base/base_var, the default key's store
+    process = PathRewireProcess({})
+    exp = Engine(
+        processes={'proc': process},
+        topology={
+            'proc': {
+                'port': {
+                    '_path': ('base',),
+                    'near_var': ('base_var',),
+                    'far_var': ('..', 'far')}}},
+        initial_state={'base': {'base_var': 0}, 'far': 0})
+    exp.update(1)
+    assert exp.state.get_path(('base', 'base_var')).get_value() == 3
+
+
 def test_emit_config() -> None:
     # test alternate emit options
     merge_port = MergePort({})
@@ -2381,6 +2416,7 @@ engine_tests = {
     '41': test_same_leaf_overlap_ordering,
     '42': test_overlapping_delete_not_duplicated_or_dropped,
     '43': test_topology_edits_invalidate_cache,
+    '46': test_path_defaults_inverted_together,
 }
 
 

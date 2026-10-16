@@ -233,10 +233,17 @@ def _split_inverse(
                     if key != '_path'}
                 if routes:
                     inner = normalize_path(outer + sub_topology['_path'])
-                    for update_key in value:
-                        if update_key not in routes:
-                            routes[update_key] = (update_key,)
                     inverses.extend(_split_inverse(inner, value, routes))
+                    # Unlisted keys go to distinct children of the base,
+                    # so they can't collide with each other: invert them
+                    # as one update, after the explicit routes.
+                    defaults = {
+                        key: sub_value for key, sub_value in value.items()
+                        if key not in routes}
+                    if defaults:
+                        inverses.append(inverse_topology(
+                            outer, {port: defaults},
+                            {port: {'_path': sub_topology['_path']}}))
                     continue
             else:
                 inverses.extend(_split_inverse(outer, value, sub_topology))
