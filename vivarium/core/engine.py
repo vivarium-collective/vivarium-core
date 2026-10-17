@@ -493,11 +493,13 @@ class Defer:
         self.f = f
         self.args = args
 
-    def get(self) -> Update:
+    def get(self) -> Union[Update, List[Update]]:
         """Perform the deferred computation.
 
         Returns:
-            The result of calling the function.
+            The result of calling the function. With
+            :py:func:`invert_topology`, a list of updates to apply in
+            sequence.
         """
         return self.f(
             self.defer.get_command_result(),
@@ -511,7 +513,7 @@ class EmptyDefer(Defer):
         args = ()
         super().__init__(None, function, args)
 
-    def get(self) -> Update:
+    def get(self) -> Union[Update, List[Update]]:
         return {}
 
 
