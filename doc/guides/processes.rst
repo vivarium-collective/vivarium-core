@@ -187,10 +187,11 @@ setting ``_updater`` in the ports schema. In this case ``_updater`` names
 the updater to use just for this update and ``_value`` supplies the value
 it is applied to. For example, returning
 ``{'variable1': {'_updater': 'set', '_value': 5}}`` from ``next_update``
-sets ``variable1`` to ``5`` regardless of its default updater. The two keys
-must be given together: ``_value`` is ignored unless ``_updater`` is also
-present, and if ``_updater`` is given without ``_value`` the variable's
-default value is used.
+sets ``variable1`` to ``5`` regardless of its default updater. Give the two
+keys together: without ``_updater``, the whole ``{'_value': ...}`` dict is
+passed to the variable's default updater as the update value (which fails
+for updaters like ``accumulate``), and if ``_updater`` is given without
+``_value`` the variable's default value is used.
 
 New updaters can be easily defined and passed into a port schema:
 
