@@ -6,7 +6,9 @@ from vivarium.composites.toys import (
     PoQo, Sine, ToyDivider, ToyTransport, ToyEnvironment, ToyProcess,
     Proton, Electron, MoveProcess)
 from vivarium.core.composer import Composer, Composite
-from vivarium.core.engine import Engine, pf, pp, _StepGraph
+from vivarium.core.engine import (
+    Engine, pf, pp, _StepGraph, invert_topology, topology_can_overlap,
+    topology_split_plan)
 from vivarium.core.process import Process, Step, Deriver
 from vivarium.core.store import Store, hierarchy_depth
 from vivarium.core.types import (
@@ -360,6 +362,1436 @@ def test_multi_port_merge() -> None:
         'time': [0.0, 1.0, 2.0]}
 
     assert output == expected_output
+
+
+class DictTopologyMultiPort(Process):
+    """Two ports that point to the same store via ``_path`` dict topologies
+    and update the same variable."""
+    name = 'dict_topology_multi_port'
+
+    def ports_schema(self) -> Schema:
+        return {
+            'A': {
+                'a': {
+                    '_default': 0,
+                    '_emit': True}},
+            'B': {
+                'a': {
+                    '_default': 0,
+                    '_emit': True}}}
+
+    def next_update(
+            self,
+            timestep: Union[float, int],
+            states: State) -> Update:
+        return {
+            'A': {'a': 1},
+            'B': {'a': 1}}
+
+
+class DictTopologyComposer(Composer):
+    """Merges both of DictTopologyMultiPort's ports into one store using
+    ``_path`` dict topologies (see issue #209)."""
+    name = 'dict_topology_composer'
+
+    def generate_processes(
+            self, config: Optional[dict]) -> Dict[str, Any]:
+        return {
+            'multi_port': DictTopologyMultiPort({})}
+
+    def generate_topology(self, config: Optional[dict]) -> Topology:
+        return {
+            'multi_port': {
+                'A': {'_path': ('shared',)},
+                'B': {'_path': ('shared',)}
+            }
+        }
+
+def test_dict_topology_multi_port() -> None:
+    """Overlapping ports with dict (``_path``) topologies must aggregate
+    their updates instead of silently dropping one of them."""
+    composer = DictTopologyComposer({})
+    network = composer.generate()
+    exp = Engine(
+        processes=network['processes'],
+        topology=network['topology'])
+
+    exp.update(2)
+    output = exp.emitter.get_timeseries()
+    expected_output = {
+        'shared': {'a': [0, 2, 4]},
+        'time': [0.0, 1.0, 2.0]}
+
+    assert output == expected_output
+
+
+class InitialStateMultiPort(Process):
+    """Two ports to the same store that also seed it via ``initial_state``
+    (see issue #209)."""
+    name = 'initial_state_multi_port'
+
+    def ports_schema(self) -> Schema:
+        return {
+            'A': {
+                'a': {
+                    '_default': 0,
+                    '_emit': True}},
+            'B': {
+                'a': {
+                    '_default': 0,
+                    '_emit': True}}}
+
+    def initial_state(self, config: Optional[dict] = None) -> State:
+        return {
+            'A': {'a': 5},
+            'B': {'a': 5}}
+
+    def next_update(
+            self,
+            timestep: Union[float, int],
+            states: State) -> Update:
+        return {
+            'A': {'a': 1},
+            'B': {'a': 1}}
+
+
+class InitialStateComposer(Composer):
+    """Merges both of InitialStateMultiPort's ports into one store."""
+    name = 'initial_state_composer'
+
+    def generate_processes(
+            self, config: Optional[dict]) -> Dict[str, Any]:
+        return {
+            'multi_port': InitialStateMultiPort({})}
+
+    def generate_topology(self, config: Optional[dict]) -> Topology:
+        return {
+            'multi_port': {
+                'A': ('shared',),
+                'B': ('shared',)}}
+
+
+def test_multi_port_initial_state() -> None:
+    """A process with overlapping ports must be able to provide an
+    ``initial_state`` without forming multi-update lists (see issue #209
+    and PR #205)."""
+    composer = InitialStateComposer({})
+    network = composer.generate()
+    exp = Engine(
+        processes=network['processes'],
+        topology=network['topology'],
+        initial_state=composer.initial_state())
+
+    exp.update(2)
+    output = exp.emitter.get_timeseries()
+    # The two ports deep-merge to a single starting value of 5, then each
+    # step adds 1 per port.
+    expected_output = {
+        'shared': {'a': [5, 7, 9]},
+        'time': [0.0, 1.0, 2.0]}
+
+    assert output == expected_output
+
+
+class InitialStateDirectLeafComposer(Composer):
+    """Merges both of InitialStateMultiPort's ports into one store."""
+    name = 'initial_state_direct_leaf_composer'
+
+    def generate_processes(
+            self, config: Optional[dict]) -> Dict[str, Any]:
+        return {
+            'multi_port': InitialStateMultiPort({})}
+
+    def generate_topology(self, config: Optional[dict]) -> Topology:
+        return {
+            'multi_port': {
+                'A': {'a': ('shared',)},
+                'B': {'a': ('shared',)}}}
+
+
+def test_multi_port_initial_state_direct_leaf() -> None:
+    """A process with overlapping ports must be able to provide an
+    ``initial_state`` without forming multi-update lists (see issue #209
+    and PR #205) even for direct leaf ports."""
+    composer = InitialStateDirectLeafComposer({})
+    network = composer.generate()
+    exp = Engine(
+        processes=network['processes'],
+        topology=network['topology'],
+        initial_state=composer.initial_state())
+
+    exp.update(2)
+    output = exp.emitter.get_timeseries()
+    # The two ports deep-merge to a single starting value of 5, then each
+    # step adds 1 per port.
+    expected_output = {
+        'shared': [5, 7, 9],
+        'time': [0.0, 1.0, 2.0]}
+
+    assert output == expected_output
+
+
+class DictValueMultiPort(Process):
+    """Two ports to the same dict-valued store, each updating different
+    keys (see issue #209)."""
+    name = 'dict_value_multi_port'
+
+    def ports_schema(self) -> Schema:
+        return {
+            'A': {
+                'a': {
+                    '_default': {},
+                    '_updater': 'dict_value',
+                    '_emit': True}},
+            'B': {
+                'a': {
+                    '_default': {},
+                    '_updater': 'dict_value',
+                    '_emit': True}}}
+
+    def next_update(
+            self,
+            timestep: Union[float, int],
+            states: State) -> Update:
+        return {
+            'A': {'a': {'_add': [{'key': 'x', 'state': 1}]}},
+            'B': {'a': {'_add': [{'key': 'y', 'state': 2}]}}}
+
+
+class DictValueComposer(Composer):
+    """Merges both of DictValueMultiPort's ports into one dict-valued
+    store."""
+    name = 'dict_value_composer'
+
+    def generate_processes(
+            self, config: Optional[dict]) -> Dict[str, Any]:
+        return {
+            'multi_port': DictValueMultiPort({})}
+
+    def generate_topology(self, config: Optional[dict]) -> Topology:
+        return {
+            'multi_port': {
+                'A': ('shared',),
+                'B': ('shared',)}}
+
+
+def test_multi_port_dict_values() -> None:
+    """Overlapping ports whose shared store holds ``dict`` values must
+    merge both updates rather than break the multi-update aggregation
+    (see issue #209)."""
+    composer = DictValueComposer({})
+    network = composer.generate()
+    exp = Engine(
+        processes=network['processes'],
+        topology=network['topology'])
+
+    exp.update(1)
+    data = exp.emitter.get_data()
+    # Both ports' updates land in the same dict store.
+    assert data[1.0]['shared']['a'] == {'x': 1, 'y': 2}
+
+
+class MixedTopologyMultiPort(Process):
+    """Two ports to the same store, one wired with a tuple topology and
+    the other with a ``_path`` dict topology (see issue #209)."""
+    name = 'mixed_topology_multi_port'
+
+    def ports_schema(self) -> Schema:
+        return {
+            'A': {
+                'a': {
+                    '_default': 0,
+                    '_emit': True}},
+            'B': {
+                'a': {
+                    '_default': 0,
+                    '_emit': True}}}
+
+    def next_update(
+            self,
+            timestep: Union[float, int],
+            states: State) -> Update:
+        return {
+            'A': {'a': 1},
+            'B': {'a': 1}}
+
+
+class MixedTopologyComposer(Composer):
+    """Merges MixedTopologyMultiPort's ports into one store, mixing tuple
+    and dict topologies."""
+    name = 'mixed_topology_composer'
+
+    def generate_processes(
+            self, config: Optional[dict]) -> Dict[str, Any]:
+        return {
+            'multi_port': MixedTopologyMultiPort({})}
+
+    def generate_topology(self, config: Optional[dict]) -> Topology:
+        return {
+            'multi_port': {
+                'A': ('shared',),
+                'B': {'_path': ('shared',)}}}
+
+
+def test_mixed_topology_multi_port() -> None:
+    """Overlapping ports must aggregate correctly even when one port uses
+    a tuple topology and another uses a dict (``_path``) topology (see
+    issue #209)."""
+    composer = MixedTopologyComposer({})
+    network = composer.generate()
+    exp = Engine(
+        processes=network['processes'],
+        topology=network['topology'])
+
+    exp.update(2)
+    output = exp.emitter.get_timeseries()
+    expected_output = {
+        'shared': {'a': [0, 2, 4]},
+        'time': [0.0, 1.0, 2.0]}
+
+    assert output == expected_output
+
+
+class DirectLeafMultiPort(Process):
+    """Two ports that each point directly at a single leaf store instead
+    of a subtree (see issue #209)."""
+    name = 'direct_leaf_multi_port'
+
+    def ports_schema(self) -> Schema:
+        return {
+            'A': {
+                '_default': 0,
+                '_emit': True},
+            'B': {
+                '_default': 0,
+                '_emit': True}}
+
+    def next_update(
+            self,
+            timestep: Union[float, int],
+            states: State) -> Update:
+        return {
+            'A': 1,
+            'B': 1}
+
+
+class DirectLeafComposer(Composer):
+    """Merges both of DirectLeafMultiPort's leaf ports into one store."""
+    name = 'direct_leaf_composer'
+
+    def generate_processes(
+            self, config: Optional[dict]) -> Dict[str, Any]:
+        return {
+            'multi_port': DirectLeafMultiPort({})}
+
+    def generate_topology(self, config: Optional[dict]) -> Topology:
+        return {
+            'multi_port': {
+                'A': ('shared',),
+                'B': ('shared',)}}
+
+
+def test_direct_leaf_multi_port() -> None:
+    """Overlapping ports that point directly at a single leaf store must
+    aggregate their updates (see issue #209)."""
+    composer = DirectLeafComposer({})
+    network = composer.generate()
+    exp = Engine(
+        processes=network['processes'],
+        topology=network['topology'])
+
+    exp.update(2)
+    output = exp.emitter.get_timeseries()
+    expected_output = {
+        'shared': [0, 2, 4],
+        'time': [0.0, 1.0, 2.0]}
+
+    assert output == expected_output
+
+
+class PartialUpdateMultiPort(Process):
+    """Three ports to the same store, but only some are updated each step
+    (see issue #209)."""
+    name = 'partial_update_multi_port'
+
+    def ports_schema(self) -> Schema:
+        return {
+            'A': {
+                'a': {
+                    '_default': 0,
+                    '_emit': True}},
+            'B': {
+                'a': {
+                    '_default': 0,
+                    '_emit': True}},
+            'C': {
+                'a': {
+                    '_default': 0,
+                    '_emit': True}}}
+
+    def next_update(
+            self,
+            timestep: Union[float, int],
+            states: State) -> Update:
+        # Port C is intentionally omitted from the update.
+        return {
+            'A': {'a': 1},
+            'B': {'a': 1}}
+
+
+class PartialUpdateComposer(Composer):
+    """Merges all of PartialUpdateMultiPort's ports into one store."""
+    name = 'partial_update_composer'
+
+    def generate_processes(
+            self, config: Optional[dict]) -> Dict[str, Any]:
+        return {
+            'multi_port': PartialUpdateMultiPort({})}
+
+    def generate_topology(self, config: Optional[dict]) -> Topology:
+        return {
+            'multi_port': {
+                'A': ('shared',),
+                'B': ('shared',),
+                'C': ('shared',)}}
+
+
+def test_partial_update_multi_port() -> None:
+    """Overlapping ports that are omitted from an update must be skipped
+    without dropping the ports that are present (see issue #209)."""
+    composer = PartialUpdateComposer({})
+    network = composer.generate()
+    exp = Engine(
+        processes=network['processes'],
+        topology=network['topology'])
+
+    exp.update(2)
+    output = exp.emitter.get_timeseries()
+    # Only ports A and B contribute, so the store grows by 2 each step.
+    expected_output = {
+        'shared': {'a': [0, 2, 4]},
+        'time': [0.0, 1.0, 2.0]}
+
+    assert output == expected_output
+
+
+class SiblingVarMultiPort(Process):
+    """Two ports to the same store that write different sibling variables
+    (see issue #209)."""
+    name = 'sibling_var_multi_port'
+
+    def ports_schema(self) -> Schema:
+        return {
+            'A': {
+                'x': {
+                    '_default': 0,
+                    '_emit': True}},
+            'B': {
+                'y': {
+                    '_default': 0,
+                    '_emit': True}}}
+
+    def next_update(
+            self,
+            timestep: Union[float, int],
+            states: State) -> Update:
+        return {
+            'A': {'x': 1},
+            'B': {'y': 2}}
+
+
+class SiblingVarComposer(Composer):
+    """Merges both of SiblingVarMultiPort's ports into one store."""
+    name = 'sibling_var_composer'
+
+    def generate_processes(
+            self, config: Optional[dict]) -> Dict[str, Any]:
+        return {
+            'multi_port': SiblingVarMultiPort({})}
+
+    def generate_topology(self, config: Optional[dict]) -> Topology:
+        return {
+            'multi_port': {
+                'A': ('shared',),
+                'B': ('shared',)}}
+
+
+def test_sibling_var_multi_port() -> None:
+    """Splitting updates per port must not clobber sibling variables that
+    live in the same shared store (see issue #209)."""
+    composer = SiblingVarComposer({})
+    network = composer.generate()
+    exp = Engine(
+        processes=network['processes'],
+        topology=network['topology'])
+
+    exp.update(2)
+    output = exp.emitter.get_timeseries()
+    expected_output = {
+        'shared': {
+            'x': [0, 1, 2],
+            'y': [0, 2, 4]},
+        'time': [0.0, 1.0, 2.0]}
+
+    assert output == expected_output
+
+
+class NestedSubtreeMultiPort(Process):
+    """Two ports to the same store that write different nested sub-paths
+    (see issue #209)."""
+    name = 'nested_subtree_multi_port'
+
+    def ports_schema(self) -> Schema:
+        return {
+            'A': {
+                'sub': {
+                    'x': {
+                        '_default': 0,
+                        '_emit': True}}},
+            'B': {
+                'sub': {
+                    'y': {
+                        '_default': 0,
+                        '_emit': True}}}}
+
+    def next_update(
+            self,
+            timestep: Union[float, int],
+            states: State) -> Update:
+        return {
+            'A': {'sub': {'x': 1}},
+            'B': {'sub': {'y': 2}}}
+
+
+class NestedSubtreeComposer(Composer):
+    """Merges both of NestedSubtreeMultiPort's ports into one store."""
+    name = 'nested_subtree_composer'
+
+    def generate_processes(
+            self, config: Optional[dict]) -> Dict[str, Any]:
+        return {
+            'multi_port': NestedSubtreeMultiPort({})}
+
+    def generate_topology(self, config: Optional[dict]) -> Topology:
+        return {
+            'multi_port': {
+                'A': ('shared',),
+                'B': ('shared',)}}
+
+
+def test_nested_subtree_multi_port() -> None:
+    """Overlapping ports that write different nested sub-paths of the same
+    store must deep-merge instead of overwriting (see issue #209)."""
+    composer = NestedSubtreeComposer({})
+    network = composer.generate()
+    exp = Engine(
+        processes=network['processes'],
+        topology=network['topology'])
+
+    exp.update(2)
+    output = exp.emitter.get_timeseries()
+    expected_output = {
+        'shared': {
+            'sub': {
+                'x': [0, 1, 2],
+                'y': [0, 2, 4]}},
+        'time': [0.0, 1.0, 2.0]}
+
+    assert output == expected_output
+
+
+class GlobRootProcess(Process):
+    """A process whose entire topology is a glob (``*``) port, exercising
+    the glob fallback in ``invert_topology`` (see issue #209)."""
+    name = 'glob_root_process'
+
+    def ports_schema(self) -> Schema:
+        return {
+            '*': {
+                'mass': {
+                    '_default': 0,
+                    '_emit': True}}}
+
+    def next_update(
+            self,
+            timestep: Union[float, int],
+            states: State) -> Update:
+        return {
+            agent_id: {'mass': 1}
+            for agent_id in states}
+
+
+def test_glob_root_multi_port() -> None:
+    """A top-level glob port must fall back to single-update handling and
+    still distribute its update across every child (see issue #209)."""
+    process = GlobRootProcess({})
+    exp = Engine(
+        processes={'glob': process},
+        topology={'glob': {'*': ('agents',)}},
+        initial_state={
+            'agents': {
+                '0': {'mass': 0},
+                '1': {'mass': 0}}})
+
+    exp.update(2)
+    data = exp.emitter.get_data()
+    assert data[2.0]['agents']['0']['mass'] == 2
+    assert data[2.0]['agents']['1']['mass'] == 2
+
+
+class GlobPlusDirectProcess(Process):
+    """A process with a top-level glob (``*``) port and a named port that
+    points directly at one of the glob's children, updating it too (see
+    issue #209)."""
+    name = 'glob_plus_direct_process'
+
+    def ports_schema(self) -> Schema:
+        return {
+            '*': {
+                'mass': {
+                    '_default': 0,
+                    '_emit': True}},
+            'special': {
+                'mass': {
+                    '_default': 0,
+                    '_emit': True}}}
+
+    def next_update(
+            self,
+            timestep: Union[float, int],
+            states: State) -> Update:
+        update: Update = {'special': {'mass': 100}}
+        for agent_id in states:
+            if agent_id == 'special':
+                continue
+            update[agent_id] = {'mass': 1}
+        return update
+
+
+def test_glob_plus_direct_port() -> None:
+    """A named port must be split out from a glob port so that its update
+    is not mistaken for a glob child nor aggregated into a fragile
+    multi-update list (see issue #209)."""
+    process = GlobPlusDirectProcess({})
+    exp = Engine(
+        processes={'proc': process},
+        topology={
+            'proc': {
+                '*': ('cells',),
+                'special': ('cells', '0')}},
+        initial_state={
+            'cells': {
+                '0': {'mass': 0},
+                '1': {'mass': 0}}})
+
+    exp.update(1)
+    data = exp.emitter.get_data()
+    # cell '0' gets both the glob update (+1) and the direct update (+100).
+    assert data[1.0]['cells']['0']['mass'] == 101
+    assert data[1.0]['cells']['1']['mass'] == 1
+    # The named port must not leak in as a spurious glob child.
+    assert 'special' not in data[1.0]['cells']
+
+
+class IntraPortOverlapProcess(Process):
+    """A single port whose two variables are wired to the same store, so
+    the overlap happens within one port rather than across ports (see
+    issue #209)."""
+    name = 'intra_port_overlap_process'
+
+    def __init__(self, parameters: Optional[dict] = None) -> None:
+        super().__init__(parameters)
+        self.update = self.parameters['update']
+
+    def ports_schema(self) -> Schema:
+        return {
+            'port': {
+                'x': {'_default': 0, '_emit': True},
+                'y': {'_default': 0, '_emit': True}}}
+
+    def next_update(
+            self,
+            timestep: Union[float, int],
+            states: State) -> Update:
+        return {'port': self.update}
+
+
+class IntraPortDictProcess(Process):
+    """A single port whose two branch variables are wired to the same
+    store and both update its ``m`` leaf (see issue #209)."""
+    name = 'intra_port_dict_process'
+
+    def ports_schema(self) -> Schema:
+        return {
+            'port': {
+                'x': {'m': {'_default': 0, '_emit': True}},
+                'y': {'m': {'_default': 0, '_emit': True}}}}
+
+    def next_update(
+            self,
+            timestep: Union[float, int],
+            states: State) -> Update:
+        return {'port': {'x': {'m': 1}, 'y': {'m': 2}}}
+
+
+def test_intra_port_scalar_overlap() -> None:
+    """Two scalar variables of one port wired to the same leaf must both
+    be applied instead of one overwriting the other (see issue #209)."""
+    process = IntraPortOverlapProcess({'update': {'x': 1, 'y': 2}})
+    exp = Engine(
+        processes={'proc': process},
+        topology={'proc': {'port': {'x': ('shared',), 'y': ('shared',)}}},
+        initial_state={'shared': 0})
+
+    exp.update(2)
+    output = exp.emitter.get_timeseries()
+    # Each step accumulates x (+1) and y (+2) onto the same store.
+    expected_output = {
+        'shared': [0, 3, 6],
+        'time': [0.0, 1.0, 2.0]}
+
+    assert output == expected_output
+
+
+def test_intra_port_dict_overlap() -> None:
+    """Two dict-valued variables of one port wired to the same store must
+    both be applied through the store's updater rather than aggregated
+    into a multi-update list (see issue #209)."""
+    process = IntraPortDictProcess({})
+    exp = Engine(
+        processes={'proc': process},
+        topology={'proc': {'port': {'x': ('shared',), 'y': ('shared',)}}},
+        initial_state={'shared': {'m': 0}})
+
+    exp.update(1)
+    data = exp.emitter.get_data()
+    # Both contributions reach the same leaf and accumulate: 1 + 2 = 3.
+    assert data[1.0]['shared']['m'] == 3
+
+
+class PathRouteOverlapProcess(Process):
+    """A single port whose ``_path`` topology routes two explicit variables
+    to the same leaf under the path (see issue #209)."""
+    name = 'path_route_overlap_process'
+
+    def ports_schema(self) -> Schema:
+        return {
+            'port': {
+                'x': {'_default': 0, '_emit': True},
+                'y': {'_default': 0, '_emit': True}}}
+
+    def next_update(
+            self,
+            timestep: Union[float, int],
+            states: State) -> Update:
+        return {'port': {'x': 1, 'y': 2}}
+
+
+def test_path_route_overlap() -> None:
+    """Two explicit routes of a ``_path`` topology that land on the same
+    leaf must both be applied instead of one overwriting the other (see
+    issue #209)."""
+    process = PathRouteOverlapProcess({})
+    exp = Engine(
+        processes={'proc': process},
+        topology={
+            'proc': {
+                'port': {
+                    '_path': ('bulk',),
+                    'x': ('m',),
+                    'y': ('m',)}}},
+        initial_state={'bulk': {'m': 0}})
+
+    exp.update(2)
+    output = exp.emitter.get_timeseries()
+    # Each step accumulates x (+1) and y (+2) onto bulk/m.
+    expected_output = {
+        'bulk': {'m': [0, 3, 6]},
+        'time': [0.0, 1.0, 2.0]}
+
+    assert output == expected_output
+
+
+class PathDirectiveProcess(Process):
+    """A port whose ``_path`` topology carries an atomic store directive
+    ({'_updater', '_value'}); it must not be split (see issue #209)."""
+    name = 'path_directive_process'
+
+    def ports_schema(self) -> Schema:
+        return {
+            'trigger': {
+                '_default': [],
+                '_updater': 'set',
+                '_emit': True}}
+
+    def next_update(
+            self,
+            timestep: Union[float, int],
+            states: State) -> Update:
+        return {'trigger': {'_updater': 'set', '_value': [1, 2, 3]}}
+
+
+def test_path_directive_not_split() -> None:
+    """An atomic ``{'_updater', '_value'}`` directive routed through a
+    ``_path`` topology must stay intact rather than being split into
+    separate updates (see issue #209)."""
+    process = PathDirectiveProcess({})
+    exp = Engine(
+        processes={'proc': process},
+        topology={'proc': {'trigger': {'_path': ('shared',)}}},
+        initial_state={'shared': []})
+
+    exp.update(1)
+    data = exp.emitter.get_data()
+    assert data[1.0]['shared'] == [1, 2, 3]
+
+
+class PathRewireProcess(Process):
+    """A port with a ``_path`` base plus explicit routes: an unlisted
+    variable defaults under the base, a listed route is resolved relative
+    to the base, and a listed route may use ``..`` to reach a separate
+    store outside the base."""
+    name = 'path_rewire_process'
+
+    def ports_schema(self) -> Schema:
+        return {
+            'port': {
+                'base_var': {'_default': 0, '_emit': True},
+                'near_var': {'_default': 0, '_emit': True},
+                'far_var': {'_default': 0, '_emit': True}}}
+
+    def next_update(
+            self,
+            timestep: Union[float, int],
+            states: State) -> Update:
+        return {'port': {'base_var': 1, 'near_var': 2, 'far_var': 3}}
+
+
+def test_path_base_rooted_routes() -> None:
+    """Explicit ``_path`` routes are resolved relative to the ``_path``
+    base; a route reaches a separate store by using ``..`` to climb out of
+    the base (as ``PoQo`` does). The split must preserve these semantics."""
+    process = PathRewireProcess({})
+    exp = Engine(
+        processes={'proc': process},
+        topology={
+            'proc': {
+                'port': {
+                    '_path': ('base',),
+                    # relative to the base -> base/near
+                    'near_var': ('near',),
+                    # '..' climbs out of the base -> far
+                    'far_var': ('..', 'far')}}},
+        initial_state={'base': {'base_var': 0, 'near': 0}, 'far': 0})
+
+    exp.update(2)
+    output = exp.emitter.get_timeseries()
+    expected_output = {
+        # unlisted variable defaults under the base
+        'base': {
+            'base_var': [0, 1, 2],
+            'near': [0, 2, 4]},
+        'far': [0, 3, 6],
+        'time': [0.0, 1.0, 2.0]}
+
+    assert output == expected_output
+
+
+class OneOffUpdaterProcess(Process):
+    """Returns a one-off ``_updater``/``_value`` override in its update,
+    replacing the store's default updater for that update only."""
+    name = 'one_off_updater_process'
+
+    def ports_schema(self) -> Schema:
+        return {
+            'port': {
+                'x': {
+                    '_default': 0,
+                    '_updater': 'accumulate',
+                    '_emit': True}}}
+
+    def next_update(
+            self,
+            timestep: Union[float, int],
+            states: State) -> Update:
+        # Override the default 'accumulate' with a one-off 'set' to 100.
+        return {'port': {'x': {'_updater': 'set', '_value': 100}}}
+
+
+def test_one_off_updater_override() -> None:
+    """An update may pair ``_updater`` with ``_value`` to override the
+    store's default updater for that update; the two keys must reach the
+    store together through the split."""
+    process = OneOffUpdaterProcess({})
+    exp = Engine(
+        processes={'proc': process},
+        topology={'proc': {'port': {'x': ('shared',)}}},
+        initial_state={'shared': 0})
+
+    exp.update(2)
+    output = exp.emitter.get_timeseries()
+    # 'set' to 100 each step instead of accumulating.
+    expected_output = {
+        'shared': [0, 100, 100],
+        'time': [0.0, 1.0, 2.0]}
+
+    assert output == expected_output
+
+
+class RewireOverlapProcess(Process):
+    """Two ports that can be rewired onto the same store to create an
+    overlap after the engine has started (see issue #209)."""
+    name = 'rewire_overlap_process'
+
+    def ports_schema(self) -> Schema:
+        return {
+            'port1': {'x': {'_default': 0, '_emit': True}},
+            'port2': {'x': {'_default': 0, '_emit': True}}}
+
+    def next_update(
+            self,
+            timestep: Union[float, int],
+            states: State) -> Update:
+        return {'port1': {'x': 1}, 'port2': {'x': 10}}
+
+
+def test_invert_cache_invalidated_on_rewire() -> None:
+    """Rewiring a port to overlap another must invalidate the cached
+    "can overlap" decision, so the update is split and no contribution is
+    lost (see issue #209)."""
+    process = RewireOverlapProcess({})
+    exp = Engine(
+        processes={'proc': process},
+        topology={'proc': {'port1': ('s1',), 'port2': ('s2',)}},
+        initial_state={'s1': {'x': 0}, 's2': {'x': 0}})
+
+    # ports go to distinct stores, so the fast non-split path is cached
+    exp.update(1)
+    proc_store = exp.state.get_path(('proc',))
+    assert proc_store.invert_can_overlap is False
+    assert exp.state.get_path(('s1',)).get_value() == {'x': 1}
+
+    # rewire port2 onto s1, creating an overlap
+    proc_store.connect('port2', exp.state.get_path(('s1',)))
+
+    exp.update(1)
+    # both ports now hit s1 and must both apply: +1 and +10
+    assert proc_store.invert_can_overlap is True  # recomputed as overlapping
+    assert exp.state.get_path(('s1',)).get_value() == {'x': 12}
+    # s2 is no longer wired, so it keeps its earlier value
+    assert exp.state.get_path(('s2',)).get_value() == {'x': 10}
+
+
+def test_topology_edits_invalidate_cache() -> None:
+    """Any change to a process store's topology -- reassignment, or an
+    in-place edit at any depth, including through the dict originally
+    passed to the Engine -- must make the engine recompute the cached
+    overlap decision, so a manual rewire can't leave a stale fast-path
+    verdict behind (see issue #209)."""
+    # pylint: disable=unused-argument
+
+    def rewire_port2_onto_s1(topology: dict, store: Store) -> None:
+        topology['proc']['port2'] = ('s1',)
+
+    def rewire_via_store(topology: dict, store: Store) -> None:
+        store.topology['port2'] = ('s1',)
+
+    def rewire_nested_in_place(topology: dict, store: Store) -> None:
+        store.topology['port2']['x'] = ('s1', 'x')
+
+    def reassign(topology: dict, store: Store) -> None:
+        store.topology = {'port1': ('s1',), 'port2': ('s1',)}
+
+    cases: List[Any] = [
+        ('original dict', {'port2': ('s2',)}, rewire_port2_onto_s1),
+        ('store, top level', {'port2': ('s2',)}, rewire_via_store),
+        ('store, nested', {'port2': {'x': ('s2', 'x')}},
+         rewire_nested_in_place),
+        ('reassignment', {'port2': ('s2',)}, reassign),
+    ]
+    for label, port2_topology, edit in cases:
+        topology: Dict[str, Any] = {
+            'proc': {'port1': ('s1',), **port2_topology}}
+        exp = Engine(
+            processes={'proc': RewireOverlapProcess({})},
+            topology=topology,
+            initial_state={'s1': {'x': 0}, 's2': {'x': 0}})
+        proc_store = exp.state.get_path(('proc',))
+
+        # distinct stores, so the fast path is cached; an unchanged
+        # topology keeps the same snapshot instead of recomputing
+        exp.update(1)
+        assert proc_store.invert_can_overlap is False, label
+        snapshot = proc_store.invert_topology_snapshot
+        exp.update(1)
+        assert proc_store.invert_topology_snapshot is snapshot, label
+        assert exp.state.get_path(('s1',)).get_value() == {'x': 2}, label
+
+        # the edit creates an overlap on s1, so both ports must apply
+        # (+1 and +10); a stale verdict would drop port1's +1
+        edit(topology, proc_store)
+        exp.update(1)
+        assert proc_store.invert_can_overlap is True, label
+        assert exp.state.get_path(('s1',)).get_value() == {'x': 13}, label
+
+
+class SameLeafSetProcess(Process):
+    """Two ports wired to the same leaf, both using the overwriting 'set'
+    updater instead of a commutative one like 'accumulate'."""
+    name = 'same_leaf_set_process'
+
+    def ports_schema(self) -> Schema:
+        return {
+            'A': {'x': {'_default': None, '_updater': 'set', '_emit': True}},
+            'B': {'x': {'_default': None, '_updater': 'set', '_emit': True}}}
+
+    def next_update(
+            self,
+            timestep: Union[float, int],
+            states: State) -> Update:
+        return {'A': {'x': 'from_A'}, 'B': {'x': 'from_B'}}
+
+
+def test_same_leaf_overlap_ordering() -> None:
+    """When two ports resolve to the exact same leaf and the store's
+    updater overwrites rather than commutes (e.g. 'set'), the split
+    updates are applied in the order their ports appear in the topology
+    dict, so the last-listed port wins. This pins down the ordering
+    contract left implicit by the #209 fix: it is a function of topology
+    declaration order, not of anything about the update's content."""
+    process = SameLeafSetProcess({})
+
+    # 'B' listed after 'A' in the topology -> 'B' is applied last and wins.
+    exp = Engine(
+        processes={'proc': process},
+        topology={'proc': {'A': ('shared',), 'B': ('shared',)}},
+        initial_state={'shared': {'x': None}})
+    exp.update(1)
+    assert exp.state.get_path(('shared', 'x')).get_value() == 'from_B'
+
+    # Swapping the topology's declaration order swaps the winner, even
+    # though the process's update content is unchanged.
+    exp2 = Engine(
+        processes={'proc': process},
+        topology={'proc': {'B': ('shared',), 'A': ('shared',)}},
+        initial_state={'shared': {'x': None}})
+    exp2.update(1)
+    assert exp2.state.get_path(('shared', 'x')).get_value() == 'from_A'
+
+
+class OverlappingDeleteProcess(Process):
+    """Two ports wired to the same glob store, each independently
+    deleting and adding disjoint keys (see issue #209). Without the
+    per-port split, the two ports' ``_delete``/``_add`` directives would
+    be deep-merged in a single inversion pass, and since they are plain
+    lists rather than dicts, the second port's lists would simply
+    overwrite the first's instead of both taking effect."""
+    name = 'overlapping_delete_process'
+
+    def ports_schema(self) -> Schema:
+        return {
+            'A': {'*': {'_default': 0, '_emit': True}},
+            'B': {'*': {'_default': 0, '_emit': True}}}
+
+    def next_update(
+            self,
+            timestep: Union[float, int],
+            states: State) -> Update:
+        return {
+            'A': {'_delete': ['a1'], '_add': [{'key': 'a2', 'state': 1}]},
+            'B': {'_delete': ['b1'], '_add': [{'key': 'b2', 'state': 1}]}}
+
+
+def test_overlapping_delete_not_duplicated_or_dropped() -> None:
+    """Each port's ``_delete``/``_add`` directive is contained entirely
+    within that port's own split update, so when two overlapping ports
+    both delete/add keys in the same store, each key is deleted/added
+    exactly once -- neither duplicated across the split pieces nor
+    dropped by a merge, as both would silently overwrite in a single
+    combined inversion pass (see issue #209)."""
+    process = OverlappingDeleteProcess({})
+    exp = Engine(
+        processes={'proc': process},
+        topology={'proc': {'A': ('pool',), 'B': ('pool',)}},
+        initial_state={'pool': {'a1': 1, 'b1': 1}})
+
+    exp.update(1)
+    assert exp.state.get_path(('pool',)).get_value() == {
+        'a2': 1, 'b2': 1}
+
+
+class DivideWithMassProcess(Process):
+    """Divides agent 'm' through one port while adding to its mass
+    through another port wired straight to that mass."""
+    name = 'divide_with_mass_process'
+
+    def ports_schema(self) -> Schema:
+        return {
+            'agents': {'*': {'mass': {'_default': 0.0, '_divider': 'split'}}},
+            'mother_mass': {'_default': 0.0, '_divider': 'split'}}
+
+    def next_update(
+            self,
+            timestep: Union[float, int],
+            states: State) -> Update:
+        return {
+            'agents': {'_divide': {
+                'mother': 'm',
+                'daughters': [{'key': 'd1'}, {'key': 'd2'}]}},
+            'mother_mass': 4.0}
+
+
+def test_write_before_divide_follows_topology_order() -> None:
+    """Within one update, ``Store.apply_update`` applies ``_divide`` before
+    plain writes, so a write into the mother is dropped. Across split
+    updates, topology order decides: a port listed before the dividing
+    port has its write applied to the mother before it divides."""
+    process = DivideWithMassProcess({})
+
+    def divided_mass(topology: Topology) -> State:
+        exp = Engine(
+            processes={'proc': process},
+            topology={'proc': topology},
+            initial_state={'agents': {'m': {'mass': 10.0}}})
+        # apply the update by hand: the views can't be rebuilt afterwards
+        # because 'mother_mass' points into the deleted mother
+        update = process.next_update(1, {})
+        exp.apply_update(
+            invert_topology(update, (
+                ('proc',), topology, topology_split_plan(topology))),
+            exp.state)
+        return exp.state.get_path(('agents',)).get_value()
+
+    # written first, then divided: each daughter gets half of 10 + 4
+    assert divided_mass({
+        'mother_mass': ('agents', 'm', 'mass'),
+        'agents': ('agents',)}) == {
+            'd1': {'mass': 7.0}, 'd2': {'mass': 7.0}}
+    # divided first: the mother is gone when the write arrives
+    assert divided_mass({
+        'agents': ('agents',),
+        'mother_mass': ('agents', 'm', 'mass')}) == {
+            'd1': {'mass': 5.0}, 'd2': {'mass': 5.0}}
+
+
+def test_topology_can_overlap() -> None:
+    """The static overlap check flags equal or nested targets wherever
+    they sit in the topology, resolves a bare ``_path`` to its base, and
+    gives up (assumes overlap) on anything it can't resolve."""
+    assert not topology_can_overlap({'a': ('x',), 'b': ('y',)})
+    # one target is a path prefix of the other, whatever the input order
+    assert topology_can_overlap(
+        {'a': ('x', 'y'), 'c': ('w',), 'b': ('x',)})
+    assert topology_can_overlap({'a': ('x',), 'b': ('x',)})
+    # a string prefix is not a path prefix
+    assert not topology_can_overlap({'a': ('x',), 'b': ('xy',)})
+    # '..' is resolved before comparing
+    assert topology_can_overlap({'a': ('y', '..', 'x'), 'b': ('x',)})
+    # mixed key types don't break sorting
+    assert topology_can_overlap({'a': (1,), 'b': ('z',), 'c': (1, 'q')})
+
+    # a bare '_path' writes only under its base, even nested in a dict
+    assert not topology_can_overlap(
+        {'a': {'_path': ('x',)}, 'b': ('y',)})
+    assert not topology_can_overlap(
+        {'a': {'v': {'_path': ('x',)}, 'w': ('y',)}})
+    assert topology_can_overlap(
+        {'a': {'_path': ('x',)}, 'b': ('x', 'z')})
+    # a '_path' route under a child named after a route key can't meet an
+    # unlisted key, so the port writes only under its base...
+    assert not topology_can_overlap(
+        {'a': {'_path': ('x',), 'v': ('v',), 'w': ('w', 'deep')},
+         'b': ('y',)})
+    assert topology_can_overlap(
+        {'a': {'_path': ('x',), 'v': ('v',)}, 'b': ('x', 'z')})
+    # ...plus wherever its routes leave the base
+    assert not topology_can_overlap(
+        {'a': {'_path': ('x',), 'v': ('..', 'y')}, 'b': ('z',)})
+    assert topology_can_overlap(
+        {'a': {'_path': ('x',), 'v': ('..', 'y')}, 'b': ('y',)})
+    # a renaming route could meet an unlisted key of that name, and a
+    # route onto or above the base contains them all
+    assert topology_can_overlap({'a': {'_path': ('x',), 'v': ('w',)}})
+    assert topology_can_overlap({'a': {'_path': ('x',), 'v': ()}})
+    assert topology_can_overlap({'a': {'_path': ('x', 'y'), 'v': ('..',)}})
+    # two routes onto one store still overlap
+    assert topology_can_overlap(
+        {'a': {'_path': ('x',), 'v': ('v',), 'w': ('v',)}})
+    # a tuple glob writes only under its path, even nested in a port...
+    assert not topology_can_overlap({'*': ('cells',), 'env': ('env',)})
+    assert topology_can_overlap({'*': ('cells',), 'special': ('cells', '0')})
+    assert not topology_can_overlap(
+        {'agents': {'*': ('cells',), 'special': ('special_store',)}})
+    # ...but a glob with per-child routes isn't resolved statically
+    assert topology_can_overlap({'*': {'m': ('stats', 'm')}})
+
+    # large topologies are checked in roughly linear time
+    many: Topology = {f'p{i}': ('cell', f's{i}') for i in range(20000)}
+    assert not topology_can_overlap(many)
+    many['last'] = ('cell', 's123', 'deeper')
+    assert topology_can_overlap(many)
+
+
+def test_topology_split_plan() -> None:
+    """Consecutive non-overlapping ports share a group; a port starts a new
+    group when it overlaps the current one, and ports that can't be
+    resolved statically or that overlap themselves stand alone."""
+    path_routes = {'_path': ('p',), 'r': ('q',)}
+    self_overlap = {'u': ('s',), 'v': ('s',)}
+    topology: Topology = {
+        'a': ('x',),
+        'b': ('y',),
+        'c': ('x', 'deep'),  # nested in 'a': new group
+        'd': ('z',),
+        '*': ('cells',),  # a tuple glob joins a group like any port
+        'e': path_routes,
+        'f': self_overlap,
+        'g': ('w',),
+        'h': ('x',),  # 'a' is in an earlier group, so no new group
+    }
+    assert topology_split_plan(topology) == [
+        (True, {'a': ('x',), 'b': ('y',)}),
+        (True, {'c': ('x', 'deep'), 'd': ('z',), '*': ('cells',)}),
+        (False, {'e': path_routes}),
+        (False, {'f': self_overlap}),
+        (True, {'g': ('w',), 'h': ('x',)}),
+    ]
+    assert topology_split_plan({'a': ('x',), 'b': ('y',)}) is None
+    assert topology_split_plan({}) is None
+    # a glob with per-child routes stands alone
+    child_routes = {'m': ('stats', 'm')}
+    assert topology_split_plan({'*': child_routes, 'b': ('y',)}) == [
+        (False, {'*': child_routes}),
+        (True, {'b': ('y',)}),
+    ]
+
+    # one overlap among many ports costs one extra update, not one each
+    many: Topology = {f'p{i}': (f's{i}',) for i in range(50)}
+    many['p1'] = ('s0',)
+    update = {port: {'v': 1} for port in many}
+    inverted = invert_topology(
+        update, (('proc',), many, topology_split_plan(many)))
+    assert len(inverted) == 2
+    assert inverted[0] == {'s0': {'v': 1}}
+    assert inverted[1]['s0'] == {'v': 1}
+    assert len(inverted[1]) == 49
+
+
+class UpAndLocalProcess(Process):
+    """Writes the same store through a port to its parent's parent and
+    through a port to a store next to it."""
+    name = 'up_and_local_process'
+
+    def ports_schema(self) -> Schema:
+        return {
+            'up': {'cell': {'y': {'_default': 0}}},
+            'local': {'_default': 0}}
+
+    def next_update(
+            self,
+            timestep: Union[float, int],
+            states: State) -> Update:
+        return {'up': {'cell': {'y': 1}}, 'local': 10}
+
+
+def test_overlap_check_resolves_from_process_path() -> None:
+    """Targets are compared as absolute paths: ``('..',)`` contains
+    ``('y',)`` even though neither tuple is a prefix of the other, and
+    whether two ports overlap can depend on where the process sits."""
+    up_and_local: Topology = {'up': ('..',), 'local': ('y',)}
+    assert topology_can_overlap(up_and_local, ('cell',))
+    # an agent's usual environment port doesn't overlap its own stores...
+    agent: Topology = {'env': ('..', 'external'), 'internal': ('internal',)}
+    assert not topology_can_overlap(agent, ('agents', 'a'))
+    # ...unless the agent's own name makes it so
+    assert topology_can_overlap(agent, ('agents', 'external'))
+    # without the process's path, a route that climbs out of it can't be
+    # compared, so it's assumed to overlap
+    assert topology_can_overlap(agent)
+
+    # end to end: both writes to cell/y apply
+    exp = Engine(
+        processes={'cell': {'proc': UpAndLocalProcess({})}},
+        topology={'cell': {'proc': up_and_local}},
+        initial_state={'cell': {'y': 0}})
+    exp.update(1)
+    assert exp.state.get_path(('cell', 'y')).get_value() == 11
+
+    # the cached plan is tied to the path it was computed from
+    proc_store = exp.state.get_path(('cell', 'proc'))
+    assert proc_store.invert_topology_snapshot[0] == ('cell', 'proc')
+    proc_store.invert_topology_snapshot = (
+        ('elsewhere', 'proc'), proc_store.invert_topology_snapshot[1])
+    exp.update(1)
+    assert proc_store.invert_topology_snapshot[0] == ('cell', 'proc')
+    assert exp.state.get_path(('cell', 'y')).get_value() == 22
+
+
+class GlobTotalProcess(Process):
+    """Each glob child's ``m`` is routed out of the child to one shared
+    ``total`` store."""
+    name = 'glob_total_process'
+
+    def ports_schema(self) -> Schema:
+        return {
+            'cells': {'*': {'m': {'_default': 0}}},
+            'total': {'_default': 0}}
+
+    def next_update(
+            self,
+            timestep: Union[float, int],
+            states: State) -> Update:
+        return {'cells': {'a': {'m': 1}, 'b': {'m': 10}}}
+
+
+def test_glob_children_split_when_routes_collide() -> None:
+    """A glob whose per-child routes climb out of the child, or overlap
+    each other, is split per child so no child's write is lost; one whose
+    routes stay inside each child is still a single update."""
+    def inverted(update: Update, topology: Topology) -> List[State]:
+        return invert_topology(
+            update, (('proc',), topology, topology_split_plan(topology)))
+
+    # every child's m goes to the same store
+    assert inverted(
+        {'0': {'m': 1}, '1': {'m': 10}},
+        {'*': {'m': ('..', 'total')}}) == [{'total': 1}, {'total': 10}]
+    # two routes inside each child land on the same store
+    assert inverted(
+        {'0': {'a': 1, 'b': 2}},
+        {'*': {'a': ('s',), 'b': ('s',)}}) == [{'0': {'s': 1}}, {'0': {'s': 2}}]
+    # routes that stay inside each child and don't overlap: one update
+    assert inverted(
+        {'0': {'m': 1}, '1': {'m': 10}},
+        {'*': {'m': ('stats', 'm')}}) == [
+            {'0': {'stats': {'m': 1}}, '1': {'stats': {'m': 10}}}]
+    # a glob inside a port, next to a named route onto one of its children
+    assert inverted(
+        {'agents': {'0': {'m': 1}, 'special': {'m': 10}}},
+        {'agents': {'*': ('cells',), 'special': ('cells', '0')}}) == [
+            {'cells': {'0': {'m': 1}}}, {'cells': {'0': {'m': 10}}}]
+
+    # end to end: both children's contributions reach total
+    exp = Engine(
+        processes={'proc': GlobTotalProcess({})},
+        topology={
+            'proc': {
+                'cells': {
+                    '_path': ('cells',),
+                    '*': {'m': ('..', '..', 'total')}},
+                'total': ('total',)}},
+        initial_state={'cells': {'a': {}, 'b': {}}, 'total': 0})
+    exp.update(1)
+    assert exp.state.get_path(('total',)).get_value() == 11
+
+
+class BarePathProcess(Process):
+    """Ports wired with bare ``_path`` topologies, one holding a leaf."""
+    name = 'bare_path_process'
+
+    def ports_schema(self) -> Schema:
+        return {
+            'trigger': {'_default': False, '_updater': 'set'},
+            'cell': {
+                'x': {'_default': 0},
+                'y': {'_default': 0}},
+            'other': {'z': {'_default': 0}}}
+
+    def next_update(
+            self,
+            timestep: Union[float, int],
+            states: State) -> Update:
+        return {
+            'trigger': True,
+            'cell': {'x': 1, 'y': 2},
+            'other': {'z': 3}}
+
+
+def test_bare_path_fast_path() -> None:
+    """Bare ``_path`` ports with distinct bases take the single-pass fast
+    path, and give the same result as when they overlap and are split."""
+    topology: Dict[str, Any] = {
+        'trigger': {'_path': ('trig',)},
+        'cell': {'_path': ('cell',)},
+        'other': ('elsewhere',)}
+    exp = Engine(
+        processes={'proc': BarePathProcess({})},
+        topology={'proc': topology},
+        initial_state={'trig': False, 'cell': {'x': 0, 'y': 0}})
+    exp.update(1)
+    assert exp.state.get_path(('proc',)).invert_can_overlap is False
+    assert exp.state.get_path(('trig',)).get_value() is True
+    assert exp.state.get_path(('cell',)).get_value() == {'x': 1, 'y': 2}
+    assert exp.state.get_path(('elsewhere',)).get_value() == {'z': 3}
+
+    # point 'other' into the 'cell' base: both writes to cell/z apply
+    overlapping = dict(topology, other=('cell',))
+    exp = Engine(
+        processes={'proc': BarePathProcess({})},
+        topology={'proc': overlapping},
+        initial_state={'trig': False, 'cell': {'x': 0, 'y': 0, 'z': 0}})
+    exp.update(1)
+    assert exp.state.get_path(('proc',)).invert_can_overlap is True
+    assert exp.state.get_path(('cell',)).get_value() == {
+        'x': 1, 'y': 2, 'z': 3}
+
+
+def test_path_defaults_inverted_together() -> None:
+    """Unlisted keys of a split ``_path`` port go to distinct children of
+    its base, so they're inverted as one update after the explicit routes
+    instead of one update each -- and an explicit route aliasing a default
+    key still gets both contributions."""
+    update = {
+        'port': {'base_var': 1, 'near_var': 2, 'extra': 4, 'far_var': 3}}
+    topology: Topology = {
+        'port': {
+            '_path': ('base',),
+            'near_var': ('near',),
+            'far_var': ('..', 'far')}}
+    inverted = invert_topology(
+        update, (('proc',), topology, topology_split_plan(topology)))
+    # one update per explicit route, then one for all the defaults
+    assert inverted == [
+        {'base': {'near': 2}},
+        {'far': 3},
+        {'base': {'base_var': 1, 'extra': 4}}]
+
+    # 'near_var' is routed onto base/base_var, the default key's store
+    process = PathRewireProcess({})
+    exp = Engine(
+        processes={'proc': process},
+        topology={
+            'proc': {
+                'port': {
+                    '_path': ('base',),
+                    'near_var': ('base_var',),
+                    'far_var': ('..', 'far')}}},
+        initial_state={'base': {'base_var': 0}, 'far': 0})
+    exp.update(1)
+    assert exp.state.get_path(('base', 'base_var')).get_value() == 3
+
+
+def test_path_routes_fast_path() -> None:
+    """A ``_path`` port whose routes keep their own names, or leave the
+    base, is inverted in a single pass along with the other ports."""
+    process = PathRewireProcess({})
+    topology: Topology = {
+        'port': {
+            '_path': ('base',),
+            'near_var': ('near_var', 'value'),
+            'far_var': ('..', 'far')}}
+    assert topology_split_plan(topology) is None
+
+    exp = Engine(
+        processes={'proc': process},
+        topology={'proc': topology},
+        initial_state={
+            'base': {'base_var': 0, 'near_var': {'value': 0}}, 'far': 0})
+    exp.update(1)
+    assert exp.state.get_path(('proc',)).invert_can_overlap is False
+    assert exp.state.get_path(('base',)).get_value() == {
+        'base_var': 1, 'near_var': {'value': 2}}
+    assert exp.state.get_path(('far',)).get_value() == 3
 
 
 def test_emit_config() -> None:
@@ -1305,6 +2737,35 @@ engine_tests = {
     '20': test_add_new_state,
     '21': test_floating_point_timesteps,
     '22': test_move_update,
+    '23': test_dict_topology_multi_port,
+    '24': test_multi_port_initial_state,
+    '25': test_multi_port_initial_state_direct_leaf,
+    '26': test_multi_port_dict_values,
+    '27': test_mixed_topology_multi_port,
+    '28': test_direct_leaf_multi_port,
+    '29': test_partial_update_multi_port,
+    '30': test_sibling_var_multi_port,
+    '31': test_nested_subtree_multi_port,
+    '32': test_glob_root_multi_port,
+    '33': test_glob_plus_direct_port,
+    '34': test_intra_port_scalar_overlap,
+    '35': test_intra_port_dict_overlap,
+    '36': test_path_route_overlap,
+    '37': test_path_directive_not_split,
+    '38': test_path_base_rooted_routes,
+    '39': test_one_off_updater_override,
+    '40': test_invert_cache_invalidated_on_rewire,
+    '41': test_same_leaf_overlap_ordering,
+    '42': test_overlapping_delete_not_duplicated_or_dropped,
+    '43': test_topology_edits_invalidate_cache,
+    '44': test_topology_can_overlap,
+    '47': test_topology_split_plan,
+    '48': test_overlap_check_resolves_from_process_path,
+    '49': test_glob_children_split_when_routes_collide,
+    '45': test_bare_path_fast_path,
+    '46': test_path_defaults_inverted_together,
+    '50': test_write_before_divide_follows_topology_order,
+    '51': test_path_routes_fast_path,
 }
 
 

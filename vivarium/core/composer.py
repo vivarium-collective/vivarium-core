@@ -60,10 +60,8 @@ def _get_composite_state_recur(
                 process_state = node.initial_state(config.get(node.name))
             elif state_type == 'default':
                 process_state = node.default_state()
-            # Prevent multiupdates from forming when a single process has
-            # multiple ports to the same stores holding a dictionary
             sub_state = inverse_topology(
-                path, process_state, sub_topology, multi_updates=False)
+                path, process_state, sub_topology)
         else:
             raise ValueError(f'invalid processes {sub_processes} or steps'
                              + str(sub_steps))

@@ -1,5 +1,31 @@
 # Changelog
 
+## Unreleased
+* (#244) Fix #209 for real: when a process's topology routes two ports
+  (or two variables of one port) to the same store, both updates are now
+  applied in sequence instead of one silently overwriting the other. A
+  cheap check, cached per process store until its topology changes, keeps
+  the original single-pass inversion for the common non-overlapping case.
+* `inverse_topology` merges in place instead of copying the whole result
+  for every port, so inverting an update is linear rather than quadratic
+  in the number of ports (about 2.7x faster engine steps at 2000 ports),
+  and the inverse no longer shares dicts with the process's update.
+* Fix `inverse_topology` routing a key that has its own port both to that
+  port and to a sibling glob (`*`), which also raised a `TypeError` for a
+  leaf value under a nested glob.
+* Fix a glob whose per-child routes climb out of the child (e.g.
+  `'*': {'m': ('..', 'total')}`) or overlap each other keeping only one
+  child's contribution to the shared store.
+* Fix `normalize_path` cancelling leading `..` steps against each other
+  (`('..', '..', 'x')` became `('x',)`).
+* **Breaking:** removed the `multi_updates` keyword argument from
+  `vivarium.library.topology.inverse_topology`, along with the
+  `_multi_update` mechanism it supported: `MULTI_UPDATE_KEY`,
+  `deep_merge_multi_update`, and `remove_multi_update` are gone from
+  `vivarium.library.dict_utils`. All are superseded by the per-route split
+  above. Any external caller passing `multi_updates=` will need to drop
+  that argument.
+
 ## v1.6.5
 * (#241) Drop Python 3.9 support in favor of 3.12 and 3.13,
 bump required networkx to 3.4, fix issue with plot_topology

@@ -10,8 +10,7 @@ a BSON-compatible form.
 import re
 import math
 import warnings
-from typing import Any, List, Optional, Union
-from collections.abc import Callable
+from typing import Any, List, Optional, Union, Callable
 
 import orjson
 import numpy as np

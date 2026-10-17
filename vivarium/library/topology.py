@@ -4,10 +4,11 @@ Topology Utilities
 ==================
 '''
 
+import collections.abc
 import copy
 import re
 
-from vivarium.library.dict_utils import deep_merge, deep_merge_multi_update
+from vivarium.library.dict_utils import deep_merge
 
 
 def get_in(d, path, default=None):
@@ -141,7 +142,7 @@ def dict_to_paths(root, d):
         return [(root, d)]
 
 
-def inverse_topology(outer, update, topology, inverse=None, multi_updates=True):
+def inverse_topology(outer, update, topology, inverse=None):
     '''
     Transform an update from the form its process produced into
     one aligned to the given topology.
@@ -150,36 +151,41 @@ def inverse_topology(outer, update, topology, inverse=None, multi_updates=True):
     the perspective of a Process ports_schema()) lives in `Store`, called
     `topology_state`. This one stands alone as it does not require a store
     to calculate.
+
+    Updates that overlap on the same store are merged with
+    ``deep_merge``. When two contributions target the exact same
+    leaf, the last one wins; callers that need both applied (e.g.
+    :py:func:`vivarium.core.engine.invert_topology`) split the update
+    into separate, sequentially-applied updates before calling this.
     '''
 
     inverse = inverse or {}
 
     for key, path in topology.items():
         if key == '*':
+            # keys with their own route are not glob children
+            glob_children = [
+                (child, child_update)
+                for child, child_update in update.items()
+                if child == '*' or child not in topology]
             if isinstance(path, dict):
-                node = inverse
                 if '_path' in path:
                     path = path.copy()
                     inner = normalize_path(outer + path.pop('_path'))
                 else:
                     inner = outer
 
-                for child, child_update in update.items():
+                for child, child_update in glob_children:
                     inverse = inverse_topology(
                         inner + (child,),
-                        update[child],
+                        child_update,
                         path,
-                        inverse,
-                        multi_updates)
+                        inverse)
             else:
-                for child, child_update in update.items():
+                for child, child_update in glob_children:
                     inner = normalize_path(outer + path + (child,))
                     if isinstance(child_update, dict):
-                        inverse = update_in(
-                            inverse,
-                            inner,
-                            lambda current: deep_merge(
-                                current, child_update))
+                        _merge_at(inverse, inner, child_update)
                     else:
                         assoc_path(inverse, inner, child_update)
 
@@ -190,7 +196,13 @@ def inverse_topology(outer, update, topology, inverse=None, multi_updates=True):
                     path = path.copy()
                     inner = normalize_path(outer + path.pop('_path'))
 
-                    for update_key in update[key].keys():
+                    if not isinstance(value, dict):
+                        # A leaf value is routed directly to the store at
+                        # ``_path`` instead of to keyed sub-stores.
+                        assoc_path(inverse, inner, value)
+                        continue
+
+                    for update_key in value.keys():
                         if update_key not in path and '*' not in path:
                             path[update_key] = (update_key,)
                 else:
@@ -200,33 +212,59 @@ def inverse_topology(outer, update, topology, inverse=None, multi_updates=True):
                     inner,
                     value,
                     path,
-                    inverse,
-                    multi_updates)
+                    inverse)
             else:
                 inner = normalize_path(outer + path)
                 if isinstance(value, dict):
-                    if multi_updates:
-                        inverse = update_in(
-                            inverse,
-                            inner,
-                            lambda current: deep_merge_multi_update(current, value))
-                    # Do not allow multiupdates when forming initial state
-                    else:
-                        inverse = update_in(
-                            inverse,
-                            inner,
-                            lambda current: deep_merge(current, value))
+                    _merge_at(inverse, inner, value)
                 else:
                     assoc_path(inverse, inner, value)
     return inverse
 
 
+def _merge_at(tree, path, value):
+    """Deep-merge dict ``value`` into ``tree`` at ``path``, in place.
+
+    Unlike ``update_in``, this doesn't copy every dict along ``path``, so
+    building an inverse stays linear in the number of ports. Dicts from
+    ``value`` are copied as they are inserted instead, so ``tree`` never
+    shares a dict with ``value`` and later merges can't write into the
+    caller's update.
+    """
+    node = tree
+    for step in path:
+        node = node.setdefault(step, {})
+    _merge_copy(node, value)
+
+
+def _merge_copy(dct, merge_dct):
+    for key, value in merge_dct.items():
+        existing = dct.get(key)
+        if isinstance(existing, dict) \
+                and isinstance(value, collections.abc.Mapping):
+            _merge_copy(existing, value)
+        elif isinstance(value, dict):
+            dct[key] = _merge_copy({}, value)
+        else:
+            dct[key] = value
+    return dct
+
+
 def normalize_path(path):
-    """Make a path absolute by resolving ``..`` elements."""
+    """Resolve ``..`` elements against the steps before them.
+
+    A ``..`` with nothing left to climb out of is kept, so a path that
+    climbs above its start keeps all of its leading ``..`` steps.
+
+    >>> normalize_path(('a', 'b', '..', 'c'))
+    ('a', 'c')
+    >>> normalize_path(('a', '..', '..', '..', 'x'))
+    ('..', '..', 'x')
+    """
     progress = []
     for step in path:
-        if step == '..' and len(progress) > 0:
-            progress = progress[:-1]
+        if step == '..' and progress and progress[-1] != '..':
+            progress.pop()
         else:
             progress.append(step)
     return tuple(progress)
@@ -388,6 +426,57 @@ def test_inverse_topology():
                 'c': 20}}}
 
     assert inverse == expected_inverse
+
+
+def test_inverse_topology_leaves_update_untouched():
+    # nested and repeated routes merge into the inverse without writing
+    # into, or sharing dicts with, the caller's update
+    update = {
+        'a': {'x': {'y': 1}},
+        'b': {'z': 2},
+        'c': {'x': {'w': 3}},
+        'g': {'0': {'m': {'k': 4}}, '1': {'m': {'k': 5}}}}
+    original = copy.deepcopy(update)
+    topology = {
+        'a': ('s',),
+        'b': ('s', 'x'),
+        'c': ('s',),
+        'g': {'*': {'m': ('t',), 'n': ('t', 'deeper')}}}
+    inverse = inverse_topology((), update, topology)
+    assert inverse == {
+        's': {'x': {'y': 1, 'z': 2, 'w': 3}},
+        '0': {'t': {'k': 4}},
+        '1': {'t': {'k': 5}}}
+    assert update == original
+
+    inverse['s']['x']['new'] = True
+    inverse['0']['t']['new'] = True
+    assert update == original
+
+
+def test_inverse_topology_glob_skips_named_keys():
+    # a named port next to a top-level glob is not also a glob child
+    inverse = inverse_topology(
+        (),
+        {'special': {'mass': 100}, '1': {'mass': 1}},
+        {'*': ('cells',), 'special': ('cells', '0')})
+    assert inverse == {'cells': {'0': {'mass': 100}, '1': {'mass': 1}}}
+
+    # same for a glob nested under a '_path' port, with a dict value...
+    topology = {
+        'agents': {
+            '_path': ('cells',),
+            '*': {'mass': ('mass',)},
+            'special': ('special_store',)}}
+    inverse = inverse_topology(
+        (), {'agents': {'special': {'mass': 5}, '0': {'mass': 1}}}, topology)
+    assert inverse == {
+        'cells': {'0': {'mass': 1}, 'special_store': {'mass': 5}}}
+
+    # ...and with a leaf value, which used to raise a TypeError
+    inverse = inverse_topology(
+        (), {'agents': {'special': 5, '0': {'mass': 1}}}, topology)
+    assert inverse == {'cells': {'0': {'mass': 1}, 'special_store': 5}}
 
 
 def test_deletion():
