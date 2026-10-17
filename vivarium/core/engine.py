@@ -210,9 +210,9 @@ def topology_split_plan(
     ``(grouped, sub_topology)`` entries in topology order: a grouped entry
     holds consecutive ports with known, mutually non-overlapping targets,
     inverted together; any other entry holds one port (a glob with
-    per-child routes, a ``_path`` with explicit routes, a route that is
-    neither a tuple nor a dict, or a port that overlaps itself) to be split
-    per route. See
+    per-child routes, a ``_path`` route that might collide with the port's
+    unlisted keys, a route that is neither a tuple nor a dict, or a port
+    that overlaps itself) to be split per route. See
     :py:func:`invert_topology`. The plan depends only on the topology and
     ``outer``, so the engine caches it until either changes.
     """
@@ -270,8 +270,9 @@ def _resolve_targets(
     Returns the target paths resolved from ``outer``, or ``None`` when a
     route can't be resolved statically, in which case the caller must
     assume the ports can overlap. That covers a glob with per-child routes,
-    a ``_path`` with explicit routes, a route that is neither a tuple nor a
-    dict (such as a string rename), and a route that climbs out of
+    a ``_path`` route that might collide with the port's unlisted keys (see
+    :py:func:`_resolve_path_targets`), a route that is neither a tuple nor
+    a dict (such as a string rename), and a route that climbs out of
     ``outer``, since tuple prefixes only show nesting between paths that
     start from the same store.
     """
@@ -282,13 +283,10 @@ def _resolve_targets(
         if isinstance(sub_topology, tuple):
             # for a glob, every child is under this path
             target = normalize_path(outer + sub_topology)
-        elif isinstance(sub_topology, dict) \
-                and sub_topology.keys() == {'_path'}:
-            # a bare '_path' writes only under its base
-            target = normalize_path(outer + sub_topology['_path'])
-        elif isinstance(sub_topology, dict) \
-                and '_path' not in sub_topology:
-            nested = _resolve_targets(sub_topology, outer)
+        elif isinstance(sub_topology, dict):
+            nested = _resolve_path_targets(sub_topology, outer) \
+                if '_path' in sub_topology \
+                else _resolve_targets(sub_topology, outer)
             if nested is None:
                 return None
             targets.extend(nested)
@@ -299,6 +297,45 @@ def _resolve_targets(
             return None
         targets.append(target)
     return targets
+
+
+def _resolve_path_targets(
+        topology: Topology,
+        outer: HierarchyPath,
+) -> Optional[List[HierarchyPath]]:
+    """Resolve a ``_path`` port to its base plus any routes that leave it.
+
+    Every unlisted key writes to the child of the base named after it, so
+    the base stands for all of them. A route into the base can only be
+    shown not to collide with an unlisted key when it lands under a child
+    named after one of the route keys, which no unlisted key can be (e.g.
+    ``'mass': ('mass',)``). A route anywhere else in the base, or onto the
+    base or above it, gives ``None``.
+    """
+    base = normalize_path(outer + cast(HierarchyPath, topology['_path']))
+    if base[:1] == ('..',):
+        return None
+    routes = {key: path for key, path in topology.items() if key != '_path'}
+    targets = _resolve_targets(routes, base)
+    if targets is None or '*' in routes:
+        # with a glob, every unlisted key is a glob child, so the routes
+        # are all the port writes
+        return targets
+
+    seen = _TargetSet()
+    outside = []
+    for target in targets:
+        if seen.overlaps(target):
+            return None
+        seen.add(target)
+        if target[:len(base)] == base:
+            if len(target) == len(base) or target[len(base)] not in routes:
+                return None
+        elif base[:len(target)] == target:
+            return None
+        else:
+            outside.append(target)
+    return [base] + outside
 
 
 def _split_inverse(

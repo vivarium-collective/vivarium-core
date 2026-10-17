@@ -1497,8 +1497,26 @@ def test_topology_can_overlap() -> None:
         {'a': {'v': {'_path': ('x',)}, 'w': ('y',)}})
     assert topology_can_overlap(
         {'a': {'_path': ('x',)}, 'b': ('x', 'z')})
-    # explicit '_path' routes aren't resolved statically
-    assert topology_can_overlap({'a': {'_path': ('x',), 'v': ('v',)}})
+    # a '_path' route under a child named after a route key can't meet an
+    # unlisted key, so the port writes only under its base...
+    assert not topology_can_overlap(
+        {'a': {'_path': ('x',), 'v': ('v',), 'w': ('w', 'deep')},
+         'b': ('y',)})
+    assert topology_can_overlap(
+        {'a': {'_path': ('x',), 'v': ('v',)}, 'b': ('x', 'z')})
+    # ...plus wherever its routes leave the base
+    assert not topology_can_overlap(
+        {'a': {'_path': ('x',), 'v': ('..', 'y')}, 'b': ('z',)})
+    assert topology_can_overlap(
+        {'a': {'_path': ('x',), 'v': ('..', 'y')}, 'b': ('y',)})
+    # a renaming route could meet an unlisted key of that name, and a
+    # route onto or above the base contains them all
+    assert topology_can_overlap({'a': {'_path': ('x',), 'v': ('w',)}})
+    assert topology_can_overlap({'a': {'_path': ('x',), 'v': ()}})
+    assert topology_can_overlap({'a': {'_path': ('x', 'y'), 'v': ('..',)}})
+    # two routes onto one store still overlap
+    assert topology_can_overlap(
+        {'a': {'_path': ('x',), 'v': ('v',), 'w': ('v',)}})
     # a tuple glob writes only under its path, even nested in a port...
     assert not topology_can_overlap({'*': ('cells',), 'env': ('env',)})
     assert topology_can_overlap({'*': ('cells',), 'special': ('cells', '0')})
@@ -1751,6 +1769,29 @@ def test_path_defaults_inverted_together() -> None:
         initial_state={'base': {'base_var': 0}, 'far': 0})
     exp.update(1)
     assert exp.state.get_path(('base', 'base_var')).get_value() == 3
+
+
+def test_path_routes_fast_path() -> None:
+    """A ``_path`` port whose routes keep their own names, or leave the
+    base, is inverted in a single pass along with the other ports."""
+    process = PathRewireProcess({})
+    topology: Topology = {
+        'port': {
+            '_path': ('base',),
+            'near_var': ('near_var', 'value'),
+            'far_var': ('..', 'far')}}
+    assert topology_split_plan(topology) is None
+
+    exp = Engine(
+        processes={'proc': process},
+        topology={'proc': topology},
+        initial_state={
+            'base': {'base_var': 0, 'near_var': {'value': 0}}, 'far': 0})
+    exp.update(1)
+    assert exp.state.get_path(('proc',)).invert_can_overlap is False
+    assert exp.state.get_path(('base',)).get_value() == {
+        'base_var': 1, 'near_var': {'value': 2}}
+    assert exp.state.get_path(('far',)).get_value() == 3
 
 
 def test_emit_config() -> None:
@@ -2724,6 +2765,7 @@ engine_tests = {
     '45': test_bare_path_fast_path,
     '46': test_path_defaults_inverted_together,
     '50': test_write_before_divide_follows_topology_order,
+    '51': test_path_routes_fast_path,
 }
 
 
