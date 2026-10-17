@@ -125,14 +125,14 @@ def invert_topology(
     commutative updater like ``accumulate`` this doesn't matter, but for an
     overwriting updater like ``set``, the last-listed route wins whenever
     two routes land on the exact same leaf (see
-    :py:func:`vivarium.experiments.engine_tests.\
-test_same_leaf_overlap_ordering`).
+    ``test_same_leaf_overlap_ordering`` in
+    ``vivarium/experiments/engine_tests.py``).
 
     Each route's update (including any ``_delete``/``_add``/``_divide``
     directives it carries) lands in exactly one of the returned updates,
     so applying them in sequence can't double-process or drop a directive
-    (see :py:func:`vivarium.experiments.engine_tests.\
-test_overlapping_delete_not_duplicated_or_dropped`).
+    (see ``test_overlapping_delete_not_duplicated_or_dropped`` in
+    ``vivarium/experiments/engine_tests.py``).
 
     Args:
         update: The update.
