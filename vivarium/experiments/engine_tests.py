@@ -1493,6 +1493,56 @@ def test_topology_split_plan() -> None:
     assert len(inverted[1]) == 49
 
 
+class UpAndLocalProcess(Process):
+    """Writes the same store through a port to its parent's parent and
+    through a port to a store next to it."""
+    name = 'up_and_local_process'
+
+    def ports_schema(self) -> Schema:
+        return {
+            'up': {'cell': {'y': {'_default': 0}}},
+            'local': {'_default': 0}}
+
+    def next_update(
+            self,
+            timestep: Union[float, int],
+            states: State) -> Update:
+        return {'up': {'cell': {'y': 1}}, 'local': 10}
+
+
+def test_overlap_check_resolves_from_process_path() -> None:
+    """Targets are compared as absolute paths: ``('..',)`` contains
+    ``('y',)`` even though neither tuple is a prefix of the other, and
+    whether two ports overlap can depend on where the process sits."""
+    up_and_local: Topology = {'up': ('..',), 'local': ('y',)}
+    assert topology_can_overlap(up_and_local, ('cell',))
+    # an agent's usual environment port doesn't overlap its own stores...
+    agent: Topology = {'env': ('..', 'external'), 'internal': ('internal',)}
+    assert not topology_can_overlap(agent, ('agents', 'a'))
+    # ...unless the agent's own name makes it so
+    assert topology_can_overlap(agent, ('agents', 'external'))
+    # without the process's path, a route that climbs out of it can't be
+    # compared, so it's assumed to overlap
+    assert topology_can_overlap(agent)
+
+    # end to end: both writes to cell/y apply
+    exp = Engine(
+        processes={'cell': {'proc': UpAndLocalProcess({})}},
+        topology={'cell': {'proc': up_and_local}},
+        initial_state={'cell': {'y': 0}})
+    exp.update(1)
+    assert exp.state.get_path(('cell', 'y')).get_value() == 11
+
+    # the cached plan is tied to the path it was computed from
+    proc_store = exp.state.get_path(('cell', 'proc'))
+    assert proc_store.invert_topology_snapshot[0] == ('cell', 'proc')
+    proc_store.invert_topology_snapshot = (
+        ('elsewhere', 'proc'), proc_store.invert_topology_snapshot[1])
+    exp.update(1)
+    assert proc_store.invert_topology_snapshot[0] == ('cell', 'proc')
+    assert exp.state.get_path(('cell', 'y')).get_value() == 22
+
+
 class BarePathProcess(Process):
     """Ports wired with bare ``_path`` topologies, one holding a leaf."""
     name = 'bare_path_process'
@@ -2545,6 +2595,7 @@ engine_tests = {
     '43': test_topology_edits_invalidate_cache,
     '44': test_topology_can_overlap,
     '47': test_topology_split_plan,
+    '48': test_overlap_check_resolves_from_process_path,
     '45': test_bare_path_fast_path,
     '46': test_path_defaults_inverted_together,
 }

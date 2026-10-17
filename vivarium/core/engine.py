@@ -189,8 +189,16 @@ class _TargetSet:
         self.prefixes.update(target[:i] for i in range(len(target)))
 
 
-def topology_split_plan(topology: Topology) -> Optional[SplitPlan]:
+def topology_split_plan(
+        topology: Topology,
+        outer: HierarchyPath = (),
+) -> Optional[SplitPlan]:
     """Plan how to invert updates for a process topology.
+
+    Targets are resolved from ``outer``, the path of the process's parent
+    store. Pass it whenever it is known: two relative paths like ``('..',)``
+    and ``('y',)`` can't be compared on their own, so without it any route
+    that climbs out of ``outer`` counts as unresolvable.
 
     Returns ``None`` when every port resolves to a distinct, non-nested
     store, so updates can be inverted in a single pass. Otherwise returns
@@ -199,15 +207,15 @@ def topology_split_plan(topology: Topology) -> Optional[SplitPlan]:
     inverted together; any other entry holds one port (a glob, a ``_path``
     with explicit routes, a route that is neither a tuple nor a dict, or a
     port that overlaps itself) to be split per route. See
-    :py:func:`invert_topology`. The plan depends only on the topology, so
-    the engine caches it until the topology changes.
+    :py:func:`invert_topology`. The plan depends only on the topology and
+    ``outer``, so the engine caches it until either changes.
     """
     plan: SplitPlan = []
     group: Topology = {}
     written = _TargetSet()
     for port, sub_topology in topology.items():
         targets = None if port == '*' else _resolve_targets(
-            {port: sub_topology})
+            {port: sub_topology}, outer)
         if targets is not None:
             own = _TargetSet()
             for target in targets:
@@ -236,43 +244,55 @@ def topology_split_plan(topology: Topology) -> Optional[SplitPlan]:
     return plan
 
 
-def topology_can_overlap(topology: Topology) -> bool:
+def topology_can_overlap(
+        topology: Topology,
+        outer: HierarchyPath = (),
+) -> bool:
     """Whether a process topology could route two contributions to one leaf.
 
     ``False`` exactly when :py:func:`topology_split_plan` allows a single
     inversion pass.
     """
-    return topology_split_plan(topology) is not None
+    return topology_split_plan(topology, outer) is not None
 
 
-def _resolve_targets(topology: Topology) -> Optional[List[HierarchyPath]]:
+def _resolve_targets(
+        topology: Topology,
+        outer: HierarchyPath = (),
+) -> Optional[List[HierarchyPath]]:
     """Resolve a topology's ports to the store paths they write.
 
-    Returns the list of resolved (``..``-normalized) target paths, or
-    ``None`` when a route can't be resolved statically (a glob ``*``, a
-    ``_path`` with explicit routes, or a non-tuple/dict route such as a
-    string rename), in which case the caller must assume the ports can
-    overlap.
+    Returns the target paths resolved from ``outer``, or ``None`` when a
+    route can't be resolved statically, in which case the caller must
+    assume the ports can overlap. That covers a glob ``*``, a ``_path``
+    with explicit routes, a route that is neither a tuple nor a dict (such
+    as a string rename), and a route that climbs out of ``outer``, since
+    tuple prefixes only show nesting between paths that start from the
+    same store.
     """
     targets: List[HierarchyPath] = []
     for port, sub_topology in topology.items():
         if port == '*':
             return None
         if isinstance(sub_topology, tuple):
-            targets.append(normalize_path(sub_topology))
+            target = normalize_path(outer + sub_topology)
         elif isinstance(sub_topology, dict) \
                 and sub_topology.keys() == {'_path'}:
             # a bare '_path' writes only under its base
-            targets.append(normalize_path(sub_topology['_path']))
+            target = normalize_path(outer + sub_topology['_path'])
         elif isinstance(sub_topology, dict) \
                 and '_path' not in sub_topology \
                 and '*' not in sub_topology:
-            nested = _resolve_targets(sub_topology)
+            nested = _resolve_targets(sub_topology, outer)
             if nested is None:
                 return None
             targets.extend(nested)
+            continue
         else:
             return None
+        if target[:1] == ('..',):
+            return None
+        targets.append(target)
     return targets
 
 
@@ -1399,15 +1419,18 @@ def _process_update(
         interval,
         states)
 
-    # Recompute only when the topology differs from the one the cached
-    # decision came from. The snapshot is a deep copy so in-place edits
-    # to nested dicts can't change it too; its tuples are shared with the
-    # live topology, so the comparison is mostly identity checks.
+    # Recompute only when the process's path or topology differs from the
+    # ones the cached plan came from (a '_move' update can relocate the
+    # process). The snapshot holds a deep copy of the topology so in-place
+    # edits to nested dicts can't change it too; its tuples are shared
+    # with the live topology, so the comparison is mostly identity checks.
     if store.invert_can_overlap is None \
-            or store.topology != store.invert_topology_snapshot:
-        store.invert_split_plan = topology_split_plan(store.topology)
+            or (path, store.topology) != store.invert_topology_snapshot:
+        store.invert_split_plan = topology_split_plan(
+            store.topology, path[:-1])
         store.invert_can_overlap = store.invert_split_plan is not None
-        store.invert_topology_snapshot = copy.deepcopy(store.topology)
+        store.invert_topology_snapshot = (
+            path, copy.deepcopy(store.topology))
 
     absolute = Defer(
         process,

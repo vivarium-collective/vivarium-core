@@ -227,13 +227,13 @@ class Store:
         self.topology_view = None
         # cached decision (set by the Engine) of whether this process
         # store's ports can overlap, the plan for splitting its updates
-        # when they can (see engine.topology_split_plan), and the snapshot
-        # of self.topology they were computed from.
-        # The Engine recomputes the decision whenever self.topology no
-        # longer equals the snapshot, which catches reassignment and
-        # in-place edits at any depth without copying self.topology.
+        # when they can (see engine.topology_split_plan), and a snapshot
+        # of the process path and self.topology they were computed from.
+        # The Engine recomputes them whenever the path or self.topology no
+        # longer matches the snapshot, which catches a move, reassignment,
+        # and in-place edits at any depth without copying self.topology.
         self.invert_can_overlap: Optional[bool] = None
-        self.invert_topology_snapshot: Optional[Topology] = None
+        self.invert_topology_snapshot: Optional[tuple] = None
         self.invert_split_plan: Optional[list] = None
         # self.flow is None when this node has no flow (either because
         # it is not a Step or because it is a Step treated like a
