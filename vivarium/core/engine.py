@@ -132,7 +132,11 @@ def invert_topology(
     directives it carries) lands in exactly one of the returned updates,
     so applying them in sequence can't double-process or drop a directive
     (see ``test_overlapping_delete_not_duplicated_or_dropped`` in
-    ``vivarium/experiments/engine_tests.py``).
+    ``vivarium/experiments/engine_tests.py``). Within one update,
+    ``Store.apply_update`` still applies structural directives before
+    plain writes; across updates, topology order decides, so a write
+    listed before a ``_divide`` of its store lands before the division
+    (see ``test_write_before_divide_follows_topology_order``).
 
     Args:
         update: The update.

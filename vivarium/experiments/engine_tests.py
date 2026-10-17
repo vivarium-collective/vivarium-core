@@ -1420,6 +1420,60 @@ def test_overlapping_delete_not_duplicated_or_dropped() -> None:
         'a2': 1, 'b2': 1}
 
 
+class DivideWithMassProcess(Process):
+    """Divides agent 'm' through one port while adding to its mass
+    through another port wired straight to that mass."""
+    name = 'divide_with_mass_process'
+
+    def ports_schema(self) -> Schema:
+        return {
+            'agents': {'*': {'mass': {'_default': 0.0, '_divider': 'split'}}},
+            'mother_mass': {'_default': 0.0, '_divider': 'split'}}
+
+    def next_update(
+            self,
+            timestep: Union[float, int],
+            states: State) -> Update:
+        return {
+            'agents': {'_divide': {
+                'mother': 'm',
+                'daughters': [{'key': 'd1'}, {'key': 'd2'}]}},
+            'mother_mass': 4.0}
+
+
+def test_write_before_divide_follows_topology_order() -> None:
+    """Within one update, ``Store.apply_update`` applies ``_divide`` before
+    plain writes, so a write into the mother is dropped. Across split
+    updates, topology order decides: a port listed before the dividing
+    port has its write applied to the mother before it divides."""
+    process = DivideWithMassProcess({})
+
+    def divided_mass(topology: Topology) -> State:
+        exp = Engine(
+            processes={'proc': process},
+            topology={'proc': topology},
+            initial_state={'agents': {'m': {'mass': 10.0}}})
+        # apply the update by hand: the views can't be rebuilt afterwards
+        # because 'mother_mass' points into the deleted mother
+        update = process.next_update(1, {})
+        exp.apply_update(
+            invert_topology(update, (
+                ('proc',), topology, topology_split_plan(topology))),
+            exp.state)
+        return exp.state.get_path(('agents',)).get_value()
+
+    # written first, then divided: each daughter gets half of 10 + 4
+    assert divided_mass({
+        'mother_mass': ('agents', 'm', 'mass'),
+        'agents': ('agents',)}) == {
+            'd1': {'mass': 7.0}, 'd2': {'mass': 7.0}}
+    # divided first: the mother is gone when the write arrives
+    assert divided_mass({
+        'agents': ('agents',),
+        'mother_mass': ('agents', 'm', 'mass')}) == {
+            'd1': {'mass': 5.0}, 'd2': {'mass': 5.0}}
+
+
 def test_topology_can_overlap() -> None:
     """The static overlap check flags equal or nested targets wherever
     they sit in the topology, resolves a bare ``_path`` to its base, and
@@ -2669,6 +2723,7 @@ engine_tests = {
     '49': test_glob_children_split_when_routes_collide,
     '45': test_bare_path_fast_path,
     '46': test_path_defaults_inverted_together,
+    '50': test_write_before_divide_follows_topology_order,
 }
 
 
