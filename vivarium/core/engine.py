@@ -111,8 +111,13 @@ def invert_topology(
     the updates in sequence lets every contribution reach the target
     store's updater, so multiple ports -- or multiple variables of one
     port -- pointing at the same store all take effect instead of
-    overwriting one another (see issue #209). A glob (``*``) port is one
-    update over the keys that don't belong to a named port.
+    overwriting one another (see issue #209). A glob (``*``) takes every
+    key that doesn't have its own port. A tuple glob writes each child to
+    its own store, so it can share an update with ports it doesn't overlap.
+    A glob with per-child routes stays one update only when its routes
+    stay inside each child and don't overlap each other; otherwise each
+    child's routes are split like a port's, since routes that climb out of
+    the child (``..``) can make different children write the same store.
 
     Ordering contract: overlapping routes are applied in the order they
     appear in the topology dict (Python dicts preserve insertion order),
@@ -146,24 +151,20 @@ test_overlapping_delete_not_duplicated_or_dropped`).
 
     inverses: List[State] = []
     for grouped, sub_topology in plan:
-        if grouped:
-            sub_update = {
-                port: update[port] for port in sub_topology if port in update}
-            if sub_update:
-                inverses.append(
-                    inverse_topology(outer, sub_update, sub_topology))
-        elif '*' in sub_topology:
-            glob_update = {
+        sub_update = {
+            port: update[port] for port in sub_topology
+            if port != '*' and port in update}
+        if '*' in sub_topology:
+            # the glob takes every key that doesn't have its own port
+            sub_update.update({
                 key: value for key, value in update.items()
-                if key == '*' or key not in topology}
-            if glob_update:
-                inverses.append(
-                    inverse_topology(outer, glob_update, sub_topology))
+                if key == '*' or key not in topology})
+        if not sub_update:
+            continue
+        if grouped:
+            inverses.append(inverse_topology(outer, sub_update, sub_topology))
         else:
-            (port,) = sub_topology
-            if port in update:
-                inverses.extend(_split_inverse(
-                    outer, {port: update[port]}, sub_topology))
+            inverses.extend(_split_inverse(outer, sub_update, sub_topology))
     return inverses
 
 
@@ -204,9 +205,10 @@ def topology_split_plan(
     store, so updates can be inverted in a single pass. Otherwise returns
     ``(grouped, sub_topology)`` entries in topology order: a grouped entry
     holds consecutive ports with known, mutually non-overlapping targets,
-    inverted together; any other entry holds one port (a glob, a ``_path``
-    with explicit routes, a route that is neither a tuple nor a dict, or a
-    port that overlaps itself) to be split per route. See
+    inverted together; any other entry holds one port (a glob with
+    per-child routes, a ``_path`` with explicit routes, a route that is
+    neither a tuple nor a dict, or a port that overlaps itself) to be split
+    per route. See
     :py:func:`invert_topology`. The plan depends only on the topology and
     ``outer``, so the engine caches it until either changes.
     """
@@ -214,8 +216,7 @@ def topology_split_plan(
     group: Topology = {}
     written = _TargetSet()
     for port, sub_topology in topology.items():
-        targets = None if port == '*' else _resolve_targets(
-            {port: sub_topology}, outer)
+        targets = _resolve_targets({port: sub_topology}, outer)
         if targets is not None:
             own = _TargetSet()
             for target in targets:
@@ -264,25 +265,25 @@ def _resolve_targets(
 
     Returns the target paths resolved from ``outer``, or ``None`` when a
     route can't be resolved statically, in which case the caller must
-    assume the ports can overlap. That covers a glob ``*``, a ``_path``
-    with explicit routes, a route that is neither a tuple nor a dict (such
-    as a string rename), and a route that climbs out of ``outer``, since
-    tuple prefixes only show nesting between paths that start from the
-    same store.
+    assume the ports can overlap. That covers a glob with per-child routes,
+    a ``_path`` with explicit routes, a route that is neither a tuple nor a
+    dict (such as a string rename), and a route that climbs out of
+    ``outer``, since tuple prefixes only show nesting between paths that
+    start from the same store.
     """
     targets: List[HierarchyPath] = []
     for port, sub_topology in topology.items():
-        if port == '*':
+        if port == '*' and not isinstance(sub_topology, tuple):
             return None
         if isinstance(sub_topology, tuple):
+            # for a glob, every child is under this path
             target = normalize_path(outer + sub_topology)
         elif isinstance(sub_topology, dict) \
                 and sub_topology.keys() == {'_path'}:
             # a bare '_path' writes only under its base
             target = normalize_path(outer + sub_topology['_path'])
         elif isinstance(sub_topology, dict) \
-                and '_path' not in sub_topology \
-                and '*' not in sub_topology:
+                and '_path' not in sub_topology:
             nested = _resolve_targets(sub_topology, outer)
             if nested is None:
                 return None
@@ -303,12 +304,18 @@ def _split_inverse(
 ) -> List[State]:
     """Recursively split an update so overlapping routings stay separate.
 
-    ``topology`` has no glob (``*``); see :py:func:`invert_topology` for
-    the rationale.
+    See :py:func:`invert_topology` for the rationale.
     """
     inverses: List[State] = []
+    if '*' in topology:
+        glob_update = {
+            key: value for key, value in update.items()
+            if key == '*' or key not in topology}
+        if glob_update:
+            inverses.extend(_split_glob(outer, glob_update, topology['*']))
+
     for port, sub_topology in topology.items():
-        if port not in update:
+        if port == '*' or port not in update:
             continue
         value = update[port]
 
@@ -316,11 +323,10 @@ def _split_inverse(
         # that variables overlapping on the same store become separate,
         # sequentially-applied updates. A '_path' dict first shifts the base
         # path, then splits its explicit routes the same way. A tuple
-        # topology, a glob, or a bare '_path' maps the value to a single
-        # store as a unit, and a '_updater'/'_value' pair must stay together,
-        # so those are inverted whole.
+        # topology or a bare '_path' maps the value to a single store as a
+        # unit, and a '_updater'/'_value' pair must stay together, so those
+        # are inverted whole.
         if isinstance(sub_topology, dict) and isinstance(value, dict) \
-                and '*' not in sub_topology \
                 and not ('_updater' in value and '_value' in value):
             if '_path' in sub_topology:
                 routes = {
@@ -330,10 +336,11 @@ def _split_inverse(
                 if routes:
                     inner = normalize_path(outer + sub_topology['_path'])
                     inverses.extend(_split_inverse(inner, value, routes))
-                    # Unlisted keys go to distinct children of the base,
-                    # so they can't collide with each other: invert them
-                    # as one update, after the explicit routes.
-                    defaults = {
+                    # Unlisted keys go to distinct children of the base
+                    # (or are glob children, already handled), so they
+                    # can't collide with each other: invert them as one
+                    # update, after the explicit routes.
+                    defaults = {} if '*' in routes else {
                         key: sub_value for key, sub_value in value.items()
                         if key not in routes}
                     if defaults:
@@ -350,6 +357,47 @@ def _split_inverse(
                 outer, {port: value}, {port: sub_topology}))
 
     return inverses
+
+
+def _split_glob(
+        outer: HierarchyPath,
+        update: Update,
+        glob: Any,
+) -> List[State]:
+    """Invert a glob's children, splitting them when they might collide.
+
+    The children of a tuple glob, or of a glob whose per-child routes are
+    known, stay inside the child and don't overlap each other, write
+    disjoint subtrees, so they are inverted together. Otherwise each
+    child's routes are split on their own, one child after another.
+    """
+    if isinstance(glob, tuple) or _routes_stay_in_child(glob):
+        return [inverse_topology(outer, update, {'*': glob})]
+
+    routes = dict(glob)
+    base = normalize_path(outer + routes.pop('_path')) \
+        if '_path' in routes else outer
+    inverses: List[State] = []
+    for child, child_update in update.items():
+        inverses.extend(_split_inverse(base + (child,), child_update, routes))
+    return inverses
+
+
+def _routes_stay_in_child(glob: Topology) -> bool:
+    """Whether a glob's per-child routes are known, never climb out of the
+    child, and don't overlap each other."""
+    # resolved from the child itself, so a route that climbs out of it
+    # makes this None
+    targets = _resolve_targets(
+        {key: path for key, path in glob.items() if key != '_path'})
+    if targets is None:
+        return False
+    seen = _TargetSet()
+    for target in targets:
+        if seen.overlaps(target):
+            return False
+        seen.add(target)
+    return True
 
 
 def timestamp(dt: Optional[Any] = None) -> str:

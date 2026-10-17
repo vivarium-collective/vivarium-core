@@ -1442,9 +1442,15 @@ def test_topology_can_overlap() -> None:
         {'a': {'v': {'_path': ('x',)}, 'w': ('y',)}})
     assert topology_can_overlap(
         {'a': {'_path': ('x',)}, 'b': ('x', 'z')})
-    # explicit '_path' routes and globs aren't resolved statically
+    # explicit '_path' routes aren't resolved statically
     assert topology_can_overlap({'a': {'_path': ('x',), 'v': ('v',)}})
-    assert topology_can_overlap({'*': ('cells',)})
+    # a tuple glob writes only under its path, even nested in a port...
+    assert not topology_can_overlap({'*': ('cells',), 'env': ('env',)})
+    assert topology_can_overlap({'*': ('cells',), 'special': ('cells', '0')})
+    assert not topology_can_overlap(
+        {'agents': {'*': ('cells',), 'special': ('special_store',)}})
+    # ...but a glob with per-child routes isn't resolved statically
+    assert topology_can_overlap({'*': {'m': ('stats', 'm')}})
 
     # large topologies are checked in roughly linear time
     many: Topology = {f'p{i}': ('cell', f's{i}') for i in range(20000)}
@@ -1464,7 +1470,7 @@ def test_topology_split_plan() -> None:
         'b': ('y',),
         'c': ('x', 'deep'),  # nested in 'a': new group
         'd': ('z',),
-        '*': ('cells',),
+        '*': ('cells',),  # a tuple glob joins a group like any port
         'e': path_routes,
         'f': self_overlap,
         'g': ('w',),
@@ -1472,14 +1478,19 @@ def test_topology_split_plan() -> None:
     }
     assert topology_split_plan(topology) == [
         (True, {'a': ('x',), 'b': ('y',)}),
-        (True, {'c': ('x', 'deep'), 'd': ('z',)}),
-        (False, {'*': ('cells',)}),
+        (True, {'c': ('x', 'deep'), 'd': ('z',), '*': ('cells',)}),
         (False, {'e': path_routes}),
         (False, {'f': self_overlap}),
         (True, {'g': ('w',), 'h': ('x',)}),
     ]
     assert topology_split_plan({'a': ('x',), 'b': ('y',)}) is None
     assert topology_split_plan({}) is None
+    # a glob with per-child routes stands alone
+    child_routes = {'m': ('stats', 'm')}
+    assert topology_split_plan({'*': child_routes, 'b': ('y',)}) == [
+        (False, {'*': child_routes}),
+        (True, {'b': ('y',)}),
+    ]
 
     # one overlap among many ports costs one extra update, not one each
     many: Topology = {f'p{i}': (f's{i}',) for i in range(50)}
@@ -1541,6 +1552,64 @@ def test_overlap_check_resolves_from_process_path() -> None:
     exp.update(1)
     assert proc_store.invert_topology_snapshot[0] == ('cell', 'proc')
     assert exp.state.get_path(('cell', 'y')).get_value() == 22
+
+
+class GlobTotalProcess(Process):
+    """Each glob child's ``m`` is routed out of the child to one shared
+    ``total`` store."""
+    name = 'glob_total_process'
+
+    def ports_schema(self) -> Schema:
+        return {
+            'cells': {'*': {'m': {'_default': 0}}},
+            'total': {'_default': 0}}
+
+    def next_update(
+            self,
+            timestep: Union[float, int],
+            states: State) -> Update:
+        return {'cells': {'a': {'m': 1}, 'b': {'m': 10}}}
+
+
+def test_glob_children_split_when_routes_collide() -> None:
+    """A glob whose per-child routes climb out of the child, or overlap
+    each other, is split per child so no child's write is lost; one whose
+    routes stay inside each child is still a single update."""
+    def inverted(update: Update, topology: Topology) -> List[State]:
+        return invert_topology(
+            update, (('proc',), topology, topology_split_plan(topology)))
+
+    # every child's m goes to the same store
+    assert inverted(
+        {'0': {'m': 1}, '1': {'m': 10}},
+        {'*': {'m': ('..', 'total')}}) == [{'total': 1}, {'total': 10}]
+    # two routes inside each child land on the same store
+    assert inverted(
+        {'0': {'a': 1, 'b': 2}},
+        {'*': {'a': ('s',), 'b': ('s',)}}) == [{'0': {'s': 1}}, {'0': {'s': 2}}]
+    # routes that stay inside each child and don't overlap: one update
+    assert inverted(
+        {'0': {'m': 1}, '1': {'m': 10}},
+        {'*': {'m': ('stats', 'm')}}) == [
+            {'0': {'stats': {'m': 1}}, '1': {'stats': {'m': 10}}}]
+    # a glob inside a port, next to a named route onto one of its children
+    assert inverted(
+        {'agents': {'0': {'m': 1}, 'special': {'m': 10}}},
+        {'agents': {'*': ('cells',), 'special': ('cells', '0')}}) == [
+            {'cells': {'0': {'m': 1}}}, {'cells': {'0': {'m': 10}}}]
+
+    # end to end: both children's contributions reach total
+    exp = Engine(
+        processes={'proc': GlobTotalProcess({})},
+        topology={
+            'proc': {
+                'cells': {
+                    '_path': ('cells',),
+                    '*': {'m': ('..', '..', 'total')}},
+                'total': ('total',)}},
+        initial_state={'cells': {'a': {}, 'b': {}}, 'total': 0})
+    exp.update(1)
+    assert exp.state.get_path(('total',)).get_value() == 11
 
 
 class BarePathProcess(Process):
@@ -2596,6 +2665,7 @@ engine_tests = {
     '44': test_topology_can_overlap,
     '47': test_topology_split_plan,
     '48': test_overlap_check_resolves_from_process_path,
+    '49': test_glob_children_split_when_routes_collide,
     '45': test_bare_path_fast_path,
     '46': test_path_defaults_inverted_together,
 }

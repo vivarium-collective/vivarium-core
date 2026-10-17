@@ -13,6 +13,9 @@
 * Fix `inverse_topology` routing a key that has its own port both to that
   port and to a sibling glob (`*`), which also raised a `TypeError` for a
   leaf value under a nested glob.
+* Fix a glob whose per-child routes climb out of the child (e.g.
+  `'*': {'m': ('..', 'total')}`) or overlap each other keeping only one
+  child's contribution to the shared store.
 * Fix `normalize_path` cancelling leading `..` steps against each other
   (`('..', '..', 'x')` became `('x',)`).
 * **Breaking:** removed the `multi_updates` keyword argument from
