@@ -1288,6 +1288,7 @@ def test_topology_edits_invalidate_cache() -> None:
     passed to the Engine -- must make the engine recompute the cached
     overlap decision, so a manual rewire can't leave a stale fast-path
     verdict behind (see issue #209)."""
+    # pylint: disable=unused-argument
 
     def rewire_port2_onto_s1(topology: dict, store: Store) -> None:
         topology['proc']['port2'] = ('s1',)
