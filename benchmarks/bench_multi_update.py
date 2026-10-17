@@ -33,6 +33,7 @@ SHAPES = [
     ('overlap', 'tuples, plus ports p0 and p1 both on store s0'),
     ('overlap_leaf', "tuples, plus p0 and p1 as {'v': ('s0', 'v')} "
                      '(leaf overlap: issue #209)'),
+    ('glob', "tuples, plus a top-level glob '*': ('cells',) over n children"),
 ]
 
 
@@ -40,19 +41,25 @@ def make_process_class(Process):
     class Many(Process):
         """``n`` scalar ports plus one port holding ``n`` variables."""
         name = 'many'
-        defaults = {'n': 10}
+        defaults = {'n': 10, 'glob': False}
 
         def ports_schema(self):
             n = self.parameters['n']
-            return {
+            schema = {
                 'bulk': {f'm{i}': {'_default': 0} for i in range(n)},
                 **{f'p{i}': {'v': {'_default': 0}} for i in range(n)}}
+            if self.parameters['glob']:
+                schema['*'] = {'v': {'_default': 0}}
+            return schema
 
         def next_update(self, timestep, states):
             n = self.parameters['n']
-            return {
+            update = {
                 'bulk': {f'm{i}': 1 for i in range(n)},
                 **{f'p{i}': {'v': 1} for i in range(n)}}
+            if self.parameters['glob']:
+                update.update({f'c{i}': {'v': 1} for i in range(n)})
+            return update
 
     return Many
 
@@ -70,8 +77,12 @@ def make_topology(shape, n):
         'bare_path': {'_path': ('bulk',)},
         'path_routes': {'_path': ('bulk',), 'm0': ('m0',)},
         'path_overlap': {'_path': ('bulk',), 'm0': ('m0',)},
+        'glob': ('bulk',),
     }[shape]
-    return {'bulk': bulk, **ports}
+    topology = {'bulk': bulk, **ports}
+    if shape == 'glob':
+        topology['*'] = ('cells',)
+    return topology
 
 
 def expected_s0(shape, steps):
@@ -81,9 +92,12 @@ def expected_s0(shape, steps):
 
 
 def bench_case(Engine, Many, shape, n, steps, repeats, gc_enabled):
+    glob = shape == 'glob'
     exp = Engine(
-        processes={'proc': Many({'n': n})},
+        processes={'proc': Many({'n': n, 'glob': glob})},
         topology={'proc': make_topology(shape, n)},
+        initial_state=(
+            {'cells': {f'c{i}': {'v': 0} for i in range(n)}} if glob else None),
         emitter='null',
         display_info=False,
         progress_bar=False)
@@ -101,11 +115,15 @@ def bench_case(Engine, Many, shape, n, steps, repeats, gc_enabled):
 
     total_steps = 1 + repeats * steps
     s0 = exp.state.get_path(('s0',)).get_value()['v']
+    correct = s0 == expected_s0(shape, total_steps)
+    if glob:
+        correct = correct and exp.state.get_path(
+            ('cells', 'c0', 'v')).get_value() == total_steps
     return {
         'median_ms': statistics.median(times),
         'min_ms': min(times),
-        # False means an overlapping contribution was silently dropped
-        'correct': s0 == expected_s0(shape, total_steps),
+        # False means a contribution was silently dropped
+        'correct': correct,
     }
 
 
