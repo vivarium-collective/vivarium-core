@@ -251,11 +251,20 @@ def _merge_copy(dct, merge_dct):
 
 
 def normalize_path(path):
-    """Make a path absolute by resolving ``..`` elements."""
+    """Resolve ``..`` elements against the steps before them.
+
+    A ``..`` with nothing left to climb out of is kept, so a path that
+    climbs above its start keeps all of its leading ``..`` steps.
+
+    >>> normalize_path(('a', 'b', '..', 'c'))
+    ('a', 'c')
+    >>> normalize_path(('a', '..', '..', '..', 'x'))
+    ('..', '..', 'x')
+    """
     progress = []
     for step in path:
-        if step == '..' and len(progress) > 0:
-            progress = progress[:-1]
+        if step == '..' and progress and progress[-1] != '..':
+            progress.pop()
         else:
             progress.append(step)
     return tuple(progress)

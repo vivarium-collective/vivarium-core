@@ -13,6 +13,8 @@
 * Fix `inverse_topology` routing a key that has its own port both to that
   port and to a sibling glob (`*`), which also raised a `TypeError` for a
   leaf value under a nested glob.
+* Fix `normalize_path` cancelling leading `..` steps against each other
+  (`('..', '..', 'x')` became `('x',)`).
 * **Breaking:** removed the `multi_updates` keyword argument from
   `vivarium.library.topology.inverse_topology`, along with the
   `_multi_update` mechanism it supported: `MULTI_UPDATE_KEY`,
